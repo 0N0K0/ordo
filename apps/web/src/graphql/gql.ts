@@ -312,7 +312,7 @@ type Documents = {
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": typeof types.BulkSetRoutinesDoneDocument,
     "\n  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {\n    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)\n  }\n": typeof types.BulkDeleteRoutinesDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n": typeof types.SetRoutineDoneDocument,
-    "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)\n  }\n": typeof types.MoveRoutineOccurrenceDocument,
+    "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON, $confirmMerge: Boolean) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times, confirmMerge: $confirmMerge)\n  }\n": typeof types.MoveRoutineOccurrenceDocument,
     "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)\n  }\n": typeof types.ChangeRoutineOccurrenceDocument,
     "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {\n      archived\n      comments {\n        body\n        createdAt\n        updatedAt\n      }\n    }\n  }\n": typeof types.DeleteRoutineOccurrenceDocument,
     "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {\n    removeRoutineMove(id: $id, from: $from, comments: $comments)\n  }\n": typeof types.RemoveRoutineMoveDocument,
@@ -417,7 +417,7 @@ type Documents = {
     "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTypes {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTags {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": typeof types.TasksDataDocument,
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": typeof types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.CreateTaskDocument,
-    "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.UpdateTaskDocument,
+    "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!, $restoring: Boolean) {\n    updateTask(id: $id, input: $input, restoring: $restoring) {\n      ...TaskFields\n    }\n  }\n": typeof types.UpdateTaskDocument,
     "\n  mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {\n    duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": typeof types.DuplicateTaskDocument,
     "\n  mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {\n    moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)\n  }\n": typeof types.MoveTaskDocument,
     "\n  mutation AddTaskBlock($blockerId: ID!, $blockedId: ID!) {\n    addTaskBlock(blockerId: $blockerId, blockedId: $blockedId)\n  }\n": typeof types.AddTaskBlockDocument,
@@ -814,7 +814,7 @@ const documents: Documents = {
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": types.BulkSetRoutinesDoneDocument,
     "\n  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {\n    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)\n  }\n": types.BulkDeleteRoutinesDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n": types.SetRoutineDoneDocument,
-    "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)\n  }\n": types.MoveRoutineOccurrenceDocument,
+    "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON, $confirmMerge: Boolean) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times, confirmMerge: $confirmMerge)\n  }\n": types.MoveRoutineOccurrenceDocument,
     "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)\n  }\n": types.ChangeRoutineOccurrenceDocument,
     "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {\n      archived\n      comments {\n        body\n        createdAt\n        updatedAt\n      }\n    }\n  }\n": types.DeleteRoutineOccurrenceDocument,
     "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {\n    removeRoutineMove(id: $id, from: $from, comments: $comments)\n  }\n": types.RemoveRoutineMoveDocument,
@@ -919,7 +919,7 @@ const documents: Documents = {
     "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTypes {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTags {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": types.TasksDataDocument,
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": types.CreateTaskDocument,
-    "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": types.UpdateTaskDocument,
+    "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!, $restoring: Boolean) {\n    updateTask(id: $id, input: $input, restoring: $restoring) {\n      ...TaskFields\n    }\n  }\n": types.UpdateTaskDocument,
     "\n  mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {\n    duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": types.DuplicateTaskDocument,
     "\n  mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {\n    moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)\n  }\n": types.MoveTaskDocument,
     "\n  mutation AddTaskBlock($blockerId: ID!, $blockedId: ID!) {\n    addTaskBlock(blockerId: $blockerId, blockedId: $blockedId)\n  }\n": types.AddTaskBlockDocument,
@@ -2210,7 +2210,7 @@ export function graphql(source: "\n  mutation SetRoutineDone($id: ID!, $done: Bo
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)\n  }\n"): typeof import('./graphql').MoveRoutineOccurrenceDocument;
+export function graphql(source: "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON, $confirmMerge: Boolean) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times, confirmMerge: $confirmMerge)\n  }\n"): typeof import('./graphql').MoveRoutineOccurrenceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2630,7 +2630,7 @@ export function graphql(source: "\n  mutation CreateTask($input: TaskInput!) {\n
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n"): typeof import('./graphql').UpdateTaskDocument;
+export function graphql(source: "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!, $restoring: Boolean) {\n    updateTask(id: $id, input: $input, restoring: $restoring) {\n      ...TaskFields\n    }\n  }\n"): typeof import('./graphql').UpdateTaskDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

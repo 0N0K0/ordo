@@ -87,7 +87,8 @@ import { assertConditionSchedules, hasUnavailableSlots, loadSlotsOn, type Schedu
 import type { PeopleChangeSettler } from '../calendar/birthdays';
 import { assertProjectContributors, followProject } from '../projects/contributors';
 import { PARIS, parisToday } from '../../today';
-import { assertAllExist, findOrNotFound } from '../core/lookup';
+import { assertAllExist, assertExists, findOrNotFound } from '../core/lookup';
+import { undoOnFailure } from '../core/undo';
 import { archivedOn, archiveTree, assertActive, assertNoneArchived, assertNotArchived, refuseArchived, findActive } from '../core/archive';
 import { connectIds, orderedPair } from '../core/relations';
 import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
@@ -97,7 +98,7 @@ import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { deleteGoneComments, placeLegacyComments, restoreComments, type CommentSnapshot } from '../core/comments';
-import { assertLossConfirmed, lostOccurrences, remapOccurrenceRows, type LostOccurrences } from '../core/occurrence-rows';
+import { assertLossConfirmed, lostOccurrences, remapOccurrenceRows, type AfterSave, type LostOccurrences } from '../core/occurrence-rows';
 import { changedRoutineInheritance, clearedRoutineInput, effectiveRoutineOf, freezeRoutineInheritance, loadRoutineInheritance, syncInheritedRoutineProjects, withOwnMoves, type StoredInheritingRoutine } from './routine-inheritance';
 
 /**
@@ -369,6 +370,17 @@ function ruleSpans(routine: RoutineTiming, from: string, to: string, schedules: 
 }
 
 /**
+ * Exceptions of a routine that still apply: those whose day is one of its rule (or of its cases). An exception left by
+ * a change of the rule (its day no longer due) is ignored: it neither removes nor adds an occurrence.
+ * @param {RoutineTiming} routine Routine (its « quand » as it goes).
+ * @param {ScheduleContext} schedules Schedules.
+ * @returns {RoutineMove[]} Exceptions applied.
+ */
+function liveMoves(routine: RoutineTiming, schedules: ScheduleContext): RoutineMove[] {
+  return remember(routine, schedules, 'liveMoves', () => storedMoves(routine.moves).filter((move) => ruleSpans(routine, move.from, move.from, schedules).some((span) => span.end === move.from)));
+}
+
+/**
  * Current and next occurrences of a routine today (by due day): the current one is the last started on or before
  * today, the next one the first starting after; then its exceptions (occurrences moved to another day or deleted).
  * @param {RoutineTiming} routine Routine.
@@ -399,7 +411,7 @@ export function occurrencesOf(given: RoutineTiming, today = parisToday(), schedu
       if (found.next === null && found.current !== null && found.current < day) found = { ...found, current: null };
       return found;
     };
-    return movedOccurrences(compute, storedMoves(routine.moves), today);
+    return movedOccurrences(compute, liveMoves(routine, schedules), today);
   });
 }
 
@@ -427,7 +439,7 @@ export function occurrenceSpansBetween(
   const last = archived && archived <= to ? addDays(archived, -1) : to;
   if (last < from) return [];
   const spans = new Map<string, RoutineSpan & { cancelled?: boolean }>(ruleSpans(routine, from, last, schedules).map((span) => [span.end, span]));
-  for (const move of storedMoves(routine.moves)) {
+  for (const move of liveMoves(routine, schedules)) {
     const span = spans.get(move.from);
     spans.delete(move.from);
     if (move.to && move.to >= from && move.to <= last) spans.set(move.to, { start: move.to, end: move.to });
@@ -596,7 +608,7 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
  * @returns {RoutineDaySlot[]} Times.
  */
 function slotsOn(routine: RoutineTiming, occurrence: string, schedules: ScheduleContext): RoutineDaySlot[] {
-  const moves = storedMoves(routine.moves);
+  const moves = liveMoves(routine, schedules);
   const date = movedFrom(moves, occurrence);
   const move = moves.find((item) => item.from === date && item.to === occurrence);
   const base = date === occurrence ? ruleSlotsOn(routine, date, schedules) : dayMoments(routine, date, occurrence, schedules);
@@ -968,6 +980,8 @@ async function insertRoutine(input: RoutineInput, copyOf: string | null): Promis
  */
 export async function copySubRoutines(fromId: string, toId: string): Promise<number> {
   await assertNotArchived('routine', toId);
+  // Not under itself or one of its sub-routines: the copies would be copied again, without end.
+  if (toId === fromId || (await subtreeIds('routine', fromId, false)).includes(toId)) throw fieldError('toId', 'Les sous-routines ne se copient pas sous la routine elle-même ni sous l’une d’elles.');
   const copies = new Map<string, string>([[fromId, toId]]);
   const queue: string[] = [fromId];
   while (queue.length) {
@@ -1020,8 +1034,21 @@ export async function updateRoutine(id: string, given: RoutineInput, options: Om
     : adopted.length
       ? { ...given, inheritedFields: ROUTINE_INHERITABLE_FIELDS.filter((field) => adopted.includes(field) || new Set(given.inheritedFields ?? []).has(field)) }
       : given;
-  if (unparented) await freezeRoutineInheritance([id]);
-  const current = unparented ? await findRoutine(id) : found;
+  if (!unparented) return savedRoutine(found, input, options);
+  // Put back if the change is refused.
+  const thaw = await freezeRoutineInheritance([id]);
+  return undoOnFailure(async () => savedRoutine(await findRoutine(id), input, options), thaw);
+}
+
+/**
+ * Checks and saves the changes of a routine (`updateRoutine`).
+ * @param {Routine} current Routine as it is (made top-level: its inheritance already made its own).
+ * @param {RoutineInput} input Routine.
+ * @param {Omit<RoutineSaveOptions, 'copyOf'>} options Save options.
+ * @returns {Promise<number>} Links removed because they left its project tree.
+ */
+async function savedRoutine(current: Routine, input: RoutineInput, options: Omit<RoutineSaveOptions, 'copyOf'>): Promise<number> {
+  const { id } = current;
   const data = await parseRoutine(input, id, options);
   // Its occurrences and those of the sub-routines going by its « quand »: asked once for them all; their comments are
   // deleted once it is saved.
@@ -1163,15 +1190,16 @@ async function occurrenceChange(nexts: readonly Routine[], moved?: { from: strin
  * creation, deletion), the occurrences of the routines that it makes disappear (their condition, or the slots
  * « Indisponible », no longer leave them any moment; those ticked stay) lose their comments, as with a change of their
  * rule. Without `confirmLoss: true` while some would be lost, nothing changes
- * (CONFIRMATION_REQUIRED, asked once for all the routines); confirmed, those comments are deleted. Only the routines of
+ * (CONFIRMATION_REQUIRED, asked once for all the routines); confirmed, those comments are deleted once the change is
+ * saved (the caller runs what it returns after its save: a save refused loses nothing). Only the routines of
  * the workspace are looked at (not archived, with a condition or cases; every one when slots « Indisponible » may
  * count), and, for a change of schedules, those of the other workspaces naming them or setting a kind of this
  * workspace « Indisponible ».
  * @param {ScheduleEdit} edit Schedules and people of the workspace once changed.
  * @param {boolean} [confirmLoss] Loss confirmed (true), to confirm (false). Optional. Default = no question.
- * @returns {Promise<void>}
+ * @returns {Promise<AfterSave>} Deletion of those comments, to run once the change is saved.
  */
-export async function settleScheduleChange(edit: ScheduleEdit, confirmLoss?: boolean): Promise<void> {
+export async function settleScheduleChange(edit: ScheduleEdit, confirmLoss?: boolean): Promise<AfterSave> {
   const change: ScheduleChange = { workspaceId: currentWorkspaceId(), ...edit };
   // Here: every routine following schedules (the free time counts them all); only those naming birthdays for a change
   // of the people alone. Elsewhere: those naming one of these schedules, or a kind of this workspace (birthdays are
@@ -1203,7 +1231,9 @@ export async function settleScheduleChange(edit: ScheduleEdit, confirmLoss?: boo
   );
   const losses = [...here, ...elsewhere.flat()];
   assertLossConfirmed(losses, confirmLoss);
-  for (const lost of losses) await lost.settle();
+  return async () => {
+    for (const lost of losses) await lost.settle();
+  };
 }
 
 /**
@@ -1520,7 +1550,9 @@ export async function bulkDeleteRoutines(ids: string[], deleteSubRoutines: boole
 export async function moveRoutine(id: string, beforeId: string | null, parentId?: string | null, categoryIds: string[] | null = null, confirmLoss = false): Promise<void> {
   const routine = await findRoutine(id);
   refuseArchived(routine);
-  // The parent is checked (exists, not archived, no loop) by the regular update.
+  // The neighbour first: nothing is changed when it is unknown. The parent is checked (exists, not archived, no loop)
+  // by the regular update.
+  if (beforeId && beforeId !== id) await assertExists(prisma.routine, beforeId, 'Routine');
   const reparent = parentId !== undefined && parentId !== routine.parentId;
   if (reparent || categoryIds) await patchRoutine(id, { ...(reparent && { parentId }), ...(categoryIds && { categoryIds }) }, { confirmLoss });
   await moveBefore('routine', id, beforeId, 'Routine');
@@ -1546,12 +1578,16 @@ function hasOpened(routine: Routine, occurrence: string, today: string, schedule
  * @param {string | null} [date] Occurrence date. Optional. Default = the current occurrence.
  * @param {number | null} [slot] Time of the day (index). Optional. Default = 0.
  * @param {Date | null} [doneAt] When it was done (never in the future). Optional.
+ * @param {boolean} [ticking] Ticked (true) or unticked. Optional. Default = true.
  * @returns {{ occurrence: string, index: number }} Occurrence and time of the day.
  */
-function checkableOccurrence(routine: Routine, slots: ScheduleContext, date?: string | null, slot?: number | null, doneAt?: Date | null): { occurrence: string; index: number } {
+function checkableOccurrence(routine: Routine, slots: ScheduleContext, date?: string | null, slot?: number | null, doneAt?: Date | null, ticking = true): { occurrence: string; index: number } {
   refuseArchived(routine);
   const occurrence = date ?? occurrencesOf(routine, undefined, slots).current;
   if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');
+  // A day given is one of its occurrences (not called off, not before its start, on its rule or moved there); a tick
+  // already there can still be taken away.
+  if (date && ticking && !occurrencesBetween(routine, date, date, slots).includes(date)) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas d’occurrence ce jour-là.');
   // During its « Ouverture » an occurrence due later is ticked like the one due today.
   if (!hasOpened(routine, occurrence, parisToday(), slots)) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
   const index = slot ?? 0;
@@ -1588,7 +1624,7 @@ function checkWrite(id: string, done: boolean, occurrence: string, index: number
  */
 export async function setRoutineDone(id: string, done: boolean, date?: string | null, slot?: number | null, doneAt?: Date | null): Promise<string> {
   const [routine, slots] = await Promise.all([findRoutine(id), loadScheduleContext()]);
-  const { occurrence, index } = checkableOccurrence(routine, slots, date, slot, doneAt);
+  const { occurrence, index } = checkableOccurrence(routine, slots, date, slot, doneAt, done);
   await checkWrite(id, done, occurrence, index, doneAt);
   return occurrence;
 }
@@ -1632,15 +1668,31 @@ async function assertNotTicked(id: string, date: string, verb: 'déplacer' | 'ch
 }
 
 /**
+ * Refuses, unconfirmed, to move an occurrence onto a day that already has its own occurrence of the routine: both
+ * become one (the occurrence of that day, with the ticks and comments of both).
+ * @param {RoutineTiming} routine Routine as it goes, before the move.
+ * @param {ScheduleContext} schedules Schedules.
+ * @param {string} date Occurrence moved (its day now).
+ * @param {string | null} to Its new day (null: called off).
+ * @param {boolean} [merge] Merging confirmed. Optional. Default = false.
+ * @returns {void}
+ */
+function assertMergeConfirmed(routine: RoutineTiming, schedules: ScheduleContext, date: string, to: string | null, merge = false): void {
+  if (merge || !to || to === date || !occurrencesBetween(routine, to, to, schedules).includes(to)) return;
+  throw clientError('CONFIRMATION_REQUIRED', 'Ce jour a déjà son occurrence : confirmez pour fusionner les deux.', { lost: { merge: to } });
+}
+
+/**
  * Moves an occurrence of a routine to another day (postponed or brought forward) and / or other times: an exception
  * to its rule. Back to its own day and times, the exception is removed. A ticked occurrence is not moved.
  * @param {string} id Routine id.
  * @param {string} date Occurrence (its day now).
  * @param {string} to New day (its day: other times only).
  * @param {RoutineMoveTimes} [times] Times of each of its times of the day (null: those of its rule); none given: those it had kept. Optional.
+ * @param {boolean} [merge] Onto a day that has its own occurrence, merging both confirmed (unconfirmed: CONFIRMATION_REQUIRED, nothing moves). Optional. Default = false.
  * @returns {Promise<void>}
  */
-export async function moveRoutineOccurrence(id: string, date: string, to: string, times?: RoutineMoveTimes): Promise<void> {
+export async function moveRoutineOccurrence(id: string, date: string, to: string, times?: RoutineMoveTimes, merge = false): Promise<void> {
   const found = await findActive(prisma.routine, id, 'Routine');
   await placeLegacyRoutineComments([id]);
   await assertNotTicked(id, date, 'déplacer');
@@ -1662,6 +1714,7 @@ export async function moveRoutineOccurrence(id: string, date: string, to: string
   }
   const move = parseInput(routineMoveSchema, { from: date, to, times: changed?.some(Boolean) ? changed : null });
   if (move.to && move.to < formatDay(routine.startDate)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
+  assertMergeConfirmed(routine, schedules, date, move.to, merge);
   const moves = withMove(stored, move.from, move.to, changed);
   if (moves.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
   await saveMoves(found, moves, { from: date, to: move.to });
@@ -1811,7 +1864,8 @@ async function changeableOccurrence(id: string, date: string) {
  * @param {string} to New day.
  * @param {number} slot Time of the day changed (index).
  * @param {{ fromTime: string | null, dueTime: string | null }} times Its new times.
- * @param {boolean} [confirmLoss] Other occurrences made to disappear, with comments, confirmed. Optional.
+ * @param {boolean} [confirmLoss] Other occurrences made to disappear, with comments, confirmed; for this occurrence
+ * alone, merging it with the one of its new day confirmed. Optional.
  * @returns {Promise<void>}
  */
 export async function changeRoutineOccurrence(
@@ -1846,6 +1900,8 @@ export async function changeRoutineOccurrence(
       const value = index === slot ? { fromTime: window.fromTime, dueTime: window.dueTime } : (current?.[index] ?? null);
       return value && (value.fromTime !== item.fromTime || value.dueTime !== item.dueTime) ? value : null;
     });
+    // Onto a day that has its own occurrence: merged once confirmed.
+    if (confirmLoss !== undefined) assertMergeConfirmed(routine, schedules, date, parsedTo, confirmLoss);
     const next = withMove(moves, date, parsedTo, changed);
     if (next.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
     await saveMoves(found, next, { from: date, to: parsedTo });

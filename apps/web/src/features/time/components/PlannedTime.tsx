@@ -1,7 +1,7 @@
 import { Group, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
-import { addDays, daysBetween, entrySeconds, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
+import { addDays, daysBetween, entrySecondsWithin, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
 import { useMemo } from 'react';
-import { localMidnight, localParts, localToday } from '../../../lib/dates';
+import { localMidnight, localToday } from '../../../lib/dates';
 import { useWorkingHours } from '../../calendar/api';
 import { schedulesTitle } from '../../calendar/lib/schedule-text';
 import { useActiveWorkspace } from '../../workspaces/api';
@@ -55,9 +55,13 @@ export function PlannedTime() {
     // The créneaux counted only: an éphéméride is no planned work, nor an archived créneau.
     const slots = plannedSlots(rules, monday, sunday);
     const trackedByDay = new Map<string, number>();
+    // Each day its part of the times (a timer running past midnight counts on both days).
     for (const entry of entries.data ?? []) {
-      const day = localParts(entry.startedAt).date;
-      trackedByDay.set(day, (trackedByDay.get(day) ?? 0) + entrySeconds(entry, now));
+      for (let index = 0; index < length; index += 1) {
+        const day = addDays(monday, index);
+        const seconds = entrySecondsWithin(entry, Date.parse(localMidnight(day)), Date.parse(localMidnight(addDays(day, 1))), now);
+        if (seconds) trackedByDay.set(day, (trackedByDay.get(day) ?? 0) + seconds);
+      }
     }
     return Array.from({ length }, (_, index) => {
       const date = addDays(monday, index);

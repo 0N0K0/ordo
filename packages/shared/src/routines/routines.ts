@@ -241,8 +241,12 @@ function opensInMonth(opens: Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | '
     const last = daysInMonth(year, month);
     return dayInMonth(year, month, last - ((weekdayOfDate(dayInMonth(year, month, last)) - opens.weekday + 7) % 7));
   }
-  // Weeks from Monday, the first one that of the 1st; kept within the month.
-  return dayInMonth(year, month, 2 - weekdayOfDate(first) + 7 * (opens.week - 1) + opens.weekday - 1);
+  // Weeks from Monday, the first one that of the 1st; kept within the month on the same weekday (that weekday of the
+  // week of the 1st before the 1st: the first one of the month; of a week past its end: the last one).
+  let day = 2 - weekdayOfDate(first) + 7 * (opens.week - 1) + opens.weekday - 1;
+  while (day < 1) day += 7;
+  while (day > daysInMonth(year, month)) day -= 7;
+  return dayInMonth(year, month, day);
 }
 
 /**

@@ -12,7 +12,7 @@ Fragments `AlarmFields`, `ReminderFields` (un rappel : `before`, `at`, `days`, `
 | ----------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `Alarm` (type)                | Alarme (`AlarmFieldsFragment`)                                                  | tout le dossier, `ElsewhereNotifier` (via le fragment)                           |
 | `AlarmInput` (type réexporté) | Entrée GraphQL d’une alarme                                                     | `AlarmForm`                                                                      |
-| `useAlarms()`                 | Toutes les alarmes de l’espace                                                  | `AlarmsPage`, `useRingSources`, `ChronoCard` et `WorkCards` (accueil)            |
+| `useAlarms()`                 | Toutes les alarmes de l’espace, rechargées toutes les 5 minutes (onglet en arrière-plan compris) | `AlarmsPage`, `useRingSources`, `ChronoCard` et `WorkCards` (accueil)            |
 | `useTaskAlarmCounts()`        | Nombre d’alarmes **actives** par tâche (`countBy`)                              | `TaskBoard`, `use-task-columns` (tâches)                                         |
 | `useAlarmMutations()`         | `create`, `update` (`{ id, input }`), `remove` (id), `markFired` (`{ id, at }`) | `AlarmForm`, `AlarmList`, `AlarmCenter`                                          |
 | `AlarmRing` (type)            | Une sonnerie gardée par l’API (`AlarmRingFieldsFragment`)          | `lib/ringing.tsx`                                                                |

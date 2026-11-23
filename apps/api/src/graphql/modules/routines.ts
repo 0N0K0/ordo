@@ -748,11 +748,18 @@ builder.mutationFields((t) => ({
   moveRoutineOccurrence: t.boolean({
     description:
       'Moves an occurrence to another day (postponed or brought forward) and / or other times ([{ fromTime, dueTime } | null] by time of the day, null: those of its rule; none: those it had); back to its own day and times, the exception is removed.',
-    args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }), times: t.arg({ type: 'JSON' }) },
-    resolve: (_root, { id, date, to, times }) => done(routines.moveRoutineOccurrence(id, date, to, times === undefined || times === null ? undefined : (times as RoutineMoveTimes))),
+    args: {
+      id: t.arg.id({ required: true }),
+      date: t.arg({ type: 'Date', required: true }),
+      to: t.arg({ type: 'Date', required: true }),
+      times: t.arg({ type: 'JSON' }),
+      confirmMerge: t.arg.boolean({ description: 'Onto a day that has its own occurrence: both merged into one, confirmed (unconfirmed: CONFIRMATION_REQUIRED, extension lost.merge, nothing moves).' }),
+    },
+    resolve: (_root, { id, date, to, times, confirmMerge }) => done(routines.moveRoutineOccurrence(id, date, to, times === undefined || times === null ? undefined : (times as RoutineMoveTimes), confirmMerge ?? false)),
   }),
   changeRoutineOccurrence: t.boolean({
-    description: 'Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all.',
+    description:
+      'Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all. This one onto a day that has its own occurrence: merging both is confirmed by confirmLoss (extension lost.merge).',
     args: {
       id: t.arg.id({ required: true }),
       date: t.arg({ type: 'Date', required: true }),

@@ -63,8 +63,8 @@ export type ArchiveTargets = Partial<Record<ArchivableKind, readonly string[]>>;
 export interface ArchiveOptions {
   /** Elements of other kinds archived and restored with them (the people linked to them), from the elements given. Optional. Default = none. */
   along?: (ids: string[]) => Promise<ArchiveTargets>;
-  /** Run once found, before the change, with the elements whose state changes, by kind (those along included). Optional. Default = none. */
-  settle?: (changing: ArchiveTargets) => Promise<void>;
+  /** Run once found, before the change, with the elements whose state changes, by kind (those along included); what it returns runs once the change is saved. Optional. Default = none. */
+  settle?: (changing: ArchiveTargets) => Promise<(() => Promise<void>) | void>;
 }
 
 /**
@@ -99,7 +99,8 @@ const archivedWhere = (archived: boolean): Record<string, unknown> => ({ archive
  * Archives or restores elements of a kind, all at once (an id given twice counts once), with the elements of other
  * kinds that go along with them (`along`), in one transaction. Archiving keeps the date of those archived already.
  * `settle` runs once they are found, before they change: what it does elsewhere (the occurrences of routines a
- * schedule, a kind or a person archived makes disappear).
+ * schedule, a kind or a person archived makes disappear, asked then; their comments deleted by what it returns, once
+ * saved).
  * @param {ArchivableKind} kind Kind of the elements.
  * @param {readonly string[]} ids Elements.
  * @param {boolean} archived Archives (else restores).
@@ -119,13 +120,14 @@ export async function setArchived(kind: ArchivableKind, ids: readonly string[], 
   for (const [target, targetIds] of targets) {
     changing[target] = (await delegate(ARCHIVABLE[target]).findMany({ where: { id: { in: [...targetIds] }, ...archivedWhere(!archived) }, select: { id: true } })).map((item) => item.id);
   }
-  if (settle && Object.values(changing).some((list) => list.length)) await settle(changing);
+  const after = settle && Object.values(changing).some((list) => list.length) ? await settle(changing) : undefined;
   const archivedAt = archived ? new Date() : null;
   await prisma.$transaction(
     (Object.entries(changing) as [ArchivableKind, string[]][]).map(([target, targetIds]) =>
       delegate(ARCHIVABLE[target]).updateMany({ where: { id: { in: targetIds } }, data: { archivedAt, ...(ALONG_WITH_PARENT.has(ARCHIVABLE[target]) && { archivedByCascade: false }) } }),
     ),
   );
+  if (after) await after();
 }
 
 /** How a value chosen in a form is checked: the values it had stay valid, the error shows under its field. */

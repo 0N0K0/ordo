@@ -26,6 +26,7 @@ import { scheduleMailSending } from './services/mail/scheduled';
 import { scheduleGithubSync } from './services/github/sync';
 import { scheduleRecurringInvoices } from './services/accounting/recurring-invoices';
 import { scheduleOutsideRings } from './services/tasks/outside-rings';
+import { scheduleTimerCap } from './services/tasks/time-entries';
 import { workspaceMiddleware } from './services/workspaces/workspaces';
 
 const disableIntrospection: Plugin = {
@@ -130,6 +131,8 @@ scheduleRecurringInvoices();
 scheduleGithubSync();
 // Alarms and reminders due ring outside the app (push notifications) for the users who chose it.
 scheduleOutsideRings();
+// Timers running for 24 hours (the longest time) stop on their own.
+scheduleTimerCap();
 
 app.listen(env.PORT, () => {
   console.log(`API ready (${env.NODE_ENV}) on http://localhost:${env.PORT}${yoga.graphqlEndpoint}`);

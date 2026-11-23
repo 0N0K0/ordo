@@ -78,6 +78,14 @@ Source : `stopTimer(id)`, `stopAllTimers` (« Arrêter tout »).
 - Un chrono en pause s’arrête **au début de sa pause**.
 - Durée = (fin − début) en secondes entières − `pausedSeconds`, jamais négative.
 
+### Arrêt après 24 heures
+
+Source : `capRunningTimers`, `scheduleTimerCap` (tâche de fond « Chronos de plus de 24 heures », voir [Tâches de fond](../cross-cutting/background-jobs.md)).
+
+- Un chrono qui a tourné **24 heures** (pauses déduites, `DURATION_MAX_SECONDS`, la durée maximale d’un temps) est **arrêté tout seul** par l’API, même app fermée : sa fin est posée au moment où il atteint 24 heures (début + pauses + 24 h), sa durée vaut 24 heures. Un chrono en pause avant d’atteindre 24 heures n’est pas arrêté (sa durée n’avance plus).
+- Vérifié toutes les 5 minutes dans chaque espace : un chrono peut tourner jusqu’à 5 minutes de plus avant d’être arrêté, sa durée restant 24 heures.
+- L’app le montre : le chrono disparaît des chronos en cours (rechargés chaque minute) avec la notification « Chrono arrêté après 24 heures » (ce sur quoi il portait, « Sa durée est de 24 heures, le maximum d’un temps. »).
+
 ### Abandonner
 
 Supprimer un temps en cours (`deleteTimeEntry`) abandonne ce chrono sans rien enregistrer.
@@ -104,6 +112,7 @@ Source : `updateTimeEntry`.
 - Les tâches, routines et évènements donnés remplacent ceux du temps.
 - Chrono en cours : sa durée ne se modifie pas (« La durée d’un chrono en cours ne se modifie pas. ») et son début ne peut pas être dans le futur (« Le début ne peut pas être dans le futur. »). Il continue de tourner.
 - Temps terminé : changer le début ou la durée recalcule la fin (début + durée).
+- Début changé de jour (heure de Paris) sans que ses évènements soient donnés : le temps quitte les évènements qui ne sont pas ce jour-là (une occurrence d’un autre jour, un évènement unique qui ne couvre pas ce jour) ; ceux de ce jour restent. S’il n’a plus rien (sans projet, ni tâche, ni routine), le changement est refusé comme un retrait du dernier (« Choisissez un projet, une tâche, une routine ou un évènement. »).
 
 ## Suppression
 
@@ -137,7 +146,7 @@ Source : `assertNotInvoiced` (`time-entries.ts`), `assertBillableTime` (`account
 
 Source : requêtes `timeEntries`, `runningTimeEntries`.
 
-- `timeEntries(projectId?, routineId?, since?)` : les temps du projet **et de ses sous-projets**, ou ceux qui portent sur une routine, ou tous ; éventuellement depuis un moment ; du plus récent au plus ancien.
+- `timeEntries(projectId?, routineId?, since?)` : les temps du projet **et de ses sous-projets**, ou ceux qui portent sur une routine, ou tous ; avec `since`, ceux qui ne sont pas finis avant ce moment (commencés depuis, en cours, ou finis depuis : un chrono lancé la veille au soir compte) ; du plus récent au plus ancien. Les totaux par jour et par semaine de l’app comptent la part de chaque temps dans la période (`entrySecondsWithin`).
 - `lostOnDelete(taskIds?, routineIds?, withSubtree?, eventId?, scope?, occurrenceDate?, calendarId?, routineOccurrence?)` : `{ times, comments }`, ce qu’une suppression de tâches, de routines, d’occurrences d’une routine, d’un évènement ou d’un calendrier (tous ses évènements, `calendarEventsGone`) supprimera avec eux : les temps (voir plus haut) et les commentaires des routines, évènements et occurrences supprimés (`commentsLostOnDelete` ; les commentaires de tâche ne sont pas comptés).
 - `runningTimeEntries` : les chronos en cours, le premier démarré d’abord (liste vide : aucun).
 

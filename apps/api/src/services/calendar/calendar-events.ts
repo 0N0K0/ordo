@@ -11,6 +11,8 @@ import {
   maxSpanDays,
   occurrenceDates,
   occurrencesBefore,
+  subtreeOf,
+  cutSeriesRule,
   parseDay,
   parseOptionalDay,
   type Recurrence,
@@ -24,7 +26,6 @@ import {
   readReminders,
   type Reminder,
   type EffectiveTask,
-  shiftedRecurrence,
   shiftedSeriesRule,
 } from '@ordo/shared';
 import { prisma } from '../../db';
@@ -37,7 +38,7 @@ import { runInWorkspace } from '../../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
 import { assertProjectContributors, followProject } from '../projects/contributors';
 import { assertAllExist, findOrNotFound } from '../core/lookup';
-import { assertActive, assertNotArchived, activeIds, archivedOn, refuseArchived } from '../core/archive';
+import { archivedError, assertActive, assertNotArchived, activeIds, archivedOn, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { checkLinkedDocuments, LINKED_DOCUMENTS_SELECT, linkedDocumentIds } from '../projects/linked-documents';
 import { loadProjectRootOf } from '../projects/project-tree';
@@ -267,7 +268,7 @@ async function moveRoutineLinks(tx: Prisma.TransactionClient, eventId: string, f
  * @param {string} id Event.
  * @returns {Promise<[string[], string[], string[], string[], string[], string[]]>} Contributor ids, category ids, beneficiary ids, relation ids (beneficiaries or linked), its project and its documents of projects.
  */
-async function eventKept(id: string): Promise<[string[], string[], string[], string[], string[], string[]]> {
+async function eventKept(id: string): Promise<[string[], string[], string[], string[], string[], string[], string[]]> {
   const event = await prisma.calendarEvent.findUnique({
     where: { id },
     select: {
@@ -278,6 +279,7 @@ async function eventKept(id: string): Promise<[string[], string[], string[], str
       beneficiaryRelations: { select: { id: true } },
       relations: { select: { id: true } },
       projectResources: { select: { id: true } },
+      tasks: { select: { id: true } },
     },
   });
   const ids = (items: { id: string }[] | undefined) => (items ?? []).map((item) => item.id);
@@ -288,6 +290,7 @@ async function eventKept(id: string): Promise<[string[], string[], string[], str
     [...ids(event?.beneficiaryRelations), ...ids(event?.relations)],
     event?.projectId ? [event.projectId] : [],
     ids(event?.projectResources),
+    ids(event?.tasks),
   ];
 }
 
@@ -302,6 +305,16 @@ async function assertEventWritable(event: Pick<CalendarEvent, 'archivedAt' | 'ca
 }
 
 /**
+ * Refuses to archive or restore events of an archived calendar (« Élément archivé… »): its events are read only.
+ * @param {readonly string[]} ids Events.
+ * @returns {Promise<void>}
+ */
+export async function assertEventsArchivable(ids: readonly string[]): Promise<void> {
+  if (!ids.length) return;
+  if (await prisma.calendarEvent.count({ where: { id: { in: [...ids] }, calendar: { archivedAt: { not: null } } } })) throw archivedError();
+}
+
+/**
  * Validates event fields and the project, contributors (of the project only, those already there stay), relations
  * and categories they point to. Its calendar must not be archived, nor its new categories, beneficiaries and relations
  * (those already there stay).
@@ -313,6 +326,7 @@ async function assertEventWritable(event: Pick<CalendarEvent, 'archivedAt' | 'ca
  * @param {string[]} [keepProject] Project already of the event (kept even if archived). Optional.
  * @param {string[]} [keepResources] Documents of projects already linked to the event: those out of its project tree
  * stay while its tree does not change, and are dropped when it moves to another one. Optional.
+ * @param {string[]} [keepTasks] Tasks already linked to the event (kept even if archived or out of its project tree). Optional.
  * @returns {Promise<ReturnType<typeof calendarEventInputSchema.parse>>} Validated fields.
  */
 async function parseEvent(
@@ -323,6 +337,7 @@ async function parseEvent(
   keepRelations: string[] = [],
   keepProject: string[] = [],
   keepResources: string[] = [],
+  keepTasks: string[] = [],
 ) {
   const event = parseInput(calendarEventInputSchema, input);
   await assertActive(prisma.project, event.projectId, 'Projet', { keep: keepProject, field: 'projectId' });
@@ -334,8 +349,15 @@ async function parseEvent(
   await assertBeneficiaries({ contributorIds: event.beneficiaryIds, relationIds: event.beneficiaryRelationIds }, { keep: { contributorIds: keepBeneficiaries, relationIds: keepRelations } });
   await activeIds(prisma.treasuryRelation, event.relationIds, 'Relation', { keep: keepRelations, field: 'relationIds' });
   await activeIds(prisma.calendarCategory, event.categoryIds, 'Catégorie', { keep: keepCategories, field: 'categoryIds' });
-  const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { id: true, label: true } });
+  const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { id: true, label: true, projectId: true, archivedAt: true } });
   if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
+  // Tasks added: not archived; with a project, of its project, its sub-projects or of none (those already linked stay).
+  const added = tasks.filter((task) => !keepTasks.includes(task.id));
+  for (const task of added) refuseArchived(task, 'taskIds');
+  if (event.projectId && added.some((task) => task.projectId !== null)) {
+    const subtree = subtreeOf(await prisma.project.findMany({ select: { id: true, parentId: true } }), event.projectId);
+    if (added.some((task) => task.projectId !== null && !subtree.has(task.projectId))) throw fieldError('taskIds', 'Les tâches doivent être du projet de l’évènement, de l’un de ses sous-projets, ou sans projet.');
+  }
   // A task is about an event of someone of its assignees, its own or inherited (or either side has nobody).
   const taskAssignees = tasks.length ? await effectiveTasks(tasks.map((task) => task.id)) : new Map<string, EffectiveTask>();
   const apart: { label: string }[] = tasks.filter((task) => !sharePeople([...(taskAssignees.get(task.id)?.assigneeIds ?? [])], event.contributorIds));
@@ -462,12 +484,15 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
  * Checks the occurrence a scoped change applies to.
  * @param {CalendarEvent} event Event.
  * @param {string | null | undefined} occurrenceDate Occurrence.
- * @returns {{ rule: Recurrence, date: string } | null} Rule and date, or null for a one-off event.
+ * @returns {{ rule: Recurrence, date: string } | null} Rule and date, or null for a one-off event (NOT_FOUND-like refusal
+ * « Occurrence introuvable. » for a date that is not one of its rule).
  */
 function occurrenceOf(event: CalendarEvent, occurrenceDate: string | null | undefined): { rule: Recurrence; date: string } | null {
   const rule = storedRecurrence(event.recurrence);
   if (!rule) return null;
   if (!occurrenceDate) throw clientError('BAD_USER_INPUT', 'Occurrence manquante.');
+  // One of its days: another date (before its start, out of its rule) would change the series from nowhere.
+  if (!occursOn(rule, formatDay(event.startDate), occurrenceDate)) throw clientError('BAD_USER_INPUT', 'Occurrence introuvable.');
   return { rule, date: occurrenceDate };
 }
 
@@ -649,8 +674,10 @@ async function updateEventFields(
     );
     const updated = await prisma.$transaction(async (tx) => {
       await settle(tx);
-      // Its changes no longer match once moved, nor once it is a one-off event.
-      if (shift !== 0 || !recurring) await tx.calendarEventException.deleteMany({ where: { eventId: id } });
+      // Its occurrences edited alone follow the series (moved, the fields changed on it applied); none once it is a
+      // one-off event.
+      if (rule) await carryExceptions(tx, event, fields, { shift, to: id, rule, start: startDate });
+      else await tx.calendarEventException.deleteMany({ where: { eventId: id } });
       await remapOccurrenceRows('eventId', id, moved, { client: tx });
       if (recurring) await moveRoutineLinks(tx, id, null, shift);
       return tx.calendarEvent.update({
@@ -669,10 +696,7 @@ async function updateEventFields(
   }
 
   // FOLLOWING: the series ends before the occurrence, a new one starts with the changes.
-  let rule = fields.recurrence && shiftedRecurrence(fields.recurrence, occurrence.date, shift);
-  if (rule && rule.count !== null && occurrence.rule.count === rule.count) {
-    rule = { ...rule, count: Math.max(1, rule.count - occurrencesBefore(occurrence.rule, seriesStart, occurrence.date)) };
-  }
+  const rule = fields.recurrence && cutSeriesRule(fields.recurrence, occurrence.rule, seriesStart, occurrence.date, shift);
   // Following occurrences that the new series does not have once moved: their comments and times go, with the save.
   const settle = await confirmLostOccurrences(
     'eventId',
@@ -682,7 +706,6 @@ async function updateEventFields(
   );
   const created = await prisma.$transaction(async (tx) => {
     await settle(tx);
-    await endSeriesBefore(event, occurrence.rule, occurrence.date, tx);
     const split = await tx.calendarEvent.create({
       data: {
         ...eventData(fields),
@@ -694,12 +717,65 @@ async function updateEventFields(
         savedCountdowns: await linkedSavedCountdowns('EVENT', id, tx),
       },
     });
+    // Its following occurrences edited alone go to the new series (none when it no longer repeats), then the old one
+    // ends before the cut.
+    if (rule) await carryExceptions(tx, event, fields, { from: occurrence.date, shift, to: split.id, rule, start: fields.startDate });
+    await endSeriesBefore(event, occurrence.rule, occurrence.date, tx);
     // The comments, times and routine links of the following occurrences go to the new series, moved as the occurrence was.
     await remapOccurrenceRows('eventId', id, movedOccurrence(occurrence.date, shift, Boolean(rule)), { to: split.id, client: tx });
     await moveRoutineLinks(tx, id, occurrence.date, shift, split.id);
     return split;
   });
   return { event: created, linkDays: rule ? newDays : null };
+}
+
+/** Fields of an occurrence edited alone that a change of its series gives it too, when the series' value changes. */
+const EXCEPTION_FIELDS = ['label', 'description', 'location', 'locationLat', 'locationLon', 'links', 'allDay', 'startTime', 'endTime', 'travelBefore', 'travelAfter'] as const;
+
+/**
+ * The occurrences of a series edited alone (its exceptions) follow a change of the series: moved to the new series of
+ * a cut and / or shifted by as many days as the series, a deleted one staying deleted, a called off one called off,
+ * its postponements still pointing at it; the fields the change gives the series another value take that value, the
+ * others stay theirs. One that the new rule no longer has once moved goes (its comments and times went with it).
+ * @param {Prisma.TransactionClient} tx Transaction.
+ * @param {CalendarEvent} event Series before the change.
+ * @param {Awaited<ReturnType<typeof parseEvent>>} fields Its fields once changed.
+ * @param {{ from?: string, shift: number, to: string, rule: Recurrence, start: string }} change From which occurrence
+ * (none: all), days moved, series they go to, its rule and first day.
+ * @returns {Promise<void>}
+ */
+async function carryExceptions(
+  tx: Prisma.TransactionClient,
+  event: CalendarEvent,
+  fields: Awaited<ReturnType<typeof parseEvent>>,
+  change: { from?: string; shift: number; to: string; rule: Recurrence; start: string },
+): Promise<void> {
+  const since = change.from ? { gte: parseDay(change.from) } : undefined;
+  const exceptions = await tx.calendarEventException.findMany({ where: { eventId: event.id, ...(since && { date: since }) }, orderBy: { date: change.shift > 0 ? 'desc' : 'asc' } });
+  const comparable = (field: (typeof EXCEPTION_FIELDS)[number], value: unknown) => JSON.stringify(field === 'links' ? readLinks(value as Prisma.JsonValue) : (value ?? null));
+  const changed = Object.fromEntries(EXCEPTION_FIELDS.filter((field) => comparable(field, event[field]) !== comparable(field, fields[field])).map((field) => [field, field === 'links' ? toJson(fields.links) : fields[field]]));
+  // Its length changed: theirs too.
+  const span = daysBetween(fields.startDate, fields.endDate);
+  const spanChanged = span !== daysBetween(formatDay(event.startDate), formatDay(event.endDate));
+  for (const exception of exceptions) {
+    const date = addDays(formatDay(exception.date), change.shift);
+    if (!occursOn(change.rule, change.start, date)) {
+      await tx.calendarEventException.delete({ where: { id: exception.id } });
+      continue;
+    }
+    const startDate = exception.startDate ? addDays(formatDay(exception.startDate), change.shift) : null;
+    const endDate = spanChanged && startDate ? addDays(startDate, span) : exception.endDate ? addDays(formatDay(exception.endDate), change.shift) : null;
+    await tx.calendarEventException.update({
+      where: { id: exception.id },
+      data: { eventId: change.to, date: parseDay(date), startDate: startDate && parseDay(startDate), endDate: endDate && parseDay(endDate), ...changed },
+    });
+  }
+  // Its postponements still come from it.
+  const postponed = await tx.calendarEvent.findMany({ where: { postponedFromId: event.id, ...(since && { postponedFromDate: since }) }, select: { id: true, postponedFromDate: true } });
+  for (const item of postponed) {
+    const from = formatOptionalDay(item.postponedFromDate);
+    await tx.calendarEvent.update({ where: { id: item.id }, data: { postponedFromId: change.to, postponedFromDate: parseOptionalDay(from && addDays(from, change.shift)) } });
+  }
 }
 
 /**
@@ -879,8 +955,11 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
   const events = await prisma.calendarEvent.findMany({
     // Recurring events may occur in the period whatever their first date.
     where: {
-      startDate: { lte: parseDay(addDays(to, 62)) },
-      OR: [{ recurrence: { not: Prisma.DbNull } }, { endDate: { gte: parseDay(addDays(from, -62)) } }],
+      OR: [
+        { startDate: { lte: parseDay(addDays(to, 62)) }, OR: [{ recurrence: { not: Prisma.DbNull } }, { endDate: { gte: parseDay(addDays(from, -62)) } }] },
+        // An occurrence moved alone into the period from further away.
+        { exceptions: { some: { cancelled: false, startDate: { lte: parseDay(to) }, endDate: { gte: parseDay(from) } } } },
+      ],
       ...(calendarIds ? { calendarId: { in: calendarIds } } : {}),
       ...(activeOnly ? { archivedAt: null, calendar: { archivedAt: null } } : {}),
     },
@@ -895,7 +974,15 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
     const span = daysBetween(formatDay(event.startDate), formatDay(event.endDate));
     // Moved occurrences may come from a little outside the period.
     const longest = Math.max(span, rule?.duration ? maxSpanDays(rule.duration) : 0);
-    const dates = rule ? occurrenceDates(rule, formatDay(event.startDate), addDays(from, -longest - 62), addDays(to, 62)) : [null];
+    const near: (string | null)[] = rule ? occurrenceDates(rule, formatDay(event.startDate), addDays(from, -longest - 62), addDays(to, 62)) : [null];
+    // Occurrences moved alone into the period from further away (one of the rule's days).
+    const far = rule
+      ? event.exceptions
+          .filter((change) => !change.cancelled && change.startDate && formatDay(change.startDate) <= to && formatDay(change.endDate ?? change.startDate) >= from)
+          .map((change) => formatDay(change.date))
+          .filter((date) => !near.includes(date) && occursOn(rule, formatDay(event.startDate), date))
+      : [];
+    const dates = [...near, ...far];
     for (const date of dates) {
       const change = date ? changes.get(date) : undefined;
       if (change?.cancelled) continue;
@@ -979,11 +1066,8 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
   await assertEventWritable(event);
   const occurrence = occurrenceOf(event, occurrenceDate);
   if (!occurrence || scope === 'ALL') {
-    await prisma.$transaction([
-      prisma.calendarEvent.update({ where: { id }, data: { calledOff } }),
-      // The whole series: its occurrences follow.
-      prisma.calendarEventException.updateMany({ where: { eventId: id }, data: { calledOff } }),
-    ]);
+    // The series only: its occurrences called off one by one (or postponed) stay so when it is restored.
+    await prisma.calendarEvent.update({ where: { id }, data: { calledOff } });
     return;
   }
   if (scope === 'THIS') {

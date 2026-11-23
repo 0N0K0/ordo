@@ -318,6 +318,23 @@ export function shiftedRecurrence(rule: Recurrence, first: string | null, days: 
 }
 
 /**
+ * Rule of the new series of a cut (« Celle-ci et les suivantes »): the rule given, moved from the occurrence by the
+ * days it moved (`shiftedRecurrence`); its number of occurrences, when left as the series had it, reduced by those
+ * before the cut (one at least).
+ * @param {Recurrence} rule Rule given.
+ * @param {Recurrence} before Rule of the series before the cut.
+ * @param {string} seriesStart First day of the series.
+ * @param {string} date Occurrence the cut starts at.
+ * @param {number} days Days the occurrence moved.
+ * @returns {Recurrence} Rule of the new series.
+ */
+export function cutSeriesRule(rule: Recurrence, before: Recurrence, seriesStart: string, date: string, days: number): Recurrence {
+  const moved = shiftedRecurrence(rule, date, days);
+  if (moved.count === null || moved.count !== before.count) return moved;
+  return { ...moved, count: Math.max(1, moved.count - occurrencesBefore(before, seriesStart, date)) };
+}
+
+/**
  * Rule of a series moved by a number of days from its first date (`shiftedRecurrence`, its first occurrence looked
  * for over a year and a month).
  * @param {Recurrence} rule Rule.

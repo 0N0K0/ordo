@@ -17,14 +17,15 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
+import luxonPlugin from '@fullcalendar/luxon3';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
+import { addDays, entrySeconds, PARIS_ZONE, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
 import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
-import { localDay, localMidnight, localParts, localToday } from '../../../lib/dates';
+import { localMidnight, localToday, parisParts } from '../../../lib/dates';
 import { taskPlacement, type TaskSpanKind } from '../lib/task-calendar';
 import { notifyError, notifyWarning, onMutationError } from '../../../lib/notify';
 import { useSlotRules } from '../hooks/use-slot-rules';
@@ -288,7 +289,7 @@ export function CalendarPage() {
       const occurrenceByKey = new Map((events.data ?? []).map((occurrence) => [occurrenceKey(occurrence.eventId, occurrence.occurrenceDate), occurrence]));
       for (const entry of timeEntries.data ?? []) {
         const start = new Date(entry.startedAt);
-        if (localDay(start) > range.to) continue;
+        if (parisParts(start).date > range.to) continue;
         const running = entry.endedAt === null;
         const end = entry.endedAt ? new Date(entry.endedAt) : entry.pausedAt ? new Date(entry.pausedAt) : new Date(minute * 60_000 + 60_000);
         const project = entry.projectId ? context.projectById.get(entry.projectId) : undefined;
@@ -664,10 +665,10 @@ export function CalendarPage() {
     const { event, revert } = info;
     if (!event.start) return revert();
     const allDay = event.allDay;
-    const startParts = localParts(event.start);
+    const startParts = parisParts(event.start);
     // FullCalendar ends are exclusive; all-day dates here are inclusive.
     const endDate = event.end ?? new Date(event.start.getTime() + (allDay ? 86_400_000 : 3_600_000));
-    const endParts = allDay ? { date: addDays(localDay(endDate), -1), time: '' } : localParts(endDate);
+    const endParts = allDay ? { date: addDays(parisParts(endDate).date, -1), time: '' } : parisParts(endDate);
 
     if (event.extendedProps.kind === 'editSlot') {
       const slot: ScheduleSlotTime = event.extendedProps.slot;
@@ -692,7 +693,7 @@ export function CalendarPage() {
       else if ('endDelta' in info && !('delta' in info)) times = { fromTime, dueTime: endParts.date === startParts.date ? endParts.time : null };
       else {
         // Its times move by as much as the event within the day.
-        const shift = timeToMinutes(startParts.time) - timeToMinutes(localParts(info.oldEvent.start ?? event.start).time);
+        const shift = timeToMinutes(startParts.time) - timeToMinutes(parisParts((info.oldEvent.start ?? event.start)!).time);
         const moved = (time: string | null) => (time === null ? null : timeToMinutes(time) + shift);
         const [from, due] = [moved(fromTime), moved(dueTime)];
         if ((from !== null && (from < 0 || from >= 1440)) || (due !== null && (due < 0 || due >= 1440))) {
@@ -914,7 +915,9 @@ export function CalendarPage() {
       <Paper withBorder radius="md" p="xs" className={classes.calendar}>
         <FullCalendar
           ref={calendarRef}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, luxonPlugin]}
+          // Days and hours of the app are those of Paris: shown and read so, whatever the zone of the browser.
+          timeZone={PARIS_ZONE}
           // Lane of a line of planned slots, beside (or above) those of the other schedules that day.
           eventDidMount={(info) => {
             const lane: unknown = info.event.extendedProps.slotLane;
@@ -960,14 +963,14 @@ export function CalendarPage() {
           datesSet={(info: DatesSetArg) => {
             setTitle(info.view.title);
             const next = {
-              from: localDay(info.start),
-              to: addDays(localDay(info.end), -1),
+              from: parisParts(info.start).date,
+              to: addDays(parisParts(info.end).date, -1),
             };
             setRange((current) => (current && current.from === next.from && current.to === next.to ? current : next));
           }}
           select={(info: DateSelectArg) => {
-            const start = localParts(info.start);
-            const end = localParts(info.end);
+            const start = parisParts(info.start);
+            const end = parisParts(info.end);
             openEvent({
               defaults: {
                 // A new event goes into the first calendar shown.

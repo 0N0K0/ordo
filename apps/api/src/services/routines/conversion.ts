@@ -8,6 +8,7 @@ import { readLinks } from '../core/links';
 import { LINKED_DOCUMENTS_SELECT } from '../projects/linked-documents';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { forgetGithubItems } from '../github/links';
+import { TASK_PEOPLE_LINKS } from '../tasks/tasks';
 import { effectiveTasks } from '../tasks/task-inheritance';
 import { effectiveRoutineOf, loadRoutineInheritance } from './routine-inheritance';
 import { parisToday } from '../../today';
@@ -68,11 +69,7 @@ export const convertTaskToRoutine = automated(async function convertTaskToRoutin
   const stored = await prisma.task.findUniqueOrThrow({
     where: { id },
     include: {
-      sprints: { select: { id: true } },
-      assignees: { select: { id: true } },
-      beneficiaries: { select: { id: true } },
-      beneficiaryRelations: { select: { id: true } },
-      tags: { select: { id: true } },
+      ...TASK_PEOPLE_LINKS,
       blocking: { select: { blockedId: true } },
       blockedBy: { select: { blockerId: true } },
       relationsA: { select: { taskBId: true } },

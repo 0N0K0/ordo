@@ -50,7 +50,7 @@ Interne : `fetchCategories`, `occurrencesOf(data, includeArchived)` (filtre des 
 
 ### `pages/CalendarPage.tsx`
 
-`CalendarPage()` : la page `/calendar` (route dans `app/router.tsx`). FullCalendar (`dayGrid`, `timeGrid`, `interaction`, locale `fr`).
+`CalendarPage()` : la page `/calendar` (route dans `app/router.tsx`). FullCalendar (`dayGrid`, `timeGrid`, `interaction`, `luxon3` pour le fuseau nommé, locale `fr`), réglé sur le fuseau `Europe/Paris` (`PARIS_ZONE`) : ses dates (glisser, sélection, période affichée) sont lues à l’heure de Paris (`parisParts`), quel que soit le fuseau du navigateur.
 
 - État : vue (`useLocalStorage` `ordo.calendar.view`, défaut `timeGridWeek`), filtres (`ordo.calendar.filters`, type interne `Filters` : `tasks`, `routines`, `workHours`, `timers`, `hiddenCalendarIds`, `hiddenScheduleIds`, `fineSlots`, `archived`), dépliage de la ligne journée entière (`ordo.calendar.allDayExpanded`), période (`range`), titre, mode `editingSlots`.
 - Paramètre `?date=` : `gotoDate` puis retiré (`useSetParams`).
@@ -267,7 +267,7 @@ Utilisés par `ScheduleSettings`.
 - `occurrenceInput(occurrence)` : champs d’une occurrence en `CalendarEventInput` (liens par `linkInputs`). Utilisé par `EventForm` (portée `THIS`) et `scopedInput`.
 - `seriesInput(occurrence)` : champs d’une occurrence tels que « Toutes les occurrences » et « Celle-ci et les suivantes » les modifient : ceux de sa série à son jour (`series`) pour une occurrence modifiée seule, ses liens de routines déplacés avec elle ; sinon les siens. Utilisé par `EventForm`, `scopedInput`.
 - `withDays(input, startDate, endDate)` : entrée déplacée sur d’autres jours, ses liens de routines décalés d’autant (ceux hors des nouveaux jours retirés). Utilisé par `EventForm` (dates, report), `seriesInput`, `scopedInput`.
-- `scopedInput(occurrence, scope, change?)` : entrée d’un changement d’une occurrence pour la portée choisie (`occurrenceInput` ou `seriesInput`), de nouveaux jours donnés pour l’occurrence telle qu’affichée (la série décalée d’autant depuis son jour). Utilisé par `CalendarPage` (glisser), `event-cells` (tâches). Imposé par eslint : pas de `{ ...occurrenceInput(…), … }` écrit à la main.
+- `scopedInput(occurrence, scope, change?)` : entrée d’un changement d’une occurrence pour la portée choisie (`occurrenceInput` ou `seriesInput`), de nouveaux jours donnés pour l’occurrence telle qu’affichée (la série décalée d’autant depuis son jour ; une occurrence modifiée seule glissée ou étirée avec sa série la déplace de son seul déplacement, depuis les heures de la série, `movedBy`, `minutesBetween`). Utilisé par `CalendarPage` (glisser), `event-cells` (tâches). Imposé par eslint : pas de `{ ...occurrenceInput(…), … }` écrit à la main.
 - Type interne `RoutineLink`.
 
 ### `lib/event-countdowns.ts`

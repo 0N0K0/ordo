@@ -242,8 +242,8 @@ const SetRoutineDoneDocument = graphql(`
 `);
 
 const MoveRoutineOccurrenceDocument = graphql(`
-  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {
-    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)
+  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON, $confirmMerge: Boolean) {
+    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times, confirmMerge: $confirmMerge)
   }
 `);
 
@@ -732,8 +732,10 @@ export function useRoutineMutations() {
       async (variables: { id: string; done: boolean; date?: string | null; slot?: number | null; doneAt?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
       (data, { id, done, date, slot }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done))),
     ),
+    // Onto a day that has its own occurrence: merging both is asked first; declined, nothing moves.
     moveOccurrence: useRoutineMutation(
-      async (variables: { id: string; date: string; to: string; times?: RoutineMoveTimes }) => (await execute(MoveRoutineOccurrenceDocument, variables)).moveRoutineOccurrence,
+      async (variables: { id: string; date: string; to: string; times?: RoutineMoveTimes }) =>
+        withLossConfirmation(async (confirmMerge) => (await execute(MoveRoutineOccurrenceDocument, { ...variables, confirmMerge })).moveRoutineOccurrence),
     ),
     changeOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope; to: string; slot: number; fromTime: string | null; dueTime: string | null }) =>

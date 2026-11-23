@@ -3,6 +3,8 @@ import {
   clipText,
   dayPart,
   DEFAULT_LABEL_COLOR,
+  effortSchema,
+  marksInherited,
   formatOptionalDay,
   mapById,
   nameKey,
@@ -20,7 +22,7 @@ import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, errorMessage, orNotFound } from '../../graphql/errors';
-import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskRelation } from '../tasks/tasks';
+import { addTaskBlock, addTaskRelation, assertParent, createTask, followParentProjects, removeTaskBlock, removeTaskRelation } from '../tasks/tasks';
 import {
   addIssueComment,
   boardById,
@@ -314,18 +316,44 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
 }
 
 /**
- * Ids of a task and its descendants.
- * @param {string} taskId Task.
- * @returns {Promise<Set<string>>} Ids.
+ * Links with archived tasks are left alone on both sides: the new snapshot keeps them as the last one had them, so
+ * that once the task is restored, what GitHub changed meanwhile (a link removed or added) wins over Ordo's state.
+ * @param {SyncFields} next New snapshot (changed in place).
+ * @param {SyncFields | null} last Last snapshot.
+ * @param {Set<string>} archived Issues of archived tasks.
+ * @returns {void}
  */
-async function subtree(taskId: string): Promise<Set<string>> {
-  const ids = new Set([taskId]);
-  for (let frontier = [taskId]; frontier.length;) {
-    const children = await prisma.task.findMany({ where: { parentId: { in: frontier } }, select: { id: true } });
-    frontier = children.map((child) => child.id).filter((id) => !ids.has(id));
-    for (const id of frontier) ids.add(id);
+function keepArchivedLinks(next: SyncFields, last: SyncFields | null, archived: Set<string>): void {
+  for (const field of ['blockedBy', 'relatesTo'] as const) {
+    const before = last?.[field];
+    const after = next[field];
+    if (!Array.isArray(before) || !Array.isArray(after)) continue;
+    next[field] = [...new Set([...after, ...before.filter((id) => archived.has(String(id)))])].sort() as SyncFields[typeof field];
   }
-  return ids;
+}
+
+/**
+ * Values pulled from GitHub that Ordo refuses, left out (the task keeps its own, sent back to GitHub at the next sync):
+ * an effort out of its rule (negative, too large), a start and an end in the wrong order (the days pulled go, those of
+ * the task stay), an « Échéance » before the own « Ouverture » of the task.
+ * @param {SyncFields} values Values pulled from the item.
+ * @param {SyncedTask} task Task.
+ * @returns {SyncFields} Values kept.
+ */
+function acceptedValues(values: SyncFields, task: SyncedTask): SyncFields {
+  const kept = { ...values };
+  if ('effort' in kept && typeof kept.effort === 'number' && !effortSchema.safeParse(kept.effort).success) delete kept.effort;
+  const day = (key: 'start' | 'end' | 'deadline', own: Date | null) => (key in kept ? (kept[key] as string | null) || null : formatOptionalDay(own));
+  const start = day('start', task.startDate);
+  const end = day('end', task.endDate);
+  if (start && end && end < start) {
+    delete kept.start;
+    delete kept.end;
+  }
+  const deadline = day('deadline', task.deadline);
+  const minDate = marksInherited(task, 'MIN_DATE') ? null : formatOptionalDay(task.minDate);
+  if (deadline && minDate && deadline < minDate) delete kept.deadline;
+  return kept;
 }
 
 /**
@@ -396,8 +424,9 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   let inherited: readonly string[] = task.inheritedFields;
   if ('parent' in values) {
     const parentId = values.parent ? maps.taskByContent.get(String(values.parent)) : null;
-    // A task cannot go under itself or one of its sub-tasks.
-    if (!parentId || !(await subtree(task.id)).has(parentId)) {
+    // The parent obeys the rule of Ordo (same project tree, not archived, not under itself or one of its sub-tasks):
+    // otherwise the task keeps its own.
+    if (!parentId || (await assertParent(parentId, task.projectId, task.id).then(() => true, () => false))) {
       data.parent = parentId ? { connect: { id: parentId } } : { disconnect: true };
       if (!parentId && task.parentId) {
         await freezeTaskInheritance([task.id]);
@@ -881,6 +910,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       if (snapshot?.closed === true) snapshot.closed = 'COMPLETED';
       if (snapshot && typeof snapshot.iteration === 'string' && !iterationIds.has(snapshot.iteration)) delete snapshot.iteration;
       const result = mergeFields(local, remote, snapshot, task.updatedAt.toISOString() > item.updatedAt);
+      keepArchivedLinks(result.snapshot, snapshot, maps.archivedContent);
       if (Object.keys(result.push).length) {
         await pushValues(token, link, item, result.push, pushContext(task, (remote.assignees as string[]) ?? []));
         summary.pushed += 1;
@@ -889,7 +919,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       await prisma.task.update({
         where: { id: task.id },
         data: {
-          ...(await pullData(result.pull, task, maps, item)),
+          ...(await pullData(acceptedValues(result.pull, task), task, maps, item)),
           githubContentId: item.contentId,
           githubContentType: item.type,
           githubUrl: item.url,
@@ -897,6 +927,8 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
           githubSnapshot: toJson(result.snapshot),
         },
       });
+      // Placed under a parent of another project of the tree: one inheriting its project follows it.
+      if ('parent' in result.pull) await followParentProjects([task.id]);
       if (Object.keys(result.pull).length && !created.has(item.itemId)) summary.pulled += 1;
       // The number of the task follows its issue.
       if (item.type === 'ISSUE' && item.number !== null && (await matchIssueNumber(task.id, item.number))) summary.renumbered += 1;

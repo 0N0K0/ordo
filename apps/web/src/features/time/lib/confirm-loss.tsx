@@ -1,5 +1,6 @@
 import { confirmedDestructive } from '../../../components/dialogs/confirm-destructive';
 import { GraphQLRequestError } from '../../../lib/graphql-client';
+import { dayInWords } from '../../../lib/format';
 import type { LostOnDelete } from '../api';
 import { lostOnDeleteText } from './lost-on-delete';
 
@@ -19,8 +20,20 @@ const occurrencesLost = (lost: LostOnDelete): LossDialog => ({
 });
 
 /**
+ * Question of an occurrence of a routine moved onto a day that has its own: both become one.
+ * @param {string} day Day (YYYY-MM-DD).
+ * @returns {LossDialog} Dialog.
+ */
+const occurrencesMerged = (day: string): LossDialog => ({
+  title: 'Fusionner les occurrences',
+  risks: `Le ${dayInWords(day)} a déjà son occurrence : les deux n’en font plus qu’une, avec les coches et les commentaires des deux.`,
+  confirmLabel: 'Fusionner',
+});
+
+/**
  * Runs a change that the API refuses with CONFIRMATION_REQUIRED while what it loses is not confirmed
- * (occurrences of an event series or of a routine made to disappear; a task turned into a routine and back):
+ * (occurrences of an event series or of a routine made to disappear; a task turned into a routine and back; an
+ * occurrence of a routine moved onto a day that has its own, merged with it):
  * first unconfirmed; when refused, asks with the destructive confirmation, made from the extension `lost` of the
  * answer, then runs it again confirmed. Declined: `ActionDeclined` (silent in the error toasts; the caller puts back
  * what it showed).
@@ -34,7 +47,8 @@ export async function withLossConfirmation<T, L = LostOnDelete>(run: (confirm: b
   } catch (error) {
     if (!(error instanceof GraphQLRequestError) || error.code !== 'CONFIRMATION_REQUIRED') throw error;
     const { lost } = error.extensions;
-    await confirmedDestructive(dialog ? dialog((lost ?? {}) as L) : occurrencesLost((lost ?? { times: 0, comments: 0 }) as LostOnDelete));
+    const merged = (lost as { merge?: string } | undefined)?.merge;
+    await confirmedDestructive(merged ? occurrencesMerged(merged) : dialog ? dialog((lost ?? {}) as L) : occurrencesLost((lost ?? { times: 0, comments: 0 }) as LostOnDelete));
     return run(true);
   }
 }

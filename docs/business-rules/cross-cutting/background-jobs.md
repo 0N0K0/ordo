@@ -1,6 +1,6 @@
 # Tâches de fond
 
-Tâches lancées par l'API à intervalles réguliers, tâches périodiques du navigateur, et conditions de leur exécution sur l'hébergement. Sources : `apps/api/src/index.ts`, `apps/api/src/services/workspaces/workspaces.ts` (`schedulePerWorkspace`, `forEachWorkspace`), `apps/api/src/services/mail/scheduled.ts`, `apps/api/src/services/mail/linked.ts`, `apps/api/src/services/accounting/recurring-invoices.ts`, `apps/api/src/services/github/sync.ts`, `apps/api/src/services/tasks/outside-rings.ts`, `docs/deployment.md`.
+Tâches lancées par l'API à intervalles réguliers, tâches périodiques du navigateur, et conditions de leur exécution sur l'hébergement. Sources : `apps/api/src/index.ts`, `apps/api/src/services/workspaces/workspaces.ts` (`schedulePerWorkspace`, `forEachWorkspace`), `apps/api/src/services/tasks/time-entries.ts` (`scheduleTimerCap`), `apps/api/src/services/mail/scheduled.ts`, `apps/api/src/services/mail/linked.ts`, `apps/api/src/services/accounting/recurring-invoices.ts`, `apps/api/src/services/github/sync.ts`, `apps/api/src/services/tasks/outside-rings.ts`, `docs/deployment.md`.
 
 Voir aussi : [Espaces et accès](workspaces-and-access.md), [Mail](../resources/mail.md), [Comptabilité](../finances/accounting.md), [GitHub](github.md), [Alarmes](../activities/alarms.md).
 
@@ -20,6 +20,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Mail](../resources/
 | Émission des factures récurrentes         | « Factures récurrentes »    | 20 s            | 1 h        | PRO     |
 | Synchronisation GitHub                    | « Synchronisation GitHub »  | 30 s            | 10 min     | tous    |
 | Sonneries hors de l'app (notifications push) | « Sonneries hors de l’app » | 15 s          | 30 s       | tous, pour chaque utilisateur qui l'a choisi |
+| Arrêt des chronos de 24 heures            | « Chronos de plus de 24 heures » | 25 s       | 5 min      | tous    |
 
 ### Envois programmés (`scheduleMailSending`)
 
@@ -50,6 +51,10 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Mail](../resources/
 - Sans clés VAPID, ou sans utilisateur qui a « Sonner hors de l'app » et un appareil, ne fait rien.
 - Sinon, cherche dans tous les espaces (`forEachWorkspace`) les rappels, alarmes et paliers de chrono dus, et les fins de minuteurs de chaque utilisateur ; envoie ce qui est dû depuis 30 secondes à 6 heures et qu'aucun onglet n'a sonné, puis renvoie les sonneries dont la répétition est due. Rattrapage au réveil : ce qui est devenu dû pendant le sommeil du serveur (6 heures au plus). Détails : [Alarmes, hors de l'app](../activities/alarms.md#hors-de-lapp-notifications-push).
 
+### Arrêt des chronos de 24 heures (`scheduleTimerCap`)
+
+- Dans chaque espace, arrête les chronos qui ont tourné 24 heures, pauses déduites (`capRunningTimers`) : fin au moment où ils les ont atteintes, durée 24 heures, la durée maximale d’un temps. Rattrapage au réveil : un chrono passé les 24 heures pendant le sommeil du serveur est arrêté au passage suivant, avec la même fin. Détails : [Temps](../activities/time.md#arrêt-après-24-heures).
+
 ### Autres travaux en arrière-plan
 
 - Mails d'avis du compte (mot de passe modifié, email modifié, lien de réinitialisation) : envoyés sans bloquer la réponse, échec journalisé (voir [Espaces et accès](workspaces-and-access.md)).
@@ -63,14 +68,14 @@ Elles ne tournent que lorsque l'application est ouverte :
 
 | Composant                                                                                 | Rôle                                                                                      | Intervalle                                               |
 | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `AlarmCenter` (`apps/web/src/features/alarms/components/AlarmCenter.tsx`)                 | Recharge les alarmes ; vérifie celles qui doivent sonner, et les rappels des tâches, routines, évènements, éphémérides et anniversaires (app fermée : la tâche « Sonneries hors de l'app » de l'API) | 5 min ; 15 s                                             |
+| `AlarmCenter` (`apps/web/src/features/alarms/components/AlarmCenter.tsx`)                 | Recharge les alarmes (`useAlarms`, onglet en arrière-plan compris) et les chronos en cours (`useRunningTimers`, chaque minute) ; vérifie celles qui doivent sonner, et les rappels des tâches, routines, évènements, éphémérides et anniversaires (app fermée : la tâche « Sonneries hors de l'app » de l'API) | 5 min ; 15 s                                             |
 | `ElsewhereNotifier` (`apps/web/src/features/workspaces/components/ElsewhereNotifier.tsx`) | Notifications des autres espaces : toujours leurs alarmes et les rappels de leurs tâches, routines et évènements (des 8 prochains jours), leurs nouveaux mails s'ils l'ont choisi | rechargements périodiques (1 min, 5 min) ; vérification toutes les 15 s |
 | `MailWatcher` (`apps/web/src/features/mail/components/MailWatcher.tsx`)                   | Nouveaux mails                                                                            | 10 min (`MAIL_CHECK_MS`), et sur demande                 |
 | `UpdatePrompt` (`apps/web/src/app/UpdatePrompt.tsx`)                                      | Nouvelle version de l'application (service worker)                                        | 1 h                                                      |
 
 ## Hébergement : garder l'app éveillée
 
-Sur o2switch, Passenger endort l'application sans visite : les minuteries s'arrêtent alors (envois programmés, factures récurrentes, synchronisation GitHub, suivi des conversations, sonneries hors de l'app). Une tâche cron cPanel appelle le site toutes les 5 minutes en production pour la garder éveillée (voir `docs/deployment.md`, « Garder l'app éveillée ») :
+Sur o2switch, Passenger endort l'application sans visite : les minuteries s'arrêtent alors (envois programmés, factures récurrentes, synchronisation GitHub, suivi des conversations, sonneries hors de l'app, arrêt des chronos de 24 heures). Une tâche cron cPanel appelle le site toutes les 5 minutes en production pour la garder éveillée (voir `docs/deployment.md`, « Garder l'app éveillée ») :
 
 ```text
 */5 * * * * curl -fsS https://<nom-de-domaine>/ > /dev/null

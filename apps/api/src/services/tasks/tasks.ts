@@ -20,7 +20,8 @@ import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { assertConditionSchedules } from '../calendar/slot-conditions';
-import { adoptedTaskFields, changedTaskInheritance, clearedTaskData, effectiveTasks, freezeTaskInheritance, tasksOffParentProject } from './task-inheritance';
+import { adoptedTaskFields, changedTaskInheritance, clearedTaskData, effectiveTasks, freezeTaskInheritance, frozenTaskWrites, tasksOffParentProject } from './task-inheritance';
+import { undoOnFailure } from '../core/undo';
 import { automated, registerTaskAutomationWrites } from './task-automation-engine';
 
 /**
@@ -39,7 +40,7 @@ async function assertProject(projectId: string): Promise<void> {
  * @param {string | null} childId Child task, or null for a new task.
  * @returns {Promise<void>}
  */
-async function assertParent(parentId: string, projectId: string | null, childId: string | null): Promise<void> {
+export async function assertParent(parentId: string, projectId: string | null, childId: string | null): Promise<void> {
   const parent = await orNotFound(prisma.task.findUnique({ where: { id: parentId }, select: { projectId: true, archivedAt: true } }), 'Tâche parente', 'parentId');
   refuseArchived(parent, 'parentId');
   const rootOf = await loadRootOf();
@@ -132,6 +133,7 @@ interface ActiveRefs {
   sprintIds?: readonly string[] | null;
   assigneeIds?: readonly string[] | null;
   beneficiaryIds?: readonly string[] | null;
+  beneficiaryRelationIds?: readonly string[] | null;
   tagIds?: readonly string[] | null;
 }
 
@@ -147,6 +149,7 @@ const ACTIVE_REFS: { [K in keyof ActiveRefs]-?: [ArchivableModel, string] } = {
   sprintIds: ['sprint', 'sprintIds'],
   assigneeIds: ['contributor', 'assigneeIds'],
   beneficiaryIds: ['contributor', 'beneficiaryIds'],
+  beneficiaryRelationIds: ['treasuryRelation', 'beneficiaryIds'],
   tagIds: ['taskTag', 'tagIds'],
 };
 
@@ -294,7 +297,7 @@ function inheritedInput(fields: readonly TaskInheritableField[]): Partial<TaskIn
  * @param {readonly string[]} ids Tasks.
  * @returns {Promise<void>}
  */
-async function followParentProjects(ids: readonly string[]): Promise<void> {
+export async function followParentProjects(ids: readonly string[]): Promise<void> {
   for (const task of await tasksOffParentProject(ids)) await moveTaskTrees([task.id], task.projectId);
 }
 
@@ -352,13 +355,28 @@ export const createTask = automated(async function createTask(given: TaskInput &
  * Updates a task (not an archived one: restore it first). The project is changed with `bulkTransferTasks`.
  * @param {string} id Task id.
  * @param {TaskInput} input Changes; undefined leaves a field unchanged, null clears it.
+ * @param {boolean} [restoring] Undo giving back values the task had: archived ones accepted (only that check is skipped). Optional. Default = false.
  * @returns {Promise<Task>} Updated task.
  */
-export const updateTask = automated(async function updateTask(id: string, input: TaskInput): Promise<Task> {
+export const updateTask = automated(async function updateTask(id: string, input: TaskInput, restoring: boolean = false): Promise<Task> {
   const found = await findActive(prisma.task, id, 'Tâche');
-  // Made top-level: what it inherited becomes its own.
-  if (input.parentId === null && found.parentId) await freezeTaskInheritance([id]);
-  const task = input.parentId === null && found.parentId ? await prisma.task.findUniqueOrThrow({ where: { id } }) : found;
+  // Made top-level: what it inherited becomes its own (checked as such), put back if the change is refused.
+  if (input.parentId === null && found.parentId) {
+    const thaw = await freezeTaskInheritance([id]);
+    return undoOnFailure(async () => savedTask(await prisma.task.findUniqueOrThrow({ where: { id } }), input, restoring), thaw);
+  }
+  return savedTask(found, input, restoring);
+});
+
+/**
+ * Checks and saves the changes of a task (`updateTask`).
+ * @param {Task} task Task as it is (made top-level: its inheritance already made its own).
+ * @param {TaskInput} input Changes; undefined leaves a field unchanged, null clears it.
+ * @param {boolean} restoring Undo: archived values given back accepted.
+ * @returns {Promise<Task>} Updated task.
+ */
+async function savedTask(task: Task, input: TaskInput, restoring: boolean): Promise<Task> {
+  const { id } = task;
   const parentId = input.parentId === undefined ? task.parentId : input.parentId;
   // Placed under a parent after the fact: its empty fields inherit, as at its creation.
   const adopted = parentId && !task.parentId ? await adoptedTaskFields(id, input) : [];
@@ -369,7 +387,7 @@ export const updateTask = automated(async function updateTask(id: string, input:
   await assertReferences(input);
   const links = await prisma.task.findUnique({
     where: { id },
-    select: { sprints: { select: { id: true } }, assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, tags: { select: { id: true } }, projectResources: { select: { id: true } } },
+    select: { ...TASK_PEOPLE_LINKS, projectResources: { select: { id: true } } },
   });
   const idsOf = (items: { id: string }[] | undefined) => (items ?? []).map((item) => item.id);
   await assertActiveRefs(input, {
@@ -377,13 +395,14 @@ export const updateTask = automated(async function updateTask(id: string, input:
     sprintIds: idsOf(links?.sprints),
     assigneeIds: idsOf(links?.assignees),
     beneficiaryIds: idsOf(links?.beneficiaries),
+    beneficiaryRelationIds: idsOf(links?.beneficiaryRelations),
     tagIds: idsOf(links?.tags),
-  });
+  }, restoring);
   if (input.parentId) await assertParent(input.parentId, task.projectId, id);
   if (input.milestoneId) await assertMilestone(input.milestoneId, task.projectId);
   if (input.sprintIds) await assertSprints(input.sprintIds, task.projectId);
   const previous = input.assigneeIds ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id) : [];
-  if (input.assigneeIds) await assertProjectContributors(task.projectId, input.assigneeIds, previous, 'assigneeIds');
+  if (input.assigneeIds) await assertProjectContributors(task.projectId, input.assigneeIds, previous, 'assigneeIds', restoring);
   // Its project changes only by a transfer (`moveTaskTrees`): those it has out of its tree stay until then.
   const projectResourceIds = await checkLinkedDocuments(input, { projectId: task.projectId, previous: idsOf(links?.projectResources) });
 
@@ -414,7 +433,7 @@ export const updateTask = automated(async function updateTask(id: string, input:
     return prisma.task.findUniqueOrThrow({ where: { id } });
   }
   return updated;
-});
+}
 
 /**
  * Archives a task with its active sub-tasks, or restores it with the sub-tasks archived along (and its archived
@@ -533,13 +552,18 @@ export async function releaseProjectTasks(projectIds: string[]): Promise<void> {
   await moveTaskTrees(tasks.map((task) => task.id), null, false);
 }
 
-/** People, tags and sprints a cloned task (and each cloned sub-task) keeps. */
-const CLONED_LINKS = {
+/** Ids of the people, tags and sprints of a task, as its writes check and copy them. */
+export const TASK_PEOPLE_LINKS = {
   assignees: { select: { id: true } },
   beneficiaries: { select: { id: true } },
   beneficiaryRelations: { select: { id: true } },
   tags: { select: { id: true } },
   sprints: { select: { id: true } },
+} as const;
+
+/** People, tags and sprints a cloned task (and each cloned sub-task) keeps. */
+const CLONED_LINKS = {
+  ...TASK_PEOPLE_LINKS,
   savedCountdowns: { select: { id: true } },
   libraryDocuments: { select: { id: true } },
   projectResources: { select: { id: true, projectId: true } },
@@ -547,7 +571,7 @@ const CLONED_LINKS = {
 
 /**
  * Duplicates a task not archived (every field, slot condition, assignees and links, but not comments), named « … (copie) », optionally
- * with its sub-tasks (their labels kept). A former link out of its project tree (kept until it moves) is not copied.
+ * with its sub-tasks not archived (their labels kept). A former link out of its project tree (kept until it moves) is not copied.
  * @param {string} id Task id.
  * @param {boolean} includeSubtasks Whether to copy the sub-tree too.
  * @returns {Promise<Task>} Copy of the task.
@@ -648,8 +672,9 @@ export const duplicateTask = automated(async function duplicateTask(id: string, 
       const queue: { sourceId: string; cloneId: string }[] = [{ sourceId: source.id, cloneId: clone.id }];
       while (queue.length > 0) {
         const { sourceId, cloneId } = queue.shift()!;
+        // Archived sub-tasks (and theirs) are not copied.
         const children = await tx.task.findMany({
-          where: { parentId: sourceId },
+          where: { parentId: sourceId, archivedAt: null },
           orderBy: BY_POSITION,
           include: CLONED_LINKS,
         });
@@ -791,11 +816,11 @@ export async function deleteComment(id: string): Promise<void> {
 export const moveTask = automated(async function moveTask(id: string, beforeId: string | null, parentId?: string | null): Promise<void> {
   const task = await findActive(prisma.task, id, 'Tâche');
   if (parentId) await assertParent(parentId, task.projectId, id);
-  // Made top-level: what it inherited becomes its own.
-  if (parentId === null && task.parentId) await freezeTaskInheritance([id]);
+  // Made top-level: what it inherited becomes its own, in the same transaction as the move.
+  const frozen = parentId === null && task.parentId ? await frozenTaskWrites([id]) : [];
   // Placed under a parent after the fact: its empty fields inherit, as at its creation.
   const adopted = parentId && !task.parentId ? { inheritedFields: await adoptedTaskFields(id) } : {};
-  const reparent = parentId !== undefined && parentId !== task.parentId ? [prisma.task.update({ where: { id }, data: { parentId, ...adopted } })] : [];
+  const reparent = parentId !== undefined && parentId !== task.parentId ? [...frozen, prisma.task.update({ where: { id }, data: { parentId, ...adopted } })] : [];
   await moveBefore('task', id, beforeId, 'Tâche', reparent);
   // Under a parent of another project of the tree: one inheriting its project follows it.
   if (reparent.length) await followParentProjects([id]);

@@ -254,8 +254,8 @@ const CreateTaskDocument = graphql(`
 `);
 
 const UpdateTaskDocument = graphql(`
-  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {
-    updateTask(id: $id, input: $input) {
+  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!, $restoring: Boolean) {
+    updateTask(id: $id, input: $input, restoring: $restoring) {
       ...TaskFields
     }
   }
@@ -491,11 +491,12 @@ export function useCreateTask() {
 }
 
 /**
- * Updates a task (the project changes through a transfer).
+ * Updates a task (the project changes through a transfer: a project given only makes it its own, not inherited).
+ * `restoring`: undo, archived values given back accepted.
  * @returns {UseMutationResult} Mutation state.
  */
 export function useUpdateTask() {
-  return useTasksMutation(async ({ id, input }: { id: string; input: Omit<TaskInputValues, 'projectId'> }) => (await execute(UpdateTaskDocument, { id, input })).updateTask);
+  return useTasksMutation(async ({ id, input, restoring }: { id: string; input: TaskInputValues; restoring?: boolean }) => (await execute(UpdateTaskDocument, { id, input, restoring })).updateTask);
 }
 
 const SetTasksClosedDocument = graphql(`

@@ -169,7 +169,7 @@ export function useTimeEntriesSince(since: string | null, enabled = true) {
 
 /**
  * The running timers (several at once), the first started first. Refreshed when the window gets the
- * focus back (another tab may have changed them).
+ * focus back (another tab may have changed them), and every minute, in the background too.
  * @returns {UseQueryResult<TimeEntry[]>} Query state.
  */
 export function useRunningTimers() {
@@ -177,6 +177,9 @@ export function useRunningTimers() {
     queryKey: [...timeQueryKey, 'running'],
     queryFn: async () => (await execute(RunningTimeEntriesDocument)).runningTimeEntries,
     refetchOnWindowFocus: true,
+    // A tab left open in the background sees the timers started or stopped elsewhere, and those stopped after 24 hours.
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: true,
   });
 }
 

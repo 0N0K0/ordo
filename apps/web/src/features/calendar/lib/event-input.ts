@@ -1,5 +1,5 @@
 import { linkInputs } from '../../../lib/links';
-import { addDays, type CalendarEventInput, daysBetween, occurrenceKey, readOccurrenceKey } from '@ordo/shared';
+import { addDays, type CalendarEventInput, daysBetween, minutesToTime, occurrenceKey, readOccurrenceKey, timeToMinutes } from '@ordo/shared';
 import type { CalendarEventScope, EventOccurrence } from '../api';
 
 /** A routine done during an event, on one of its days. */
@@ -100,9 +100,33 @@ export function withDays(input: CalendarEventInput, startDate: string, endDate: 
 }
 
 /**
+ * Minutes from a moment to another one.
+ * @param {string} fromDay First day (YYYY-MM-DD).
+ * @param {string} fromTime First time (HH:MM).
+ * @param {string} toDay Second day.
+ * @param {string} toTime Second time.
+ * @returns {number} Minutes (negative: earlier).
+ */
+const minutesBetween = (fromDay: string, fromTime: string, toDay: string, toTime: string): number => daysBetween(fromDay, toDay) * 1440 + timeToMinutes(toTime) - timeToMinutes(fromTime);
+
+/**
+ * Moment moved by minutes, its day following when it crosses midnight.
+ * @param {string} day Day (YYYY-MM-DD).
+ * @param {string} time Time (HH:MM).
+ * @param {number} minutes Minutes moved.
+ * @returns {{ date: string, time: string }} Moment.
+ */
+function movedBy(day: string, time: string, minutes: number): { date: string; time: string } {
+  const total = timeToMinutes(time) + minutes;
+  const days = Math.floor(total / 1440);
+  return { date: addDays(day, days), time: minutesToTime(total - days * 1440) };
+}
+
+/**
  * Input of a change of an occurrence for the occurrences asked: itself (`THIS`, its own fields), or with its series
  * (`seriesInput`); new days given are those of the occurrence as shown, the series moving by as many days from its
- * day in it, its routine links with it (`withDays`).
+ * day in it, its routine links with it (`withDays`). An occurrence changed on its own, dragged or resized with its
+ * series, moves the series by its own move only: the series keeps its hours, moved by as many minutes.
  * @param {EventOccurrence} occurrence Occurrence edited.
  * @param {CalendarEventScope} scope Occurrences changed.
  * @param {Partial<CalendarEventInput>} [change] Fields changed. Optional. Default = none.
@@ -111,6 +135,12 @@ export function withDays(input: CalendarEventInput, startDate: string, endDate: 
 export function scopedInput(occurrence: EventOccurrence, scope: CalendarEventScope, change: Partial<CalendarEventInput> = {}): CalendarEventInput {
   const base = scope === 'THIS' ? occurrenceInput(occurrence) : seriesInput(occurrence);
   const { startDate, endDate, ...rest } = change;
+  const timed = change.startTime && change.endTime && occurrence.startTime && occurrence.endTime && base.startTime && base.endTime;
+  if (scope !== 'THIS' && occurrence.series && timed && !change.allDay) {
+    const start = movedBy(base.startDate, base.startTime!, minutesBetween(occurrence.startDate, occurrence.startTime!, startDate ?? occurrence.startDate, change.startTime!));
+    const end = movedBy(base.endDate, base.endTime!, minutesBetween(occurrence.endDate, occurrence.endTime!, endDate ?? occurrence.endDate, change.endTime!));
+    return { ...withDays(base, start.date, end.date < start.date ? start.date : end.date), ...rest, startTime: start.time, endTime: end.time };
+  }
   if (startDate === undefined && endDate === undefined) return { ...base, ...rest };
   const start = startDate ?? occurrence.startDate;
   const firstDay = addDays(base.startDate, daysBetween(occurrence.startDate, start));

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { localDay } from './dates';
 
 /**
  * Current time, refreshed at an interval while `active` (a running timer, a cell shown…), frozen otherwise. The
@@ -29,4 +30,13 @@ export function useNow(active: boolean, everyMs = 1000): number {
     return () => window.clearTimeout(timer);
   }, [active, everyMs]);
   return now;
+}
+
+/**
+ * User's current day (YYYY-MM-DD), changing at midnight on its own (checked every minute): what is shown « today »
+ * (the menu badges…) follows the day without a reload or a navigation.
+ * @returns {string} Day.
+ */
+export function useToday(): string {
+  return localDay(new Date(useNow(true, 60_000)));
 }

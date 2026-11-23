@@ -72,7 +72,7 @@ Recherche : « Rechercher (libellé, description, lieu) ».
 ### États affichés dans « Échéance »
 
 - « Fait » (vert) : occurrence en cours cochée (tous ses moments obligatoires).
-- À faire (occurrence due aujourd'hui, ou ouverte pendant son « Ouverture » et due plus tard) : badge « Aujourd'hui 8:20–8:30 » (gris avant l'heure de début) ; « Partir maintenant » (orange plein) dès l'heure de départ calculée avec le trajet ; « Après 8:30 » (couleur de retard) une fois l'heure limite passée. Rafraîchi chaque minute.
+- À faire (occurrence due aujourd'hui, ou ouverte pendant son « Ouverture » et due plus tard) : due aujourd'hui, badge « Aujourd'hui 8:20–8:30 » (gris avant l'heure de début) ; « Partir maintenant » (orange plein) dès l'heure de départ calculée avec le trajet ; « Après 8:30 » (couleur de retard) une fois l'heure limite passée ; due plus tard, pendant son « Ouverture » : badge gris « D'ici jeudi 8:20–8:30 ». Heures et jour d'aujourd'hui pris à l'heure de Paris, quel que soit le fuseau du navigateur. Rafraîchi chaque minute.
 - « Depuis lun. 10 nov. » (orange) : en retard depuis cette date.
 - À venir : la date de la prochaine fois en gris (ou « — »).
 - Une flèche indique une occurrence reportée ou avancée ; l'infobulle donne « Prochaine fois : … » (ou « Plus d'occurrence à venir ») et le jour prévu à l'origine.
@@ -198,7 +198,7 @@ Avec des cas, chaque carte se résume en une ligne : « Tous les jours · avant 
 
 ## Reporter, changer l'horaire ou annuler une occurrence
 
-- « Reporter au lendemain » : déplace l'occurrence en cours (ou la suivante si un moment de l'occurrence en cours est déjà coché) au jour suivant. Toast « « … » reportée au … » avec « Annuler ».
+- « Reporter au lendemain » : déplace l'occurrence en cours (ou la suivante si un moment de l'occurrence en cours est déjà coché) au jour suivant. Toast « « … » reportée au … » avec « Annuler ». Un jour qui a déjà sa propre occurrence (une routine quotidienne) : confirmation « Fusionner les occurrences » (« Le … a déjà son occurrence : les deux n’en font plus qu’une, avec les coches et les commentaires des deux. », boutons « Fusionner » puis « Annuler ») ; refusée, rien ne bouge. De même pour un déplacement depuis le formulaire « Reporter… » ou l'agenda (« Cette occurrence »).
 - « Reporter, changer l'horaire ou annuler… » ouvre le panneau « Reporter ou annuler « … » » :
   - « Occurrence » : parmi celles non cochées de 30 jours avant à 68 jours après aujourd'hui, marquées « (aujourd'hui) », « (en retard) », avec leurs horaires ; par défaut celle qui peut être déplacée. Description : « Ne change que celle-ci : c'est une exception, la règle ne change pas. » ou « Déjà déplacée depuis le … ». Dessous, quand elle ouvre (« Ouverte 3 jours avant (le 5 nov.) »…, voir plus haut).
   - « Nouvelle date » (requise, pas avant la première fois) : plus tard pour reporter, plus tôt pour avancer, le même jour pour ne changer que l'horaire.

@@ -166,6 +166,7 @@ Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme
 - `dayOf(value)` : jour d'un jour (ou mois) tel quel, ou d'un instant dans le fuseau de l'utilisateur.
 - `localToday()` : jour courant de l'utilisateur (~50 fichiers).
 - `localParts(instant)` : `{ date: 'YYYY-MM-DD', time: 'HH:MM' }` locaux.
+- `parisParts(instant)` : `{ date, time }` à l'heure de Paris, celle des jours et heures des routines et évènements, quel que soit le fuseau du navigateur.
 - `localMidnight(day)` : minuit local d'un jour, en date-heure ISO.
 - Réexports de `@ordo/shared` (seul chemin autorisé par eslint) : `monthOfDay`, `yearOfDay`, `localInstant` (instant d'un jour et d'une heure de l'utilisateur, partagé avec les alarmes).
 
@@ -188,6 +189,8 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 ### `use-now.ts`
 
 `useNow(active, everyMs = 1000)` : heure courante, rafraîchie à intervalle tant que `active` (juste après chaque changement de seconde, de minute… : une heure affichée à la minute n'est jamais en retard), figée sinon. Utilisé par l'horloge de l'en-tête, les chronos, les routines, l'agenda.
+
+`useToday()` : jour courant de l'utilisateur, qui change tout seul à minuit (vérifié chaque minute) : les pastilles du menu (`NavBadges`) suivent le jour sans recharger ni naviguer.
 
 ## Sonneries (`alarm-sound.ts`)
 

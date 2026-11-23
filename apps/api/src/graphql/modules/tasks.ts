@@ -614,8 +614,12 @@ builder.mutationFields((t) => ({
   }),
   updateTask: t.prismaField({
     type: 'Task',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: TaskUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) => reloaded(prisma.task, query, tasks.updateTask(id, input)),
+    args: {
+      id: t.arg.id({ required: true }),
+      input: t.arg({ type: TaskUpdateInput, required: true }),
+      restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }),
+    },
+    resolve: async (query, _root, { id, input, restoring }) => reloaded(prisma.task, query, tasks.updateTask(id, input, restoring ?? false)),
   }),
   duplicateTask: t.prismaField({
     type: 'Task',

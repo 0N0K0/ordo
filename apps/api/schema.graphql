@@ -2079,7 +2079,7 @@ type Mutation {
   changePassword(currentPassword: String!, password: String!): Boolean!
 
   """
-  Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all.
+  Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all. This one onto a day that has its own occurrence: merging both is confirmed by confirmLoss (extension lost.merge).
   """
   changeRoutineOccurrence(
     """
@@ -2468,7 +2468,16 @@ type Mutation {
   """
   Moves an occurrence to another day (postponed or brought forward) and / or other times ([{ fromTime, dueTime } | null] by time of the day, null: those of its rule; none: those it had); back to its own day and times, the exception is removed.
   """
-  moveRoutineOccurrence(date: Date!, id: ID!, times: JSON, to: Date!): Boolean!
+  moveRoutineOccurrence(
+    """
+    Onto a day that has its own occurrence: both merged into one, confirmed (unconfirmed: CONFIRMATION_REQUIRED, extension lost.merge, nothing moves).
+    """
+    confirmMerge: Boolean
+    date: Date!
+    id: ID!
+    times: JSON
+    to: Date!
+  ): Boolean!
 
   """
   Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
@@ -2972,7 +2981,15 @@ type Mutation {
   updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateStockItem(id: ID!, input: StockItemInput!): Boolean!
   updateStockLocation(id: ID!, input: StockLocationInput!): Boolean!
-  updateTask(id: ID!, input: TaskUpdateInput!): Task!
+  updateTask(
+    id: ID!
+    input: TaskUpdateInput!
+
+    """
+    Undo: archived values given back are accepted (only that check is skipped).
+    """
+    restoring: Boolean
+  ): Task!
   updateTaskAutomation(id: ID!, input: TaskAutomationPatch!): TaskAutomation!
   updateTaskComment(body: String!, id: ID!): TaskComment!
   updateTaskPriority(id: ID!, input: TaskLabelUpdateInput!): TaskPriority!
@@ -3593,7 +3610,7 @@ type Query {
   tasks: [Task!]!
 
   """
-  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.
+  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since).
   """
   timeEntries(projectId: ID, routineId: ID, since: DateTime): [TimeEntry!]!
 

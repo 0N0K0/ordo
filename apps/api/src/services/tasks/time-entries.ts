@@ -1,4 +1,4 @@
-import { durationSchema, formatOptionalDay, parseDay, parseOptionalDay, subtreeOf, TIME_SUBJECT_REQUIRED, timeDescriptionSchema } from '@ordo/shared';
+import { dayIn, DURATION_MAX_SECONDS, durationSchema, formatDay, formatOptionalDay, parseDay, parseOptionalDay, subtreeOf, TIME_SUBJECT_REQUIRED, timeDescriptionSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, TimeEntry } from '../../generated/prisma/client';
@@ -7,6 +7,8 @@ import { assertNoneArchived, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { modelDelegate } from '../core/delegate';
 import { automated } from './task-automation-engine';
+import { PARIS } from '../../today';
+import { schedulePerWorkspace } from '../workspaces/workspaces';
 
 /** Calendar event (and occurrence of a recurring one) a time is spent on. */
 export interface TimeEventLink {
@@ -200,6 +202,34 @@ function stopEntry(entry: TimeEntry): Promise<TimeEntry> {
 }
 
 /**
+ * Stops the timers of the workspace that have run 24 hours (pauses left out, the longest time): each ends once its 24
+ * hours are reached, its duration 24 hours, even when the app is closed (`scheduleTimerCap`).
+ * @returns {Promise<number>} Timers stopped.
+ */
+export async function capRunningTimers(): Promise<number> {
+  const now = Date.now();
+  const running = await prisma.timeEntry.findMany({ where: { endedAt: null } });
+  const over = running.filter((entry) => ((entry.pausedAt?.getTime() ?? now) - entry.startedAt.getTime()) / 1000 - entry.pausedSeconds >= DURATION_MAX_SECONDS);
+  await prisma.$transaction(
+    over.map((entry) =>
+      prisma.timeEntry.update({
+        where: { id: entry.id },
+        data: { endedAt: new Date(entry.startedAt.getTime() + (entry.pausedSeconds + DURATION_MAX_SECONDS) * 1000), pausedAt: null, duration: DURATION_MAX_SECONDS },
+      }),
+    ),
+  );
+  return over.length;
+}
+
+/**
+ * Stops, in every workspace, the timers that have run 24 hours (`capRunningTimers`), every 5 minutes.
+ * @returns {void}
+ */
+export function scheduleTimerCap(): void {
+  schedulePerWorkspace('Chronos de plus de 24 heures', capRunningTimers, { delay: 25_000, interval: 5 * 60_000 });
+}
+
+/**
  * Stops a running timer (a paused timer ends when its pause started); the others keep running.
  * @param {string} id Time entry id.
  * @returns {Promise<TimeEntry | null>} Stopped entry, or null when it does not run (any more).
@@ -326,8 +356,11 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
     throw fieldError('startedAt', 'Le début ne peut pas être dans le futur.');
   }
   const kept = subjectsOf(entry);
+  // Moved to another day (its events not given): it leaves the events that are not on that day.
+  const otherDay = input.startedAt && input.events === undefined && dayIn(input.startedAt, PARIS) !== dayIn(entry.startedAt, PARIS);
+  const events = otherDay ? await eventsOnDay(kept.events, dayIn(input.startedAt!, PARIS)) : (input.events ?? kept.events);
   // Removing the last item of a time without project is refused (TIME_SUBJECT_REQUIRED): the time is not deleted.
-  const subjects: TimeSubjects = { taskIds: input.taskIds ?? kept.taskIds, routineIds: input.routineIds ?? kept.routineIds, events: input.events ?? kept.events };
+  const subjects: TimeSubjects = { taskIds: input.taskIds ?? kept.taskIds, routineIds: input.routineIds ?? kept.routineIds, events };
   const checked = await checkedSubjects(input.projectId === undefined ? entry.projectId : input.projectId, subjects, { projectId: entry.projectId, subjects: kept });
 
   const startedAt = input.startedAt ?? entry.startedAt;
@@ -341,8 +374,24 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
       ...(!running && seconds !== null && { duration: seconds, endedAt: new Date(startedAt.getTime() + seconds * 1000) }),
       tasks: { set: connectIds(subjects.taskIds) },
       routines: { set: connectIds(subjects.routineIds) },
-      ...(input.events && { events: { deleteMany: {}, create: checked.events } }),
+      ...((input.events || otherDay) && { events: { deleteMany: {}, create: checked.events } }),
     },
+  });
+}
+
+/**
+ * Event links of a time that are on a day: an occurrence of that day, or a one-off event that day is within.
+ * @param {readonly TimeEventLink[]} links Links.
+ * @param {string} day Day (YYYY-MM-DD, Paris).
+ * @returns {Promise<TimeEventLink[]>} Links kept.
+ */
+async function eventsOnDay(links: readonly TimeEventLink[], day: string): Promise<TimeEventLink[]> {
+  const oneOff = links.filter((link) => link.occurrenceDate === null).map((link) => link.eventId);
+  const events = new Map((await prisma.calendarEvent.findMany({ where: { id: { in: oneOff } }, select: { id: true, startDate: true, endDate: true } })).map((event) => [event.id, event]));
+  return links.filter((link) => {
+    if (link.occurrenceDate !== null) return link.occurrenceDate === day;
+    const event = events.get(link.eventId);
+    return Boolean(event && formatDay(event.startDate) <= day && formatDay(event.endDate) >= day);
   });
 }
 

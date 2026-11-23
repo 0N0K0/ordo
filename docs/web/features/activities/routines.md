@@ -40,7 +40,7 @@ Mutations de `useRoutineMutations()` (toutes invalident `routinesKey` en arrièr
 | `patch`                                                                | `patchRoutine` (renvoie `removedLinks`)                     | fusionne les champs                             |
 | `move`                                                                 | `moveRoutine`, sous `withLossConfirmation` (une nouvelle parente qui fait perdre des occurrences commentées est confirmée ; refusé, le cache revient) | `moveInCache`                                   |
 | `setDone`                                                              | `setRoutineDone`                                            | `withSlotsDone` (occurrence en cours seulement) |
-| `moveOccurrence`, `changeOccurrence`, `deleteOccurrence`, `removeMove` | exceptions ; `deleteOccurrence` renvoie `{ archived, comments }`, `removeMove` rend ces `comments` ; `update`, `patch`, `bulkUpdate`, `changeOccurrence` passent par `withLossConfirmation` | —                                               |
+| `moveOccurrence`, `changeOccurrence`, `deleteOccurrence`, `removeMove` | exceptions ; `deleteOccurrence` renvoie `{ archived, comments }`, `removeMove` rend ces `comments` ; `update`, `patch`, `bulkUpdate`, `moveOccurrence`, `changeOccurrence` passent par `withLossConfirmation` (`moveOccurrence` et `changeOccurrence` : fusion sur un jour qui a son occurrence demandée) | —                                               |
 | `bulkUpdate`                                                           | `bulkUpdateRoutines` (renvoie `removedLinks`)               | `withBulkChanges`                               |
 | `bulkArchive`                                                          | `bulkSetRoutinesArchived`                                   | `archiveInCache` (sous-routines, parentes)      |
 | `bulkDone`                                                             | `bulkSetRoutinesDone`                                       | tous les moments                                |
@@ -193,7 +193,7 @@ Interne : `hasOwnTimes(routine)`.
 | `ChronoCell({ routine, running })`                    | `TimerToggle` (chrono démarré sur `routineIds: [id]`) et temps passé (ou le chrono en cours qui porte sur la routine, `runningOn` ; `running` : les chronos en cours). |
 | `AddRoutineRow({ categoryId, projectId, groupName })` | Ligne d'ajout : routine quotidienne dès aujourd'hui.                                      |
 
-Interne : `DueBadge` (« Après … », « Partir maintenant », « Aujourd'hui … », rafraîchi chaque minute).
+Interne : `DueBadge` (« D'ici … » pendant l'« Ouverture », « Après … », « Partir maintenant », « Aujourd'hui … », à l'heure de Paris par `parisParts`, rafraîchi chaque minute).
 
 ### `components/WaitingIcon.tsx`
 

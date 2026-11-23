@@ -6,22 +6,42 @@ import { releaseSubjectTime, timeLeftEmpty } from '../tasks/time-entries';
 import { commentsLostOnDelete, deleteGoneComments, type GoneComments } from './comments';
 import { modelDelegate } from './delegate';
 
-/** Rows kept per occurrence of an item: its comments and, for an event, the links of its times. */
-const OCCURRENCE_ROWS = { eventId: ['comment', 'timeEntryEvent'], routineId: ['comment'] } as const;
+/**
+ * A model of rows kept per occurrence: its column of the day, and, when one occurrence has one row at most, the
+ * other columns of that uniqueness (besides the item and the day).
+ */
+interface OccurrenceRowModel {
+  model: 'comment' | 'timeEntryEvent' | 'checklist' | 'calendarEventRoutine';
+  /** Column of the day. Optional. Default = `occurrenceDate`. */
+  day?: 'occurrenceDate' | 'date';
+  /** One row per occurrence (and per value of these columns): a row whose new day is taken stays. Optional. Default = several rows per occurrence. */
+  unique?: readonly ('eventId')[];
+}
+
+/**
+ * Rows kept per occurrence of an item: its comments and checklist, for an event the links of its times, for a routine
+ * its links with events.
+ */
+const OCCURRENCE_ROWS: Record<'eventId' | 'routineId', readonly OccurrenceRowModel[]> = {
+  eventId: [{ model: 'comment' }, { model: 'timeEntryEvent' }, { model: 'checklist', unique: [] }],
+  routineId: [{ model: 'comment' }, { model: 'checklist', unique: [] }, { model: 'calendarEventRoutine', day: 'date', unique: ['eventId'] }],
+};
 
 /** Column naming the item of rows kept per occurrence. */
 export type OccurrenceOwner = keyof typeof OCCURRENCE_ROWS;
 
-/** Delegate of a model of rows kept per occurrence (`prisma.comment`, `prisma.timeEntryEvent`). */
+/** Delegate of a model of rows kept per occurrence (`prisma.comment`, `prisma.timeEntryEvent`…). */
 interface OccurrenceRowDelegate {
-  findMany(args: { where: Record<string, unknown>; select: { id: true; occurrenceDate: true } }): PromiseLike<{ id: string; occurrenceDate: Date | null }[]>;
+  findMany(args: { where: Record<string, unknown>; select: Record<string, true> }): PromiseLike<Record<string, unknown>[]>;
   updateMany(args: { where: { id: { in: string[] } }; data: Record<string, unknown> }): PromiseLike<unknown>;
 }
 
 /**
- * Moves the rows of the occurrences of an item (its comments, the links of the times of an event) when its occurrences
- * change: to other days (a series moved), and / or to another item (a series split: the following occurrences go to the
- * new one). The same for every model of rows, so that comments and times follow their occurrence together.
+ * Moves the rows of the occurrences of an item (its comments and checklists, the links of the times of an event, the
+ * links of a routine with events) when its occurrences change: to other days (a series moved), and / or to another
+ * item (a series split: the following occurrences go to the new one). The same for every model of rows, so that they
+ * follow their occurrence together. A row of which an occurrence has one only (a checklist, a link with an event)
+ * stays where it is when its new day already has one that does not move.
  * @param {OccurrenceOwner} owner Column of the item (`eventId`, `routineId`).
  * @param {string} id Item.
  * @param {(date: string | null) => string | null | undefined} map New day of an occurrence (null: the single occurrence of
@@ -37,18 +57,39 @@ export async function remapOccurrenceRows(
   map: (date: string | null) => string | null | undefined,
   { to = id, client = prisma }: { to?: string; client?: object } = {},
 ): Promise<void> {
-  for (const model of OCCURRENCE_ROWS[owner]) {
+  for (const { model, day = 'occurrenceDate', unique } of OCCURRENCE_ROWS[owner]) {
     const delegate = modelDelegate<OccurrenceRowDelegate>(model, client);
-    const rows = await delegate.findMany({ where: { [owner]: id }, select: { id: true, occurrenceDate: true } });
-    const groups = new Map<string | null, string[]>();
-    for (const row of rows) {
-      const before = formatOptionalDay(row.occurrenceDate);
+    const columns = unique ?? [];
+    const rows = await delegate.findMany({ where: { [owner]: id }, select: { id: true, [day]: true, ...Object.fromEntries(columns.map((column) => [column, true])) } });
+    const keyOf = (row: Record<string, unknown>, date: string | null) => [date, ...columns.map((column) => String(row[column]))].join('|');
+    const moving = rows.flatMap((row) => {
+      const before = formatOptionalDay(row[day] as Date | null);
       const after = map(before);
-      if (after === undefined || (after === before && to === id)) continue;
-      groups.set(after, [...(groups.get(after) ?? []), row.id]);
+      return after === undefined || (after === before && to === id) ? [] : [{ row, before, after }];
+    });
+    // One row per occurrence: those of the target item that stay hold their day.
+    const movingIds = new Set(moving.map((item) => item.row.id as string));
+    const held = new Set(unique && to === id ? rows.filter((row) => !movingIds.has(row.id as string)).map((row) => keyOf(row, formatOptionalDay(row[day] as Date | null))) : []);
+    if (unique && to !== id) {
+      const targets = await delegate.findMany({ where: { [owner]: to }, select: { id: true, [day]: true, ...Object.fromEntries(columns.map((column) => [column, true])) } });
+      for (const row of targets) held.add(keyOf(row, formatOptionalDay(row[day] as Date | null)));
+    }
+    // Moved later first when they go forward (earlier first otherwise): a row leaves a day before another takes it.
+    const forward = moving.some((item) => item.before !== null && item.after !== null && item.after > item.before);
+    const ordered = unique ? [...moving].sort((a, b) => ((a.after ?? '') < (b.after ?? '') ? 1 : -1) * (forward ? 1 : -1)) : moving;
+    const groups = new Map<string | null, string[]>();
+    for (const { row, before, after } of ordered) {
+      if (unique) {
+        if (held.has(keyOf(row, after))) continue;
+        held.delete(keyOf(row, before));
+        held.add(keyOf(row, after));
+        await delegate.updateMany({ where: { id: { in: [row.id as string] } }, data: { [owner]: to, [day]: parseOptionalDay(after) } });
+        continue;
+      }
+      groups.set(after, [...(groups.get(after) ?? []), row.id as string]);
     }
     for (const [date, ids] of groups) {
-      await delegate.updateMany({ where: { id: { in: ids } }, data: { [owner]: to, occurrenceDate: parseOptionalDay(date) } });
+      await delegate.updateMany({ where: { id: { in: ids } }, data: { [owner]: to, [day]: parseOptionalDay(date) } });
     }
   }
 }
@@ -61,12 +102,19 @@ export async function remapOccurrenceRows(
  */
 async function occurrenceRowDays(owner: OccurrenceOwner, id: string): Promise<string[]> {
   const days = new Set<string>();
-  for (const model of OCCURRENCE_ROWS[owner]) {
+  // What a lost occurrence loses: its comments and the links of its times.
+  for (const { model } of OCCURRENCE_ROWS[owner].filter((item) => item.model === 'comment' || item.model === 'timeEntryEvent')) {
     const rows = await modelDelegate<OccurrenceRowDelegate>(model).findMany({ where: { [owner]: id, occurrenceDate: { not: null } }, select: { id: true, occurrenceDate: true } });
-    for (const row of rows) days.add(formatOptionalDay(row.occurrenceDate)!);
+    for (const row of rows) days.add(formatOptionalDay(row.occurrenceDate as Date | null)!);
   }
   return [...days].sort();
 }
+
+/** What a change does once it is saved (the comments of the occurrences it made disappear deleted). */
+export type AfterSave = () => Promise<void>;
+
+/** Nothing to do once saved. */
+export const NOTHING_AFTER: AfterSave = async () => {};
 
 /** What a change of rule takes from the occurrences it makes disappear, and how to delete it. */
 export interface LostOccurrences {

@@ -1,7 +1,7 @@
 import { Badge, Group, Text, Tooltip } from '@mantine/core';
 import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
 import { ArrowBendUpRightIcon } from '@phosphor-icons/react';
-import { localToday } from '../../../lib/dates';
+import { localToday, parisParts } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useNow } from '../../../lib/use-now';
 import { TimerToggle } from '../../time/components/TimerToggle';
@@ -14,16 +14,26 @@ import classes from './Routines.module.css';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 /**
- * Badge of a routine due today: past its latest time (late), time to leave (its way there has started), or its time window
- * (grey before it opens).
+ * Badge of a routine to do: during its « Ouverture » (due a later day), the day it is due; due today, past its latest
+ * time (late), time to leave (its way there has started), or its time window (grey before it opens). Its hours are
+ * those of Paris, compared with the time in Paris.
  * @param {{ routine: Routine }} props Component props.
  * @returns {JSX.Element} Badge.
  */
 function DueBadge({ routine }: { routine: Routine }) {
   // Refreshed every minute: it turns late, or time to leave, without a reload.
-  const now = new Date(useNow(true, 60_000)).toTimeString().slice(0, 5);
+  const { date: today, time: now } = parisParts(new Date(useNow(true, 60_000)));
   const { fromTime, dueTime } = windowOf(routine);
   const { leaveAt } = scheduleOf(routine);
+  if (routine.currentDate && routine.currentDate > today) {
+    const window = windowText({ fromTime, dueTime });
+    return (
+      <Badge variant="light" color="gray">
+        D’ici {fmt.weekday(routine.currentDate)}
+        {window ? ` ${window}` : ''}
+      </Badge>
+    );
+  }
   if (dueTime && now > dueTime) {
     return (
       <Badge variant="light" color={LATE_COLOR}>

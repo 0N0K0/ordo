@@ -41,6 +41,7 @@ import { userErrorMessage } from '../../graphql/errors';
 import { parisToday } from '../../today';
 import { BY_POSITION } from '../core/ordering';
 import { currentWorkspaceFields } from '../workspaces/current-workspace';
+import { currentWorkspaceId } from '../../workspace-context';
 import { loadProjectRootOf } from '../projects/project-tree';
 import { effectiveTaskOf, loadTaskInheritance } from './task-inheritance';
 
@@ -173,18 +174,48 @@ export function automated<A extends unknown[], R>(write: (...args: A) => Promise
     }
     const rules = await activeRules();
     if (!rules.length) return write(...args);
-    const before = await loadSnapshot();
-    const own = { timerTaskIds: [] as string[] };
-    const result = await scopes.run(own, () => write(...args));
-    own.timerTaskIds.push(...started);
-    try {
-      await scopes.run(own, () => applyRules(rules, before, new Set(own.timerTaskIds)));
-    } catch (error) {
-      // The change is done: a failure of the rules does not undo it.
-      console.error('Automatisations des tâches :', error);
-    }
-    return result;
+    // One change of the workspace at a time (a background sync, another request): what changed between the two
+    // readings is this change's only, so no rule is applied twice.
+    return oneAtATime(currentWorkspaceId(), async () => {
+      const before = await loadSnapshot();
+      const own = { timerTaskIds: [] as string[] };
+      const result = await scopes.run(own, () => write(...args));
+      own.timerTaskIds.push(...started);
+      try {
+        await scopes.run(own, () => applyRules(rules, before, new Set(own.timerTaskIds)));
+      } catch (error) {
+        // The change is done: a failure of the rules does not undo it.
+        console.error('Automatisations des tâches :', error);
+      }
+      return result;
+    });
   };
+}
+
+/** Last change of tasks running or waiting, by workspace. */
+const running = new Map<string, Promise<void>>();
+
+/**
+ * Runs a change of tasks once the changes of the same workspace started before it are over.
+ * @param {string} key Workspace.
+ * @param {() => Promise<R>} run Change.
+ * @returns {Promise<R>} What the change returns.
+ */
+async function oneAtATime<R>(key: string, run: () => Promise<R>): Promise<R> {
+  const previous = running.get(key) ?? Promise.resolve();
+  let release: () => void = () => undefined;
+  const done = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const last = previous.then(() => done);
+  running.set(key, last);
+  await previous;
+  try {
+    return await run();
+  } finally {
+    release();
+    if (running.get(key) === last) running.delete(key);
+  }
 }
 
 /**

@@ -3714,6 +3714,7 @@ export type MoveRoutineOccurrenceMutationVariables = Exact<{
   date: string;
   to: string;
   times?: unknown;
+  confirmMerge?: boolean | null | undefined;
 }>;
 
 
@@ -4461,6 +4462,7 @@ export type CreateTaskMutation = { createTask: { id: string, number: number | nu
 export type UpdateTaskMutationVariables = Exact<{
   id: string | number;
   input: TaskUpdateInput;
+  restoring?: boolean | null | undefined;
 }>;
 
 
@@ -9299,8 +9301,14 @@ export const SetRoutineDoneDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<SetRoutineDoneMutation, SetRoutineDoneMutationVariables>;
 export const MoveRoutineOccurrenceDocument = new TypedDocumentString(`
-    mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {
-  moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)
+    mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON, $confirmMerge: Boolean) {
+  moveRoutineOccurrence(
+    id: $id
+    date: $date
+    to: $to
+    times: $times
+    confirmMerge: $confirmMerge
+  )
 }
     `) as unknown as TypedDocumentString<MoveRoutineOccurrenceMutation, MoveRoutineOccurrenceMutationVariables>;
 export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`
@@ -10430,8 +10438,8 @@ fragment TaskFields on Task {
   savedCountdownIds
 }`) as unknown as TypedDocumentString<CreateTaskMutation, CreateTaskMutationVariables>;
 export const UpdateTaskDocument = new TypedDocumentString(`
-    mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {
-  updateTask(id: $id, input: $input) {
+    mutation UpdateTask($id: ID!, $input: TaskUpdateInput!, $restoring: Boolean) {
+  updateTask(id: $id, input: $input, restoring: $restoring) {
     ...TaskFields
   }
 }

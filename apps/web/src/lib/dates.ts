@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-restricted-imports -- lib/dates itself.
-import { CALENDAR_DAY, dayIn, localInstant } from '@ordo/shared';
+import { CALENDAR_DAY, dayIn, localInstant, PARIS_ZONE, timeIn } from '@ordo/shared';
 
 /**
  * Local date-time of an instant, as ISO text without zone (YYYY-MM-DDTHH:MM:SS.sss).
@@ -61,3 +61,13 @@ export function localMidnight(day: string): string {
 
 /** Instant of a day and a time of the user (`localInstant` of @ordo/shared, shared with the alarms). */
 export { localInstant };
+
+/**
+ * Day and time of an instant in Paris, the time of the days and hours of the app's items (routines, events), whatever
+ * the zone of the browser.
+ * @param {Date} instant Instant.
+ * @returns {{ date: string, time: string }} Day (YYYY-MM-DD) and time (HH:MM) in Paris.
+ */
+export function parisParts(instant: Date): { date: string; time: string } {
+  return { date: dayIn(instant, PARIS_ZONE), time: timeIn(instant, PARIS_ZONE) };
+}

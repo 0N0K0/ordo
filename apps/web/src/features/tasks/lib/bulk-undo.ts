@@ -135,7 +135,8 @@ export function useBulkUndo() {
 
     /**
      * Undo of « Héritage… »: each field of each task given back as it was, inherited, emptied or its own
-     * value; its own project by a transfer (it had followed its parent's).
+     * value (archived ones accepted); its own project made its own again, then given back by a transfer (it had
+     * followed its parent's).
      * @param {Task[]} tasks Tasks before the change.
      * @param {readonly TaskInheritableField[]} fields Fields changed.
      * @returns {() => void} Undo.
@@ -147,9 +148,11 @@ export function useBulkUndo() {
             const { inherit = [], clear = [], ...values } = restoredField(task, field);
             return { ...all, ...values, ...(inherit?.length && { inherit: [...(all.inherit ?? []), ...inherit] }), ...(clear?.length && { clear: [...(all.clear ?? []), ...clear] }) };
           }, {});
+          // Its own project: own again first (not inherited), then moved back to it.
           const ownProject = fields.includes('PROJECT') && originOf(task, 'PROJECT')?.state !== 'INHERITED';
+          const restored = { ...input, ...(ownProject && { projectId: task.projectId }) };
           return [
-            ...(Object.keys(input).length ? [() => updateTask.mutateAsync({ id: task.id, input })] : []),
+            ...(Object.keys(restored).length ? [() => updateTask.mutateAsync({ id: task.id, input: restored, restoring: true })] : []),
             ...(ownProject ? [() => transfer.mutateAsync({ ids: [task.id], projectId: task.projectId })] : []),
           ];
         }),

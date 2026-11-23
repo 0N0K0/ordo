@@ -152,39 +152,52 @@ export function changedTaskInheritance(
 }
 
 /**
- * Before tasks lose their parent (made top-level, parent moved out of their tree or deleted): each field they inherit
- * becomes their own, with the value they went by (nothing changes for the user), and they inherit nothing more. Their
- * dates taken from their milestone, project or sprint stay so (not stored).
+ * Writes making the fields tasks inherit their own, before they lose their parent (made top-level, parent moved out of
+ * their tree or deleted): each takes the value they went by (nothing changes for the user), and they inherit nothing
+ * more. Their dates taken from their milestone, project or sprint stay so (not stored). Nothing is written until the
+ * writes are run (in a transaction with the change that takes their parent away).
  * @param {readonly string[]} ids Tasks.
- * @returns {Promise<void>}
+ * @returns {Promise<Prisma.PrismaPromise<unknown>[]>} Writes, one per task inheriting something.
  */
-export async function freezeTaskInheritance(ids: readonly string[]): Promise<void> {
+export async function frozenTaskWrites(ids: readonly string[]): Promise<Prisma.PrismaPromise<unknown>[]> {
   const inheriting = await prisma.task.findMany({ where: { id: { in: [...ids] }, NOT: { inheritedFields: { isEmpty: true } } }, select: { id: true } });
-  if (!inheriting.length) return;
+  if (!inheriting.length) return [];
   const context = await loadTaskInheritance();
-  await prisma.$transaction(
-    inheriting.map(({ id }) => {
-      const task = effectiveTaskOf(context, id)!;
-      const inherited = new Set(context.tasks.get(id)!.inheritedFields);
-      const fromParent = (field: 'MIN_DATE' | 'DEADLINE') => taskFieldOrigin(task, field).source === 'PARENT';
-      return prisma.task.update({
-        where: { id },
-        data: {
-          inheritedFields: [],
-          // The project is kept equal to the effective one anyway (`syncTaskProjects`).
-          ...(inherited.has('ASSIGNEES') && { assignees: { set: connectIds(task.assigneeIds) } }),
-          ...(inherited.has('BENEFICIARIES') && { beneficiaries: { set: connectIds(task.beneficiaryIds) }, beneficiaryRelations: { set: connectIds(task.beneficiaryRelationIds) } }),
-          ...(inherited.has('SLOT_CONDITION') && { slotCondition: task.slotCondition === null ? Prisma.DbNull : toJson(task.slotCondition) }),
-          ...(inherited.has('HOURS') && { hours: toJson(readTaskHours(task.hours)) }),
-          ...(inherited.has('MIN_DATE') && { minDate: fromParent('MIN_DATE') ? parseOptionalDay(task.minDate) : null }),
-          ...(inherited.has('DEADLINE') && { deadline: fromParent('DEADLINE') ? parseOptionalDay(task.deadline) : null }),
-          ...(inherited.has('LOCATION') && { location: task.location, locationLat: task.locationLat, locationLon: task.locationLon }),
-          ...(inherited.has('PRIORITY') && { priorityId: task.priorityId }),
-          ...(inherited.has('MILESTONE') && { milestoneId: task.milestoneId }),
-        },
-      });
-    }),
-  );
+  return inheriting.map(({ id }) => {
+    const task = effectiveTaskOf(context, id)!;
+    const inherited = new Set(context.tasks.get(id)!.inheritedFields);
+    const fromParent = (field: 'MIN_DATE' | 'DEADLINE') => taskFieldOrigin(task, field).source === 'PARENT';
+    return prisma.task.update({
+      where: { id },
+      data: {
+        inheritedFields: [],
+        // The project is kept equal to the effective one anyway (`syncTaskProjects`).
+        ...(inherited.has('ASSIGNEES') && { assignees: { set: connectIds(task.assigneeIds) } }),
+        ...(inherited.has('BENEFICIARIES') && { beneficiaries: { set: connectIds(task.beneficiaryIds) }, beneficiaryRelations: { set: connectIds(task.beneficiaryRelationIds) } }),
+        ...(inherited.has('SLOT_CONDITION') && { slotCondition: task.slotCondition === null ? Prisma.DbNull : toJson(task.slotCondition) }),
+        ...(inherited.has('HOURS') && { hours: toJson(readTaskHours(task.hours)) }),
+        ...(inherited.has('MIN_DATE') && { minDate: fromParent('MIN_DATE') ? parseOptionalDay(task.minDate) : null }),
+        ...(inherited.has('DEADLINE') && { deadline: fromParent('DEADLINE') ? parseOptionalDay(task.deadline) : null }),
+        ...(inherited.has('LOCATION') && { location: task.location, locationLat: task.locationLat, locationLon: task.locationLon }),
+        ...(inherited.has('PRIORITY') && { priorityId: task.priorityId }),
+        ...(inherited.has('MILESTONE') && { milestoneId: task.milestoneId }),
+      },
+    });
+  });
+}
+
+/**
+ * Before tasks lose their parent: makes the fields they inherit their own at once (`frozenTaskWrites`).
+ * @param {readonly string[]} ids Tasks.
+ * @returns {Promise<() => Promise<void>>} Puts their inherited lists back (the change that took their parent away failed).
+ */
+export async function freezeTaskInheritance(ids: readonly string[]): Promise<() => Promise<void>> {
+  const before = await prisma.task.findMany({ where: { id: { in: [...ids] } }, select: { id: true, inheritedFields: true } });
+  const writes = await frozenTaskWrites(ids);
+  if (writes.length) await prisma.$transaction(writes);
+  return async () => {
+    await prisma.$transaction(before.map((task) => prisma.task.update({ where: { id: task.id }, data: { inheritedFields: task.inheritedFields } })));
+  };
 }
 
 /**

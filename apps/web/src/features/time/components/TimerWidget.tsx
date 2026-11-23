@@ -1,5 +1,7 @@
 import { Group, Stack, Text } from '@mantine/core';
-import { entrySeconds, formatClock } from '@ordo/shared';
+import { DURATION_MAX_SECONDS, entrySeconds, formatClock } from '@ordo/shared';
+import { useEffect, useRef } from 'react';
+import { notifyInfo } from '../../../lib/notify';
 import { StopIcon } from '@phosphor-icons/react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RunningPill } from '../../../components/feedback/RunningPill';
@@ -90,6 +92,25 @@ function SeveralRunning({ entries }: { entries: TimeEntry[] }) {
 }
 
 /**
+ * Tells when a running timer is stopped by the API once it has run 24 hours (the longest time): « Chrono arrêté après
+ * 24 heures », with what it was spent on.
+ * @param {readonly TimeEntry[]} entries Timers running now.
+ * @returns {void}
+ */
+function useTimerCapNotice(entries: readonly TimeEntry[]): void {
+  const { context } = useTaskContext();
+  const previous = useRef<readonly TimeEntry[]>([]);
+  useEffect(() => {
+    const now = Date.now();
+    for (const entry of previous.current) {
+      if (entries.some((item) => item.id === entry.id) || entrySeconds(entry, now) < DURATION_MAX_SECONDS) continue;
+      notifyInfo({ id: `timer-cap-${entry.id}`, title: 'Chrono arrêté après 24 heures', lines: [entrySubject(entry, context), 'Sa durée est de 24 heures, le maximum d’un temps.'] });
+    }
+    previous.current = entries;
+  }, [entries, context]);
+}
+
+/**
  * Running timers in the app header, on every page (a timer is started from the « Ajouter » menu): the one running, or
  * the number of those running (several at once).
  * @returns {JSX.Element | null} Pill, while a timer runs.
@@ -97,6 +118,7 @@ function SeveralRunning({ entries }: { entries: TimeEntry[] }) {
 export function TimerWidget() {
   const running = useRunningTimers();
   const entries = running.data ?? [];
+  useTimerCapNotice(entries);
   if (!entries.length) return null;
   return entries.length === 1 ? <RunningControls entry={entries[0]} /> : <SeveralRunning entries={entries} />;
 }
