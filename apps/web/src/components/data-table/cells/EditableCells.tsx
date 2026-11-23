@@ -3,7 +3,8 @@ import { Anchor, Popover, Group, NumberInput, Text, TextInput, type ComboboxItem
 import { TimePicker } from '@mantine/dates';
 import { DateField } from '../../inputs/DateField';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
+import classes from './EditableCells.module.css';
 import { markdownSchema } from '@ordo/shared';
 import { MarkdownEditor, type MarkdownSuggestions } from '../../markdown/MarkdownEditor';
 import { NO_SUGGESTIONS } from '../../markdown/remark-references';
@@ -179,7 +180,9 @@ export function EditableNumber({
       onChange={setDraft}
       onBlur={save}
       onKeyDown={onKeyDown}
-      styles={{ input: { textAlign: 'right' } }}
+      // At the end, unless its column is aligned otherwise (a duration: centred; DataTable.module.css).
+      // eslint-disable-next-line no-restricted-syntax -- a number field: at the end out of a table.
+      styles={{ input: { textAlign: 'var(--cell-text-align, right)' as CSSProperties['textAlign'] } }}
     />
   );
 }
@@ -200,7 +203,7 @@ interface EditableTimeProps {
  * @returns {JSX.Element} Cell.
  */
 export function EditableTime({ value, label, clearable = false, readOnly = false, onSave }: EditableTimeProps) {
-  return <TimePicker {...stoppedCellField} aria-label={label} readOnly={readOnly} clearable={clearable} value={value} onChange={(next) => next !== value && onSave(next)} />;
+  return <TimePicker {...stoppedCellField} classNames={{ ...stoppedCellField.classNames, fieldsRoot: classes.timeFields }} aria-label={label} readOnly={readOnly} clearable={clearable} value={value} onChange={(next) => next !== value && onSave(next)} />;
 }
 
 interface EditableDateProps {
@@ -401,7 +404,9 @@ export function EditablePopoverCell({ target, lines, empty = false, label, width
               stopClick(event);
               if (onOpenedChange) onOpenedChange(!opened);
             }}
-            style={{ textAlign: 'left', maxWidth: '100%' }}
+            // Aligned as the cells of its column (DataTable.module.css).
+            // eslint-disable-next-line no-restricted-syntax -- the value of a cell, aligned as its column.
+            style={{ textAlign: 'var(--cell-text-align, left)' as CSSProperties['textAlign'], maxWidth: '100%' }}
             truncate={truncate}
           >
             {content}

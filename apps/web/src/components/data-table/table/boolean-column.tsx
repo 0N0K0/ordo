@@ -49,7 +49,7 @@ export type BooleanColumnOptions<R> = PlainBooleanColumn<R> | StatesBooleanColum
  * Yes / no column of a table: its cells show an icon (`YesNoIcon`: a green check or a red cross unless it sets `icons`)
  * named after its value (`groupLabels`); a column whose value a state button changes takes its `states` instead, and
  * so shows the same icons with the same names as the button. Its text is « Oui » / « Non » (export, search), it sorts
- * no before yes and filters as a yes / no; its groups are named by `groupLabels` (default: the states), yes first.
+ * no before yes and filters as a yes / no, its cells centred; its groups are named by `groupLabels` (default: the states), yes first.
  * @param {BooleanColumnOptions<R>} options Column, with the value of a row.
  * @returns {DataColumn<R>} Column.
  */
@@ -63,6 +63,9 @@ export function booleanColumn<R>({ value, blank, icons: given, states, groupLabe
   const icons = states ? stateIcons(states) : given;
   const names = states?.labels ?? groups;
   return {
+    // Its icons (and state buttons) centred.
+    // eslint-disable-next-line no-restricted-syntax -- the kind of the yes / no columns.
+    align: 'center',
     ...column,
     groupLabels: groups ?? names,
     yesNoIcons: icons,

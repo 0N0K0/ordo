@@ -1,6 +1,6 @@
 import { STOCK_MOVEMENT_LABELS, type StockMovementKind, mapById, round2 } from '@ordo/shared';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
+import { BADGE_COLUMN, WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { signedText } from '../../../components/money/signed-text';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
@@ -39,6 +39,7 @@ export const MOVEMENT_COLUMNS: DataColumn<StockMovement>[] = [
     required: true,
     label: 'Mouvement',
     size: 130,
+    ...BADGE_COLUMN,
     sortValue: (movement) => STOCK_MOVEMENT_LABELS[movement.kind as StockMovementKind],
     text: (movement) => STOCK_MOVEMENT_LABELS[movement.kind as StockMovementKind],
     filter: { kind: 'choice', value: (movement) => movement.kind, options: Object.entries(STOCK_MOVEMENT_LABELS).map(([value, label]) => ({ value, label })) },

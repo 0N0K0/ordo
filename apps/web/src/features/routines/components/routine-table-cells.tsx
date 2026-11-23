@@ -7,6 +7,7 @@ import { useNow } from '../../../lib/use-now';
 import { TimerToggle } from '../../time/components/TimerToggle';
 import { runningOn, type TimeEntry } from '../../time/api';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
+import { CELL_JUSTIFY } from '../../../components/data-table/cells/cell-field';
 import { useRoutineMutations, type Routine } from '../api';
 import { DAILY, moveTo, scheduleOf, currentRoutineState, windowOf, windowText } from '../lib/routine-format';
 import classes from './Routines.module.css';
@@ -90,7 +91,7 @@ export function ChronoCell({ routine, running }: { routine: Routine; running: re
   const mine = runningOn(running, (entry) => entry.routines.some((item) => item.id === routine.id));
   const now = useNow(Boolean(mine) && !mine?.pausedAt);
   return (
-    <Group gap={4} wrap="nowrap">
+    <Group gap={4} wrap="nowrap" justify={CELL_JUSTIFY}>
       <TimerToggle name={routine.label} mine={mine} input={{ routineIds: [routine.id], taskIds: [] }} disabled={routine.archived} size="sm" />
       <Text size="xs" c={mine ? undefined : 'dimmed'} className={classes.nowrap}>
         {mine ? formatClock(entrySeconds(mine, now)) : routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''}

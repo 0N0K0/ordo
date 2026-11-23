@@ -6,7 +6,7 @@ import classes from './StateButton.module.css';
 import { YesNoIcon } from './YesNoIcon';
 
 /** Size of the icon for each size of the button (px). */
-const ICON_SIZES = { xs: 14, sm: 18, md: 22, xl: 36 } as const;
+const ICON_SIZES = { xs: 14, sm: 18, md: 22, 'input-sm': 26, xl: 36 } as const;
 
 interface StateButtonProps extends YesNoStates {
   /** Yes or no. */
@@ -22,8 +22,9 @@ interface StateButtonProps extends YesNoStates {
   /** An optional state (an optional time of a routine): outlined dashed. Optional. Default = false. */
   dashed?: boolean;
   /**
-   * Size: « xs » / « sm » in cells and rows, « md » beside the other buttons of a page header or a toolbar, « xl » for a
-   * thumb (the collect mode of a shopping list). Optional. Default = « sm ».
+   * Size: « xs » / « sm » in cells and rows, « md » beside the other buttons of a toolbar, « input-sm » beside the
+   * « … » menu of a page header (as high as it, 36 px), « xl » for a thumb (the collect mode of a shopping list).
+   * Optional. Default = « sm ».
    */
   size?: keyof typeof ICON_SIZES;
   onChange: (value: boolean) => void;

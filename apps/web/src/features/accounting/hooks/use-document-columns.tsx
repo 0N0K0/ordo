@@ -1,4 +1,4 @@
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { BADGE_COLUMN, type DataColumn } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
@@ -87,6 +87,7 @@ function documentColumns({ rows, projectLabels, projects }: { rows: readonly Row
       bulk: true,
       label: 'Statut',
       size: 200,
+      ...BADGE_COLUMN,
       sortValue: trackingText,
       text: trackingText,
       filter: { kind: 'choice', value: (row) => trackingText(row) || null, options: [...statuses].map(([value, label]) => ({ value, label })) },

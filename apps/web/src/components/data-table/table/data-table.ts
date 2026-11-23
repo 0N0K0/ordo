@@ -189,8 +189,16 @@ export interface DataColumn<R> {
   hiddenByDefault?: boolean;
   /** Value the rows are sorted by; not sortable without. Optional. */
   sortValue?: (row: R) => string | number | null;
-  /** Text right-aligned (amounts). Optional. */
+  /**
+   * A number (an amount, a quantity, a count, a percentage, a duration): in a monospace font, filtered as a number,
+   * right-aligned unless its `align` says otherwise. Optional.
+   */
   numeric?: boolean;
+  /**
+   * Alignment of its cells and of its header, by the kind of its data (`columnAlign`): set by the shared column helpers
+   * and the kinds `BADGE_COLUMN`, `TIME_COLUMN`, `DURATION_COLUMN`, `STACKED_COLUMN`, never per table. Optional. Default = from its kind.
+   */
+  align?: ColumnAlign;
   /** Total of the column in the footer, written as its values (an amount, a duration…). Optional. Default = a number. */
   formatTotal?: (value: number) => string;
   /** Text of the cell: exported, searched, and the name of its group. Optional: without, the column is left out of them. */
@@ -236,6 +244,52 @@ export interface DataColumn<R> {
    */
   bulk?: boolean;
 }
+
+/**
+ * Alignment of the cells of a column and of its header: at the start (text, several values in a cell), centred (a
+ * single value in a badge, a yes / no, a state button, a date, a time, a duration) or at the end (a number).
+ */
+export type ColumnAlign = 'start' | 'center' | 'end';
+
+/** Kind of a column whose cells hold one value in a badge (a status, a priority, a type, a state): centred. */
+// eslint-disable-next-line no-restricted-syntax -- the kinds of the columns.
+export const BADGE_COLUMN = { align: 'center' } as const satisfies Pick<DataColumn<unknown>, 'align'>;
+
+/** Kind of a column whose cells hold one time of day or one time range (« 09:00 – 12:00 »): centred. */
+// eslint-disable-next-line no-restricted-syntax -- the kinds of the columns.
+export const TIME_COLUMN = { align: 'center' } as const satisfies Pick<DataColumn<unknown>, 'align'>;
+
+/**
+ * Kind of a column whose cells stack several lines of one value (a date with its channel and its delay, a date with how
+ * long ago): at the start, as several values.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the kinds of the columns.
+export const STACKED_COLUMN = { align: 'start' } as const satisfies Pick<DataColumn<unknown>, 'align'>;
+
+/** Kind of a column of durations (« 1 h 30 »): a number (filtered and totalled as one), centred. */
+// eslint-disable-next-line no-restricted-syntax -- the kinds of the columns.
+export const DURATION_COLUMN = { numeric: true, align: 'center' } as const satisfies Pick<DataColumn<unknown>, 'numeric' | 'align'>;
+
+/**
+ * Alignment of a column by the kind of its data: as it sets (its kind: a yes / no of `booleanColumn`, a month of
+ * `monthColumn`, `BADGE_COLUMN`…), else at the start for several values, at the end for a number, centred for a date
+ * (filtered as one), at the start otherwise (a text).
+ * @param {Pick<DataColumn<R>, 'align' | 'numeric' | 'filter' | 'values'>} column Column.
+ * @returns {ColumnAlign} Alignment.
+ */
+export function columnAlign<R>(column: Pick<DataColumn<R>, 'align' | 'numeric' | 'filter' | 'values'>): ColumnAlign {
+  if (column.align) return column.align;
+  if (column.values) return 'start';
+  if (column.numeric) return 'end';
+  return column.filter && column.filter.kind === 'date' ? 'center' : 'start';
+}
+
+/**
+ * Attribute aligning a cell or a header of a column (`data-align`, read by the table styles; none at the start).
+ * @param {ColumnAlign} align Alignment.
+ * @returns {{ 'data-align'?: ColumnAlign }} Attribute.
+ */
+export const alignAttribute = (align: ColumnAlign) => (align === 'start' ? {} : { 'data-align': align });
 
 /**
  * `values` and `text` of a column whose cells hold several values: shown one under the other, joined by « , » in its

@@ -1,6 +1,6 @@
 import { EVERYDAY_CONTEXT } from '@ordo/shared';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { LATE_GROUP_LABELS, multiValues, WARNING_YES_ICONS, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
+import { BADGE_COLUMN, LATE_GROUP_LABELS, multiValues, WARNING_YES_ICONS, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { itemChoices } from '../../../components/items/item-look';
 import { signedText } from '../../../components/money/signed-text';
@@ -60,6 +60,7 @@ export function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | u
       id: 'origin',
       label: 'Origine',
       size: 130,
+      ...BADGE_COLUMN,
       required: true,
       sortValue: ({ item }) => (FORECAST_KINDS[item.kind] ?? FORECAST_KINDS.FORECAST).label,
       text: ({ item }) => (FORECAST_KINDS[item.kind] ?? FORECAST_KINDS.FORECAST).label,

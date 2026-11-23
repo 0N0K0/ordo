@@ -21,7 +21,7 @@ import {
   relativeSprintIds,
   sprintFilterValues,
 } from '@ordo/shared';
-import { LATE_GROUP_LABELS, WARNING_YES_ICONS, type ColumnChoice, type ColumnFilter, type DataColumn, type YesNoIcons, type YesNoLabels } from '../../../components/data-table/table/data-table';
+import { BADGE_COLUMN, DURATION_COLUMN, LATE_GROUP_LABELS, WARNING_YES_ICONS, type ColumnChoice, type ColumnFilter, type DataColumn, type YesNoIcons, type YesNoLabels } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 import type { EventOccurrence } from '../../calendar/api';
@@ -38,6 +38,21 @@ import { documentsColumn } from '../../documents/lib/documents-column';
 
 /** Names of the two sides of « Faisable maintenant » (its groups, the sections of the home card): yes first. */
 export const DOABLE_GROUP_LABELS = { yes: 'Maintenant', no: 'Plus tard' } as const;
+
+/**
+ * Kinds of the columns of the tasks that are not a text (their alignment): a badge or a button alone (status, priority,
+ * type, alarms, chrono), a number, a duration; the dates and the yes / no come from their filter.
+ */
+const COLUMN_KINDS: Partial<Record<TaskColumn, Pick<DataColumn<TaskTableRow>, 'numeric' | 'align'>>> = {
+  status: BADGE_COLUMN,
+  priority: BADGE_COLUMN,
+  type: BADGE_COLUMN,
+  alarms: BADGE_COLUMN,
+  timer: BADGE_COLUMN,
+  effort: { numeric: true },
+  comments: { numeric: true },
+  trackedTime: DURATION_COLUMN,
+};
 
 /** Row of the task table: a task, or a calendar event listed with them (read only). */
 export type TaskTableRow = { kind: 'task'; key: string; task: Task } | { kind: 'event'; key: string; event: EventOccurrence };
@@ -299,7 +314,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     required: id === 'label' || id === 'comments' || id === 'trackedTime',
     hiddenByDefault: DEFAULT_HIDDEN_COLUMNS.includes(id),
     bulk: BULK_EDITABLE_COLUMNS.includes(id),
-    numeric: id === 'effort' || id === 'trackedTime' || id === 'comments',
+    ...COLUMN_KINDS[id],
     sortValue: (row) => {
       const value = row.kind === 'task' ? sortValue(row.task, id, context) : eventSortValue(row.event, id, context, commentsOf(row));
       return typeof value === 'number' || typeof value === 'string' ? value : null;

@@ -9,6 +9,12 @@ export const cellField = {
   classNames: { root: classes.root, input: classes.input, section: classes.section },
 } as const;
 
+/**
+ * Justification of a row of elements in a cell (a `Group`: a count and its icon, a badge and its button): as the cells
+ * of its column are aligned (DataTable.module.css), at the start out of a table.
+ */
+export const CELL_JUSTIFY = 'var(--cell-justify, flex-start)';
+
 /** Select fields: dropdown as wide as its options. */
 export const cellCombobox = { ...cellField, comboboxProps: { withinPortal: true, width: 'max-content', position: 'bottom-start' } } as const;
 

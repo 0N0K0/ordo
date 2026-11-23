@@ -54,7 +54,7 @@ Ouverts par `useEntityActions.confirmDelete` dans `openModal`.
 
 ### `components/EntityHeader.tsx`
 
-`EntityHeader({ entity, subtitle?, extraActions? })` : en-tête des pages client et projet sur `DetailHeader` : `ItemAvatar` taille xl, titre, `ArchivedBadge`, bouton d’état `StateButton` « Favori » (`FAVORITE_STATES`, taille `md`, élément actif : étoile vide / jaune pleine), actions en plus, menu « … » (`lifecycleEntries`).
+`EntityHeader({ entity, subtitle?, extraActions? })` : en-tête des pages client et projet sur `DetailHeader` : `ItemAvatar` taille xl, titre, `ArchivedBadge`, bouton d’état `StateButton` « Favori » (`FAVORITE_STATES`, taille `input-sm` : aussi haut que le menu « … », élément actif : étoile vide / jaune pleine), actions en plus, menu « … » (`lifecycleEntries`).
 
 ### `components/EntityMenu.tsx`
 

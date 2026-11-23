@@ -17,6 +17,9 @@
   }
 
   .header {
+    /* Room of the column menu (an « xs » action icon and its gap), kept on the left of a centred title. */
+    --header-menu-room: calc(1.125rem * var(--mantine-scale) + 2px);
+
     /* Position */
     position: relative;
 
@@ -25,10 +28,6 @@
 
     /* Typographie */
     white-space: nowrap;
-
-    &[data-numeric] {
-      text-align: right;
-    }
 
     /* Bordures */
     border-right: 1px solid var(--mantine-color-default-border);
@@ -42,13 +41,30 @@
     cursor: grab;
   }
 
-  /* Title (and sort mark) on the left, column menu on the right. */
+  /*
+   * Title (and sort mark) aligned as the cells of its column ([data-align]), column menu on the right; a centred title
+   * keeps the room of the menu on its left too, a title at the end has its menu on its left and its sort mark before it,
+   * so that it ends where the values of its cells end.
+   */
   .headerContent {
     /* Agencement */
     justify-content: space-between;
 
     /* Dimension */
     min-width: 0;
+
+    .header[data-align='end'] & {
+      flex-direction: row-reverse;
+    }
+
+    /* Title not sortable: as wide as the sort button would be. */
+    & > .label {
+      flex: 1;
+    }
+
+    .header[data-align='center'] & > :first-child {
+      padding-inline-start: var(--header-menu-room);
+    }
   }
 
   .label {
@@ -57,6 +73,14 @@
 
     /* Typographie */
     text-overflow: ellipsis;
+
+    .header[data-align='center'] & {
+      text-align: center;
+    }
+
+    .header[data-align='end'] & {
+      text-align: right;
+    }
   }
 
   /* Shown on hover of its header ([data-reveal], styles/reveal.css) and while it is dragged. */
@@ -89,6 +113,14 @@
     font: inherit;
     color: inherit;
     text-align: left;
+
+    .header[data-align='center'] & {
+      justify-content: center;
+    }
+
+    .header[data-align='end'] & {
+      flex-direction: row-reverse;
+    }
 
     /* Arrière-Plan */
     background: none;
@@ -137,9 +169,35 @@
 
     /* Typographie */
     text-overflow: ellipsis;
+  }
 
-    &[data-numeric] {
-      text-align: right;
+  /*
+   * Cells aligned by the kind of their column (columnAlign): their text, and through `--cell-justify` / `--cell-text-align`
+   * the fields, chips and links of the editable cells (EditableCells.module.css); an icon alone (a yes / no) centred.
+   */
+  .cell[data-align='center'] {
+    --cell-justify: center;
+    --cell-text-align: center;
+
+    /* Typographie */
+    text-align: center;
+
+    & > svg {
+      /* Espacement */
+      margin-inline: auto;
+    }
+  }
+
+  .cell[data-align='end'] {
+    --cell-justify: flex-end;
+    --cell-text-align: right;
+
+    /* Typographie */
+    text-align: right;
+
+    & > svg {
+      /* Espacement */
+      margin-inline-start: auto;
     }
   }
 

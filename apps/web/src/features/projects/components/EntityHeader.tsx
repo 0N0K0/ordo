@@ -30,7 +30,7 @@ export function EntityHeader({ entity, subtitle, extraActions }: { entity: Entit
       actions={
         <>
           {!item.archived && (
-            <StateButton {...FAVORITE_STATES} value={item.favorite} size="md" onChange={(favorite) => actions.setFavorite(entity, favorite)} />
+            <StateButton {...FAVORITE_STATES} value={item.favorite} size="input-sm" onChange={(favorite) => actions.setFavorite(entity, favorite)} />
           )}
           {extraActions}
         </>

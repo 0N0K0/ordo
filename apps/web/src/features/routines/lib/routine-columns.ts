@@ -1,7 +1,7 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
 import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
-import { multiValues, WARNING_YES_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
+import { BADGE_COLUMN, DURATION_COLUMN, multiValues, TIME_COLUMN, WARNING_YES_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
@@ -71,6 +71,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id,
       label,
       size: 120,
+      ...BADGE_COLUMN,
       bulk: true,
       sortValue: (routine) => byLabel.get(value(routine) ?? '')?.position ?? null,
       text: (routine) => byLabel.get(value(routine) ?? '')?.label ?? '',
@@ -140,22 +141,22 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'estimate',
       label: 'Temps estimé',
       size: 110,
-      numeric: true,
+      ...DURATION_COLUMN,
       bulk: true,
       sortValue: (routine) => routine.estimate ?? null,
       text: (routine) => minutes(routine.estimate ?? null),
       filter: { kind: 'number', value: (routine) => routine.estimate ?? null },
       formatTotal: (value) => minutes(Math.round(value)),
     },
-    { id: 'fromTime', label: 'À partir de', size: 110, bulk: true, sortValue: (routine) => routine.fromTime ?? null, text: (routine) => routine.fromTime ?? '' },
-    { id: 'dueTime', label: 'Avant', size: 110, bulk: true, sortValue: (routine) => routine.dueTime ?? null, text: (routine) => routine.dueTime ?? '' },
+    { id: 'fromTime', label: 'À partir de', size: 110, ...TIME_COLUMN, bulk: true, sortValue: (routine) => routine.fromTime ?? null, text: (routine) => routine.fromTime ?? '' },
+    { id: 'dueTime', label: 'Avant', size: 110, ...TIME_COLUMN, bulk: true, sortValue: (routine) => routine.dueTime ?? null, text: (routine) => routine.dueTime ?? '' },
     { id: 'opensOn', label: 'Ouverture', size: 120, hiddenByDefault: true, bulk: true, text: (routine) => opensWords(routine) ?? '' },
     { id: 'location', label: 'Lieu', size: 200, hiddenByDefault: true, bulk: true, sortValue: (routine) => routine.location ?? null, text: (routine) => routine.location ?? '' },
     {
       id: 'travelBefore',
       label: 'Trajet aller',
       size: 110,
-      numeric: true,
+      ...DURATION_COLUMN,
       hiddenByDefault: true,
       bulk: true,
       sortValue: (routine) => routine.travelBefore || null,
@@ -166,7 +167,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'travelAfter',
       label: 'Trajet retour',
       size: 110,
-      numeric: true,
+      ...DURATION_COLUMN,
       hiddenByDefault: true,
       bulk: true,
       sortValue: (routine) => routine.travelAfter || null,
@@ -177,6 +178,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'alarms',
       label: 'Rappels',
       size: 100,
+      ...BADGE_COLUMN,
       hiddenByDefault: true,
       bulk: true,
       sortValue: (routine) => routine.reminders.length || null,
@@ -196,7 +198,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       // Time spent, as for the tasks (« Chrono » is their timer); never empty.
       label: 'Temps passé',
       size: 120,
-      numeric: true,
+      ...DURATION_COLUMN,
       required: true,
       sortValue: (routine) => routine.trackedSeconds,
       text: (routine) => (routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''),

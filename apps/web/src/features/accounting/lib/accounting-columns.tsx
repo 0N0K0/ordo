@@ -1,5 +1,5 @@
 import { formatDuration, recurrenceSchema, UNIT_LABELS } from '@ordo/shared';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { DURATION_COLUMN, STACKED_COLUMN, type DataColumn } from '../../../components/data-table/table/data-table';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 import { localDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
@@ -28,6 +28,7 @@ export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     required: true,
     label: 'Envoi',
     size: 230,
+    ...STACKED_COLUMN,
     sortValue: (invoice) => invoice.sentAt ?? null,
     text: (invoice) => (invoice.sentAt ? fmt.day(localDay(invoice.sentAt)) : ''),
     filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? localDay(invoice.sentAt) : null) },
@@ -45,6 +46,7 @@ export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     id: 'reminder',
     label: 'Dernière relance',
     size: 200,
+    ...STACKED_COLUMN,
     sortValue: (invoice) => invoice.lastReminderAt ?? null,
     text: (invoice) => (invoice.lastReminderAt ? fmt.day(invoice.lastReminderAt) : 'Jamais'),
     filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(invoice.lastReminderAt) : null) },
@@ -111,7 +113,7 @@ export const BILLING_COLUMNS: DataColumn<BillableTime>[] = [
     required: true,
     label: 'Durée',
     size: 100,
-    numeric: true,
+    ...DURATION_COLUMN,
     sortValue: (entry) => entry.seconds,
     text: (entry) => formatDuration(entry.seconds),
     formatTotal: (seconds) => formatDuration(Math.round(seconds)),

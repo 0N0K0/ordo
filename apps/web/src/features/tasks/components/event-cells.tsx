@@ -180,7 +180,7 @@ export function EventStatusCell({ event }: { event: EventOccurrence }) {
 export function EventTimeCell({ event }: { event: EventOccurrence }) {
   if (!event.trackedSeconds) return null;
   return (
-    <Text size="sm" ta="right">
+    <Text size="sm">
       {formatDuration(event.trackedSeconds)}
     </Text>
   );

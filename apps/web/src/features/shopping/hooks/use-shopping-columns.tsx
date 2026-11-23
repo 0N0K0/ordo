@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { ShoppingCartIcon } from '@phosphor-icons/react';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { multiValues, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
+import { BADGE_COLUMN, multiValues, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { itemChoices } from '../../../components/items/item-look';
 import { localDay } from '../../../lib/dates';
@@ -123,6 +123,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       id: 'progress',
       label: 'Achats',
       size: 100,
+      ...BADGE_COLUMN,
       groupable: false,
       sortValue: (list) => (shoppingProgress(list.items).total ? shoppingProgress(list.items).bought / shoppingProgress(list.items).total : null),
       text: (list) => `${shoppingProgress(list.items).bought} / ${shoppingProgress(list.items).total}`,

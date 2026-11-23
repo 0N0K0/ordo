@@ -2,7 +2,7 @@ import { IconAction } from '../../../components/actions/IconAction';
 import { EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskProgress } from './TaskProgress';
-import { stopClick } from '../../../components/data-table/cells/cell-field';
+import { CELL_JUSTIFY, stopClick } from '../../../components/data-table/cells/cell-field';
 import { Anchor, Badge, Group, Tooltip } from '@mantine/core';
 import { formatDuration, readSlotCondition } from '@ordo/shared';
 import { countOf, plural } from '../../../lib/text';
@@ -59,7 +59,7 @@ export function TimerCell({ task }: { task: Task }) {
 export function TrackedCell({ task }: { task: Task }) {
   if (task.trackedSeconds <= 0) return null;
   return (
-    <Anchor component={Link} to={timePath(task.id)} size="sm" onClick={stopClick} style={{ display: 'block', textAlign: 'right' }}>
+    <Anchor component={Link} to={timePath(task.id)} size="sm" onClick={stopClick} style={{ display: 'block' }}>
       {formatDuration(task.trackedSeconds)}
     </Anchor>
   );
@@ -107,7 +107,7 @@ export function ProgressCell({ task, context }: { task: Task; context: TaskConte
 export function AlarmsCell({ task, context, count }: { task: Task; context: TaskContext; count: number }) {
   const openForm = useAlarmForm(context);
   return (
-    <Group gap={4} wrap="nowrap" onClick={stopClick}>
+    <Group gap={4} wrap="nowrap" justify={CELL_JUSTIFY} onClick={stopClick}>
       {count > 0 && (
         <Badge size="sm" variant="light" color="orange" leftSection={<AlarmIcon aria-hidden />}>
           {count}

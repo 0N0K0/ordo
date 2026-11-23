@@ -130,6 +130,12 @@ const RESTRICTED_SYNTAX = [
     selector: "CallExpression[callee.property.name='find'][callee.object.property.name='inheritance']",
     message: 'Utiliser originOf(item, field) (components/inheritance/inheritance) et InheritedField pour montrer un champ hérité.',
   },
+  // The alignment of a column comes from the kind of its data, declared once per kind (data-table.ts): never per table.
+  {
+    selector: "Property[key.name='align'][value.type='Literal']",
+    message:
+      'Alignement d’une colonne : par son type (columnAlign, components/data-table/table/data-table) — `...BADGE_COLUMN`, `...TIME_COLUMN`, `...DURATION_COLUMN`, `...STACKED_COLUMN`, booleanColumn, monthColumn ; jamais écrit table par table.',
+  },
   // The view a table opens by default, and its rows: one rule, wherever they are shown.
   {
     selector: "CallExpression[callee.property.name='find'] > ArrowFunctionExpression > MemberExpression.body[property.name='isDefault']",
@@ -1325,6 +1331,11 @@ export default defineConfig([
             ":matches(JSXElement, JSXFragment) > JSXExpressionContainer CallExpression[callee.property.name='join'], JSXAttribute[name.name=/^(target|label)$/] CallExpression[callee.property.name='join'], Property[key.name=/^(cell|values)$/] CallExpression[callee.property.name='join']",
           message:
             'Valeurs d’une cellule l’une sous l’autre : StackedLines / StackedValues (components/data-table/cells/StackedValues), ou `...multiValues(row => noms)` dans la colonne ; jamais jointes sur une ligne (seul le `text` d’une colonne les joint).',
+        },
+        {
+          selector: "JSXAttribute[name.name=/^(ta|textAlign)$/], Property[key.name='textAlign']",
+          message:
+            'Une cellule s’aligne comme sa colonne (data-align posé par DataTable selon columnAlign) : pas d’alignement écrit dans une cellule ; une rangée d’éléments prend `justify={CELL_JUSTIFY}` (components/data-table/cells/cell-field).',
         },
         {
           selector: "JSXOpeningElement[name.name=/^(Switch|StateSwitch|Checkbox)$/], JSXOpeningElement[name.object.name='Checkbox']",

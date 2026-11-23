@@ -13,7 +13,7 @@ function monthOfValue(value: string | null | undefined): string | null {
 }
 
 /**
- * « Mois » column of a table, hidden by default: sorted and grouped by month, shown « Novembre 2026 ».
+ * « Mois » column of a table, hidden by default: sorted and grouped by month, shown « Novembre 2026 », centred.
  * @param {string} id Column id.
  * @param {string} label Column label (« Mois », « Mois d’échéance »…).
  * @param {(row: R) => string | null | undefined} date Day or instant of a row.
@@ -26,6 +26,9 @@ export function monthColumn<R>(id: string, label: string, date: (row: R) => stri
     label,
     size,
     hiddenByDefault: true,
+    // A date: centred.
+    // eslint-disable-next-line no-restricted-syntax -- the kind of the month columns.
+    align: 'center',
     sortValue: (row) => monthOfValue(date(row)),
     text: (row) => {
       const month = monthOfValue(date(row));
