@@ -364,7 +364,7 @@ Source : `services/tasks/task-views.ts`, `tableViewConfigSchema` (voir [Tableaux
 
 - Une vue appartient à une portée : `projectId` (onglet d’un projet, ou `null` pour la page), `kind` et `tableKey`. Seules les vues de type `TABLE` se créent et se modifient : « Ce type de vue n’existe plus : les vues sont celles des tableaux. ». Les vues des autres types (tâches, routines, listes d’achats) sont conservées telles quelles.
 - Libellé requis, 250 caractères au plus (`viewLabelSchema`) ; `tableKey` : minuscules, chiffres et « - », 64 au plus (« Tableau invalide. »).
-- La configuration (filtres, tris, groupes, colonnes, options) est validée et complétée par les valeurs par défaut.
+- La configuration (filtres, tris, groupes, colonnes, options) est validée et complétée par les valeurs par défaut ; celle des vues de l’agenda (`tableKey` `calendar`) par `calendarViewConfigSchema` (affichage, éléments montrés, filtres par sorte), voir [Agenda](../../features/activities/calendar.md#vues-de-lagenda).
 - Le projet doit être actif.
 - La première vue d’une portée devient sa vue par défaut ; supprimer la vue par défaut donne ce rôle à la première vue restante.
 - Dupliquer place la copie juste après l’originale. Réordonner par index dans la portée.

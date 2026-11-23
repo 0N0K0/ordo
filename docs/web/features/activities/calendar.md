@@ -52,7 +52,8 @@ Interne : `fetchCategories`, `occurrencesOf(data, includeArchived)` (filtre des 
 
 `CalendarPage()` : la page `/calendar` (route dans `app/router.tsx`). FullCalendar (`dayGrid`, `timeGrid`, `interaction`, `luxon3` pour le fuseau nommé, locale `fr`), réglé sur le fuseau `Europe/Paris` (`PARIS_ZONE`) : ses dates (glisser, sélection, période affichée) sont lues à l’heure de Paris (`parisParts`), quel que soit le fuseau du navigateur.
 
-- État : vue (`useLocalStorage` `ordo.calendar.view`, défaut `timeGridWeek`), filtres (`ordo.calendar.filters`, type interne `Filters` : `tasks`, `routines`, `workHours`, `timers`, `hiddenCalendarIds`, `hiddenScheduleIds`, `fineSlots`, `archived`), dépliage de la ligne journée entière (`ordo.calendar.allDayExpanded`), période (`range`), titre, mode `editingSlots`.
+- État : vues enregistrées (`useCalendarViews`, onglets `ViewTabs` avec `about` = `CALENDAR_VIEW_WORDS`) ; la configuration de la vue courante (`CalendarViewConfig`, `LOADING_VIEW` pendant le chargement) donne l’affichage (`display` → vue FullCalendar par `FULL_CALENDAR_VIEWS`), les éléments montrés (`tasks`, `routines`, `schedules`, `timers`, `includeArchived`, `hiddenCalendarIds`, `hiddenScheduleIds`), `fineSlots` et les filtres (`filters`) ; tout changement passe par `change(patch)` (copie de travail de la vue) ; dépliage de la ligne journée entière (`useLocalStorage` `ordo.calendar.allDayExpanded`), période (`range`), titre, mode `editingSlots`.
+- Filtres : `useCalendarFilters(config, …)` donne les sections de `CalendarFilters` (barre d’outils, après la navigation de période) et `kept` : un évènement de l’espace, une tâche, une routine, un temps, un créneau ou une éphéméride de l’espace non gardés ne sont pas ajoutés à `items` (les évènements abonnés et les créneaux d’autres espaces ne sont pas filtrés ; ni le mode `editingSlots`) ; l’export PDF part de `items`, il suit donc la vue et ses filtres.
 - Paramètre `?date=` : `gotoDate` puis retiré (`useSetParams`).
 - Effets : `materialize.mutate(range)` à chaque période ; `changeView` à chaque vue.
 - `items` (mémo) : construit les `EventInput` FullCalendar, chacun avec `extendedProps.kind` : `event`, `travel`, `subscribed`, `time`, `editSlot` (créneau ou éphéméride du mode « Modifier les créneaux et éphémérides », en pointillés pour une éphéméride, `slotLookClasses`), `slot` (bandeau), `birthday` (anniversaire, évènement d’une journée entière non modifiable, `birthdayEvents` : un clic ouvre la personne, `usePersonOpener`), fonds de créneaux (sans kind, `display: 'background'`, `slotLane`, `slotColumn`/`slotColumns`), `task` (`part` : `dates`, `open`, `deadline`), `routine`, `routineTravel`. Utilise `occurrenceSpan`, `isArchivedOccurrence`, `scheduleSources`, `slotBarLook`, `slotColumns`, `taskPlacement`, `placeRoutineBlocks`, `manualOrder` (routines), `entryEventKeys`/`entrySubject` (temps : part hors de chacun de ses évènements, rien à côté d’un évènement d’une journée entière), `taggedKey`.
@@ -61,7 +62,7 @@ Interne : `fetchCategories`, `occurrencesOf(data, includeArchived)` (filtre des 
 - Barre d’outils : interrupteur `StateSwitch` « Modifier les créneaux et éphémérides » (`editingSlots`) ; « Ajouter » (`ActionButton` à `menu`) : « Évènement » (`useEventForm`), `schedulesTitle(perso)` et `EPHEMERIDES_TITLE` (`openSchedulesManager`).
 - `eventDidMount` : variables CSS `--slot-lane`, `--slot-column`, `--slot-columns`.
 - Paramètres : `PageSettings` « Paramètres de l’agenda » avec `SettingsTabs` (`SETTINGS_TABS` = `display`, `settings`, `useSettingsTab`) : `HiddenChecklist` (calendriers, créneaux), interrupteurs, `ShowArchivedSwitch`, export PDF (`useAsyncAction` + `downloadCalendarPdf(pdfItems(items, classes.closed))`), `CalendarsIcsButton` ; `WeekSettings`, `CalendarsManager`, `CalendarCategoriesManager`, `ScheduleSettings`, puis en dernier `ScheduleColumnDefaults`.
-- Constantes internes : `VIEWS`, `DEFAULT_COLOR`, `LATE_BORDER` (couleur de retard `LATE_COLOR`), `ALL_DAY_ROWS` = 2 ; semaine `timeGridWeek` de `weekLength(currentWeek())` jours, `firstDay` = `calendarFirstDay(week)`.
+- Constantes internes : `FULL_CALENDAR_VIEWS`, `DISPLAYS` (« Mois », « Semaine », « Jour », `SegmentedControl` « Affichage »), `LOADING_VIEW`, `NONE`, `CALENDAR_VIEW_WORDS`, `DEFAULT_COLOR`, `LATE_BORDER` (couleur de retard `LATE_COLOR`), `ALL_DAY_ROWS` = 2 ; semaine `timeGridWeek` de `weekLength(currentWeek())` jours, `firstDay` = `calendarFirstDay(week)`.
 
 ### `pages/CalendarPage.module.css`
 
@@ -87,7 +88,7 @@ Classes de la page et de FullCalendar : `fill` (semaine/jour pleine hauteur), `c
 ### `components/ScopeChoices.tsx`
 
 - `ScopeQuestion` (interface) : `action` (`update`, `delete`, `cancel`, `restore`, `cancelOrDelete` : une occurrence de routine, « Annuler cette occurrence » ou « Supprimer celle-ci et les suivantes »), `allowThis`, `allowFollowing`, `allowAll`, `title`, `note` (ce que la modification emporte aussi, après la question : les temps supprimés avec les occurrences).
-- `ScopeChoices({ …question, onAnswer })` : texte et boutons « Cette occurrence », « Celle-ci et les suivantes », « Toutes les occurrences » (rouges pour une suppression), « Annuler », par `ChoiceList` ([Dialogues](../../components/dialogs.md#ask-choicetsx)). Utilisé par `askScope`.
+- `ScopeChoices({ …question, onAnswer })` : texte et boutons « Cette occurrence », « Celle-ci et les suivantes », « Toutes les occurrences » (rouges pour une suppression), « Annuler », par `ChoiceList` ([Dialogues](../../components/dialogs.md#ask-choicetsx-choicelisttsx)). Utilisé par `askScope`.
 
 ### `components/CalendarEditForms.tsx`
 
@@ -121,6 +122,10 @@ Utilisés par `useCalendarEdits`.
 ### `components/SubscribedEvent.tsx`
 
 `SubscribedEvent({ occurrence, subscription, onClose })` : fiche en lecture seule d’un évènement d’un calendrier abonné (moment, lieu, `MarkdownView` sans cibles `NO_TARGETS`, liens `ItemLinks`), bouton « Ouvrir dans « Espace » » (`switchWorkspace` vers `calendarPath`). Interne `when(occurrence)`. Utilisé par `CalendarPage`.
+
+### `components/CalendarFilters.tsx`
+
+`CalendarFilters({ sections, onChange })` : « Filtrer » de l’agenda (`ToolbarFilter`, badge : les conditions de toutes les sections), un seul éditeur avec une section par sorte affichée (`LabeledField` à son titre, `FieldsFilterBuilder` sur ses champs) ; `onChange(kind, filter)` change le filtre d’une sorte. Utilisé par `CalendarPage`.
 
 ### `components/HiddenChecklist.tsx`
 
@@ -198,9 +203,19 @@ Utilisés par `ScheduleSettings`.
 
 ### `hooks/use-schedule-columns.tsx`
 
-- `useScheduleColumns(ephemeris)` : `{ columns, typeById, defaultLabel }` : colonnes du tableau des créneaux ou des éphémérides (« Libellé », « Type », « Début », « Fin », « Horaires », « État », commentaires), les types par id et le nom des créneaux sans type (« Travail » ou celui de l’espace ; « Sans type » pour les éphémérides). Utilisé par `WorkSchedulesManager` et `ScheduleColumnDefaults`.
-- `scheduleState(schedule, today)` : `CURRENT`/`UPCOMING`/`PAST` (`periodState`). Utilisé par `WorkSchedulesManager`.
+- `useScheduleColumns(ephemeris)` : `{ columns, typeById, defaultLabel }` : colonnes du tableau des créneaux ou des éphémérides (« Libellé », « Type », « Début », « Fin », « Horaires », « État », commentaires), les types par id et le nom des créneaux sans type (« Travail » ou celui de l’espace ; « Sans type » pour les éphémérides). Utilisé par `WorkSchedulesManager`, `ScheduleColumnDefaults` et `useCalendarFilters`.
+- `scheduleState(schedule, today)` : `CURRENT`/`UPCOMING`/`PAST` (`periodState`). Utilisé par `scheduleRows`.
+- `scheduleRows(schedules, today)` : lignes des tableaux des créneaux et des éphémérides (`ScheduleRow` : le créneau, son état du jour, ses exceptions). Garde eslint (pas de `state: scheduleState(…)` écrit à la main). Utilisé par `WorkSchedulesManager` et `useCalendarFilters`.
 - `ScheduleState`, `ScheduleRow` (créneau, son état du jour, ses exceptions), `NO_KIND` = `none`, `NO_KIND_LABEL` = « Sans type » ; internes `PERIOD_OF`, `STATE_OF`, `SCHEDULE_STATES` (états avec libellé et couleur de `PERIOD_STATES`, colonne « État » par `stateColumn`), `kindLabel`.
+
+### `hooks/use-calendar-views.ts`
+
+`useCalendarViews()` : vues enregistrées de l’agenda (`useSavedViews`, `kind` `TABLE`, `tableKey` `CALENDAR_VIEW_KEY` = `calendar`, configuration `calendarViewConfig` de `@ordo/shared`, paramètre d’adresse `calendar-view`) ; vue vierge : `calendarViewConfig()` ; première vue « Agenda » : ce que le navigateur gardait avant les vues (`ordo.calendar.view`, `ordo.calendar.filters`, lus une fois puis retirés), sinon les valeurs par défaut. Internes : `LEGACY_KEYS`, `LEGACY_DISPLAYS`, `legacyValue`, `legacyConfig`, `firstViews`, `blankView`. Utilisé par `CalendarPage`.
+
+### `hooks/use-calendar-filters.ts`
+
+- `useCalendarFilters(config, items)` : `{ sections, kept }`. Sections (`CalendarFilterSection` : `kind`, `title`, `fields`, `filter`), une par sorte affichée par la vue, dans l’ordre « Évènements », « Tâches », « Routines », « Chronos », créneaux (`schedulesTitle`), « Éphémérides » : `tableFilterFields` des colonnes du tableau de la sorte (`useTaskColumns` ; `useRoutineColumns` ; `useTimeColumns` ; `useScheduleColumns(false / true)` ; évènements : `eventFilterColumns`), avec un texte vide propre. `kept` (`CalendarKept` : `event(key)`, `task(id)`, `routine(id)`, `timer(id)`, `schedule(id)`) : ce que garde le filtre de chaque sorte, par `filterRows` (tâches : `matchTasks`) sur les lignes du tableau de la sorte (`taskTableRows`/`eventRow`, routines, temps, `scheduleRows`) ; un filtre sans condition garde tout, un créneau d’un autre espace est toujours gardé. Les tâches faisables ne sont demandées qu’avec une condition sur « Faisable maintenant » (`filterUses`).
+- Internes : `CalendarItems` (éléments de l’espace filtrés), `keptIds`, `keeps`.
 
 ### `hooks/use-schedule-conversion.tsx`
 
@@ -260,6 +275,12 @@ Utilisés par `ScheduleSettings`.
 - `pdfItems(items, closedClass)` : éléments FullCalendar en éléments du PDF, chacun dans son aspect `CalendarPdfKind` (`PDF_KIND` : évènements, calendriers abonnés et anniversaires en `event`, tâches et routines en `task`, chronos en `time`, trajets en `travel`, bandeaux et créneaux en cours de modification en `slot`, tout élément `display: 'background'` en `background`) ; dates locales, fins journée entière incluses, couleurs résolues (fond pour `event`, `slot`, `background`, bordure pour les autres ; une couleur translucide posée sur blanc).
 - `downloadCalendarPdf(view)` : `postExport('/api/exports/calendar.pdf', …)`, fichier « Agenda — <titre>.pdf ».
 - Internes : `PDF_KIND`, `FALLBACK_COLOR` (couleur de chaque aspect quand celle de l’élément ne se lit pas), type `PdfItem`, `hexColor(color, fallback)` (couleur CSS calculée en `#rrggbb`, une couleur translucide posée sur blanc), `localDateTime(value)`.
+
+### `lib/event-filter-columns.ts`
+
+- `eventFilterColumns(taskColumns, context, calendars, categories)` : champs du filtre des évènements de l’agenda, sur des lignes du tableau des tâches (`TaskTableRow` de sorte `event`) : les colonnes du tableau des tâches qu’un évènement remplit, reprises telles quelles (`EVENT_TASK_COLUMNS` : « Libellé », « Projet », « Assignés », « Bénéficiaires », « Lieu », « Début », « Fin », « Temps passé », « Description », « Documents »), puis « Calendrier » (choix), « Catégories » (arbre, `categoryOptions`, archivées par `withArchived`), « Tâches » (liées), « État » (`stateColumn`, `EVENT_STATES`), « Journée entière » et « Récurrent » (`booleanColumn`). Utilisé par `useCalendarFilters`.
+- `eventRow(event)` : ligne d’un évènement dans le tableau des tâches (`eventRowKey`). Utilisé par `useCalendarFilters`.
+- Internes : `EVENT_TASK_COLUMNS`, `EVENT_STATE_BADGES`, `eventOf`.
 
 ### `lib/event-input.ts`
 

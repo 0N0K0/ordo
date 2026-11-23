@@ -41,7 +41,7 @@ import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { followBounds } from '../../../components/inputs/date-range';
 import { UnavailableSwitch } from './UnavailableSwitch';
-import { NO_KIND, NO_KIND_LABEL, scheduleState, useScheduleColumns, type ScheduleRow } from '../hooks/use-schedule-columns';
+import { NO_KIND, NO_KIND_LABEL, scheduleRows, useScheduleColumns, type ScheduleRow } from '../hooks/use-schedule-columns';
 
 interface ScheduleValues extends Record<string, unknown> {
   label: string;
@@ -265,7 +265,7 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
     });
   const defaultColor = ephemeris ? EPHEMERIS_COLOR : (defaultKind?.color ?? null);
   const today = localToday();
-  const rows = (schedules ?? []).map((schedule) => ({ schedule, state: scheduleState(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
+  const rows = scheduleRows(schedules ?? [], today);
   const view = useDataView({
     tableKey: ephemeris ? 'ephemerides' : 'work-schedules',
     getKey: ({ schedule }) => schedule.id,

@@ -6,9 +6,19 @@ Ce que l’utilisateur peut faire dans l’agenda : la page `/calendar` (« Agen
 
 Route `PAGES.calendar.path` = `/calendar`, composant `CalendarPage`. L’adresse `/calendar?date=YYYY-MM-DD` (`calendarPath(date)`) ouvre l’agenda sur ce jour, puis le paramètre est retiré de l’adresse (liens d’un report, d’un évènement d’un autre espace…).
 
+### Vues de l’agenda
+
+Comme les tableaux ([Tableau de données](../../web/components/data-table.md#les-vues-enregistrées)), l’agenda a des vues enregistrées, en onglets au-dessus de la barre d’outils (`ViewTabs`, réordonnables par glisser-déposer, étoile sur la vue par défaut), enregistrées comme celles des tableaux (vues `TABLE` de clé `calendar`, configuration `CalendarViewConfig` de `@ordo/shared`, validée par l’API). Une vue enregistre :
+
+- son affichage : « Mois », « Semaine » ou « Jour », et « Par 5 minutes » ;
+- ce qu’elle montre : les calendriers et les créneaux / éphémérides cochés, « Aussi dans l’agenda » (tâches, routines, créneaux et éphémérides, chronos) et « Afficher les archivés » ;
+- ses filtres, un par sorte d’éléments (voir [Filtres](#filtres)).
+
+Tout changement (affichage, filtre, réglage de la vue) va dans la copie de travail de la vue : pastille orange « Modifications non enregistrées » sur l’onglet, « Enregistrer les modifications » / « Annuler les modifications » dans son menu, avec « Renommer », « Dupliquer », « Définir par défaut », « Déplacer à gauche / à droite », « Supprimer » (impossible sur la dernière ; confirmation : « La vue « X » et sa configuration (affichage, filtres) seront supprimées. Les évènements, tâches, routines, temps, créneaux et éphémérides ne sont pas modifiés. ») ; « Nouvelle vue » : « Vue vierge » (une semaine, tâches, routines, créneaux et éphémérides affichés, sans filtre) ou « À partir de l’affichage actuel ». La vue affichée est dans l’adresse (`?calendar-view=<id>`), sinon la vue par défaut. À la première visite, une vue « Agenda » est créée : elle reprend ce que le navigateur gardait avant les vues (affichage et réglages), sinon les valeurs par défaut.
+
 ### Barre d’outils
 
-- À gauche : le choix de la vue (« Mois », « Semaine », « Jour ») et la navigation de période (aujourd’hui, précédent, suivant) avec le titre de la période.
+- À gauche : le choix de l’affichage de la vue (« Mois », « Semaine », « Jour »), la navigation de période (aujourd’hui, précédent, suivant) avec le titre de la période, et « Filtrer » (voir [Filtres](#filtres)).
 - À droite :
   - l’interrupteur « Modifier les créneaux et éphémérides » (un mode, pas un bouton) : les créneaux et les éphémérides de l’espace deviennent des éléments déplaçables ;
   - « Ajouter » (bouton à menu) : « Évènement » ouvre le formulaire d’évènement (désactivé tant que le contexte des tâches n’est pas chargé) ; « Créneaux de travail » (espace PRO) ou « Créneaux » (espace PERSO) ouvre le gestionnaire des créneaux dans le panneau latéral (taille large) ; « Éphémérides » ouvre le même gestionnaire pour les éphémérides.
@@ -23,7 +33,19 @@ Route `PAGES.calendar.path` = `/calendar`, composant `CalendarPage`. L’adresse
 - Ligne « journée entière » (semaine, jour) : repliée à 2 lignes par défaut ; le bouton de pliage dans l’en-tête de la ligne, ou le lien « +N », la déplie sur tous les jours (mémorisé).
 - Graduation des heures par 30 minutes, ou par 5 minutes (réglage « Par 5 minutes ») ; un glisser déplace d’autant.
 - Jours et heures affichés et saisis à l’heure de Paris (celle des évènements, routines et créneaux), quel que soit le fuseau du navigateur : un glisser, une sélection, l’indicateur de l’heure actuelle et les temps suivis sont à l’heure de Paris.
-- Vue, filtres et dépliage de la ligne journée entière sont mémorisés dans le navigateur (`localStorage` : `ordo.calendar.view`, `ordo.calendar.filters`, `ordo.calendar.allDayExpanded`). Vue par défaut : semaine.
+- Affichage, filtres et réglages d’affichage sont ceux de la vue (voir [Vues de l’agenda](#vues-de-lagenda)) ; seul le dépliage de la ligne journée entière reste mémorisé dans le navigateur (`localStorage` `ordo.calendar.allDayExpanded`), pour toutes les vues. Affichage par défaut : semaine.
+
+### Filtres
+
+« Filtrer » ouvre un seul éditeur, avec une section par sorte d’éléments que la vue affiche : « Évènements » (toujours), « Tâches », « Routines », « Chronos », « Créneaux de travail » / « Créneaux » et « Éphémérides » (ces deux avec « Créneaux et éphémérides ») ; une sorte masquée par la vue n’a pas de section (ses conditions restent dans la vue, sans effet). Le badge du bouton compte les conditions des sections affichées. Chaque section est l’éditeur de filtres des tableaux ([Filtres](../../web/components/filters.md)) sur les colonnes du tableau de sa sorte, avec les mêmes règles :
+
+- Tâches : les colonnes du tableau des tâches ;
+- Routines : celles du tableau des routines (une routine gardée l’est avec toutes ses occurrences) ;
+- Chronos : celles du tableau des temps ;
+- Créneaux, Éphémérides : celles de leurs tableaux (libellé, type, début, fin, état…) ;
+- Évènements : les colonnes du tableau des tâches qu’un évènement remplit (« Libellé », « Projet », « Assignés », « Bénéficiaires », « Lieu », « Début », « Fin », « Temps passé », « Description », « Documents »), puis « Calendrier », « Catégories », « Tâches » (liées), « État » (à venir, en cours, passé, annulé, reporté), « Journée entière » (« Journée entière » / « À heures »), « Récurrent » (« Récurrent » / « Ponctuel »).
+
+Les conditions d’une section ne s’appliquent qu’aux éléments de sa sorte, dans l’espace. Ce qui vient d’un autre espace (évènements des calendriers abonnés, créneaux et éphémérides des types abonnés) n’est pas filtré : seuls les réglages d’affichage de la vue s’y appliquent (calendriers et créneaux cochés, « Aussi dans l’agenda »). Les trajets suivent leur évènement ou leur routine ; les anniversaires ne sont pas filtrés (ils suivent « Créneaux et éphémérides »). En mode « Modifier les créneaux et éphémérides », tous les créneaux et éphémérides de l’espace sont affichés, filtres et cases ignorés.
 
 ### Ce que l’agenda affiche
 
@@ -74,7 +96,7 @@ Ouvert par le bouton de paramètres de la page (`?settings=1`), deux onglets.
 
 ### Onglet « Affichage et export »
 
-Section « Affichage » :
+Section « Affichage de la vue « X » » (les réglages de la vue affichée, « Propres à la vue : enregistrez-les avec elle (menu de son onglet, « Enregistrer les modifications »). ») :
 
 - « Calendriers » : une case par calendrier de l’espace et par calendrier abonné (« Libellé · Espace »), cochée s’il est affiché ; « Aucun calendrier. » sinon.
 - « Créneaux de travail et éphémérides » / « Créneaux et éphémérides » : une case par créneau ou éphéméride (de l’espace puis des autres espaces) ; désactivée quand le calque des créneaux est masqué ; « Aucun créneau. ».
@@ -83,7 +105,7 @@ Section « Affichage » :
 
 Section « Exporter » :
 
-- « Vue en PDF » (« La vue affichée, pour l’imprimer ») : télécharge la vue affichée, filtres appliqués (voir [Export PDF](#export-pdf)). Toast « Agenda exporté. » ou « Export PDF impossible. ».
+- « Vue en PDF » (« La vue affichée, pour l’imprimer ») : télécharge la vue affichée, ses réglages et ses filtres appliqués (voir [Export PDF](#export-pdf)). Toast « Agenda exporté. » ou « Export PDF impossible. ».
 - « Tout exporter (.ics) » : tous les calendriers de l’espace en un fichier iCalendar.
 
 ### Onglet « Paramètres »
@@ -217,7 +239,7 @@ Le champ « Créneaux de l’agenda » (`SlotConditionBuilder`, le même pour le
 
 ### Export PDF
 
-« Vue en PDF » : A4 paysage, au gabarit commun des exports (logo, date, numéro de page), titre = période, sous-titre « Agenda » ; contient exactement ce qui est affiché, filtres appliqués : évènements des calendriers de l’espace et des calendriers abonnés, anniversaires (pleins dans leur couleur), tâches et routines (teinte claire et liseré de leur couleur), chronos, trajets aller et retour des évènements et des routines (teinte très claire, texte grisé), bandeaux des créneaux et éphémérides et créneaux en cours de modification (pleins dans leur couleur, texte foncé), créneaux et éphémérides en fond translucide dans leur couleur, y compris ceux des autres espaces. Le hachuré (autres espaces), le pointillé (éphémérides) et les fines lignes (affichage « bordure ») ne sont pas imprimés : ces créneaux sont en fond comme les autres ; les éléments archivés ne sont pas estompés. Mois : grille avec « +N autres » quand une case déborde. Semaine/jour : ligne journée entière (5 lignes max), heures de 8 h à 19 h au moins (élargies aux éléments, pas aux fonds), éléments simultanés côte à côte. Annulés et faits barrés ; aujourd’hui surligné. Fichier « Agenda — <période>.pdf ».
+« Vue en PDF » : A4 paysage, au gabarit commun des exports (logo, date, numéro de page), titre = période, sous-titre « Agenda » ; contient exactement ce qui est affiché, réglages et filtres de la vue appliqués : évènements des calendriers de l’espace et des calendriers abonnés, anniversaires (pleins dans leur couleur), tâches et routines (teinte claire et liseré de leur couleur), chronos, trajets aller et retour des évènements et des routines (teinte très claire, texte grisé), bandeaux des créneaux et éphémérides et créneaux en cours de modification (pleins dans leur couleur, texte foncé), créneaux et éphémérides en fond translucide dans leur couleur, y compris ceux des autres espaces. Le hachuré (autres espaces), le pointillé (éphémérides) et les fines lignes (affichage « bordure ») ne sont pas imprimés : ces créneaux sont en fond comme les autres ; les éléments archivés ne sont pas estompés. Mois : grille avec « +N autres » quand une case déborde. Semaine/jour : ligne journée entière (5 lignes max), heures de 8 h à 19 h au moins (élargies aux éléments, pas aux fonds), éléments simultanés côte à côte. Annulés et faits barrés ; aujourd’hui surligné. Fichier « Agenda — <période>.pdf ».
 
 ### Export iCalendar
 

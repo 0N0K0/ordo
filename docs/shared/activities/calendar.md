@@ -58,6 +58,18 @@ Sert à savoir si une tâche ou une routine peut être faite à un moment (plani
 
 Internes : `BusyItem` (`assigneeIds`, `taskId?`, `routineId?`), `peopleOf` (liste, ou « Moi » si vide).
 
+## `calendar-views.ts` — vues enregistrées de l’agenda
+
+| Export | Rôle |
+| ------ | ---- |
+| `CALENDAR_VIEW_KEY` | `calendar` : `tableKey` des vues de la page Agenda (vues `TABLE`). Utilisé par le web (`useCalendarViews`) et l’API (`task-views.ts`, qui valide leur configuration par `calendarViewConfigSchema`). |
+| `CALENDAR_DISPLAYS`, `CalendarDisplay` | Affichage d’une vue : `MONTH`, `WEEK` (semaine de l’espace), `DAY`. |
+| `CALENDAR_FILTER_KINDS`, `CalendarFilterKind` | Sortes d’éléments filtrées, chacune par son propre filtre : `events`, `tasks`, `routines`, `timers`, `slots`, `ephemerides`. |
+| `calendarViewConfigSchema` / `CalendarViewConfig` | Configuration d’une vue : `display` (défaut `WEEK`), `tasks` (vrai), `routines` (vrai), `schedules` (créneaux, éphémérides et anniversaires ; vrai), `timers` (faux), `includeArchived` (faux), `fineSlots` (faux), `hiddenCalendarIds` et `hiddenScheduleIds` (500 au plus), `filters` (un `tableFilterSchema` par sorte). Un champ invalide retombe sur son défaut (`catch`). |
+| `calendarViewConfig(config?)` | Configuration lue (les valeurs par défaut si elle ne valide pas). |
+
+Interne : `HIDDEN_MAX`, `hiddenIdsSchema`, `kindFilterSchema`, `calendarFiltersSchema`.
+
 ## `slot-conditions.ts` — condition de créneaux d'une tâche ou d'une routine
 
 La même condition pour les tâches et les routines : un arbre de filtre (groupes « et » / « ou », voir [tables](../cross-cutting/tables.md)) sur trois champs, qui cite des créneaux par leur id ou des types de créneaux par leur référence (`slot-kinds.ts`), de l'espace ou d'un autre espace de l'utilisateur. Sans condition : n'importe quand.

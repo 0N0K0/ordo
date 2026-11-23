@@ -20,7 +20,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import luxonPlugin from '@fullcalendar/luxon3';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, PARIS_ZONE, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
+import { addDays, calendarViewConfig, type CalendarDisplay, type CalendarViewConfig, entrySeconds, PARIS_ZONE, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
 import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -80,32 +80,30 @@ import { archivedIds, unarchived } from '../../../lib/archive';
 import { inWorkspace } from '../lib/layer-label';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { taggedKey } from '../../../lib/tagged-key';
+import { ViewTabs, type ViewWords } from '../../../components/data-table/views/ViewTabs';
+import { useCalendarViews } from '../hooks/use-calendar-views';
+import { useCalendarFilters } from '../hooks/use-calendar-filters';
+import { CalendarFilters } from '../components/CalendarFilters';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
-const VIEWS: { value: View; label: string }[] = [
-  { value: 'dayGridMonth', label: 'Mois' },
-  { value: 'timeGridWeek', label: 'Semaine' },
-  { value: 'timeGridDay', label: 'Jour' },
+/** View of FullCalendar of each display of a view of the calendar. */
+const FULL_CALENDAR_VIEWS: Record<CalendarDisplay, View> = { MONTH: 'dayGridMonth', WEEK: 'timeGridWeek', DAY: 'timeGridDay' };
+
+const DISPLAYS: { value: CalendarDisplay; label: string }[] = [
+  { value: 'MONTH', label: 'Mois' },
+  { value: 'WEEK', label: 'Semaine' },
+  { value: 'DAY', label: 'Jour' },
 ];
 
-interface Filters {
-  tasks: boolean;
-  /** Occurrences of the routines (shown by default). */
-  routines?: boolean;
-  /** Planned working hours, in the background. */
-  workHours?: boolean;
-  /** Tracked times (timers). */
-  timers?: boolean;
-  /** Calendars hidden (of the workspace, or of other workspaces it subscribes to). */
-  hiddenCalendarIds?: string[];
-  /** Slots (schedules) hidden (of the workspace, or of other workspaces it subscribes to). */
-  hiddenScheduleIds?: string[];
-  /** Hours of the week and the day by 5 minutes (instead of 30). */
-  fineSlots?: boolean;
-  /** Archived events and calendars shown too (read only). */
-  archived?: boolean;
-}
+/** View shown while the views load. */
+const LOADING_VIEW = calendarViewConfig();
+
+/** Nothing loaded yet (a stable empty list). */
+const NONE: never[] = [];
+
+/** Words of the deletion of a view of the calendar. */
+const CALENDAR_VIEW_WORDS: ViewWords = { config: 'affichage, filtres', untouched: 'Les évènements, tâches, routines, temps, créneaux et éphémérides ne sont pas modifiés.' };
 
 /** Tabs of the settings sidebar. */
 const SETTINGS_TABS = ['display', 'settings'] as const;
@@ -132,14 +130,16 @@ export function CalendarPage() {
   const { context } = useTaskContext();
   const { data: categories } = useCalendarCategories();
   const { data: calendarsData } = useCalendars();
-  const [view, setView] = useLocalStorage<View>({
-    key: 'ordo.calendar.view',
-    defaultValue: 'timeGridWeek',
-  });
-  const [filters, setFilters] = useLocalStorage<Filters>({
-    key: 'ordo.calendar.filters',
-    defaultValue: { tasks: true },
-  });
+  // Saved views, as those of the tables: each with its display, what it shows and its filters.
+  const views = useCalendarViews();
+  const config = views.config ?? LOADING_VIEW;
+  const view = FULL_CALENDAR_VIEWS[config.display];
+  /**
+   * Changes the working copy of the current view.
+   * @param {Partial<CalendarViewConfig>} patch Settings changed.
+   * @returns {void}
+   */
+  const change = (patch: Partial<CalendarViewConfig>) => views.change((current) => ({ ...current, ...patch }));
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   // Week and day: the all-day row (tasks…) is collapsed to a few rows, or expanded across every day.
   const [allDayExpanded, setAllDayExpanded] = useLocalStorage({
@@ -149,9 +149,9 @@ export function CalendarPage() {
   const [title, setTitle] = useState('');
   // Archived ones too: shown on demand.
   const events = useCalendarEvents(range, true);
-  const hidden = useMemo(() => new Set(filters.hiddenCalendarIds ?? []), [filters.hiddenCalendarIds]);
+  const hidden = useMemo(() => new Set(config.hiddenCalendarIds), [config.hiddenCalendarIds]);
   // Archived events and calendars: hidden until asked, read only.
-  const showArchived = filters.archived === true;
+  const showArchived = config.includeArchived;
   const archivedCalendars = useMemo(() => archivedIds(calendarsData?.calendars), [calendarsData]);
   const ownCalendars = useMemo(() => (showArchived ? (calendarsData?.calendars ?? []) : unarchived(calendarsData?.calendars ?? [])), [calendarsData, showArchived]);
   const subscriptions = useMemo(() => calendarsData?.calendarSubscriptions ?? [], [calendarsData]);
@@ -170,7 +170,7 @@ export function CalendarPage() {
   const openPerson = usePersonOpener();
   const { perso } = useActiveWorkspace();
   // Tracked times of the displayed period (from its first day, local midnight).
-  const showTimers = filters.timers === true;
+  const showTimers = config.timers;
   const timeEntries = useTimeEntriesSince(range ? localMidnight(range.from) : null, showTimers && range !== null);
   const timerRunning = (timeEntries.data ?? []).some((entry) => entry.endedAt === null && entry.pausedAt === null);
   // A running timer grows every minute in the calendar.
@@ -178,7 +178,7 @@ export function CalendarPage() {
   const minute = Math.floor(now / 60_000);
   const { openForm: openTimeEntry } = useTimeEntryDialogs(context);
   // Routines: at their times of the day, or in the all-day row with the tasks.
-  const showRoutines = filters.routines !== false;
+  const showRoutines = config.routines;
   const { data: routinesData } = useRoutinesData();
   const routineOccurrences = useRoutineOccurrences(range, showRoutines);
   // Slots of the schedules and routines changed in the calendar (an exception, the following ones, or all).
@@ -200,6 +200,18 @@ export function CalendarPage() {
   }, [view]);
 
   const categoryById = useMemo(() => mapById(categories ?? []), [categories]);
+  // Filters of the view, by kind of items of the workspace (those of other workspaces are not filtered).
+  const { sections: filterSections, kept } = useCalendarFilters(config, {
+    context: context ?? null,
+    events: events.data ?? NONE,
+    routines: routinesData?.routines ?? NONE,
+    routineCategories: routinesData?.routineCategories ?? NONE,
+    entries: timeEntries.data,
+    schedules: schedules ?? NONE,
+    calendars: calendarsData?.calendars ?? NONE,
+    categories: categories ?? NONE,
+    perso,
+  });
 
   const items = useMemo<EventInput[]>(() => {
     if (!context) return [];
@@ -208,7 +220,7 @@ export function CalendarPage() {
     // Several calendars: each event shows the color of its own on its left.
     const striped = ownCalendars.length + subscriptions.length > 1;
     for (const occurrence of events.data ?? []) {
-      if (hidden.has(occurrence.calendarId)) continue;
+      if (hidden.has(occurrence.calendarId) || !kept.event(occurrence.key)) continue;
       const archived = isArchivedOccurrence(occurrence, archivedCalendars);
       if (archived && !showArchived) continue;
       const category = occurrence.categoryIds.map((id) => categoryById.get(id)).find(Boolean);
@@ -289,7 +301,7 @@ export function CalendarPage() {
       const occurrenceByKey = new Map((events.data ?? []).map((occurrence) => [occurrenceKey(occurrence.eventId, occurrence.occurrenceDate), occurrence]));
       for (const entry of timeEntries.data ?? []) {
         const start = new Date(entry.startedAt);
-        if (parisParts(start).date > range.to) continue;
+        if (parisParts(start).date > range.to || !kept.timer(entry.id)) continue;
         const running = entry.endedAt === null;
         const end = entry.endedAt ? new Date(entry.endedAt) : entry.pausedAt ? new Date(entry.pausedAt) : new Date(minute * 60_000 + 60_000);
         const project = entry.projectId ? context.projectById.get(entry.projectId) : undefined;
@@ -337,7 +349,7 @@ export function CalendarPage() {
     // whole day for an all-day slot) or the whole day in the background, or a thin line on the left of their hours;
     // in the month, the day in the background or a thin line at its bottom. Paused days simply have none. Slots of
     // other workspaces subscribed to are hatched.
-    if (range && (filters.workHours !== false || editingSlots)) {
+    if (range && (config.schedules || editingSlots)) {
       const month = view === 'dayGridMonth';
       // Lines of several schedules on a day stand side by side (week, day) or one above the other (month): each
       // schedule with a line that day takes the next lane.
@@ -450,7 +462,7 @@ export function CalendarPage() {
           }
           continue;
         }
-        if (filters.workHours === false || filters.hiddenScheduleIds?.includes(rule.id)) continue;
+        if (!config.schedules || config.hiddenScheduleIds.includes(rule.id) || !kept.schedule(schedule.id)) continue;
         showSlots({ color, label, foreign, display, ephemeris, slots: plannedSlots([rule], range.from, range.to) });
       }
       // Slots in the background at the same time stand side by side, each part of a slot as wide as the slots there
@@ -470,11 +482,11 @@ export function CalendarPage() {
       }
     }
     // Birthdays of the people: read-only all-day events opening the person, hidden with the créneaux and éphémérides.
-    if (range && birthdays && filters.workHours !== false) result.push(...birthdayEvents(birthdays, birthdayLook, range.from, range.to));
-    if (filters.tasks) {
+    if (range && birthdays && config.schedules) result.push(...birthdayEvents(birthdays, birthdayLook, range.from, range.to));
+    if (config.tasks) {
       const today = localToday();
       for (const task of context.tasks) {
-        if (task.archived) continue;
+        if (task.archived || !kept.task(task.id)) continue;
         // Its dates, from start to end or to today; its latest acceptable date apart, today when late.
         const { span, deadline, overdue } = taskPlacement(task, today);
         const color = (task.projectId ? context.projectById.get(task.projectId)?.color : null) ?? 'var(--mantine-color-gray-6)';
@@ -528,7 +540,7 @@ export function CalendarPage() {
       for (const occurrence of routineOccurrences.data ?? []) {
         const routine = routineById.get(occurrence.routineId);
         // An archived routine: its occurrences before its archiving, with the archived items.
-        if (!routine || (occurrence.archived && !showArchived) || parents.has(routine.id)) continue;
+        if (!routine || (occurrence.archived && !showArchived) || parents.has(routine.id) || !kept.routine(routine.id)) continue;
         // Cancelled or archived: struck through or dimmed, read only.
         const locked = occurrence.cancelled || occurrence.archived;
         const category = routine.categoryIds.map((id) => routineCategory.get(id)).find((item) => item?.color);
@@ -642,7 +654,8 @@ export function CalendarPage() {
     showArchived,
     subscriptions,
     hidden,
-    filters,
+    config,
+    kept,
     categoryById,
     range,
     schedules,
@@ -776,7 +789,7 @@ export function CalendarPage() {
     label,
     color: color ?? 'green',
   }));
-  const hiddenSchedules = new Set(filters.hiddenScheduleIds ?? []);
+  const hiddenSchedules = new Set(config.hiddenScheduleIds);
   // Downloads the displayed view as a PDF (calendars shown, tasks, slots and timers as displayed), to print.
   const { run: exportPdf, loading: exporting } = useAsyncAction(
     async () => {
@@ -799,15 +812,17 @@ export function CalendarPage() {
   return (
     <Stack gap="md" className={fill ? classes.fill : undefined}>
       <PageHeader title={PAGES.calendar.label} />
+      <ViewTabs state={views} about={CALENDAR_VIEW_WORDS} />
       {/* The view and the period on the left, the edition of the slots and « Ajouter » on the right. */}
       <Group justify="space-between" wrap="wrap" gap="sm">
         <Group gap="xs" wrap="wrap">
-          <SegmentedControl data={VIEWS} value={view} onChange={(value) => setView(value as View)} aria-label="Vue" />
+          <SegmentedControl data={DISPLAYS} value={config.display} onChange={(value) => change({ display: value as CalendarDisplay })} aria-label="Affichage" />
           <PeriodNav onToday={() => api()?.today()} onPrevious={() => api()?.prev()} onNext={() => api()?.next()}>
             <Text fw={600} miw={180} ta="center" tt="capitalize" aria-live="polite">
               {title}
             </Text>
           </PeriodNav>
+          <CalendarFilters sections={filterSections} onChange={(kind, filter) => change({ filters: { ...config.filters, [kind]: filter } })} />
         </Group>
         <Group gap="xs" wrap="wrap">
           {/* A mode, not a button. */}
@@ -848,46 +863,44 @@ export function CalendarPage() {
         >
           <SettingsTabPanel value="display">
             <Stack gap="md">
-              <SettingsSection title="Affichage">
+              <SettingsSection
+                title={views.current ? `Affichage de la vue « ${views.current.label} »` : 'Affichage'}
+                description="Propres à la vue : enregistrez-les avec elle (menu de son onglet, « Enregistrer les modifications »)."
+              >
                 <HiddenChecklist
                   label="Calendriers"
                   empty="Aucun calendrier."
                   choices={calendarChoices}
                   hidden={hidden}
-                  onChange={(hiddenCalendarIds) => setFilters({ ...filters, hiddenCalendarIds })}
+                  onChange={(hiddenCalendarIds) => change({ hiddenCalendarIds })}
                 />
                 <HiddenChecklist
                   label={`${schedulesTitle(perso)} et ${EPHEMERIDES_TITLE.toLowerCase()}`}
                   empty="Aucun créneau."
                   choices={scheduleChoices}
                   hidden={hiddenSchedules}
-                  disabled={filters.workHours === false}
-                  onChange={(hiddenScheduleIds) => setFilters({ ...filters, hiddenScheduleIds })}
+                  disabled={!config.schedules}
+                  onChange={(hiddenScheduleIds) => change({ hiddenScheduleIds })}
                 />
                 <LabeledField label="Aussi dans l’agenda" gap="xs">
                   {(
                     [
-                      ['tasks', 'Tâches', filters.tasks],
+                      ['tasks', 'Tâches', config.tasks],
                       ['routines', 'Routines', showRoutines],
-                      ['workHours', `${schedulesTitle(perso)} et ${EPHEMERIDES_TITLE.toLowerCase()}`, filters.workHours !== false],
+                      ['schedules', `${schedulesTitle(perso)} et ${EPHEMERIDES_TITLE.toLowerCase()}`, config.schedules],
                       ['timers', 'Chronos', showTimers],
                     ] as const
                   ).map(([key, label, checked]) => (
-                    <Switch key={key} label={label} checked={checked} onChange={(event) => setFilters({ ...filters, [key]: event.currentTarget.checked })} />
+                    <Switch key={key} label={label} checked={checked} onChange={(event) => change({ [key]: event.currentTarget.checked })} />
                   ))}
-                  <ShowArchivedSwitch checked={showArchived} onChange={(archived) => setFilters({ ...filters, archived })} />
+                  <ShowArchivedSwitch checked={showArchived} onChange={(includeArchived) => change({ includeArchived })} />
                 </LabeledField>
                 <LabeledField label="Heures (semaine, jour)" gap="xs">
                   <Switch
                     label="Par 5 minutes"
                     description="Sinon par 30 minutes : les routines courtes se lisent mieux par 5 minutes."
-                    checked={filters.fineSlots === true}
-                    onChange={(event) =>
-                      setFilters({
-                        ...filters,
-                        fineSlots: event.currentTarget.checked,
-                      })
-                    }
+                    checked={config.fineSlots}
+                    onChange={(event) => change({ fineSlots: event.currentTarget.checked })}
                   />
                 </LabeledField>
               </SettingsSection>
@@ -932,7 +945,7 @@ export function CalendarPage() {
           }}
           initialView={view}
           // Hours by 30 minutes, or by 5 (labelled each hour either way); a drag moves by as much.
-          slotDuration={filters.fineSlots ? '00:05:00' : '00:30:00'}
+          slotDuration={config.fineSlots ? '00:05:00' : '00:30:00'}
           slotLabelInterval="01:00:00"
           initialDate={requestedDate ?? undefined}
           locale={frLocale}

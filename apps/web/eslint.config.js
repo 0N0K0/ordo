@@ -1227,6 +1227,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser slotSchedules (@ordo/shared) : les créneaux, sans les éphémérides.',
   },
   {
+    // Rows of the tables of the schedules, also filtered in the calendar.
+    selector: "Property[key.name='state'][value.callee.name='scheduleState']",
+    message: 'Utiliser scheduleRows (features/calendar/hooks/use-schedule-columns) : les lignes des tableaux des créneaux et des éphémérides.',
+  },
+  {
     // The working hours count neither the éphémérides nor the archived créneaux (as the conditions).
     selector: "CallExpression[callee.name='scheduleRules'] > CallExpression.arguments[callee.name='slotSchedules']",
     message: 'Utiliser useWorkingHours (features/calendar/api) : les heures de travail, sans éphémérides ni créneaux archivés.',

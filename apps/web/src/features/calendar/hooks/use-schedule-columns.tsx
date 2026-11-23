@@ -34,6 +34,18 @@ export function scheduleState(schedule: WorkSchedule, today: string): ScheduleSt
   return STATE_OF[periodState(schedule.startDate, schedule.endDate ?? null, today)];
 }
 
+/**
+ * Rows of the table of the créneaux or of the éphémérides: each schedule with its state today and its exceptions (also
+ * filtered in the calendar).
+ * @param {readonly WorkSchedule[]} schedules Schedules.
+ * @param {string} today YYYY-MM-DD.
+ * @returns {ScheduleRow[]} Rows.
+ */
+export function scheduleRows(schedules: readonly WorkSchedule[], today: string): ScheduleRow[] {
+  // eslint-disable-next-line no-restricted-syntax -- scheduleRows itself.
+  return schedules.map((schedule) => ({ schedule, state: scheduleState(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
+}
+
 /** Columns of the table of the créneaux or of the éphémérides, with what they read. */
 interface ScheduleColumns {
   columns: DataColumn<ScheduleRow>[];
