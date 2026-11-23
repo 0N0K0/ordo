@@ -164,14 +164,16 @@ export const ON_ERROR: { onError: (error: Error) => void } = { onError: onMutati
 
 /**
  * Callbacks of a mutation without form: a toast once done, its error in an error toast.
- * @param {string | ((result: T) => string | null)} message Success message (« Alarme supprimée. »), or made from what the mutation returned (null: nothing happened, no toast).
+ * @param {string | ((result: T) => string | { info: string } | null)} message Success message (« Alarme supprimée. »), or made from what the mutation returned: `{ info }` when nothing was done but it is worth telling (an information toast: « Ce chrono était déjà arrêté. »), null when nothing is to tell (no toast).
  * @returns {{ onSuccess: (result: T) => void, onError: (error: Error) => void }} Callbacks.
  */
-export function toastCallbacks<T = unknown>(message: string | ((result: T) => string | null)): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
+export function toastCallbacks<T = unknown>(message: string | ((result: T) => string | { info: string } | null)): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
   return {
     onSuccess: (result) => {
       const text = typeof message === 'string' ? message : message(result);
-      if (text !== null) notifySuccess(text);
+      if (text === null) return;
+      if (typeof text === 'string') notifySuccess(text);
+      else notifyInfo({ title: text.info });
     },
     onError: onMutationError,
   };
