@@ -113,7 +113,7 @@ Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bén
 
 ### Menu d’une ligne
 
-- « Ouvrir » (panneau latéral).
+- « Modifier » (panneau latéral ; pas sur une tâche archivée, qui s'ouvre en lecture seule d'un clic sur sa ligne), comme dans les autres tableaux.
 - « Ajouter une sous-tâche » (pas sur une tâche archivée).
 - « Dupliquer », « Transférer », « Héritage… » (une sous-tâche), « Transformer en routine », « Archiver », « Supprimer » ; puis, avec des temps morts, la section « Temps morts » : « Lancer « Lave-linge (1 h 30) » » ; avec des minuteurs enregistrés, la section « Minuteurs » : « Lancer « Œufs durs (9 min) » » (aussitôt) ; sur une tâche archivée : « Restaurer », « Supprimer ». Le même menu est celui du panneau d’une tâche (« … »).
 

@@ -5,7 +5,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Group, Select, Switch, Text, Tooltip } from '@mantine/core';
 import { addDays, DATE_PERIOD_LABELS, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
-import { AlarmIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
+import { AlarmIcon, CheckSquareOffsetIcon, GithubLogoIcon, PencilSimpleIcon, PlusIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
@@ -359,7 +359,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
           row.kind === 'task' && (
             <RowActions
               about={`la tâche ${taskName(row.task)}`}
-              primary={{ label: 'Ouvrir', icon: <SidebarSimpleIcon aria-hidden />, onClick: () => taskLink.open(row.task.id) }}
+              primary={!row.task.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => taskLink.open(row.task.id) }}
               items={[
                 // An archived task is read only: no sub-task added under it.
                 ...(row.task.archived
