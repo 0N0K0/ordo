@@ -1,4 +1,4 @@
-import { groupBy, NO_TASK_LINKS_LOST, subtaskProjects, readSlotCondition, readTaskHours, taskFieldsGiven, type TaskAutomationRevert, type TaskCloseReason, type TaskInheritableField, type TaskLinksLost } from '@ordo/shared';
+import { groupBy, mergeTaskLinksLost, NO_TASK_LINKS_LOST, subtaskProjects, readSlotCondition, readTaskHours, taskFieldsGiven, type TaskAutomationRevert, type TaskCloseReason, type TaskInheritableField, type TaskLinksLost } from '@ordo/shared';
 import { notifySuccess, notifyFailure } from '../../../lib/notify';
 import { originOf } from '../../../components/inheritance/inheritance';
 import { useBulkTaskMutations, useSetTasksClosed, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
@@ -190,24 +190,35 @@ export function useBulkUndo() {
     },
 
     /**
-     * Undo of the automations of the tasks applied by a change: each task restored when a rule archived it, moved
-     * back to its project with the links its transfer removed, its fields given back (inherited again, emptied again,
-     * or their values), then its open / closed state.
+     * Undo of the automations of the tasks applied by a change: the tasks a rule archived restored, those it moved
+     * back to their project all together with the links their transfers removed (one call: a link between two of them
+     * comes back once both are back), then the fields of each task given back (inherited again, emptied again, or
+     * their values), then its open / closed state.
      * @param {readonly TaskAutomationRevert[]} reverts What gives each task back (from the API).
      * @returns {() => void} Undo.
      */
-    automation: (reverts: readonly TaskAutomationRevert[]) => () =>
-      run(
-        reverts.flatMap(({ taskId, projectId, changes, closed, closeReason, restore, links }) => {
+    automation: (reverts: readonly TaskAutomationRevert[]) => () => {
+      const moved = reverts.filter((revert) => revert.projectId !== undefined);
+      return run([
+        ...reverts.flatMap(({ taskId, restore }) => (restore ? [() => archive.mutateAsync({ ids: [taskId], archived: false })] : [])),
+        ...(moved.length
+          ? [
+              () =>
+                undoTransfer.mutateAsync({
+                  moves: [...groupBy(moved, (revert) => revert.projectId ?? null)].map(([projectId, group]) => ({ ids: group.map((revert) => revert.taskId), projectId })),
+                  links: mergeTaskLinksLost(moved.map((revert) => revert.links ?? NO_TASK_LINKS_LOST)),
+                }),
+            ]
+          : []),
+        ...reverts.flatMap(({ taskId, changes, closed, closeReason }) => {
           const ids = [taskId];
           return [
-            ...(restore ? [() => archive.mutateAsync({ ids, archived: false })] : []),
-            ...(projectId !== undefined ? [() => undoTransfer.mutateAsync({ moves: [{ ids, projectId }], links: links ?? NO_TASK_LINKS_LOST })] : []),
             ...(Object.keys(changes).length ? [() => update.mutateAsync({ ids, changes, restoring: true })] : []),
             ...(closed !== undefined ? [() => setClosed.mutateAsync({ ids, closed, reason: closeReason, restoring: true })] : []),
           ];
         }),
-      ),
+      ]);
+    },
 
     /**
      * Undo of a transfer, all or nothing (one call): tasks go back to their project with their sub-tasks, the

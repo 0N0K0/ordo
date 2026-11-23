@@ -237,6 +237,27 @@ export type TaskLinksLost = z.infer<typeof taskLinksLostSchema>;
 /** No link removed (a transfer that kept them all, an undo with no link to put back). */
 export const NO_TASK_LINKS_LOST: TaskLinksLost = { blocks: [], relations: [], parents: [], milestones: [], sprints: [], resources: [], projects: [], inheritedProjects: [] };
 
+/**
+ * Links several transfers removed, put together in their order (one undo putting back several transfers).
+ * @param {readonly TaskLinksLost[]} lists Links each transfer removed.
+ * @returns {TaskLinksLost} All of them.
+ */
+export function mergeTaskLinksLost(lists: readonly TaskLinksLost[]): TaskLinksLost {
+  const merged: TaskLinksLost = { ...NO_TASK_LINKS_LOST };
+  for (const lost of lists) {
+    for (const key of Object.keys(merged) as (keyof TaskLinksLost)[]) (merged[key] as unknown[]) = [...merged[key], ...(lost[key] ?? [])];
+  }
+  return merged;
+}
+
+/**
+ * Whether a transfer removed something its undo gives back: a link, a sub-task in another project than its parent,
+ * a project that stopped being inherited.
+ * @param {TaskLinksLost} lost Links removed.
+ * @returns {boolean} True when there is something to give back.
+ */
+export const hasTaskLinksLost = (lost: TaskLinksLost): boolean => Object.values(lost).some((list) => list.length > 0);
+
 /** A task of a tree as `subtaskProjects` reads it. */
 interface ProjectedTask {
   id: string;

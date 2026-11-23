@@ -35,7 +35,7 @@ import {
   type TaskAutomationTrigger,
   type TaskInheritableField,
   type TaskLinksLost,
-  taskLinksLostCount,
+  hasTaskLinksLost,
   type WeekSpan,
 } from '@ordo/shared';
 import { prisma } from '../../db';
@@ -782,7 +782,8 @@ function report(
     const now = after.tasks.get(task.id);
     const revert = now ? revertOf(before.tasks.get(task.id) ?? task, now) : null;
     const links = lostLinks.get(task.id);
-    if (revert && links && taskLinksLostCount(links) > 0) revert.links = links;
+    // Sub-tasks in another project and a project no longer inherited come back with it too, not only the links.
+    if (revert && links && hasTaskLinksLost(links)) revert.links = links;
     return revert ? [revert] : [];
   });
   const base = { ruleId: rule.id, label: rule.label, changes: rule.actions.map((action) => taskAutomationActionText(action, nameOf, dayWords)) };

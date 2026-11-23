@@ -1,4 +1,4 @@
-import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema, taskLinksLostSchema, type TaskLinksLost, NO_TASK_LINKS_LOST, subtaskProjects } from '@ordo/shared';
+import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema, taskLinksLostSchema, type TaskLinksLost, NO_TASK_LINKS_LOST, subtaskProjects, mergeTaskLinksLost } from '@ordo/shared';
 import { z } from 'zod';
 import { inTransaction, prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -457,7 +457,7 @@ export const setTaskArchived = automated(async function setTaskArchived(id: stri
  * @param {string[]} rootIds Tasks moved (with the sub-tasks: none under another one).
  * @param {string | null} projectId Target project; null: none.
  * @param {boolean} [withSubtasks=true] Each task moves with its whole sub-tree; false: only the tasks given. Optional. Default = true.
- * @returns {Promise<TaskLinksLost>} Removed links (`restoreTaskLinks` puts them back).
+ * @returns {Promise<TaskLinksLost>} Removed links (`undoTaskTransfer` puts them back).
  */
 async function moveTaskTrees(rootIds: string[], projectId: string | null, withSubtasks = true): Promise<TaskLinksLost> {
   if (rootIds.length === 0) return NO_TASK_LINKS_LOST;
@@ -1051,7 +1051,7 @@ export const bulkUpdateTasks = automated(async function bulkUpdateTasks(ids: str
  * Transfers several tasks (with their sub-tasks; none archived) to another project, or out of any.
  * @param {string[]} ids Task ids.
  * @param {string | null} projectId Target project; null: none.
- * @returns {Promise<TaskLinksLost>} Links removed because they left the project tree (`restoreTaskLinks` puts them back).
+ * @returns {Promise<TaskLinksLost>} Links removed because they left the project tree (`undoTaskTransfer` puts them back).
  */
 export const bulkTransferTasks = automated(async function bulkTransferTasks(ids: string[], projectId: string | null): Promise<TaskLinksLost> {
   await assertTasks(ids);
@@ -1113,24 +1113,85 @@ export interface TaskProjectMove {
 }
 
 /**
- * Undo of a transfer (« Annuler » of a transfer, or of a rule that changed the project), in one transaction: all of it
- * or nothing. The tasks go back to their project in the order given (the moved ones with their sub-tasks), then the
- * sub-tasks the transfer took from another project than their parent's (its `projects`, level by level), each in its
- * own project (those already there are left), archived ones and archived projects accepted, as an undo; then the
- * links the transfer removed come back (`restoreTaskLinks`). The tasks deleted since are passed over.
+ * Links removed while the tasks of an undo went back group after group (a group back before the others loses its
+ * links with them) that join two tasks of the same project tree once all are back: those the undo gives back. The
+ * tasks deleted since are left out.
+ * @param {TaskLinksLost} lost Links removed by the moves of the undo.
+ * @returns {Promise<TaskLinksLost>} Blocks, relations and parents to give back.
+ */
+async function linksBackInOneTree(lost: TaskLinksLost): Promise<TaskLinksLost> {
+  const named = [...lost.blocks.flatMap((link) => [link.blockerId, link.blockedId]), ...lost.relations.flatMap((link) => [link.taskAId, link.taskBId]), ...lost.parents.flatMap((link) => [link.id, link.parentId])];
+  if (named.length === 0) return NO_TASK_LINKS_LOST;
+  const projectOf = new Map((await prisma.task.findMany({ where: { id: { in: [...new Set(named)] } }, select: { id: true, projectId: true } })).map((task) => [task.id, task.projectId]));
+  const rootOf = await loadRootOf();
+  const together = (id: string, otherId: string) => projectOf.has(id) && projectOf.has(otherId) && rootOf(projectOf.get(id) ?? null) === rootOf(projectOf.get(otherId) ?? null);
+  return {
+    ...NO_TASK_LINKS_LOST,
+    blocks: lost.blocks.filter((link) => together(link.blockerId, link.blockedId)),
+    relations: lost.relations.filter((link) => together(link.taskAId, link.taskBId)),
+    parents: lost.parents.filter((link) => together(link.id, link.parentId)),
+  };
+}
+
+/**
+ * What the undo gives back to the sub-tasks left with their parent, their own project deleted since: only the
+ * milestones, sprints and project documents that still exist (those of the deleted project went with it), and their
+ * project inherited again (they are in their parent's).
+ * @param {TaskLinksLost} lost Links removed, as the transfer told them.
+ * @param {readonly string[]} stayed Sub-tasks left with their parent.
+ * @returns {Promise<TaskLinksLost>} Links to give back.
+ */
+async function linksOfStayedSubtasks(lost: TaskLinksLost, stayed: readonly string[]): Promise<TaskLinksLost> {
+  if (stayed.length === 0) return lost;
+  const left = new Set(stayed);
+  const [milestones, sprints, resources, parented] = await Promise.all([
+    prisma.milestone.findMany({ where: { id: { in: lost.milestones.map((link) => link.milestoneId) } }, select: { id: true } }),
+    prisma.sprint.findMany({ where: { id: { in: lost.sprints.flatMap((link) => link.sprintIds) } }, select: { id: true } }),
+    prisma.projectResource.findMany({ where: { id: { in: lost.resources.flatMap((link) => link.resourceIds) } }, select: { id: true } }),
+    prisma.task.findMany({ where: { id: { in: [...stayed] }, parentId: { not: null } }, select: { id: true } }),
+  ]);
+  const existing = new Set([...milestones, ...sprints, ...resources].map((item) => item.id));
+  const kept = (id: string, itemId: string) => !left.has(id) || existing.has(itemId);
+  return {
+    ...lost,
+    milestones: lost.milestones.filter((link) => kept(link.id, link.milestoneId)),
+    sprints: lost.sprints.map((link) => ({ ...link, sprintIds: link.sprintIds.filter((sprintId) => kept(link.id, sprintId)) })).filter((link) => link.sprintIds.length > 0),
+    resources: lost.resources.map((link) => ({ ...link, resourceIds: link.resourceIds.filter((resourceId) => kept(link.id, resourceId)) })).filter((link) => link.resourceIds.length > 0),
+    inheritedProjects: [...new Set([...lost.inheritedProjects, ...parented.map((task) => task.id)])],
+  };
+}
+
+/**
+ * Undo of a transfer (« Annuler » of a transfer, or of a rule that changed the project of one or several tasks), in
+ * one transaction: all of it or nothing. The tasks go back to their project in the order given (the moved ones with
+ * their sub-tasks), then the sub-tasks the transfer took from another project than their parent's (its `projects`,
+ * level by level), each in its own project (those already there are left; one whose project was deleted since stays
+ * with its parent, its project inherited again, without the milestone, sprints and documents of that project), archived ones and archived projects accepted, as an undo; then the links the transfer removed come
+ * back (`restoreTaskLinks`), with those the groups lost between them while going back one after the other (blocks,
+ * relations, parents of tasks back in the same tree). The tasks deleted since are passed over.
  * @param {readonly TaskProjectMove[]} moves Tasks and the project each group goes back to, in order.
  * @param {unknown} links Links removed, as the transfer told them.
  * @returns {Promise<void>}
  */
 export const undoTaskTransfer = automated(async function undoTaskTransfer(moves: readonly TaskProjectMove[], links: unknown): Promise<void> {
   await inTransaction(async () => {
-    const { projects } = parseInput(taskLinksLostSchema, links);
-    for (const { ids, projectId } of [...moves, ...projects.map((item) => ({ ids: [item.id], projectId: item.projectId }))]) {
-      if (projectId) await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet', 'projectId');
+    const lost = parseInput(taskLinksLostSchema, links);
+    const subtasks = lost.projects.map((item) => ({ ids: [item.id], projectId: item.projectId, subtask: true }));
+    const between: TaskLinksLost[] = [];
+    const stayed: string[] = [];
+    for (const { ids, projectId, subtask } of [...moves.map((move) => ({ ...move, subtask: false })), ...subtasks]) {
+      if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) {
+        // A sub-task whose project was deleted since stays with its parent; a whole group cannot go back.
+        if (subtask) {
+          stayed.push(...ids);
+          continue;
+        }
+        throw notFound('Projet', 'projectId');
+      }
       const off = (await prisma.task.findMany({ where: { id: { in: [...ids] } }, select: { id: true, projectId: true } })).filter((task) => task.projectId !== projectId);
-      if (off.length) await moveTaskTrees(await topmostIds('task', off.map((task) => task.id)), projectId);
+      if (off.length) between.push(await moveTaskTrees(await topmostIds('task', off.map((task) => task.id)), projectId));
     }
-    await restoreTaskLinks(links);
+    await restoreTaskLinks(mergeTaskLinksLost([await linksOfStayedSubtasks(lost, stayed), await linksBackInOneTree(mergeTaskLinksLost(between))]));
   });
 });
 

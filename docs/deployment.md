@@ -181,7 +181,7 @@ Settings → Branches (ou Rulesets) pour `main` et `prod` : PR obligatoire, chec
 
 ### CI — `.github/workflows/ci.yml`
 
-Sur chaque PR vers `main` ou `prod`, avec Node 24 et un service PostgreSQL 9.6 : `npm ci`, `prisma generate`, typecheck, lint, `migrate deploy` sur 9.6, `migrate diff --exit-code` (les migrations doivent mener exactement au schéma), build.
+Sur chaque PR vers `main` ou `prod`, avec Node 24 et un service PostgreSQL 9.6 : `npm ci`, `prisma generate`, typecheck, lint, tests unitaires (`npm test`, voir [Tests](README.md#tests)), `migrate deploy` sur 9.6, `migrate diff --exit-code` (les migrations doivent mener exactement au schéma), build.
 
 ### Déploiement — `.github/workflows/deploy.yml`
 

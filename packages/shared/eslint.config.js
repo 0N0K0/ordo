@@ -21,5 +21,7 @@ export default defineConfig([
       ],
     },
   },
+  // Tests build instants and dates by hand on purpose (around a change of time, in another zone).
+  { files: ['test/**/*.ts'], rules: { 'no-restricted-syntax': 'off' } },
   planReferencesConfig(['**/*.{ts,js}']),
 ]);

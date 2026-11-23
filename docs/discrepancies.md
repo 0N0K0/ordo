@@ -27,6 +27,13 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 - **PDF des documents :** la forme juridique, le capital et l’immatriculation du profil de la société ne sont pas imprimés, alors que les réglages « Ma société » les présentent comme imprimés et que le commentaire du pied de page parle d’« identité légale ». Voir [Règles de la facturation](business-rules/finances/accounting.md) et [Réglages](features/cross-cutting/settings.md). _à corriger_
 - **Personnes liées dans des états différents :** un contributeur et sa relation déjà enregistrés l'un archivé, l'autre non, le restent (aucune migration ne les aligne) ; le prochain archivage ou la prochaine restauration de l'un met l'autre dans le même état. Voir [Archivage](business-rules/cross-cutting/archiving.md#personnes-liées). _passer, rien n'est archivé pour l'instant en prod_
 
+## Écarts relevés par les tests
+
+Chacun est gardé par un test marqué `it.fails` (voir [Tests](README.md#tests)) : corrigé, ce test échoue et se remet en test ordinaire.
+
+- **Durée « N mois » d’une occurrence :** `spanEnd` la finit un mois trop tard (« 1 mois » depuis le 15 novembre finit le 31 décembre, « 4 mois » le 31 mars), alors que la règle dit « jusqu’à la fin du dernier mois » (comme « N semaines » : 1 semaine finit la même semaine) et que `maxSpanDays` ne remonte que 31 jours par mois. Voir [Dates](business-rules/cross-cutting/dates.md#répétitions). Test : `packages/shared/test/dates/recurrence.test.ts`. _À corriger_
+- **Semaines paires / impaires décalées à travers une semaine 53 :** décaler une série dont des jours changent de semaine échange leur parité ; or les semaines 53 et 1 sont toutes deux impaires : une série lundi et vendredi des semaines impaires depuis le 14 décembre 2026, décalée de 3 jours, perd le vendredi 1er janvier 2027 (semaine 53), qui deviendrait le lundi 4 janvier (semaine 1, impaire, pas paire). La règle dit qu’aucune occurrence n’est perdue. Voir [Règles de l’agenda](business-rules/activities/calendar.md). Test : `packages/shared/test/dates/recurrence.test.ts`. _À corriger_
+
 ## Documentation à mettre à jour ou à compléter
 
 - **Relances d’impayés :** [Déploiement](deployment.md) les cite parmi les tâches de fond, mais le code ne les envoie qu’à la main (`sendRemindersSchema`). Voir [Tâches de fond](business-rules/cross-cutting/background-jobs.md). _à corriger_

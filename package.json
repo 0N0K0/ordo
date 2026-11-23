@@ -9,6 +9,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present && npm run lint:docs",
     "lint:docs": "node scripts/check-docs.mjs",
+    "test": "npm run test --workspaces --if-present",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:seed": "npm run db:seed -w apps/api --",
