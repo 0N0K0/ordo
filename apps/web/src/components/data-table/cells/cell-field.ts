@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent, type SyntheticEvent } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { notifyError } from '../../../lib/notify';
 import classes from './EditableCells.module.css';
 
@@ -14,6 +14,15 @@ export const cellField = {
  * of its column are aligned (DataTable.module.css), at the start out of a table.
  */
 export const CELL_JUSTIFY = 'var(--cell-justify, flex-start)';
+
+/**
+ * Text alignment of a value or a field in a cell: as the cells of its column are aligned (DataTable.module.css), else
+ * `fallback` out of a table.
+ * @param {'left' | 'right'} fallback Alignment out of a table (a number field: right).
+ * @returns {{ textAlign: CSSProperties['textAlign'] }} Style.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the one place a cell's text takes its column's alignment.
+export const cellTextAlign = (fallback: 'left' | 'right'): { textAlign: CSSProperties['textAlign'] } => ({ textAlign: `var(--cell-text-align, ${fallback})` as CSSProperties['textAlign'] });
 
 /** Select fields: dropdown as wide as its options. */
 export const cellCombobox = { ...cellField, comboboxProps: { withinPortal: true, width: 'max-content', position: 'bottom-start' } } as const;

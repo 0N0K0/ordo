@@ -6,7 +6,7 @@ import classes from './StateButton.module.css';
 import { YesNoIcon } from './YesNoIcon';
 
 /** Size of the icon for each size of the button (px). */
-const ICON_SIZES = { xs: 14, sm: 18, md: 22, 'input-sm': 26, xl: 36 } as const;
+const ICON_SIZES = { xs: 14, sm: 18, md: 20, 'input-sm': 26, xl: 36 } as const;
 
 interface StateButtonProps extends YesNoStates {
   /** Yes or no. */
