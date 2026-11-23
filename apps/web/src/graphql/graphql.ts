@@ -225,7 +225,7 @@ export type CalendarEventInput = {
   recurrence?: unknown;
   /** Relations without contributor taking part; none: none. */
   relationIds?: Array<string | number> | null | undefined;
-  /** Minutes before the start (24 hours at most) or a time of its first day, 10 at most. */
+  /** Minutes before its start or its end (24 hours at most), a time of its first (or last) day, or that time 1 to 30 days before; each with its ringtone or none; 10 at most. */
   reminders: Array<ReminderInput>;
   /** Routines of a day of the occurrence it is about (its other days kept); none when omitted. */
   routineLinks?: Array<EventRoutineLinkInput> | null | undefined;
@@ -2333,7 +2333,7 @@ export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }
 
 export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, ringSettings: { ringMinutes: number, loop: boolean, repeatMinutes: number, ringtone: string, outside: boolean } } };
 
-export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, libraryDocumentIds: Array<string>, projectResourceIds: Array<string>, savedCountdownIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> };
+export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, libraryDocumentIds: Array<string>, projectResourceIds: Array<string>, savedCountdownIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }>, series: { label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, travelBefore: number, travelAfter: number, links: Array<{ url: string, label: string }> } | null };
 
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2501,7 +2501,7 @@ export type CalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, libraryDocumentIds: Array<string>, projectResourceIds: Array<string>, savedCountdownIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> }>, calendars: Array<{ id: string, archived: boolean }> };
+export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, libraryDocumentIds: Array<string>, projectResourceIds: Array<string>, savedCountdownIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }>, series: { label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, travelBefore: number, travelAfter: number, links: Array<{ url: string, label: string }> } | null }>, calendars: Array<{ id: string, archived: boolean }> };
 
 export type CalendarsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2519,7 +2519,7 @@ export type SubscribedCalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type SubscribedCalendarEventsQuery = { subscribedCalendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, libraryDocumentIds: Array<string>, projectResourceIds: Array<string>, savedCountdownIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> }> };
+export type SubscribedCalendarEventsQuery = { subscribedCalendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, libraryDocumentIds: Array<string>, projectResourceIds: Array<string>, savedCountdownIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }>, series: { label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, travelBefore: number, travelAfter: number, links: Array<{ url: string, label: string }> } | null }> };
 
 export type CreateCalendarMutationVariables = Exact<{
   input: LabelColorInput;
@@ -4663,6 +4663,7 @@ export type SetTasksClosedMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
   closed: boolean;
   reason?: TaskCloseReason | null | undefined;
+  restoring?: boolean | null | undefined;
 }>;
 
 
@@ -5561,6 +5562,22 @@ export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(
     startTime
   }
   trackedSeconds
+  series {
+    label
+    description
+    location
+    links {
+      url
+      label
+    }
+    allDay
+    startDate
+    startTime
+    endDate
+    endTime
+    travelBefore
+    travelAfter
+  }
 }
     fragment ReminderFields on Reminder {
   before
@@ -7485,6 +7502,22 @@ fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {
     startTime
   }
   trackedSeconds
+  series {
+    label
+    description
+    location
+    links {
+      url
+      label
+    }
+    allDay
+    startDate
+    startTime
+    endDate
+    endTime
+    travelBefore
+    travelAfter
+  }
 }`) as unknown as TypedDocumentString<CalendarEventsQuery, CalendarEventsQueryVariables>;
 export const CalendarsDocument = new TypedDocumentString(`
     query Calendars {
@@ -7592,6 +7625,22 @@ fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {
     startTime
   }
   trackedSeconds
+  series {
+    label
+    description
+    location
+    links {
+      url
+      label
+    }
+    allDay
+    startDate
+    startTime
+    endDate
+    endTime
+    travelBefore
+    travelAfter
+  }
 }`) as unknown as TypedDocumentString<SubscribedCalendarEventsQuery, SubscribedCalendarEventsQueryVariables>;
 export const CreateCalendarDocument = new TypedDocumentString(`
     mutation CreateCalendar($input: LabelColorInput!) {
@@ -10696,8 +10745,13 @@ export const DeleteTaskTagDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteTaskTagMutation, DeleteTaskTagMutationVariables>;
 export const SetTasksClosedDocument = new TypedDocumentString(`
-    mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!, $reason: TaskCloseReason) {
-  setTasksClosed(ids: $ids, closed: $closed, reason: $reason)
+    mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!, $reason: TaskCloseReason, $restoring: Boolean) {
+  setTasksClosed(
+    ids: $ids
+    closed: $closed
+    reason: $reason
+    restoring: $restoring
+  )
 }
     `) as unknown as TypedDocumentString<SetTasksClosedMutation, SetTasksClosedMutationVariables>;
 export const BulkUpdateTasksDocument = new TypedDocumentString(`

@@ -58,8 +58,8 @@ function RunningRow({ entry }: { entry: TimeEntry }) {
 }
 
 /**
- * Header pill of several running timers: their number and the time of the last one started (opening the
- * list of them, each stoppable on its own, and « Arrêter tout »).
+ * Header pill of several running timers: their number and the clock of the longest one (opening the list of them,
+ * each stoppable on its own, and « Arrêter tout »); grey when all are paused.
  * @param {{ entries: TimeEntry[] }} props Running timers.
  * @returns {JSX.Element} Pill.
  */

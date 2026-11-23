@@ -948,9 +948,10 @@ export const bulkUpdateTasks = automated(async function bulkUpdateTasks(ids: str
     // The date ranges must stay valid for every task (« Ouverture » / « Échéance »: on its own days).
     assertDateRange(details, task);
     const inherited = changedTaskInheritance(task.inheritedFields, { inherit: changes.inheritFields, clear: changes.clearFields, input: changes, hasParent: task.parentId !== null });
-    assertOwnDays(details, task, [...inherited, ...(changes.clearFields ?? [])]);
+    assertOwnDays(details, task, [...inherited, ...(task.parentId !== null ? (changes.clearFields ?? []) : [])]);
   }
 
+  const cleared = clearedTaskData(changes.clearFields);
   await prisma.$transaction([
     prisma.task.updateMany({
       where: { id: { in: ids } },
@@ -983,12 +984,13 @@ export const bulkUpdateTasks = automated(async function bulkUpdateTasks(ids: str
           }),
         )
       : []),
-    // Their inheritance: fields inherited again, emptied, or given a value; emptied last.
+    // Their inheritance: fields inherited again, emptied, or given a value; emptied last. Tasks without parent stay
+    // as they are (nothing to inherit, nothing emptied on purpose).
     ...tasks.map((task) =>
       prisma.task.update({
         where: { id: task.id },
         data: {
-          ...clearedTaskData(changes.clearFields),
+          ...(task.parentId !== null && cleared),
           inheritedFields: changedTaskInheritance(task.inheritedFields, { inherit: changes.inheritFields, clear: changes.clearFields, input: changes, hasParent: task.parentId !== null }),
         },
       }),

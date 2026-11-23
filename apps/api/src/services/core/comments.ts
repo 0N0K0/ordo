@@ -199,13 +199,14 @@ export interface CommentSnapshot {
 /**
  * Deletes the comments of occurrences deleted (those of whole items go with them, `onDelete: Cascade`).
  * @param {GoneComments} gone Occurrences deleted.
+ * @param {Prisma.TransactionClient} [client] Client or transaction. Optional. Default = the client of the workspace.
  * @returns {Promise<CommentSnapshot[]>} Comments deleted, oldest first (for an undo).
  */
-export async function deleteGoneComments(gone: GoneComments): Promise<CommentSnapshot[]> {
+export async function deleteGoneComments(gone: GoneComments, client: Prisma.TransactionClient = prisma): Promise<CommentSnapshot[]> {
   const any = goneCommentsWhere(gone);
   if (!any.length) return [];
-  const deleted = await prisma.comment.findMany({ where: { OR: any }, select: { body: true, createdAt: true, updatedAt: true }, orderBy: { createdAt: 'asc' } });
-  await prisma.comment.deleteMany({ where: { OR: any } });
+  const deleted = await client.comment.findMany({ where: { OR: any }, select: { body: true, createdAt: true, updatedAt: true }, orderBy: { createdAt: 'asc' } });
+  await client.comment.deleteMany({ where: { OR: any } });
   return deleted;
 }
 

@@ -1,5 +1,6 @@
 import { formatOptionalDay, parseOptionalDay, sumOf } from '@ordo/shared';
 import { prisma } from '../../db';
+import type { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
 import { releaseSubjectTime, timeLeftEmpty } from '../tasks/time-entries';
 import { commentsLostOnDelete, deleteGoneComments, type GoneComments } from './comments';
@@ -73,8 +74,8 @@ export interface LostOccurrences {
   times: number;
   /** Comments deleted with them. */
   comments: number;
-  /** Deletes those comments and times (the other times leave the occurrences). */
-  settle: () => Promise<void>;
+  /** Deletes those comments and times (the other times leave the occurrences), in the transaction given if any. */
+  settle: (client?: Prisma.TransactionClient) => Promise<void>;
 }
 
 /**
@@ -95,9 +96,9 @@ export async function lostOccurrences(owner: OccurrenceOwner, id: string, gone: 
   return {
     times: events.length ? (await timeLeftEmpty({ events })).length : 0,
     comments: await commentsLostOnDelete(comments),
-    settle: async () => {
-      if (events.length) await releaseSubjectTime({ events });
-      await deleteGoneComments(comments);
+    settle: async (client = prisma) => {
+      if (events.length) await releaseSubjectTime({ events }, client);
+      await deleteGoneComments(comments, client);
     },
   };
 }
@@ -118,15 +119,16 @@ export function assertLossConfirmed(losses: readonly Pick<LostOccurrences, 'time
 
 /**
  * Before a change of the rule of an event series or of a routine: asks for the loss of what the occurrences it makes
- * disappear have (`lostOccurrences`, `assertLossConfirmed`: nothing changed while unconfirmed), then deletes it.
+ * disappear have (`lostOccurrences`, `assertLossConfirmed`: nothing changed while unconfirmed), and gives its deletion,
+ * to run with the save (in its transaction, before the rows of the other occurrences move).
  * @param {OccurrenceOwner} owner Column of the item (`eventId`, `routineId`).
  * @param {string} id Item.
  * @param {(day: string) => boolean} gone Whether an occurrence (its day now) disappears with the change.
  * @param {boolean} [confirmLoss] Loss confirmed (true), to confirm (false). Optional. Default = deleted without question (internal change).
- * @returns {Promise<void>}
+ * @returns {Promise<LostOccurrences['settle']>} Deletion of what is lost.
  */
-export async function settleLostOccurrences(owner: OccurrenceOwner, id: string, gone: (day: string) => boolean, confirmLoss?: boolean): Promise<void> {
+export async function confirmLostOccurrences(owner: OccurrenceOwner, id: string, gone: (day: string) => boolean, confirmLoss?: boolean): Promise<LostOccurrences['settle']> {
   const lost = await lostOccurrences(owner, id, gone);
   assertLossConfirmed([lost], confirmLoss);
-  await lost.settle();
+  return lost.settle;
 }

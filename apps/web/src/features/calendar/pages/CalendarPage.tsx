@@ -54,7 +54,7 @@ import { slotColumns } from '../lib/slot-columns';
 import { EPHEMERIDES_TITLE, schedulesTitle, unavailableWarning } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
-import { occurrenceInput } from '../lib/event-input';
+import { scopedInput } from '../lib/event-input';
 import { birthdayEvents, isArchivedOccurrence, occurrenceSpan, scheduleSources, type ShownSlots, slotBarLook, slotLookClasses } from '../lib/calendar-events';
 import { usePersonOpener } from '../hooks/use-person-opener';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
@@ -734,19 +734,20 @@ export function CalendarPage() {
       if (!chosen) return revert();
       scope = chosen;
     }
+    // With its series: an occurrence changed on its own moves the series from its day in it, by as many days as it was
+    // dragged; its routine links move with it.
     update.mutate(
       {
         id: occurrence.eventId,
         scope,
         occurrenceDate: occurrence.occurrenceDate,
-        input: {
-          ...occurrenceInput(occurrence),
+        input: scopedInput(occurrence, scope, {
           allDay,
           startDate: startParts.date,
           startTime: allDay ? null : startParts.time,
           endDate: endParts.date < startParts.date ? startParts.date : endParts.date,
           endTime: allDay ? null : endParts.time,
-        },
+        }),
       },
       { onSuccess: () => warning && notifyWarning('Évènement enregistré', warning), onError: (error) => (onMutationError(error), revert()) },
     );

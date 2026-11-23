@@ -527,7 +527,7 @@ input CalendarEventInput {
   relationIds: [ID!]
 
   """
-  Minutes before the start (24 hours at most) or a time of its first day, 10 at most.
+  Minutes before its start or its end (24 hours at most), a time of its first (or last) day, or that time 1 to 30 days before; each with its ringtone or none; 10 at most.
   """
   reminders: [ReminderInput!]!
 
@@ -596,7 +596,7 @@ type CalendarEventOccurrence {
   relationIds: [ID!]!
 
   """
-  Minutes before the start (all day: Paris midnight of its first day), or a time of its first day.
+  Minutes before its start or its end (all day: Paris midnight of its first day, or after its last day), a time of its first (or last) day, or that time 1 to 30 days before.
   """
   reminders: [Reminder!]!
 
@@ -605,6 +605,11 @@ type CalendarEventOccurrence {
 
   """Saved timers launched from the event (its whole series)."""
   savedCountdownIds: [ID!]!
+
+  """
+  Changed on its own: its fields as its series has them on its date (what « Toutes les occurrences » and « Celle-ci et les suivantes » edit); else null.
+  """
+  series: CalendarEventSeriesFields
   seriesStartDate: String!
   start: DateTime!
   startDate: String!
@@ -626,6 +631,29 @@ enum CalendarEventScope {
   ALL
   FOLLOWING
   THIS
+}
+
+"""
+Fields of an occurrence changed on its own as its series has them on its date.
+"""
+type CalendarEventSeriesFields {
+  allDay: Boolean!
+  description: String
+  endDate: String!
+  endTime: String
+  label: String!
+  links: [ItemLink!]!
+  location: String
+  locationLat: Float
+  locationLon: Float
+  startDate: String!
+  startTime: String
+
+  """Travel time back, in minutes."""
+  travelAfter: Int!
+
+  """Travel time there, in minutes."""
+  travelBefore: Int!
 }
 
 """Event (and occurrence) a postponement replaces."""
@@ -2766,7 +2794,14 @@ type Mutation {
   """
   Closes tasks as done (reason omitted) or as cancelled (NOT_PLANNED), or reopens them; a closed task no longer blocks other tasks. A task already closed keeps its closing date and takes the new reason.
   """
-  setTasksClosed(closed: Boolean!, ids: [ID!]!, reason: TaskCloseReason): Boolean!
+  setTasksClosed(
+    closed: Boolean!
+    ids: [ID!]!
+    reason: TaskCloseReason
+
+    """Undo: tasks archived since are accepted (only that check is skipped)."""
+    restoring: Boolean
+  ): Boolean!
 
   """Pauses or resumes a running timer."""
   setTimerPaused(id: ID!, paused: Boolean!): TimeEntry!

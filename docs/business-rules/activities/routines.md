@@ -84,7 +84,7 @@ Source : `effectiveRoutine` (`packages/shared/src/routines/routine-inheritance.t
 - **Pertes d’occurrences** : un changement du « quand » ou de la condition d’une routine (panneau, cellule, glisser dans l’arbre, modification en masse, « Héritage… », agenda) compte les commentaires des occurrences qui disparaissent sur elle **et sur chaque sous-routine qui le suit** (`timingHeirs`, en remontant la chaîne) ; une seule confirmation pour tout l’arbre (et pour toute la sélection). Passer un champ du « quand » d’une sous-routine d’hérité à propre ou vidé, ou l’inverse, ou la ranger sous une autre parente (panneau, cellule « Parente », glisser dans l’arbre : refusé, rien ne bouge), est un changement du « quand » comme un autre. Les coches restent ; les commentaires restent sur leur jour : seuls ceux d’une occurrence qui disparaît sont perdus.
 - **Exceptions héritées** : déplacer, changer, annuler une occurrence d’une sous-routine qui hérite des exceptions, ou retirer une de ses exceptions, part des exceptions suivies et les rend propres (`withOwnMoves`) ; changer « cette occurrence et les suivantes » ou « toutes » rend propres aussi les champs changés. Changer une occurrence d’une parente (un jour, ou la répétition) déplace la même occurrence des sous-routines qui en héritent, avec ses commentaires ; supprimer « cette occurrence et les suivantes » d’une parente supprime aussi celles des sous-routines qui suivent sa répétition, avec leurs commentaires.
 - **Projet** : hérité, il est aussi recopié dans `projectId` (temps, arborescence des liens) : les liens « Dépend de » et « Relative à » d’une sous-routine sont donc limités à l’arborescence du projet qu’elle suit, hérité compris ; quand le projet d’une routine change, ses sous-routines qui l’héritent ont **le même traitement qu’elle** (`followInheritedProject`) : leurs assignés propres rattachés au projet cible, leurs liens (« Dépend de », « Relative à », et ceux qui attendent d’elles) hors de l’arborescence coupés (ceux entre routines déplacées ensemble restent), et ainsi de suite pour leurs propres sous-routines ; une sous-routine archivée suit seulement (`syncInheritedRoutineProjects`). Les liens coupés sont comptés dans le toast « Routine déplacée. ». Les assignés propres ne sont vérifiés contre le projet suivi que s’ils ne sont pas hérités ; hérités, ce sont ceux de la parente, déjà rattachés avec elle.
-- **Placée sous une parente après coup** (une routine du premier niveau rangée sous une autre : panneau, cellule, glisser dans l’arbre) : ses champs **vides** héritent aussitôt, comme à la création (projet, assignés, bénéficiaires, condition, lieu, catégories, « Ouverture » : `emptyRoutineFields`) ; ses valeurs propres restent, le reste de son « quand » aussi : la première fois et la répétition ne sont jamais vides, et sans cas elle suit sa répétition, sans moment elle a un moment sans heure, sans exception aucune sur les jours de sa règle.
+- **Placée sous une parente après coup** (une routine du premier niveau rangée sous une autre : panneau, cellule, glisser dans l’arbre) : ses champs **vides** héritent aussitôt, comme à la création (projet, assignés, bénéficiaires, condition, lieu, catégories, « Ouverture », priorité : `emptyRoutineFields`) ; ses valeurs propres restent, le reste de son « quand » aussi : la première fois et la répétition ne sont jamais vides, et sans cas elle suit sa répétition, sans moment elle a un moment sans heure, sans exception aucune sur les jours de sa règle.
 - **Changer de parente** (une sous-routine rangée sous une autre) : elle garde sa liste ; ses champs hérités suivent la nouvelle parente, un champ vidé exprès reste vidé, ses valeurs propres restent.
 - **Perdre sa parente** (mise au premier niveau, parente supprimée) : chaque champ hérité devient propre avec la valeur suivie (`freezeRoutineInheritance`), exceptions comprises.
 - **Écritures** :
@@ -181,12 +181,12 @@ Source : `setRoutineDone`, `bulkSetRoutinesDone`, `routineChecks`.
 
 - Une coche porte sur un moment (`slot`, 0 sans moments multiples) d'une occurrence (`date`), avec l'heure où il a été fait (`doneAt`, maintenant par défaut).
 - Par défaut, l'occurrence en cours ; sans occurrence : « Cette routine n'a pas encore commencé. »
-- Une occurrence future ne se coche pas : « Une occurrence à venir ne peut pas être cochée. »
+- Une occurrence se coche dès son premier jour (« Ouverture »), même due plus tard ; une occurrence pas encore ouverte ne se coche pas : « Une occurrence à venir ne peut pas être cochée. »
 - Index hors des moments de ce jour : « Moment introuvable ce jour-là. »
 - `doneAt` futur refusé : « Une routine ne peut pas être faite dans le futur. » (champ `doneAt`).
 - Cocher à nouveau met à jour `doneAt` s'il est donné ; décocher supprime la coche.
 - Routine archivée : refusée (lecture seule).
-- En masse : chaque routine non archivée qui a une occurrence en cours voit tous ses moments cochés ou décochés ; les autres sont ignorées.
+- En masse : chaque routine non archivée qui a une occurrence en cours (ouverte, même due plus tard) voit tous ses moments cochés ou décochés ; les autres sont ignorées. Tout est vérifié avant la première écriture, puis écrit d’un coup : un refus ne coche rien.
 - Les coches restent quand la routine est modifiée ; elles sont supprimées avec elle.
 - Requêtes : `doneDates` (30 dernières occurrences cochées), `lastDoneAt`, `routineChecks(from, to)` (2 000 au plus, plus récentes d'abord ; `fromTime` / `dueTime` du moment tels que la routine est maintenant), `routineOccurrences(from, to)` (période de 100 jours au plus : « Période de 100 jours au plus. » ; avec les occurrences annulées, `cancelled`, et celles des routines archivées ouvertes avant leur archivage, `archived`).
 
@@ -196,7 +196,7 @@ Source : `moveRoutineOccurrence`, `removeRoutineMove`, `changeRoutineOccurrence`
 
 - Une exception `{ from, to, times }` : `from` est le jour de la règle, `to` le nouveau jour (`null` : annulée), `times` les horaires changés par moment (`null` : ceux de la règle). Même jour et mêmes horaires : refusé (« Choisissez un autre jour ou d'autres horaires. »).
 - 500 exceptions au plus par routine (« 500 exceptions au plus. »).
-- Une occurrence cochée (un de ses moments) ne se déplace pas : « Cette occurrence est déjà cochée : décochez-la pour la déplacer. » (« … pour la changer. » depuis l'agenda).
+- Une occurrence cochée (un de ses moments) ne se déplace pas : « Cette occurrence est déjà cochée : décochez-la pour la déplacer. » (« … pour la changer. » depuis l'agenda). De même, une occurrence déplacée puis cochée sur son nouveau jour ne se remet pas à son jour (`removeRoutineMove`, « Remettre à son jour ») : même message (« … pour la déplacer. »).
 - Pas avant la première fois : « La routine n'a pas encore commencé ce jour-là. » (champ `to`).
 - Routine archivée : refusée.
 - Redéplacer une occurrence déjà déplacée modifie son exception ; la remettre à son jour avec ses horaires supprime l'exception. Seuls les horaires qui diffèrent de la règle sont gardés.
@@ -206,21 +206,21 @@ Source : `moveRoutineOccurrence`, `removeRoutineMove`, `changeRoutineOccurrence`
 Depuis l'agenda (`changeRoutineOccurrence`, portée `THIS` / `FOLLOWING` / `ALL`) :
 
 - `THIS` : une exception (jour et horaires d'un moment).
-- `FOLLOWING` : s'il y a des occurrences avant, la règle (ou le cas) s'arrête avant celle-ci (même nombre d'occurrences si elle est comptée, sinon jusqu'à la veille) et un nouveau cas commence au nouveau jour avec le moment changé ; une règle sans cas devient deux cas. Sinon, comme `ALL`.
+- `FOLLOWING` : s'il y a des occurrences avant, la règle (ou le cas) s'arrête avant celle-ci (même nombre d'occurrences si elle est comptée, sinon jusqu'à la veille) et un nouveau cas commence au nouveau jour avec le moment changé ; une règle sans cas devient deux cas, qui gardent tous deux sa condition de créneaux et son « Ouverture » (elles passent sur les cas). Sinon, comme `ALL`.
 - `ALL` : la règle et le moment changent ; une règle hebdomadaire à jours listés change le jour de la semaine, une autre décale sa date de départ (ou celle du cas) d'autant de jours.
 - Les exceptions des occurrences changées sont retirées (toutes pour `ALL` avec un décalage, celles à partir de l'occurrence pour `FOLLOWING`).
 - Sans règle : « Cette routine n'a pas de répétition. » ; cas introuvable : « Occurrence introuvable. ».
 
 ### Occurrences qui disparaissent
 
-Un changement de la règle (formulaire `updateRoutine`, cellule `patchRoutine`, glisser sous une autre parente `moveRoutine`, modification en masse `bulkUpdateRoutines`, `changeRoutineOccurrence` en `FOLLOWING` / `ALL`) qui retire des occurrences actuelles (jours d'une occurrence avant le changement et plus après, `occurrencesBetween`) supprime leurs commentaires ; l'occurrence changée depuis l'agenda garde les siens (ils la suivent). Sans `confirmLoss: true`, rien n'est changé : `CONFIRMATION_REQUIRED`, extension `lost` (`{ times: 0, comments }` : les temps d'une routine ne sont pas sur ses occurrences), une seule fois pour toute une sélection. Un retour arrière (`restoring`) et les changements internes (copie, suppression d'occurrences) ne demandent rien.
+Un changement de la règle (formulaire `updateRoutine`, cellule `patchRoutine`, glisser sous une autre parente `moveRoutine`, modification en masse `bulkUpdateRoutines`, `changeRoutineOccurrence` en `FOLLOWING` / `ALL`) qui retire des occurrences actuelles (jours d'une occurrence avant le changement et plus après, `occurrencesBetween`) supprime leurs commentaires ; l'occurrence changée depuis l'agenda garde les siens (ils la suivent). Sans `confirmLoss: true`, rien n'est changé : `CONFIRMATION_REQUIRED`, extension `lost` (`{ times: 0, comments }` : les temps d'une routine ne sont pas sur ses occurrences), une seule fois pour toute une sélection. Confirmés, ces commentaires ne sont supprimés qu'une fois la routine enregistrée : un enregistrement refusé ne perd rien. Un retour arrière (`restoring`) et les changements internes (copie, suppression d'occurrences) ne demandent rien.
 
 ### Annulation depuis l'agenda
 
 Source : `deleteRoutineOccurrence`.
 
 - `THIS` (question « Annuler cette occurrence ») : exception sans nouveau jour : l'occurrence est **annulée** et reste visible, barrée, comme un évènement annulé, avec ses commentaires (aucun n'est supprimé ; `comments` renvoyé vide). Elle n'est plus due : ni état, ni rappels, ni coche dans l'historique, ni « à faire ». Seule la requête `routineOccurrences` la renvoie (`cancelled: true`). Retirer l'exception (`removeRoutineMove`, « Annuler » du toast, « Rétablir ») la rétablit.
-- `FOLLOWING` (« Supprimer celle-ci et les suivantes ») : les règles (ou cas) s'arrêtent avant ; les cas sans occurrence avant sont retirés ; les commentaires des occurrences à partir d'elle sont supprimés. S'il ne reste rien, la routine est archivée comme par « Archiver », ses sous-routines avec elle (`archiveTree`) ; la mutation renvoie `archived: true`.
+- `FOLLOWING` (« Supprimer celle-ci et les suivantes ») : les règles (ou cas) s'arrêtent avant ; les cas sans occurrence avant sont retirés ; les commentaires des occurrences à partir d'elle sont supprimés, une fois la routine enregistrée. S'il ne reste rien, la routine est archivée comme par « Archiver », ses sous-routines avec elle (`archiveTree`) ; la mutation renvoie `archived: true`.
 - `ALL` refusé : « Archivez ou supprimez la routine elle-même. »
 - Les coches passées restent dans l'historique.
 - La question de portée donne le nombre de commentaires perdus pour chaque choix (`lostOnDelete`, `routineOccurrence` : rien pour `THIS`). Une occurrence déjà déplacée revient à son jour de règle, pas au jour où elle avait été déplacée.
@@ -233,7 +233,7 @@ Source : `bulkUpdateRoutines`, `patchRoutine` (GraphQL).
 - Priorité, type, projet, temps estimé : la valeur donnée remplace celle de chaque routine (`null` : vidée).
 - Listes (catégories, assignés, dépendances, « Relative à ») : ajouts et retraits (`addRelatedIds` / `removeRelatedIds` pour « Relative à » : une seule modification en masse, annulable) ; une routine ne dépend jamais d'elle-même, ni n'est relative à elle-même, même si elle est dans la sélection.
 - Une nouvelle `recurrence` vide les cas ; des horaires (`fromTime` / `dueTime`) donnent un seul moment.
-- Toutes les routines sont validées avant que la première soit enregistrée.
+- Toutes les routines sont validées avant que la première soit enregistrée, les dépendances sur l'état final de toute la sélection : une boucle entre routines de la sélection (A et B qui dépendent l'une de l'autre) est refusée avant tout enregistrement (« Ces dépendances forment une boucle. »).
 - Nouveau projet : la sélection part ensemble, ses liens internes restent (voir [Validation](#validation-routineschema-parseroutine) ci-dessus).
 - `patchRoutine` (édition sur place) suit les mêmes règles en repartant de la routine entière (`inputOf`).
 

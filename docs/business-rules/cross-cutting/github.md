@@ -94,6 +94,7 @@ Les tâches du projet lié **et de ses sous-projets** ; les items du tableau (is
 2. **Items disparus** : une tâche dont l’item n’est plus sur le tableau est déliée et marquée `REMOVED` (elle n’est plus renvoyée) ; ses commentaires perdent leur lien.
 3. **Items nouveaux** : chaque item inconnu devient une tâche du projet lié (titre coupé à 250 caractères, ou « Item GitHub <n> ») ; ses valeurs arrivent par la fusion qui suit.
 4. **Fusion des paires** : chaque paire tâche / item est fusionnée champ par champ (voir plus bas), puis le temps passé est écrit, le numéro de la tâche suit celui de l’issue, et les commentaires sont synchronisés (issues seulement).
+   Une tâche **archivée** liée est en lecture seule : sa paire est sautée, rien n’est écrit ni dans la tâche ni dans son item (titre, description, état, étiquettes, champs, temps passé, numéro, commentaires) ; son instantané reste, la paire est de nouveau fusionnée une fois la tâche restaurée (seul son lien est effacé si son item quitte le tableau, étape 2). Les liens des autres tâches avec elle (parent, « bloquée par », « relative à ») sont laissés tels quels des deux côtés.
 5. **Tâches nouvelles** : les tâches de l’arbre non liées, non archivées, jamais retirées du tableau (et, sans `pushExisting`, créées après la liaison) deviennent des items, par numéro croissant : issues du dépôt choisi, sinon brouillons. Seules les valeurs renseignées dans Ordo sont envoyées.
 
 ### Champs synchronisés

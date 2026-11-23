@@ -116,7 +116,7 @@ Un statut a une catégorie fixe (`TASK_STATUS_CATEGORIES`), `TODO` par défaut �
 
 Source : `setTasksClosed`.
 
-- Au moins une tâche (« Aucune tâche sélectionnée. »), toutes existantes, aucune archivée (sauf pour une règle de leur archivage, voir [Automatisations](task-automations.md#actions)).
+- Au moins une tâche (« Aucune tâche sélectionnée. »), toutes existantes, aucune archivée (sauf pour une règle de leur archivage, voir [Automatisations](task-automations.md#actions), et pour « Annuler » d’une règle, `restoring`).
 - Une tâche se ferme de deux façons : **« Terminée »** (« Fermer », `closeReason` `COMPLETED`, par défaut) ou **« Annulée »** (« Annuler », `NOT_PLANNED`, comme une issue GitHub fermée « not planned »). Fermer pose `closedAt` à maintenant ; une tâche déjà fermée **garde sa date de fermeture** et prend la nouvelle façon (une tâche terminée annulée ensuite). Rouvrir vide `closedAt` et `closeReason`, quelle que soit la façon.
 - Fermer, annuler ou rouvrir ne change pas le statut (les règles de l’espace peuvent le faire).
 - Une tâche fermée, terminée ou annulée, ne bloque plus les tâches qu’elle bloque, n’est jamais en retard et compte comme faite (avancement des jalons, sprints, sous-tâches).

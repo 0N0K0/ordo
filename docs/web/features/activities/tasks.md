@@ -37,7 +37,7 @@ Hooks et constantes exportés :
 | `useTaskComments(id)`         | Commentaires d’une tâche (clé `['tasks', id, 'comments']`).                                                                                     |
 | `useCreateTask()`             | Mutation `createTask`.                                                                                                                          |
 | `useUpdateTask()`             | Mutation `updateTask` (`{ id, input }`, sans projet : le projet change par transfert).                                                          |
-| `useSetTasksClosed()`         | Mutation `setTasksClosed` (`{ ids, closed, reason? }` : `NOT_PLANNED` annule, terminée par défaut) ; met à jour `closed`, `closeReason` et `cancelled` dans le cache tout de suite (optimiste). |
+| `useSetTasksClosed()`         | Mutation `setTasksClosed` (`{ ids, closed, reason?, restoring? }` : `NOT_PLANNED` annule, terminée par défaut ; `restoring` pour « Annuler » d’une règle, tâches archivées depuis acceptées) ; met à jour `closed`, `closeReason` et `cancelled` dans le cache tout de suite (optimiste). |
 | `useDuplicateTask()`          | Mutation `duplicateTask` (« … (copie) ») ; renvoie `id` et `number` de la copie.                                                                                       |
 | `useMoveTask()`               | Mutation `moveTask` (`id`, `beforeId`, `parentId?`) ; réordonne le cache tout de suite.                                                         |
 | `useTaskBlock()`              | Ajoute (`add: true`) ou retire un lien « bloque ».                                                                                              |

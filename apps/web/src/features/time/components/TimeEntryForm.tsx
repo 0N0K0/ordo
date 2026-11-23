@@ -41,13 +41,36 @@ const entryInput = (values: TimeEntryFormValues): TimeEntryValues => ({
 });
 
 /**
+ * Input of the API for the fields of the form that changed only: the duration and the start of a time stay exact
+ * (to the second) while they are not touched.
+ * @param {Partial<TimeEntryFormValues>} changes Fields changed.
+ * @param {TimeEntryFormValues} values All the values.
+ * @returns {Partial<TimeEntryValues>} Input.
+ */
+const changedInput = (changes: Partial<TimeEntryFormValues>, values: TimeEntryFormValues): Partial<TimeEntryValues> => {
+  // The duration is read only when it changed (an untouched one may be out of what can be typed).
+  const all = entryInput(values);
+  const fields: (keyof TimeEntryValues)[] = [
+    ...('projectId' in changes ? (['projectId'] as const) : []),
+    ...('routineIds' in changes ? (['routineIds'] as const) : []),
+    ...('taskIds' in changes ? (['taskIds'] as const) : []),
+    ...('description' in changes ? (['description'] as const) : []),
+    ...('events' in changes ? (['events'] as const) : []),
+    ...('date' in changes || 'start' in changes ? (['startedAt'] as const) : []),
+    ...('duration' in changes ? (['duration'] as const) : []),
+  ];
+  return Object.fromEntries(fields.map((field) => [field, all[field]]));
+};
+
+/**
  * Values of the form of an existing time (its local day and start time, its duration as « h:mm »).
  * @param {TimeEntry} entry Time.
  * @returns {TimeEntryFormValues} Values.
  */
 const timeEntryFormValues = (entry: TimeEntry): TimeEntryFormValues => {
   const { date, time } = localParts(entry.startedAt);
-  const minutes = entry.duration ? Math.round(entry.duration / 60) : 60;
+  // A chrono of a few seconds (or none) shows « 0:00 ».
+  const minutes = Math.round((entry.duration ?? 0) / 60);
   return {
     projectId: entry.projectId ?? '',
     routineIds: entry.routines.map((routine) => routine.id),
@@ -86,7 +109,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
     (item: TimeEntry) => item.id === entry?.id,
   );
   const { form, saving, fieldProps } = useFieldSave(base, {
-    save: entry ? (_changes, values) => update.mutateAsync({ id: entry.id, input: entryInput(values) }) : null,
+    save: entry ? (changes, values) => update.mutateAsync({ id: entry.id, input: changedInput(changes, values) }) : null,
     schema: timeEntryFormSchema,
     saved: entry && timeEntryFormValues(current ?? entry),
     onBlur: ON_BLUR,

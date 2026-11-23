@@ -19,6 +19,7 @@ import {
   opensReach,
   parseDay,
   reaches,
+  groupBy,
   readOpens,
   readSlotCondition,
   type Recurrence,
@@ -666,8 +667,8 @@ export interface RoutineSaveOptions {
    */
   movedWith?: readonly string[];
   /**
-   * Occurrences its new rule makes disappear, with comments, confirmed (`settleLostOccurrences`): false
-   * refuses while some would be lost, true deletes those comments. Optional. Default = not checked (internal changes).
+   * Occurrences its new rule makes disappear, with comments, confirmed (`assertLossConfirmed`): false
+   * refuses while some would be lost, true deletes those comments once it is saved. Optional. Default = not checked (internal changes).
    */
   confirmLoss?: boolean;
   /**
@@ -1022,12 +1023,10 @@ export async function updateRoutine(id: string, given: RoutineInput, options: Om
   if (unparented) await freezeRoutineInheritance([id]);
   const current = unparented ? await findRoutine(id) : found;
   const data = await parseRoutine(input, id, options);
-  // Its occurrences and those of the sub-routines going by its « quand »: asked once for them all.
-  if (options.confirmLoss !== undefined) {
-    const { losses } = await occurrenceChange([timingOf(current, data)]);
-    assertLossConfirmed(losses, options.confirmLoss);
-    for (const lost of losses) await lost.settle();
-  }
+  // Its occurrences and those of the sub-routines going by its « quand »: asked once for them all; their comments are
+  // deleted once it is saved.
+  const losses = options.confirmLoss !== undefined ? (await occurrenceChange([timingOf(current, data)])).losses : [];
+  assertLossConfirmed(losses, options.confirmLoss);
   const outside = await outsideTree(id, current.projectId, data.projectId ?? null, options.movedWith);
   const waiting = await prisma.$transaction(async (tx) => {
     await tx.routineDependency.deleteMany({ where: { routineId: id } });
@@ -1051,6 +1050,7 @@ export async function updateRoutine(id: string, given: RoutineInput, options: Om
     });
     return dropped;
   });
+  for (const lost of losses) await lost.settle();
   // A new project: the assignees follow the routine into it (its sub-routines keep theirs); inherited, they are its
   // parent's, attached with it.
   if (!marksInherited({ parentId: data.parentId, inheritedFields: data.inheritedFields ?? [] }, 'ASSIGNEES')) await followProject(current.projectId, data.projectId ?? null, data.assigneeIds);
@@ -1438,17 +1438,34 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
   // A new project for all: they move together, the links between them stay (as a transfer of tasks).
   const movedWith = changes.projectId !== undefined ? inputs.map(({ id }) => id) : [];
   const nexts: Routine[] = [];
+  const required = new Map<string, readonly string[]>();
   for (const { id, input } of inputs) {
     const data = await parseRoutine(input, id, { movedWith });
+    required.set(id, data.requiredIds);
     if (confirmLoss === undefined) continue;
     const current = await findRoutine(id);
     nexts.push(timingOf(current, data));
   }
+  // No loop once the whole selection is saved (each was checked against the others as they are now).
+  await assertNoDependencyLoop(required);
   // Asked once for the whole selection and the sub-routines going by them, before any is saved.
   if (nexts.length) assertLossConfirmed((await occurrenceChange(nexts)).losses, confirmLoss);
   let removed = 0;
   for (const { id, input } of inputs) removed += await updateRoutine(id, input, { movedWith, ...(confirmLoss !== undefined && { confirmLoss: true }) });
   return removed;
+}
+
+/**
+ * Refuses dependencies that form a loop once routines take new ones (the others keeping theirs), nothing saved.
+ * @param {ReadonlyMap<string, readonly string[]>} changed Routines changed and the routines each will depend on.
+ * @returns {Promise<void>}
+ */
+async function assertNoDependencyLoop(changed: ReadonlyMap<string, readonly string[]>): Promise<void> {
+  const requires = groupBy(await prisma.routineDependency.findMany({ select: { routineId: true, requiredId: true } }), (link) => link.routineId);
+  const next = (id: string) => changed.get(id) ?? (requires.get(id) ?? []).map((link) => link.requiredId);
+  for (const [id, requiredIds] of changed) {
+    if (requiredIds.length && reaches(next, [...requiredIds], id)) throw fieldError('requiredIds', 'Ces dépendances forment une boucle.');
+  }
 }
 
 /**
@@ -1510,7 +1527,58 @@ export async function moveRoutine(id: string, beforeId: string | null, parentId?
 }
 
 /**
+ * Whether an occurrence of a routine has opened by a day: due on or before it, or opened (« Ouverture ») on or
+ * before it while due later.
+ * @param {Routine} routine Routine.
+ * @param {string} occurrence Occurrence (its due day).
+ * @param {string} today Day.
+ * @param {ScheduleContext} schedules Schedules.
+ * @returns {boolean} Opened.
+ */
+function hasOpened(routine: Routine, occurrence: string, today: string, schedules: ScheduleContext): boolean {
+  return occurrence <= today || occurrenceSpansBetween(routine, today, occurrence, schedules).some((span) => span.end === occurrence && span.start <= today);
+}
+
+/**
+ * Checks that a time of the day of an occurrence of a routine can be ticked or unticked, nothing written.
+ * @param {Routine} routine Routine.
+ * @param {ScheduleContext} slots Schedules.
+ * @param {string | null} [date] Occurrence date. Optional. Default = the current occurrence.
+ * @param {number | null} [slot] Time of the day (index). Optional. Default = 0.
+ * @param {Date | null} [doneAt] When it was done (never in the future). Optional.
+ * @returns {{ occurrence: string, index: number }} Occurrence and time of the day.
+ */
+function checkableOccurrence(routine: Routine, slots: ScheduleContext, date?: string | null, slot?: number | null, doneAt?: Date | null): { occurrence: string; index: number } {
+  refuseArchived(routine);
+  const occurrence = date ?? occurrencesOf(routine, undefined, slots).current;
+  if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');
+  // During its « Ouverture » an occurrence due later is ticked like the one due today.
+  if (!hasOpened(routine, occurrence, parisToday(), slots)) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
+  const index = slot ?? 0;
+  if (index < 0 || index >= Math.max(1, slotsOf(routine, occurrence, slots).length)) throw clientError('BAD_USER_INPUT', 'Moment introuvable ce jour-là.');
+  if (doneAt && doneAt.getTime() > Date.now()) throw fieldError('doneAt', 'Une routine ne peut pas être faite dans le futur.', 'Heure à venir.');
+  return { occurrence, index };
+}
+
+/**
+ * Prisma write ticking or unticking a time of the day of an occurrence.
+ * @param {string} id Routine id.
+ * @param {boolean} done Target state.
+ * @param {string} occurrence Occurrence date.
+ * @param {number} index Time of the day.
+ * @param {Date | null} [doneAt] When it was done. Optional. Default = now.
+ * @returns {Prisma.PrismaPromise<unknown>} Write.
+ */
+function checkWrite(id: string, done: boolean, occurrence: string, index: number, doneAt?: Date | null): Prisma.PrismaPromise<unknown> {
+  const date = parseDay(occurrence);
+  // When it was done: now, unless given (ticked after the fact).
+  if (done) return prisma.routineCheck.upsert({ where: { routineId_date_slot: { routineId: id, date, slot: index } }, create: { routineId: id, date, slot: index, ...(doneAt && { doneAt }) }, update: doneAt ? { doneAt } : {} });
+  return prisma.routineCheck.deleteMany({ where: { routineId: id, date, slot: index } });
+}
+
+/**
  * Ticks or unticks a time of the day of an occurrence of a routine (by default the first time of its current one).
+ * An occurrence can be ticked from its first day (« Ouverture »), even due later.
  * @param {string} id Routine id.
  * @param {boolean} done Target state.
  * @param {string | null} [date] Occurrence date. Optional. Default = the current occurrence.
@@ -1520,40 +1588,47 @@ export async function moveRoutine(id: string, beforeId: string | null, parentId?
  */
 export async function setRoutineDone(id: string, done: boolean, date?: string | null, slot?: number | null, doneAt?: Date | null): Promise<string> {
   const [routine, slots] = await Promise.all([findRoutine(id), loadScheduleContext()]);
-  refuseArchived(routine);
-  const occurrence = date ?? occurrencesOf(routine, undefined, slots).current;
-  if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');
-  if (occurrence > parisToday()) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
-  const index = slot ?? 0;
-  if (index < 0 || index >= Math.max(1, slotsOf(routine, occurrence, slots).length)) throw clientError('BAD_USER_INPUT', 'Moment introuvable ce jour-là.');
-  if (doneAt && doneAt.getTime() > Date.now()) throw fieldError('doneAt', 'Une routine ne peut pas être faite dans le futur.', 'Heure à venir.');
-  const key = { routineId_date_slot: { routineId: id, date: parseDay(occurrence), slot: index } };
-  // When it was done: now, unless given (ticked after the fact).
-  if (done) await prisma.routineCheck.upsert({ where: key, create: { routineId: id, date: parseDay(occurrence), slot: index, ...(doneAt && { doneAt }) }, update: doneAt ? { doneAt } : {} });
-  else await prisma.routineCheck.deleteMany({ where: { routineId: id, date: parseDay(occurrence), slot: index } });
+  const { occurrence, index } = checkableOccurrence(routine, slots, date, slot, doneAt);
+  await checkWrite(id, done, occurrence, index, doneAt);
   return occurrence;
 }
 
 /**
- * Ticks or unticks the current occurrence of several routines (those not started yet are left aside).
+ * Ticks or unticks the current occurrence of several routines (those not started yet are left aside); all are checked
+ * before the first is written, then written together.
  * @param {string[]} ids Routine ids.
  * @param {boolean} done Target state.
  * @returns {Promise<number>} Number of routines changed.
  */
 export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise<number> {
   const today = parisToday();
-  let count = 0;
   const context = await loadScheduleContext();
+  const writes: { id: string; occurrence: string; index: number }[] = [];
+  let count = 0;
   // An archived routine is read only: not ticked.
   for (const routine of await prisma.routine.findMany({ where: { id: { in: ids }, archivedAt: null } })) {
     const current = occurrencesOf(routine, today, context).current;
     if (!current) continue;
     // Every time of the day, or none of them.
     const slots = Math.max(1, slotsOf(routine, current, context).length);
-    for (let slot = 0; slot < slots; slot += 1) await setRoutineDone(routine.id, done, current, slot);
+    for (let slot = 0; slot < slots; slot += 1) writes.push({ id: routine.id, ...checkableOccurrence(routine, context, current, slot) });
     count += 1;
   }
+  await prisma.$transaction(writes.map((write) => checkWrite(write.id, done, write.occurrence, write.index)));
   return count;
+}
+
+/**
+ * Refuses to move or change an occurrence of a routine that is ticked (one of its times of the day).
+ * @param {string} id Routine id.
+ * @param {string} date Occurrence (its day now).
+ * @param {'déplacer' | 'changer'} verb What is refused, in the message.
+ * @returns {Promise<void>}
+ */
+async function assertNotTicked(id: string, date: string, verb: 'déplacer' | 'changer'): Promise<void> {
+  if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
+    throw clientError('BAD_USER_INPUT', `Cette occurrence est déjà cochée : décochez-la pour la ${verb}.`);
+  }
 }
 
 /**
@@ -1568,9 +1643,7 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise
 export async function moveRoutineOccurrence(id: string, date: string, to: string, times?: RoutineMoveTimes): Promise<void> {
   const found = await findActive(prisma.routine, id, 'Routine');
   await placeLegacyRoutineComments([id]);
-  if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
-    throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la déplacer.');
-  }
+  await assertNotTicked(id, date, 'déplacer');
   const schedules = await loadScheduleContext();
   // Its « quand » as it goes: its exceptions, inherited, are the base of its own from then on.
   const routine = occurrenceTiming(found, schedules);
@@ -1666,6 +1739,8 @@ export async function removeRoutineMove(id: string, from: string, comments: read
   // Its exceptions as it goes (its parent's, inherited): those left are its own.
   const moves = storedMoves(occurrenceTiming(found, await loadScheduleContext()).moves);
   const moved = moves.find((move) => move.from === from)?.to;
+  // Ticked on the day it went to, it stays there: a ticked occurrence is not moved.
+  if (moved && moved !== from) await assertNotTicked(id, moved, 'déplacer');
   await saveMoves(
     found,
     moves.filter((move) => move.from !== from),
@@ -1721,9 +1796,7 @@ const hasBefore = (rule: Recurrence, start: string, date: string) => date > star
  */
 async function changeableOccurrence(id: string, date: string) {
   const routine = await findActive(prisma.routine, id, 'Routine');
-  if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
-    throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la changer.');
-  }
+  await assertNotTicked(id, date, 'changer');
   return routine;
 }
 
@@ -1812,12 +1885,16 @@ export async function changeRoutineOccurrence(
       index === slot ? { ...moment, fromTime: window.fromTime, dueTime: window.dueTime } : moment,
     );
     if (scope === 'FOLLOWING' && hasBefore(rule, start, origin)) {
-      // Its repetition becomes two cases: the former one up to the occurrence, the new one from it.
+      // Its repetition becomes two cases: the former one up to the occurrence, the new one from it; both keep its
+      // condition and its « Ouverture » (a routine with cases holds them on its cases).
+      const kept = { condition: storedCondition(routine), opens: readOpens(routine.opensOn) };
       changes = {
         cases: [
-          { from: null, until: null, recurrence: endedBefore(rule, start, origin), slots: storedMoments(routine) },
-          { from: parsedTo, until: null, recurrence: shiftedRule(rule, start, origin, parsedTo, true), slots: changedMoments },
+          { from: null, until: null, recurrence: endedBefore(rule, start, origin), slots: storedMoments(routine), ...kept },
+          { from: parsedTo, until: null, recurrence: shiftedRule(rule, start, origin, parsedTo, true), slots: changedMoments, ...kept },
         ],
+        slotCondition: null,
+        opensOn: null,
       };
     } else {
       const listed = rule.frequency === 'WEEKLY' && rule.weekdays.length > 0;
@@ -1831,9 +1908,10 @@ export async function changeRoutineOccurrence(
   const inheritedFields = changedRoutineInheritance(current.inheritedFields ?? [], { input: changes, hasParent: Boolean(current.parentId) }).filter((field) => field !== 'MOVES');
   const change = await occurrenceChange([timingOf(found, { ...current, ...changes, inheritedFields }, keptMoves)], { from: date, to: parsedTo });
   assertLossConfirmed(change.losses, confirmLoss);
-  for (const lost of change.losses) await lost.settle();
   await patchRoutine(id, changes);
   await prisma.routine.update({ where: { id }, data: withOwnMoves({ inheritedFields }, keptMoves) });
+  // Their comments are deleted once it is saved.
+  for (const lost of change.losses) await lost.settle();
   // The occurrence changed keeps its comments (those of the other occurrences stay on their days), on the sub-routines it moves too.
   await followOccurrence(id, date, parsedTo);
   await change.follow();
@@ -1861,9 +1939,9 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
     await prisma.routine.update({ where: { id }, data: withOwnMoves(found, next) });
     return { archived: false, comments: [] };
   }
-  // The following ones go, with their comments, those written before being placed first.
+  // The following ones go, with their comments (those written before placed first), deleted once it is saved.
   await placeLegacyRoutineComments([id]);
-  await deleteGoneComments({ routines: [{ id, from: date }] });
+  const dropComments = () => deleteGoneComments({ routines: [{ id, from: date }] });
   const start = formatDay(routine.startDate);
   const origin = movedFrom(moves, date);
   const cases = storedCases(routine.cases);
@@ -1877,10 +1955,12 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
     // Archived as by hand, its sub-routines with it; its past occurrences stay, archived.
     await prisma.routine.update({ where: { id }, data: withOwnMoves(found, pastMoves) });
     await archiveTree<Routine>('routine', id, true, 'Routine');
+    await dropComments();
     return { archived: true, comments: [] };
   }
   // The sub-routines going by its repetition lose those occurrences too, with their comments (the deletion is confirmed).
   await patchRoutine(id, cases.length ? { cases: kept } : { recurrence: endedBefore(rule!, start, origin) }, { confirmLoss: true });
   await prisma.routine.update({ where: { id }, data: withOwnMoves(await findRoutine(id), pastMoves) });
+  await dropComments();
   return { archived: false, comments: [] };
 }

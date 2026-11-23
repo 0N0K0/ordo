@@ -81,6 +81,22 @@ graphql(`
       startTime
     }
     trackedSeconds
+    series {
+      label
+      description
+      location
+      links {
+        url
+        label
+      }
+      allDay
+      startDate
+      startTime
+      endDate
+      endTime
+      travelBefore
+      travelAfter
+    }
   }
 `);
 

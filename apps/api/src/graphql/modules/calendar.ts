@@ -8,7 +8,7 @@ import * as events from '../../services/calendar/calendar-events';
 import * as schedules from '../../services/calendar/work-schedules';
 import { settleScheduleChange } from '../../services/routines/routines';
 import { BY_POSITION } from '../../services/core/ordering';
-import { builder } from '../builder';
+import { builder, type BuilderTypes } from '../builder';
 import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
@@ -82,6 +82,32 @@ const PostponedTo = builder.objectRef<events.EventOccurrence['postponedTo'][numb
   }),
 });
 
+/**
+ * Fields an occurrence changed on its own may have apart from its series (label, place, links, days and times, travel).
+ * @param {PothosSchemaTypes.ObjectFieldBuilder<BuilderTypes, events.EventSeriesFields>} t Field builder.
+ * @returns {object} Fields.
+ */
+const ownFields = (t: PothosSchemaTypes.ObjectFieldBuilder<BuilderTypes, events.EventSeriesFields>) => ({
+    label: t.exposeString('label'),
+    description: t.exposeString('description', { nullable: true }),
+    location: t.exposeString('location', { nullable: true }),
+    locationLat: t.exposeFloat('locationLat', { nullable: true }),
+    locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    links: t.field({ type: [ItemLinkRef], resolve: (fields) => fields.links }),
+    allDay: t.exposeBoolean('allDay'),
+    startDate: t.exposeString('startDate'),
+    startTime: t.exposeString('startTime', { nullable: true }),
+    endDate: t.exposeString('endDate'),
+    endTime: t.exposeString('endTime', { nullable: true }),
+    travelBefore: t.exposeInt('travelBefore', { description: TRAVEL_DESCRIPTIONS.before }),
+    travelAfter: t.exposeInt('travelAfter', { description: TRAVEL_DESCRIPTIONS.after }),
+});
+
+const EventSeriesFields = builder.objectRef<events.EventSeriesFields>('CalendarEventSeriesFields').implement({
+  description: 'Fields of an occurrence changed on its own as its series has them on its date.',
+  fields: (t) => ownFields(t),
+});
+
 const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEventOccurrence').implement({
   description: 'One occurrence of an event in a period.',
   fields: (t) => ({
@@ -90,24 +116,12 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     occurrenceDate: t.exposeString('occurrenceDate', { nullable: true }),
     modified: t.exposeBoolean('modified'),
     archived: t.exposeBoolean('archived', { description: 'The event (its series) is archived: hidden by default, read only.' }),
-    label: t.exposeString('label'),
-    description: t.exposeString('description', { nullable: true }),
-    location: t.exposeString('location', { nullable: true }),
-    locationLat: t.exposeFloat('locationLat', { nullable: true }),
-    locationLon: t.exposeFloat('locationLon', { nullable: true }),
-    links: t.field({ type: [ItemLinkRef], resolve: (occurrence) => occurrence.links }),
-    allDay: t.exposeBoolean('allDay'),
-    startDate: t.exposeString('startDate'),
-    startTime: t.exposeString('startTime', { nullable: true }),
-    endDate: t.exposeString('endDate'),
-    endTime: t.exposeString('endTime', { nullable: true }),
+    ...ownFields(t as unknown as Parameters<typeof ownFields>[0]),
     start: t.expose('start', { type: 'DateTime' }),
     end: t.expose('end', { type: 'DateTime' }),
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (occurrence) => occurrence.recurrence }),
     seriesStartDate: t.exposeString('seriesStartDate'),
-    reminders: t.field({ type: [ReminderRef], description: 'Minutes before the start (all day: Paris midnight of its first day), or a time of its first day.', resolve: (occurrence) => occurrence.reminders }),
-    travelBefore: t.exposeInt('travelBefore', { description: TRAVEL_DESCRIPTIONS.before }),
-    travelAfter: t.exposeInt('travelAfter', { description: TRAVEL_DESCRIPTIONS.after }),
+    reminders: t.field({ type: [ReminderRef], description: 'Minutes before its start or its end (all day: Paris midnight of its first day, or after its last day), a time of its first (or last) day, or that time 1 to 30 days before.', resolve: (occurrence) => occurrence.reminders }),
     projectId: t.exposeID('projectId', { nullable: true }),
     calendarId: t.exposeID('calendarId'),
     contributorIds: t.exposeIDList('contributorIds'),
@@ -124,6 +138,12 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     postponedFrom: t.field({ type: PostponedFrom, nullable: true, resolve: (occurrence) => occurrence.postponedFrom }),
     postponedTo: t.field({ type: [PostponedTo], resolve: (occurrence) => occurrence.postponedTo }),
     trackedSeconds: t.exposeInt('trackedSeconds', { description: 'Time tracked on the occurrence.' }),
+    series: t.field({
+      type: EventSeriesFields,
+      nullable: true,
+      description: 'Changed on its own: its fields as its series has them on its date (what « Toutes les occurrences » and « Celle-ci et les suivantes » edit); else null.',
+      resolve: (occurrence) => occurrence.series,
+    }),
   }),
 });
 
@@ -314,7 +334,7 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     endDate: t.field({ type: 'Date', required: true }),
     endTime: t.string(),
     recurrence: t.field({ type: 'JSON' }),
-    reminders: t.field({ type: [ReminderInput], required: true, description: 'Minutes before the start (24 hours at most) or a time of its first day, 10 at most.' }),
+    reminders: t.field({ type: [ReminderInput], required: true, description: 'Minutes before its start or its end (24 hours at most), a time of its first (or last) day, or that time 1 to 30 days before; each with its ringtone or none; 10 at most.' }),
     ...travelInputFields(t, 'none: 0'),
     projectId: t.id(),
     calendarId: t.id({ description: 'Calendar; the first one of the workspace when omitted.' }),

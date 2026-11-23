@@ -630,8 +630,13 @@ builder.mutationFields((t) => ({
   }),
   setTasksClosed: t.boolean({
     description: 'Closes tasks as done (reason omitted) or as cancelled (NOT_PLANNED), or reopens them; a closed task no longer blocks other tasks. A task already closed keeps its closing date and takes the new reason.',
-    args: { ids: t.arg.idList({ required: true }), closed: t.arg.boolean({ required: true }), reason: t.arg({ type: TaskCloseReasonEnum }) },
-    resolve: (_root, { ids, closed, reason }) => done(tasks.setTasksClosed(ids, closed, false, reason ?? 'COMPLETED')),
+    args: {
+      ids: t.arg.idList({ required: true }),
+      closed: t.arg.boolean({ required: true }),
+      reason: t.arg({ type: TaskCloseReasonEnum }),
+      restoring: t.arg.boolean({ description: 'Undo: tasks archived since are accepted (only that check is skipped).' }),
+    },
+    resolve: (_root, { ids, closed, reason, restoring }) => done(tasks.setTasksClosed(ids, closed, restoring ?? false, reason ?? 'COMPLETED')),
   }),
   bulkUpdateTasks: t.boolean({
     args: {

@@ -499,18 +499,18 @@ export function useUpdateTask() {
 }
 
 const SetTasksClosedDocument = graphql(`
-  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!, $reason: TaskCloseReason) {
-    setTasksClosed(ids: $ids, closed: $closed, reason: $reason)
+  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!, $reason: TaskCloseReason, $restoring: Boolean) {
+    setTasksClosed(ids: $ids, closed: $closed, reason: $reason, restoring: $restoring)
   }
 `);
 
 /**
  * Closes tasks as done (no reason) or as cancelled (`NOT_PLANNED`), or reopens them; the cached tasks change right away
- * (a cancelled one struck through).
+ * (a cancelled one struck through). `restoring`: undo, tasks archived since accepted.
  * @returns {UseMutationResult} Mutation state.
  */
 export function useSetTasksClosed() {
-  return useInvalidatingMutation(async (variables: { ids: string[]; closed: boolean; reason?: TaskCloseReason }) => (await execute(SetTasksClosedDocument, variables)).setTasksClosed, {
+  return useInvalidatingMutation(async (variables: { ids: string[]; closed: boolean; reason?: TaskCloseReason; restoring?: boolean }) => (await execute(SetTasksClosedDocument, variables)).setTasksClosed, {
     invalidate: [tasksQueryKey],
     optimistic: (queryClient, { ids, closed, reason = 'COMPLETED' }) =>
       patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => ({

@@ -9,10 +9,10 @@ import { notifySuccess, ON_ERROR } from '../../../lib/notify';
 import { countOf } from '../../../lib/text';
 import { applyDiff, bulkTargets, useBulkTable } from '../../../components/data-table/selection/bulk-edit';
 import { eventRowKey, type TaskTableRow } from '../lib/task-columns';
-import type { TaskColumn } from '@ordo/shared';
+import type { CalendarEventInput as EventFields, TaskColumn } from '@ordo/shared';
 import { askScope } from '../../calendar/lib/ask-scope';
 import { useCalendarEventMutations, type CalendarEventInput, type CalendarEventScope, type EventOccurrence } from '../../calendar/api';
-import { occurrenceInput } from '../../calendar/lib/event-input';
+import { scopedInput } from '../../calendar/lib/event-input';
 import { useEventForm } from '../../calendar/hooks/use-event-form';
 import classes from './TaskTable.module.css';
 import type { TaskContext } from '../hooks/use-task-context';
@@ -130,7 +130,7 @@ function useEventSave(event: EventOccurrence, column: TaskColumn, series = false
     for (const target of targets) {
       const change = typeof changes === 'function' ? changes(target) : changes;
       if (!Object.keys(change).length) continue;
-      update.mutate({ id: target.eventId, scope: target.occurrenceDate ? scope : 'ALL', occurrenceDate: target.occurrenceDate, input: { ...occurrenceInput(target), ...change } }, ON_ERROR);
+      update.mutate({ id: target.eventId, scope: target.occurrenceDate ? scope : 'ALL', occurrenceDate: target.occurrenceDate, input: scopedInput(target, target.occurrenceDate ? scope : 'ALL', change as Partial<EventFields>) }, ON_ERROR);
     }
     if (targets.length > 1) notifySuccess(`Modification appliquée à ${countOf(targets.length, 'évènement')}.`);
   };

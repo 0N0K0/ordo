@@ -471,6 +471,12 @@ const RESTRICTED_SYNTAX = [
     selector: "CallExpression[callee.property.name='map'][callee.object.property.name='links']:has(JSXIdentifier[name='Anchor']), CallExpression[callee.property.name='map'] > ArrowFunctionExpression > ObjectExpression.body:has(> Property[key.name='url']):has(> Property[key.name='label'])",
     message: 'Utiliser ItemLinks (components/items/ItemLinks) pour les afficher, linkInputs(links) (lib/links) pour les renvoyer.',
   },
+  // Change of an event occurrence: its series' fields for « Toutes » / « Celle-ci et les suivantes », its routine links
+  // moved with its days (scopedInput, withDays).
+  {
+    selector: "ObjectExpression > SpreadElement > CallExpression[callee.name='occurrenceInput']",
+    message: 'Utiliser scopedInput(occurrence, scope, change) ou withDays(input, start, end) (features/calendar/lib/event-input) : champs de la série et liens de routines déplacés avec les jours.',
+  },
   // Tab of a page: unknown tabs fall back (usePageTab).
   {
     selector: "CallExpression[callee.property.name='get'][arguments.0.value='tab']",

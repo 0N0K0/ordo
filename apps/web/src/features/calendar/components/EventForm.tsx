@@ -9,7 +9,7 @@ import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Anchor, Badge, Fieldset, Select, Stack, Text, TextInput } from '@mantine/core';
 import { PeriodField } from '../../../components/inputs/PeriodField';
-import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, type Recurrence, sharePeople, shiftTime, TEXT_MAX } from '@ordo/shared';
+import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, type Recurrence, sharePeople, shiftedRecurrence, shiftedSeriesRule, shiftTime, TEXT_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
@@ -31,7 +31,7 @@ import { useActiveWorkspace } from '../../workspaces/api';
 import { askScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
-import { occurrenceInput, routineLinkKey, routineLinkOf } from '../lib/event-input';
+import { occurrenceInput, routineLinkKey, routineLinkOf, seriesInput, withDays } from '../lib/event-input';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
@@ -109,7 +109,8 @@ function PostponeForm({ fields, label, loading, onCancel, onConfirm }: PostponeF
         submitIcon={<ArrowArcRightIcon aria-hidden />}
         loading={loading}
         disabled={!valid}
-        onSubmit={() => onConfirm({ ...fields, label: values.label.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })}
+        // Its routine links go with it to its new days.
+        onSubmit={() => onConfirm({ ...withDays(fields, values.startDate, endDate), label: values.label.trim(), startTime: values.startTime, endTime: values.endTime, recurrence: null })}
       />
     </Stack>
   );
@@ -219,8 +220,12 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   const defaultCalendarId = unarchived(calendars)[0]?.id ?? null;
   // Questions are stacked over this form's panel: it must stay mounted to finish the save.
   const today = localToday();
+  // Edited with its series (« Toutes les occurrences », « Celle-ci et les suivantes »): an occurrence changed on its own
+  // shows the fields of its series on its date.
   const initial: CalendarEventInput = occurrence
-    ? occurrenceInput(occurrence)
+    ? scope === 'THIS'
+      ? occurrenceInput(occurrence)
+      : seriesInput(occurrence)
     : {
         label: '',
         description: '',
@@ -268,6 +273,12 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
           const eventId = await update.mutateAsync({ id: now.eventId, input, scope: now.scope, occurrenceDate: now.occurrenceDate });
           if (now.scope === 'THIS') return;
           const split = now.scope === 'FOLLOWING' && eventId !== now.eventId;
+          // A series moved keeps its days of the week, of the month or of the year (as the API moves its rule).
+          const shift = daysBetween(now.occurrenceDate ?? input.startDate, input.startDate);
+          const rule = input.recurrence as Recurrence | null | undefined;
+          if (rule && shift !== 0) {
+            form.setFieldValue('recurrence', split ? shiftedRecurrence(rule, now.occurrenceDate, shift) : shiftedSeriesRule(rule, now.ruleStart, shift));
+          }
           saveTarget.current = {
             eventId,
             occurrenceDate: input.recurrence ? input.startDate : null,
@@ -627,7 +638,10 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                   recurrence: (values.recurrence as Recurrence | null | undefined) ?? null,
                 }}
                 // One occurrence alone keeps the rule of its series.
-                onChange={(timing) => form.setValues({ ...timing, ...(seriesFields && { recurrence: values.recurrence }) })}
+                // Its routine links move with it.
+                onChange={(timing) =>
+                  form.setValues({ ...timing, routineLinks: withDays(values, timing.startDate, timing.endDate).routineLinks, ...(seriesFields && { recurrence: values.recurrence }) })
+                }
                 onCommit={() => commit(TIMING)}
               />
               <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />

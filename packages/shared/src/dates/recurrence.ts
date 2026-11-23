@@ -283,6 +283,53 @@ export function occurrenceDates(rule: Recurrence, start: string, from: string, t
 }
 
 /**
+ * Rule whose monthly and yearly values are those of a new day (its day of the month, weekday, position, month, week).
+ * @param {Recurrence} rule Rule.
+ * @param {string} to New day.
+ * @returns {Recurrence} Rule.
+ */
+export function ruleMovedTo(rule: Recurrence, to: string): Recurrence {
+  const day = dayOfMonthOf(to);
+  const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
+  const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
+  return { ...rule, monthDay: day, weekday: weekdayOfDate(to), position, month: monthOfYear(to), week: isoWeek(to) };
+}
+
+/**
+ * Rule moved with its whole series by a number of days, so that it still falls on its days: its end, excluded dates
+ * and pauses, its weekdays, and its monthly and yearly values (those of its first occurrence, moved).
+ * @param {Recurrence} rule Rule.
+ * @param {string | null} first First occurrence before the move (its monthly and yearly values); null: not looked for
+ * (daily and weekly rules do not need it).
+ * @param {number} days Days moved (negative: earlier).
+ * @returns {Recurrence} Rule.
+ */
+export function shiftedRecurrence(rule: Recurrence, first: string | null, days: number): Recurrence {
+  if (days === 0) return rule;
+  const moved: Recurrence = {
+    ...rule,
+    until: rule.until && addDays(rule.until, days),
+    exceptions: rule.exceptions.map((day) => addDays(day, days)),
+    pauses: rule.pauses.map((pause) => ({ from: addDays(pause.from, days), to: addDays(pause.to, days) })),
+  };
+  if (rule.frequency === 'DAILY') return moved;
+  if (rule.frequency === 'WEEKLY') return { ...moved, weekdays: rule.weekdays.map((weekday) => ((((weekday - 1 + days) % 7) + 7) % 7) + 1).sort((a, b) => a - b) };
+  return first ? ruleMovedTo(moved, addDays(first, days)) : moved;
+}
+
+/**
+ * Rule of a series moved by a number of days from its first date (`shiftedRecurrence`, its first occurrence looked
+ * for over a year and a month).
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First date of the series before the move.
+ * @param {number} days Days moved (negative: earlier).
+ * @returns {Recurrence} Rule.
+ */
+export function shiftedSeriesRule(rule: Recurrence, start: string, days: number): Recurrence {
+  return shiftedRecurrence(rule, occurrenceDates(rule, start, start, addDays(start, 400))[0] ?? start, days);
+}
+
+/**
  * Number of occurrences before a date (for the count of a series split at that date).
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.

@@ -10,7 +10,7 @@ Ce que l’utilisateur peut faire avec les alarmes : la page `/alarms` (« Alarm
 | `NOT_TRACKING`      | « Si pas de chrono »       | « Sonne aux dates et heures prévues, seulement si aucun chrono ne tourne (ex. « Lance ton chrono » à 9 h). » |
 | `TRACKING_DURATION` | « Pendant le chrono »      | « Sonne après chaque durée de chrono (ex. une pause toutes les 50 minutes). »                                |
 
-Les alarmes ne sonnent que tant qu’Ordo est ouvert dans un onglet du navigateur.
+Les alarmes sonnent dans Ordo ouvert dans un onglet du navigateur ; app fermée, elles arrivent en notification sur les appareils ajoutés avec « Sonner hors de l’app » (voir [Hors de l’app](#hors-de-lapp-notifications-push)).
 
 ## Page « Alarmes » (`/alarms`)
 

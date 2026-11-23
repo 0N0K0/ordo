@@ -89,13 +89,16 @@ async function assertInProjectTree(model: 'task' | 'routine', ids: readonly stri
 }
 
 /**
- * Checks the project of a time entry and that its tasks and routines belong to the project or its sub-projects.
+ * Checks the project of a time entry and that its tasks and routines belong to the project or its sub-projects. While
+ * its project stays, the tasks and routines it already had stay valid (one moved to another project since is kept),
+ * only those added are checked.
  * @param {string | null} projectId Project (none: only tasks and routines of no project).
  * @param {TimeSubjects} subjects Tasks and routines of the time.
- * @param {string | null} [keptProjectId] Project the time already had: accepted even if archived. Optional.
+ * @param {{ projectId: string | null, subjects: TimeSubjects }} [kept] Project (accepted even if archived) and items the time already had. Optional.
  * @returns {Promise<void>}
  */
-async function assertProjectTree(projectId: string | null, subjects: TimeSubjects, keptProjectId?: string | null): Promise<void> {
+async function assertProjectTree(projectId: string | null, subjects: TimeSubjects, kept?: { projectId: string | null; subjects: TimeSubjects }): Promise<void> {
+  const keptProjectId = kept?.projectId;
   let subtree: Set<string> | null = null;
   if (projectId) {
     const projects = await prisma.project.findMany({ select: { id: true, parentId: true, archivedAt: true } });
@@ -104,8 +107,10 @@ async function assertProjectTree(projectId: string | null, subjects: TimeSubject
     if (projectId !== keptProjectId) refuseArchived(project, 'projectId');
     subtree = subtreeOf(projects, projectId);
   }
-  await assertInProjectTree('task', subjects.taskIds, subtree);
-  await assertInProjectTree('routine', subjects.routineIds, subtree);
+  const same = kept !== undefined && kept.projectId === projectId;
+  const added = (ids: readonly string[], had: readonly string[]) => (same ? ids.filter((id) => !had.includes(id)) : ids);
+  await assertInProjectTree('task', added(subjects.taskIds, kept?.subjects.taskIds ?? []), subtree);
+  await assertInProjectTree('routine', added(subjects.routineIds, kept?.subjects.routineIds ?? []), subtree);
 }
 
 /**
@@ -135,7 +140,7 @@ async function checkedSubjects(
   kept?: { projectId: string | null; subjects: TimeSubjects },
 ): Promise<{ projectId: string | null; events: StoredEventLink[] }> {
   const place = await placeOf(projectId, subjects);
-  await assertProjectTree(place, subjects, kept?.projectId);
+  await assertProjectTree(place, subjects, kept);
   await assertActiveLinks(subjects, kept?.subjects);
   return { projectId: place, events: await eventLinksData(subjects.events) };
 }
@@ -428,11 +433,12 @@ export async function timeLeftEmpty(gone: GoneSubjects): Promise<string[]> {
  * Before items are deleted: deletes the times they leave with nothing attached (`timeLeftEmpty`), and the links of
  * the event occurrences deleted (the rows of a whole event go with it).
  * @param {GoneSubjects} gone Items about to be deleted.
+ * @param {Prisma.TransactionClient} [client] Client or transaction writing. Optional. Default = the client of the workspace.
  * @returns {Promise<void>}
  */
-export async function releaseSubjectTime(gone: GoneSubjects): Promise<void> {
+export async function releaseSubjectTime(gone: GoneSubjects, client: Prisma.TransactionClient = prisma): Promise<void> {
   const ids = await timeLeftEmpty(gone);
-  if (ids.length) await prisma.timeEntry.deleteMany({ where: { id: { in: ids } } });
+  if (ids.length) await client.timeEntry.deleteMany({ where: { id: { in: ids } } });
   const occurrences = (gone.events ?? []).filter((item) => item.on || item.from);
-  if (occurrences.length) await prisma.timeEntryEvent.deleteMany({ where: { OR: occurrences.map(goneLinkWhere) } });
+  if (occurrences.length) await client.timeEntryEvent.deleteMany({ where: { OR: occurrences.map(goneLinkWhere) } });
 }

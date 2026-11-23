@@ -16,9 +16,9 @@ Voir aussi : [Tâches](tasks.md), [Héritage](tasks.md#héritage), [Archivage](.
 | `label`     | Nom requis, 250 caractères, unique dans l’espace                                        | « Le nom est requis. », « Une règle porte déjà ce nom. »         |
 | `color`     | Couleur `#rrggbb`, comme toute liste de réglages                                        | « Couleur invalide (format #rrggbb). »                           |
 | `enabled`   | Active ou non ; active par défaut                                                       | —                                                                |
-| `trigger`   | Déclencheur (voir [Déclencheurs](#déclencheurs))                                        | « Choisissez le champ. », « Choisissez le changement. », « Choisissez la valeur. », « Une valeur précise se choisit pour un champ à liste de choix. » |
+| `trigger`   | Déclencheur (voir [Déclencheurs](#déclencheurs))                                        | « Choisissez le déclencheur. », « Choisissez le champ. », « Choisissez le changement. », « Choisissez la valeur. », « Une valeur précise se choisit pour un champ à liste de choix. » |
 | `condition` | Facultative : un filtre du tableau des tâches (voir [Condition](#condition)) ; vide = toutes les tâches | « Une condition est incomplète. », « Une condition porte sur une colonne qu’une règle ne lit pas. » |
-| `actions`   | 1 à 20 actions, dans l’ordre (voir [Actions](#actions))                                  | « Ajoutez au moins une action. », « 20 actions au plus. », « Choisissez le champ. », « Choisissez la valeur. », « Choisissez au moins une valeur. », « Date invalide. », « Nombre attendu. », « Ajouter ou retirer se fait dans une liste (étiquettes, assignés, sprints). » |
+| `actions`   | 1 à 20 actions, dans l’ordre (voir [Actions](#actions))                                  | « Ajoutez au moins une action. », « 20 actions au plus. », « Choisissez l’action. », « Choisissez le champ. », « Choisissez la valeur. », « Choisissez au moins une valeur. », « Date invalide. », « Nombre attendu. », « Ajouter ou retirer se fait dans une liste (étiquettes, assignés, sprints). » |
 
 ## Champs
 
@@ -81,7 +81,7 @@ Champs d’une tâche qu’une règle surveille ou change (`TASK_AUTOMATION_FIEL
 
 - Chaque règle appliquée pendant une requête est renvoyée dans les `extensions` de sa réponse, sous `taskAutomations` (`TaskAutomationReport` : règle, ce qu’elle a fait, tâches changées, ce qui les remet comme avant ; ou pourquoi elle a été refusée), quelle que soit la mutation. Une règle qui ne change rien n’est pas signalée.
 - L’app en fait une notification par règle : « Règle « Démarrage » : statut « En cours » » (« (3 tâches) » pour plusieurs), avec « Annuler » ; une règle refusée : « Règle non appliquée », avec la raison et « Le changement qui l’a déclenchée est gardé. ».
-- « Annuler » (`TaskAutomationRevert`) restaure la tâche si la règle l’a archivée, la remet dans son projet, redonne ses champs (héritage rétabli, champ vidé à nouveau, ou sa valeur ; les éléments d’une liste ajoutés retirés et inversement), puis son état ouvert / fermé et sa façon d’être fermée (terminée ou annulée) ; comme toute annulation, ses valeurs archivées sont acceptées, et elle peut à son tour déclencher des règles.
+- « Annuler » (`TaskAutomationRevert`) restaure la tâche si la règle l’a archivée, la remet dans son projet, redonne ses champs (héritage rétabli, champ vidé à nouveau, ou sa valeur ; les éléments d’une liste ajoutés retirés et inversement), puis son état ouvert / fermé et sa façon d’être fermée (terminée ou annulée) ; comme toute annulation, ses valeurs archivées et une tâche archivée depuis sont acceptées (son état ouvert / fermé lui est rendu même archivée, `setTasksClosed` avec `restoring`), et elle peut à son tour déclencher des règles.
 - Pas d’historique : une synchronisation GitHub de fond (hors requête de l’app) applique les règles sans notification.
 
 ## Règles du statut « Annulé »

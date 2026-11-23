@@ -72,7 +72,7 @@ Recherche : « Rechercher (libellé, description, lieu) ».
 ### États affichés dans « Échéance »
 
 - « Fait » (vert) : occurrence en cours cochée (tous ses moments obligatoires).
-- À faire aujourd'hui : badge « Aujourd'hui 8:20–8:30 » (gris avant l'heure de début) ; « Partir maintenant » (orange plein) dès l'heure de départ calculée avec le trajet ; « Après 8:30 » (couleur de retard) une fois l'heure limite passée. Rafraîchi chaque minute.
+- À faire (occurrence due aujourd'hui, ou ouverte pendant son « Ouverture » et due plus tard) : badge « Aujourd'hui 8:20–8:30 » (gris avant l'heure de début) ; « Partir maintenant » (orange plein) dès l'heure de départ calculée avec le trajet ; « Après 8:30 » (couleur de retard) une fois l'heure limite passée. Rafraîchi chaque minute.
 - « Depuis lun. 10 nov. » (orange) : en retard depuis cette date.
 - À venir : la date de la prochaine fois en gris (ou « — »).
 - Une flèche indique une occurrence reportée ou avancée ; l'infobulle donne « Prochaine fois : … » (ou « Plus d'occurrence à venir ») et le jour prévu à l'origine.

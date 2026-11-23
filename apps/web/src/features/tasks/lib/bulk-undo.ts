@@ -197,7 +197,7 @@ export function useBulkUndo() {
             ...(restore ? [() => archive.mutateAsync({ ids, archived: false })] : []),
             ...(projectId !== undefined ? [() => transfer.mutateAsync({ ids, projectId })] : []),
             ...(Object.keys(changes).length ? [() => update.mutateAsync({ ids, changes, restoring: true })] : []),
-            ...(closed !== undefined ? [() => setClosed.mutateAsync({ ids, closed, reason: closeReason })] : []),
+            ...(closed !== undefined ? [() => setClosed.mutateAsync({ ids, closed, reason: closeReason, restoring: true })] : []),
           ];
         }),
       ),

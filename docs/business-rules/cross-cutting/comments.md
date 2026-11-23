@@ -67,7 +67,7 @@ Source : `TARGET_MODELS` (`occurrences`), `onOccurrences`, `commentsWhere`, `rem
 - Une occurrence **supprimée** (évènement : « cette occurrence », « celle-ci et les suivantes » ; routine : depuis l’agenda) supprime ses commentaires (`deleteGoneComments`) ; tout l’évènement ou toute la routine : en cascade. La confirmation en donne le nombre (`lostOnDelete`, `commentsLostOnDelete`, avec les temps).
 - Une occurrence **reportée** emmène ses commentaires (et ses temps) vers l’évènement de report.
 - « Annuler » après la suppression d’une occurrence de routine (`THIS`) rend ses commentaires (`deleteGoneComments` renvoie ceux supprimés, `restoreComments` les recrée sur l’occurrence, texte vérifié, dates d’origine). Une occurrence d’évènement supprimée n’a pas d’« Annuler ».
-- Une règle changée qui fait disparaître des occurrences (sans les décaler) supprime leurs commentaires, après confirmation (`lostOccurrences`, `assertLossConfirmed`, `settleLostOccurrences` de `occurrence-rows.ts`, erreur `CONFIRMATION_REQUIRED` tant que `confirmLoss` n’est pas vrai). Voir [Agenda](../activities/calendar.md) et [Routines](../activities/routines.md).
+- Une règle changée qui fait disparaître des occurrences (sans les décaler) supprime leurs commentaires, après confirmation (`lostOccurrences`, `assertLossConfirmed`, `confirmLostOccurrences` de `occurrence-rows.ts`, erreur `CONFIRMATION_REQUIRED` tant que `confirmLoss` n’est pas vrai), une fois l’élément enregistré (dans sa transaction pour un évènement) : un enregistrement refusé ne perd rien. Voir [Agenda](../activities/calendar.md) et [Routines](../activities/routines.md).
 
 ### Commentaires écrits avant les occurrences
 
