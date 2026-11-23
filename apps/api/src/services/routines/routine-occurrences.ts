@@ -279,9 +279,10 @@ function doable(routine: RoutineTiming, span: RoutineSpan, schedules: ScheduleCo
  * @param {string} from First day.
  * @param {string} to Last day.
  * @param {ScheduleContext} schedules Schedules.
+ * @param {boolean} [pattern=false] Every day of its rule or cases, doable or not (its condition left aside). Optional.
  * @returns {RoutineSpan[]} Occurrences, by due day.
  */
-export function ruleSpans(routine: RoutineTiming, from: string, to: string, schedules: ScheduleContext): RoutineSpan[] {
+export function ruleSpans(routine: RoutineTiming, from: string, to: string, schedules: ScheduleContext, pattern = false): RoutineSpan[] {
   const start = formatDay(routine.startDate);
   const first = from < start ? start : from;
   if (first > to) return [];
@@ -305,18 +306,20 @@ export function ruleSpans(routine: RoutineTiming, from: string, to: string, sche
   }
   // One its condition leaves no moment to is not scheduled, unless already done (a time of the day ticked).
   const ticked = (span: RoutineSpan) => routine.id !== undefined && Boolean(schedules.checked?.has(joinedKey(routine.id, span.end)));
-  return [...spans.values()].filter((span) => doable(routine, span, schedules) || ticked(span)).sort((a, b) => a.end.localeCompare(b.end));
+  return [...spans.values()].filter((span) => pattern || doable(routine, span, schedules) || ticked(span)).sort((a, b) => a.end.localeCompare(b.end));
 }
 
 /**
- * Exceptions of a routine that still apply: those whose day is one of its rule (or of its cases). An exception left by
- * a change of the rule (its day no longer due) is ignored: it neither removes nor adds an occurrence.
+ * Exceptions of a routine that still apply: those whose day is one of its rule (or of its cases), doable there or not
+ * (an occurrence moved away keeps its exception when its day of origin no longer has a moment: a slot removed). An
+ * exception left by a change of the rule (its day no longer due) is ignored: it neither removes nor adds an
+ * occurrence; the writes read them alike (and keep the ignored ones as they are).
  * @param {RoutineTiming} routine Routine (its « quand » as it goes).
  * @param {ScheduleContext} schedules Schedules.
  * @returns {RoutineMove[]} Exceptions applied.
  */
 export function liveMoves(routine: RoutineTiming, schedules: ScheduleContext): RoutineMove[] {
-  return remember(routine, schedules, 'liveMoves', () => storedMoves(routine.moves).filter((move) => ruleSpans(routine, move.from, move.from, schedules).some((span) => span.end === move.from)));
+  return remember(routine, schedules, 'liveMoves', () => storedMoves(routine.moves).filter((move) => ruleSpans(routine, move.from, move.from, schedules, true).some((span) => span.end === move.from)));
 }
 
 /**
@@ -343,12 +346,17 @@ export function occurrenceSpansBetween(
   const archived = archivedOn(routine);
   const last = archived && archived <= to ? addDays(archived, -1) : to;
   if (last < from) return [];
-  // By the day that identifies each occurrence.
-  const spans = new Map<string, RoutineOccurrenceSpan>(ruleSpans(routine, from, last, schedules).map((span) => [span.end, { ...span, date: span.end }]));
-  for (const move of liveMoves(routine, schedules)) {
-    const span = spans.get(move.from);
-    spans.delete(move.from);
+  // By the day that identifies each occurrence: those moved away (merged into another, cancelled) leave their day
+  // first, then those moved come in (one moved onto a day another one left is not taken away with it).
+  const rule = new Map<string, RoutineOccurrenceSpan>(ruleSpans(routine, from, last, schedules).map((span) => [span.end, { ...span, date: span.end }]));
+  const spans = new Map(rule);
+  const moves = liveMoves(routine, schedules);
+  for (const move of moves) spans.delete(move.from);
+  for (const move of moves) {
+    // Merged into the occurrence of its new day: that one stays as it is.
+    if (move.merged) continue;
     const key = moveKey(move);
+    const span = rule.get(move.from);
     if (move.to && move.to >= from && move.to <= last) spans.set(key, { start: move.to, end: move.to, date: key });
     else if (!move.to && withCancelled && span) spans.set(move.from, { ...span, cancelled: true });
   }

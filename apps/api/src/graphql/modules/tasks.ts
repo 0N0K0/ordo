@@ -430,6 +430,14 @@ const taskFields = (t: InputFields) => ({
   deadTimes: t.field({ type: [DeadTimeInput], description: '« Temps morts », 20 at most; null: none.' }),
 });
 
+const TaskProjectMoveInput = builder.inputType('TaskProjectMoveInput', {
+  description: 'Tasks put back in a project by the undo of a transfer.',
+  fields: (t) => ({
+    ids: t.idList({ required: true }),
+    projectId: t.id({ description: 'Project (null: out of any project).' }),
+  }),
+});
+
 const TaskInput = builder.inputType('TaskInput', {
   fields: (t) => ({
     label: t.string({ required: true }),
@@ -656,10 +664,11 @@ builder.mutationFields((t) => ({
     args: { ids: t.arg.idList({ required: true }), projectId: t.arg.id() },
     resolve: (_root, { ids, projectId }) => transferResult(tasks.bulkTransferTasks(ids, projectId ?? null)),
   }),
-  restoreTaskLinks: t.boolean({
-    description: 'Undo of a transfer: puts back the links it removed (its lost result), once the tasks are back in their project. Archived values are accepted; tasks deleted since are passed over.',
-    args: { links: t.arg({ type: 'JSON', required: true }) },
-    resolve: (_root, { links }) => done(tasks.restoreTaskLinks(links)),
+  undoTaskTransfer: t.boolean({
+    description:
+      'Undo of a transfer, in one transaction (all or nothing): the tasks go back to their project group after group (archived tasks and projects accepted), then the links it removed (its lost result) come back. Archived values are accepted; tasks deleted since are passed over.',
+    args: { moves: t.arg({ type: [TaskProjectMoveInput], required: true }), links: t.arg({ type: 'JSON', required: true }) },
+    resolve: (_root, { moves, links }) => done(tasks.undoTaskTransfer(moves.map((move) => ({ ids: move.ids, projectId: move.projectId ?? null })), links)),
   }),
   bulkSetTasksArchived: t.boolean({
     description: 'Archiving cascades to sub-tasks; restoring restores them and the archived parents.',

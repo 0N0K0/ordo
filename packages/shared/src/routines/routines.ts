@@ -140,12 +140,24 @@ export type RoutineMoveTimes = z.infer<typeof routineMoveTimesSchema>;
  * Exception to the rule of a routine for one occurrence: moved to another day (postponed or brought forward), its
  * times of the day changed, or deleted (no new day). Moved onto a day that has its own occurrence, both may be kept
  * apart (`apart`): the moved one then keeps the day of its rule as its identity (its ticks, comments, checklist and
- * links with events), shown on its new day.
+ * links with events), shown on its new day; or merged (`merged`): it is no longer an occurrence of its own, its rows
+ * went to the occurrence identified by its new day, which keeps its own days and times (`mergedRows`: the rows it
+ * brought, those that go back to its day when the merge is undone).
  */
 export const routineMoveSchema = z
-  .object({ from: daySchema(), to: daySchema().nullable(), times: routineMoveTimesSchema, apart: z.boolean().optional() })
+  .object({
+    from: daySchema(),
+    to: daySchema().nullable(),
+    times: routineMoveTimesSchema,
+    apart: z.boolean().optional(),
+    merged: z.boolean().optional(),
+    mergedRows: z.array(z.string()).max(1000).optional(),
+  })
   .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour ou d’autres horaires.');
 export type RoutineMove = z.infer<typeof routineMoveSchema>;
+
+/** How an occurrence moved onto a day is identified there: by that day (`OWN`), kept apart by the day of its rule (`APART`), or merged into the occurrence of that day (`MERGED`). */
+export type RoutineMoveJoin = 'OWN' | 'APART' | 'MERGED';
 
 /** Moves kept on a routine at most. */
 export const MAX_ROUTINE_MOVES = 500;
@@ -483,11 +495,18 @@ export function caseStart(item: { from?: string | null }, start: string): string
 }
 
 /**
- * Whether an exception takes the occurrence away from its day (moved elsewhere or deleted).
+ * Whether an exception takes the occurrence away from its day (moved elsewhere, merged into another or deleted).
  * @param {RoutineMove} move Exception.
  * @returns {boolean} Away.
  */
 const movesAway = (move: RoutineMove) => move.to !== move.from;
+
+/**
+ * Whether an exception brings its occurrence onto another day, as an occurrence of its own there (not merged).
+ * @param {RoutineMove} move Exception.
+ * @returns {boolean} Moved in.
+ */
+const movesIn = (move: RoutineMove): move is RoutineMove & { to: string } => move.to !== null && movesAway(move) && !move.merged;
 
 /**
  * Times of the day of an occurrence, with those its exception changes.
@@ -504,7 +523,8 @@ const MOVED_SCAN = 60;
 
 /**
  * Day an exception identifies its occurrence by (the day of its ticks, comments, checklist and links with events): the
- * day it was moved to, or the day of its rule when kept apart from the occurrence of the day it went to.
+ * day it was moved to (merged: the occurrence it went into), or the day of its rule when kept apart from the occurrence
+ * of the day it went to, or cancelled.
  * @param {RoutineMove} move Exception.
  * @returns {string} Day.
  */
@@ -564,7 +584,7 @@ export function movedOccurrences(
   const kept = latest && !movedAway.has(latest) ? latest : null;
   let current = kept;
   for (const move of moves) {
-    if (!move.to || !movesAway(move) || move.to > today) continue;
+    if (!movesIn(move) || move.to > today) continue;
     // After the latest occurrence of the rule, or the latest one itself brought forward / postponed to today at most.
     const counts = latest === null || (kept ? move.to > kept : move.from >= latest);
     if (counts && (!current || move.to > current)) current = move.to;
@@ -573,7 +593,7 @@ export function movedOccurrences(
   for (let scanned = 0; next && movedAway.has(next) && scanned < MOVED_SCAN; scanned += 1) next = compute(next).next;
   if (next && movedAway.has(next)) next = null;
   const ruledNext = next;
-  for (const move of moves) if (move.to && movesAway(move) && move.to > today && (!next || move.to < next)) next = move.to;
+  for (const move of moves) if (movesIn(move) && move.to > today && (!next || move.to < next)) next = move.to;
   /**
    * Occurrences due on a day, by the days that identify them: the one of its rule there (unless moved away), those
    * moved there.
@@ -582,7 +602,7 @@ export function movedOccurrences(
    * @returns {string[]} Days, in order.
    */
   const dueOn = (due: string, ruled: boolean) =>
-    [...new Set([...(ruled && !movedAway.has(due) ? [due] : []), ...moves.filter((move) => move.to === due && movesAway(move)).map(moveKey)])].sort();
+    [...new Set([...(ruled && !movedAway.has(due) ? [due] : []), ...moves.filter((move) => movesIn(move) && move.to === due).map(moveKey)])].sort();
   const at = (due: string | null, ruled: boolean, choose: (dates: string[]) => string) => {
     if (!due) return null;
     const dates = dueOn(due, ruled);
@@ -592,34 +612,37 @@ export function movedOccurrences(
 }
 
 /**
- * Day of the rule an occurrence comes from: the day it was moved from, or itself.
+ * Day of the rule an occurrence comes from: the day it was moved from, or itself (an occurrence others were merged
+ * into stays the one of its own day).
  * @param {readonly RoutineMove[]} moves Exceptions.
  * @param {string} date Occurrence (the day that identifies it).
  * @returns {string} Day of the rule (its times of the day are those of that day).
  */
 export function movedFrom(moves: readonly RoutineMove[], date: string): string {
   if (moves.some((move) => move.apart && move.from === date)) return date;
-  return moves.find((move) => !move.apart && move.to === date)?.from ?? date;
+  return moves.find((move) => !move.apart && !move.merged && move.to === date)?.from ?? date;
 }
 
 /**
- * Exceptions once an occurrence is moved, deleted (no new day) or its times changed: changing a moved one again changes
- * its exception (back to its own day with its own times: no exception).
+ * Exceptions once an occurrence is moved, deleted (no new day), merged into the occurrence of its new day or its times
+ * changed: changing a moved one again changes its exception (back to its own day with its own times: no exception).
  * @param {readonly RoutineMove[]} moves Exceptions.
  * @param {string} date Occurrence (the day that identifies it).
  * @param {string | null} to New day (null: deleted).
  * @param {RoutineMoveTimes} [times] Changed times. Optional. Default = those already changed.
- * @param {boolean} [apart] Kept apart from the occurrence of its new day. Optional. Default = as it was.
+ * @param {RoutineMoveJoin} [join] How it is identified on its new day (`RoutineMoveJoin`). Optional. Default = as it was.
  * @returns {RoutineMove[]} Exceptions.
  */
-export function withMove(moves: readonly RoutineMove[], date: string, to: string | null, times?: RoutineMoveTimes, apart?: boolean): RoutineMove[] {
+export function withMove(moves: readonly RoutineMove[], date: string, to: string | null, times?: RoutineMoveTimes, join?: RoutineMoveJoin): RoutineMove[] {
   const from = movedFrom(moves, date);
   const current = moves.find((move) => move.from === from);
   const others = moves.filter((move) => move.from !== from);
-  const kept = to === null ? null : times === undefined ? (current?.times ?? null) : times && times.some(Boolean) ? times : null;
+  const elsewhere = to !== null && to !== from;
+  const merged = elsewhere && (join ? join === 'MERGED' : (current?.merged ?? false));
+  const kept = to === null || merged ? null : times === undefined ? (current?.times ?? null) : times && times.some(Boolean) ? times : null;
   if (from === to && !kept) return others;
-  const keptApart = to !== null && to !== from && (apart ?? current?.apart ?? false);
-  return [...others, { from, to, times: kept, ...(keptApart && { apart: true }) }].sort((a, b) => a.from.localeCompare(b.from));
+  const keptApart = elsewhere && !merged && (join ? join === 'APART' : (current?.apart ?? false));
+  return [...others, { from, to, times: kept, ...(keptApart && { apart: true }), ...(merged && { merged: true }) }].sort((a, b) => a.from.localeCompare(b.from));
 }
 
 /** Same changes for several routines: values set (null: none, undefined: unchanged), or ids added to and removed from their lists. */

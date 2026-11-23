@@ -2619,11 +2619,6 @@ type Mutation {
   resetPassword(password: String!, token: String!): Boolean!
 
   """
-  Undo of a transfer: puts back the links it removed (its lost result), once the tasks are back in their project. Archived values are accepted; tasks deleted since are passed over.
-  """
-  restoreTaskLinks(links: JSON!): Boolean!
-
-  """
   Records that an alarm or a reminder starts ringing (first ring or repetition); a stopped one is returned as it is.
   """
   ringAlarm(input: AlarmRingInput!): AlarmRing!
@@ -2905,6 +2900,11 @@ type Mutation {
   Moves a chart to another dashboard (or to the first one of a project, created if needed); returns that dashboard.
   """
   transferDashboardChart(dashboardId: ID, id: ID!, projectId: ID): ID!
+
+  """
+  Undo of a transfer, in one transaction (all or nothing): the tasks go back to their project group after group (archived tasks and projects accepted), then the links it removed (its lost result) come back. Archived values are accepted; tasks deleted since are passed over.
+  """
+  undoTaskTransfer(links: JSON!, moves: [TaskProjectMoveInput!]!): Boolean!
   unlinkGithubProject(projectId: ID!): Boolean!
   unlinkMail(id: ID!): Boolean!
 
@@ -3883,7 +3883,7 @@ type Routine {
   moments: JSON!
 
   """
-  Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from).
+  Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart?, merged?, mergedRows? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from); merged: merged into the occurrence of that day (no longer one of its own; mergedRows: the rows it brought).
   """
   moves: JSON!
 
@@ -5542,6 +5542,14 @@ type TaskPriority {
   position: Int!
 }
 
+"""Tasks put back in a project by the undo of a transfer."""
+input TaskProjectMoveInput {
+  ids: [ID!]!
+
+  """Project (null: out of any project)."""
+  projectId: ID
+}
+
 type TaskStatus {
   """Archived: hidden by default, read only."""
   archived: Boolean!
@@ -5582,7 +5590,7 @@ Outcome of a transfer of tasks: the links removed because they left the project 
 """
 type TaskTransferResult {
   """
-  { blocks, relations, parents, milestones, sprints, resources }: the links removed, as restoreTaskLinks takes them back.
+  { blocks, relations, parents, milestones, sprints, resources }: the links removed, as undoTaskTransfer takes them back.
   """
   lost: JSON!
 

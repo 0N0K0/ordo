@@ -623,9 +623,11 @@ function revertOf(before: TaskState, after: TaskState): TaskAutomationRevert | n
     changed = true;
     const inherited = INHERITED[field];
     const state = inherited ? before.states[inherited] : undefined;
-    // A field it inherited or had emptied comes back so, not as a value of its own.
+    // A field it inherited or had emptied comes back so, not as a value of its own. Its inherited project: moved back
+    // to it first (it may have left its parent's tree, its parent then put back), then inherited again.
     if (inherited && state === 'INHERITED') {
       changes.inheritFields = [...(changes.inheritFields ?? []), inherited];
+      if (field === 'PROJECT') revert.projectId = before.values.PROJECT as string | null;
       continue;
     }
     if (inherited && inherited !== 'PROJECT' && state === 'CLEARED') {

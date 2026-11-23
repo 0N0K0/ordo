@@ -1,6 +1,6 @@
-import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema, taskLinksLostSchema, type TaskLinksLost } from '@ordo/shared';
+import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema, taskLinksLostSchema, type TaskLinksLost, NO_TASK_LINKS_LOST } from '@ordo/shared';
 import { z } from 'zod';
-import { prisma } from '../../db';
+import { inTransaction, prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
 import { BY_POSITION, moveBefore, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
@@ -8,7 +8,7 @@ import { clientError, fieldError, notFound, orNotFound, parseInput } from '../..
 import { assertProjectContributors, attachAssignees } from '../projects/contributors';
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
 import { releaseSubjectTime } from './time-entries';
-import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
+import { assertAllExist, assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
 import { assertNoneArchived, type ArchivableModel, assertActive, refuseArchived, archiveTree, findActive } from '../core/archive';
 import { deleteTreeItems, subtreeIds, topmostIds } from '../core/trees';
 import { assertDateRange } from '../core/date-range';
@@ -38,11 +38,12 @@ async function assertProject(projectId: string): Promise<void> {
  * @param {string} parentId Parent candidate.
  * @param {string | null} projectId Project of the child (none: the parent has none either).
  * @param {string | null} childId Child task, or null for a new task.
+ * @param {boolean} [restoring=false] Undo giving back the parent the task had: an archived one accepted. Optional.
  * @returns {Promise<void>}
  */
-export async function assertParent(parentId: string, projectId: string | null, childId: string | null): Promise<void> {
+export async function assertParent(parentId: string, projectId: string | null, childId: string | null, restoring = false): Promise<void> {
   const parent = await orNotFound(prisma.task.findUnique({ where: { id: parentId }, select: { projectId: true, archivedAt: true } }), 'Tâche parente', 'parentId');
-  refuseArchived(parent, 'parentId');
+  if (!restoring) refuseArchived(parent, 'parentId');
   const rootOf = await loadRootOf();
   if (rootOf(parent.projectId) !== rootOf(projectId)) {
     throw fieldError('parentId', projectId ? 'La tâche parente doit appartenir au même projet ou à l’un de ses sous-projets.' : 'La tâche parente doit aussi être sans projet.');
@@ -56,13 +57,14 @@ export async function assertParent(parentId: string, projectId: string | null, c
  * Checks that two tasks can be linked: both active, in the same project tree.
  * @param {string} taskId First task.
  * @param {string} otherId Second task.
+ * @param {boolean} [restoring=false] Undo giving back a link the tasks had: archived ones accepted. Optional.
  * @returns {Promise<void>}
  */
-async function assertSameTree(taskId: string, otherId: string): Promise<void> {
+async function assertSameTree(taskId: string, otherId: string, restoring = false): Promise<void> {
   if (taskId === otherId) throw clientError('BAD_USER_INPUT', 'Une tâche ne peut pas être liée à elle-même.');
   const tasks = await prisma.task.findMany({ where: { id: { in: [taskId, otherId] } }, select: { projectId: true, archivedAt: true } });
   if (tasks.length !== 2) throw notFound('Tâche');
-  tasks.forEach((task) => refuseArchived(task));
+  if (!restoring) tasks.forEach((task) => refuseArchived(task));
   const rootOf = await loadRootOf();
   if (rootOf(tasks[0].projectId) !== rootOf(tasks[1].projectId)) {
     throw clientError('BAD_USER_INPUT', 'Les deux tâches doivent appartenir au même projet ou à ses sous-projets (ou être toutes deux sans projet).');
@@ -355,11 +357,11 @@ export const createTask = automated(async function createTask(given: TaskInput &
  * Updates a task (not an archived one: restore it first). The project is changed with `bulkTransferTasks`.
  * @param {string} id Task id.
  * @param {TaskInput} input Changes; undefined leaves a field unchanged, null clears it.
- * @param {boolean} [restoring] Undo giving back values the task had: archived ones accepted (only that check is skipped). Optional. Default = false.
+ * @param {boolean} [restoring] Undo giving back values the task had: archived values, an archived parent and the task archived since accepted (only those checks are skipped). Optional. Default = false.
  * @returns {Promise<Task>} Updated task.
  */
 export const updateTask = automated(async function updateTask(id: string, input: TaskInput, restoring: boolean = false): Promise<Task> {
-  const found = await findActive(prisma.task, id, 'Tâche');
+  const found = restoring ? await findOrNotFound(prisma.task, id, 'Tâche') : await findActive(prisma.task, id, 'Tâche');
   // Made top-level: what it inherited becomes its own (checked as such), put back if the change is refused.
   if (input.parentId === null && found.parentId) {
     const thaw = await freezeTaskInheritance([id]);
@@ -398,7 +400,7 @@ async function savedTask(task: Task, input: TaskInput, restoring: boolean): Prom
     beneficiaryRelationIds: idsOf(links?.beneficiaryRelations),
     tagIds: idsOf(links?.tags),
   }, restoring);
-  if (input.parentId) await assertParent(input.parentId, task.projectId, id);
+  if (input.parentId) await assertParent(input.parentId, task.projectId, id, restoring);
   if (input.milestoneId) await assertMilestone(input.milestoneId, task.projectId);
   if (input.sprintIds) await assertSprints(input.sprintIds, task.projectId);
   const previous = input.assigneeIds ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id) : [];
@@ -458,7 +460,7 @@ export const setTaskArchived = automated(async function setTaskArchived(id: stri
  * @returns {Promise<TaskLinksLost>} Removed links (`restoreTaskLinks` puts them back).
  */
 async function moveTaskTrees(rootIds: string[], projectId: string | null, withSubtasks = true): Promise<TaskLinksLost> {
-  if (rootIds.length === 0) return { blocks: [], relations: [], parents: [], milestones: [], sprints: [], resources: [] };
+  if (rootIds.length === 0) return NO_TASK_LINKS_LOST;
   const subtrees = withSubtasks ? (await Promise.all(rootIds.map((id) => subtreeIds('task', id, false)))).flat() : [];
   const moved = [...new Set([...rootIds, ...subtrees])];
   const rootOf = await loadRootOf();
@@ -714,10 +716,11 @@ async function blocksPath(from: string, to: string): Promise<boolean> {
  * Records that a task blocks another one (cycles refused).
  * @param {string} blockerId Blocking task.
  * @param {string} blockedId Blocked task.
+ * @param {boolean} [restoring=false] Undo giving back the link: archived tasks accepted. Optional.
  * @returns {Promise<void>}
  */
-export async function addTaskBlock(blockerId: string, blockedId: string): Promise<void> {
-  await assertSameTree(blockerId, blockedId);
+export async function addTaskBlock(blockerId: string, blockedId: string, restoring = false): Promise<void> {
+  await assertSameTree(blockerId, blockedId, restoring);
   if (await blocksPath(blockedId, blockerId)) {
     throw clientError('BAD_USER_INPUT', 'Ce lien créerait un blocage circulaire.');
   }
@@ -754,10 +757,11 @@ function relationPair(a: string, b: string) {
  * Records that two tasks are related.
  * @param {string} taskId First task.
  * @param {string} otherId Second task.
+ * @param {boolean} [restoring=false] Undo giving back the link: archived tasks accepted. Optional.
  * @returns {Promise<void>}
  */
-export async function addTaskRelation(taskId: string, otherId: string): Promise<void> {
-  await assertSameTree(taskId, otherId);
+export async function addTaskRelation(taskId: string, otherId: string, restoring = false): Promise<void> {
+  await assertSameTree(taskId, otherId, restoring);
   const pair = relationPair(taskId, otherId);
   await prisma.taskRelation.upsert({ where: { taskAId_taskBId: pair }, create: pair, update: {} });
 }
@@ -1059,7 +1063,7 @@ export const bulkTransferTasks = automated(async function bulkTransferTasks(ids:
  * @param {unknown} given Links removed, as the transfer told them.
  * @returns {Promise<void>}
  */
-export const restoreTaskLinks = automated(async function restoreTaskLinks(given: unknown): Promise<void> {
+async function restoreTaskLinks(given: unknown): Promise<void> {
   const lost = parseInput(taskLinksLostSchema, given);
   const named = [
     ...lost.blocks.flatMap((link) => [link.blockerId, link.blockedId]),
@@ -1074,8 +1078,8 @@ export const restoreTaskLinks = automated(async function restoreTaskLinks(given:
     const emptied = (await adoptedTaskFields(id)).filter((field) => field !== 'PROJECT' && !inheritedFields.includes(field));
     await updateTask(id, { parentId, inherit: inheritedFields, clear: emptied }, true);
   }
-  for (const { blockerId, blockedId } of lost.blocks.filter((link) => exist(link.blockerId, link.blockedId))) await addTaskBlock(blockerId, blockedId);
-  for (const { taskAId, taskBId } of lost.relations.filter((link) => exist(link.taskAId, link.taskBId))) await addTaskRelation(taskAId, taskBId);
+  for (const { blockerId, blockedId } of lost.blocks.filter((link) => exist(link.blockerId, link.blockedId))) await addTaskBlock(blockerId, blockedId, true);
+  for (const { taskAId, taskBId } of lost.relations.filter((link) => exist(link.taskAId, link.taskBId))) await addTaskRelation(taskAId, taskBId, true);
   for (const [milestoneId, links] of groupBy(lost.milestones.filter((link) => exist(link.id)), (link) => link.milestoneId)) {
     await bulkUpdateTasks(links.map((link) => link.id), { milestoneId }, true);
   }
@@ -1086,6 +1090,33 @@ export const restoreTaskLinks = automated(async function restoreTaskLinks(given:
     const kept = await checkLinkedDocuments({ projectResourceIds: [...previous, ...resourceIds] }, { projectId: task.projectId, previous });
     await prisma.task.update({ where: { id }, data: { projectResources: { set: connectIds(kept ?? previous) } } });
   }
+}
+
+/** Tasks put back in a project by the undo of a transfer (null: out of any project). */
+export interface TaskProjectMove {
+  ids: readonly string[];
+  projectId: string | null;
+}
+
+/**
+ * Undo of a transfer (« Annuler » of a transfer, or of a rule that changed the project), in one transaction: all of it
+ * or nothing. The tasks go back to their project in the order given (the moved ones with their sub-tasks, then the
+ * sub-tasks level by level, each in its own project; those already there are left), archived ones and archived
+ * projects accepted, as an undo; then the links the transfer removed come back (`restoreTaskLinks`). The tasks
+ * deleted since are passed over.
+ * @param {readonly TaskProjectMove[]} moves Tasks and the project each group goes back to, in order.
+ * @param {unknown} links Links removed, as the transfer told them.
+ * @returns {Promise<void>}
+ */
+export const undoTaskTransfer = automated(async function undoTaskTransfer(moves: readonly TaskProjectMove[], links: unknown): Promise<void> {
+  await inTransaction(async () => {
+    for (const { ids, projectId } of moves) {
+      if (projectId) await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet', 'projectId');
+      const off = (await prisma.task.findMany({ where: { id: { in: [...ids] } }, select: { id: true, projectId: true } })).filter((task) => task.projectId !== projectId);
+      if (off.length) await moveTaskTrees(await topmostIds('task', off.map((task) => task.id)), projectId);
+    }
+    await restoreTaskLinks(links);
+  });
 });
 
 /**

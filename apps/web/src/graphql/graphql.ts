@@ -1277,6 +1277,13 @@ export type TaskLabelUpdateInput = {
   label?: string | null | undefined;
 };
 
+/** Tasks put back in a project by the undo of a transfer. */
+export type TaskProjectMoveInput = {
+  ids: Array<string | number>;
+  /** Project (null: out of any project). */
+  projectId?: string | number | null | undefined;
+};
+
 /** Fixed meaning of a status, a classification (to do, in progress, done, cancelled): it neither closes nor reopens tasks. */
 export type TaskStatusCategory =
   | 'CANCELLED'
@@ -4698,12 +4705,13 @@ export type BulkTransferTasksMutationVariables = Exact<{
 
 export type BulkTransferTasksMutation = { bulkTransferTasks: { removedLinks: number, lost: unknown } };
 
-export type RestoreTaskLinksMutationVariables = Exact<{
+export type UndoTaskTransferMutationVariables = Exact<{
+  moves: Array<TaskProjectMoveInput> | TaskProjectMoveInput;
   links: unknown;
 }>;
 
 
-export type RestoreTaskLinksMutation = { restoreTaskLinks: boolean };
+export type UndoTaskTransferMutation = { undoTaskTransfer: boolean };
 
 export type BulkSetTasksArchivedMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
@@ -10800,11 +10808,11 @@ export const BulkTransferTasksDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<BulkTransferTasksMutation, BulkTransferTasksMutationVariables>;
-export const RestoreTaskLinksDocument = new TypedDocumentString(`
-    mutation RestoreTaskLinks($links: JSON!) {
-  restoreTaskLinks(links: $links)
+export const UndoTaskTransferDocument = new TypedDocumentString(`
+    mutation UndoTaskTransfer($moves: [TaskProjectMoveInput!]!, $links: JSON!) {
+  undoTaskTransfer(moves: $moves, links: $links)
 }
-    `) as unknown as TypedDocumentString<RestoreTaskLinksMutation, RestoreTaskLinksMutationVariables>;
+    `) as unknown as TypedDocumentString<UndoTaskTransferMutation, UndoTaskTransferMutationVariables>;
 export const BulkSetTasksArchivedDocument = new TypedDocumentString(`
     mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {
   bulkSetTasksArchived(ids: $ids, archived: $archived)

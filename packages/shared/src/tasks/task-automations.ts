@@ -284,7 +284,7 @@ export interface TaskAutomationRevert {
   closeReason?: TaskCloseReason;
   /** Restored when the rule archived it. */
   restore?: boolean;
-  /** Links its transfer removed, put back once it is back in its project (`restoreTaskLinks`). */
+  /** Links its transfer removed, put back with its move back to its project (`undoTaskTransfer`). */
   links?: TaskLinksLost;
 }
 

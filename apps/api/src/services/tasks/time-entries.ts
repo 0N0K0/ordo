@@ -53,11 +53,12 @@ async function eventLinksData(links: readonly TimeEventLink[]): Promise<StoredEv
  * project, a task, a routine or an event.
  * @param {string | null | undefined} projectId Project given.
  * @param {TimeSubjects} subjects Tasks, routines and events of the time (after the change).
+ * @param {boolean} [fromRoutines=true] Without project, take that of a routine (false: the project stays as given). Optional.
  * @returns {Promise<string | null>} Project.
  */
-async function placeOf(projectId: string | null | undefined, subjects: TimeSubjects): Promise<string | null> {
+async function placeOf(projectId: string | null | undefined, subjects: TimeSubjects, fromRoutines = true): Promise<string | null> {
   if (!projectId && !subjects.taskIds.length && !subjects.routineIds.length && !subjects.events.length) throw fieldError('projectId', TIME_SUBJECT_REQUIRED);
-  if (projectId || !subjects.routineIds.length) return projectId ?? null;
+  if (projectId || !subjects.routineIds.length || !fromRoutines) return projectId ?? null;
   const routines = await prisma.routine.findMany({ where: { id: { in: [...subjects.routineIds] } }, select: { id: true, projectId: true } });
   if (routines.length !== new Set(subjects.routineIds).size) throw notFound('Routine', 'routineIds');
   const byId = new Map(routines.map((routine) => [routine.id, routine.projectId]));
@@ -133,15 +134,15 @@ async function assertActiveLinks(chosen: TimeSubjects, kept?: TimeSubjects): Pro
  * Checks what a time is spent on (project tree, archived items, events) and gives its project and stored event links.
  * @param {string | null | undefined} projectId Project given.
  * @param {TimeSubjects} subjects Tasks, routines and events (after the change).
- * @param {{ projectId: string | null, subjects: TimeSubjects }} [kept] What the time already had. Optional.
+ * @param {{ projectId: string | null, subjects: TimeSubjects, keepProject?: boolean }} [kept] What the time already had; `keepProject`: neither its project nor its routines change, its project stays (none: none, not that of a routine). Optional.
  * @returns {Promise<{ projectId: string | null, events: StoredEventLink[] }>} Project and event links.
  */
 async function checkedSubjects(
   projectId: string | null | undefined,
   subjects: TimeSubjects,
-  kept?: { projectId: string | null; subjects: TimeSubjects },
+  kept?: { projectId: string | null; subjects: TimeSubjects; keepProject?: boolean },
 ): Promise<{ projectId: string | null; events: StoredEventLink[] }> {
-  const place = await placeOf(projectId, subjects);
+  const place = await placeOf(projectId, subjects, !kept?.keepProject);
   await assertProjectTree(place, subjects, kept);
   await assertActiveLinks(subjects, kept?.subjects);
   return { projectId: place, events: await eventLinksData(subjects.events) };
@@ -368,7 +369,9 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
   const events = otherDay ? await eventsOnDay(kept.events, dayIn(input.startedAt!, PARIS)) : (input.events ?? kept.events);
   // Removing the last item of a time without project is refused (TIME_SUBJECT_REQUIRED): the time is not deleted.
   const subjects: TimeSubjects = { taskIds: input.taskIds ?? kept.taskIds, routineIds: input.routineIds ?? kept.routineIds, events };
-  const checked = await checkedSubjects(input.projectId === undefined ? entry.projectId : input.projectId, subjects, { projectId: entry.projectId, subjects: kept });
+  // Project and routines unchanged: a time without project stays without (it does not take the project of a routine).
+  const keepProject = input.projectId === undefined && input.routineIds == null;
+  const checked = await checkedSubjects(input.projectId === undefined ? entry.projectId : input.projectId, subjects, { projectId: entry.projectId, subjects: kept, keepProject });
 
   const startedAt = input.startedAt ?? entry.startedAt;
   const seconds = duration ?? entry.duration;

@@ -19,7 +19,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import luxonPlugin from '@fullcalendar/luxon3';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
-import { addDays, calendarViewConfig, type CalendarDisplay, type CalendarViewConfig, entrySeconds, PARIS_ZONE, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
+import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, PARIS_ZONE, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
 import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -595,6 +595,7 @@ export function CalendarPage() {
                   routine,
                   date: occurrence.date,
                   dueDate: occurrence.dueDate,
+                  shownDate: day,
                   slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime },
                   cancelled: occurrence.cancelled,
                   archived: occurrence.archived,
@@ -714,8 +715,10 @@ export function CalendarPage() {
         }
         times = { fromTime: from === null ? null : shiftTime('00:00', from), dueTime: due === null ? null : shiftTime('00:00', due) };
       }
-      if (startParts.date === occurrence.dueDate && times.fromTime === fromTime && times.dueTime === dueTime) return;
-      void edits.changeRoutine(occurrence, startParts.date, times, revert);
+      // Shown on another day than its due day (open over several days): its due day moves by as many days as it was dragged.
+      const to = addDays(occurrence.dueDate, daysBetween(occurrence.shownDate ?? occurrence.dueDate, startParts.date));
+      if (to === occurrence.dueDate && times.fromTime === fromTime && times.dueTime === dueTime) return;
+      void edits.changeRoutine(occurrence, to, times, revert);
       return;
     }
 

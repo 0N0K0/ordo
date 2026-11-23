@@ -305,7 +305,7 @@ builder.prismaObject('Routine', {
     cases: t.expose('cases', { type: 'JSON', description: 'Cases (days and times of the day); empty: its repetition.' }),
     moves: t.field({
       type: 'JSON',
-      description: 'Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from).',
+      description: 'Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart?, merged?, mergedRows? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from); merged: merged into the occurrence of that day (no longer one of its own; mergedRows: the rows it brought).',
       select: { moves: true },
       resolve: (routine) => occurrences.storedMoves(routine.moves),
     }),
@@ -606,7 +606,7 @@ builder.queryFields((t) => ({
       const more = outside.length ? await prisma.routineCheck.findMany({ where: { OR: outside }, select: { routineId: true, date: true, slot: true } }) : [];
       return found.flatMap(({ routine, spans }) => {
         // Its exceptions as it goes (its parent's when it inherits them).
-        const moves = occurrences.storedMoves(occurrences.occurrenceTiming(routine, context).moves);
+        const moves = occurrences.liveMoves(occurrences.occurrenceTiming(routine, context), context);
         const ticked = new Set([...routine.checks, ...more.filter((check) => check.routineId === routine.id)].map((check) => `${formatDay(check.date)}/${check.slot}`));
         return spans.map(({ start, end, date, cancelled = false }) => {
           const ruleDay = movedFrom(moves, date);

@@ -654,9 +654,9 @@ const BulkTransferTasksDocument = graphql(`
   }
 `);
 
-const RestoreTaskLinksDocument = graphql(`
-  mutation RestoreTaskLinks($links: JSON!) {
-    restoreTaskLinks(links: $links)
+const UndoTaskTransferDocument = graphql(`
+  mutation UndoTaskTransfer($moves: [TaskProjectMoveInput!]!, $links: JSON!) {
+    undoTaskTransfer(moves: $moves, links: $links)
   }
 `);
 
@@ -754,8 +754,10 @@ export function useBulkTaskMutations() {
       const { removedLinks, lost } = (await execute(BulkTransferTasksDocument, variables)).bulkTransferTasks;
       return { removedLinks, lost: lost as TaskLinksLost };
     }),
-    // Undo of a transfer: the links it removed put back, once the tasks are back in their project.
-    restoreLinks: useTasksMutation(async (links: TaskLinksLost) => (await execute(RestoreTaskLinksDocument, { links })).restoreTaskLinks),
+    // Undo of a transfer, all or nothing: the tasks back in their project group after group, then the links it removed.
+    undoTransfer: useTasksMutation(
+      async (variables: { moves: { ids: string[]; projectId: string | null }[]; links: TaskLinksLost }) => (await execute(UndoTaskTransferDocument, variables)).undoTaskTransfer,
+    ),
     archive: useTasksMutation(async (variables: { ids: string[]; archived: boolean }) => (await execute(BulkSetTasksArchivedDocument, variables)).bulkSetTasksArchived),
     remove: useTasksMutation(async (variables: { ids: string[]; deleteSubtasks: boolean }) => (await execute(BulkDeleteTasksDocument, variables)).bulkDeleteTasks),
   };

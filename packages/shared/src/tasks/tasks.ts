@@ -230,6 +230,9 @@ export const taskLinksLostSchema = z.object({
 });
 export type TaskLinksLost = z.infer<typeof taskLinksLostSchema>;
 
+/** No link removed (a transfer that kept them all, an undo with no link to put back). */
+export const NO_TASK_LINKS_LOST: TaskLinksLost = { blocks: [], relations: [], parents: [], milestones: [], sprints: [], resources: [] };
+
 /**
  * Number of links a transfer removed (each sprint and each document counted).
  * @param {TaskLinksLost} lost Links removed.

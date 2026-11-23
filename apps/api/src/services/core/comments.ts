@@ -153,8 +153,12 @@ export async function placeLegacyComments(
 /** Occurrences about to be deleted: one (`on`), from one on (`from`), or every one (neither). */
 export interface GoneCommentOccurrences {
   id: string;
+  /** One occurrence (its day). */
   on?: string;
+  /** Every occurrence from that day on. */
   from?: string;
+  /** With `from`: occurrences from that day on that stay. */
+  except?: readonly string[];
 }
 
 /** Items and occurrences about to be deleted, whose comments go with them. */
@@ -174,7 +178,11 @@ function goneCommentsWhere(gone: GoneComments): Prisma.CommentWhereInput[] {
   const occurrences = (column: 'routineId' | 'eventId', items: readonly GoneCommentOccurrences[] = []) =>
     items.map((item): Prisma.CommentWhereInput => ({
       [column]: item.id,
-      ...(item.on ? { occurrenceDate: parseOptionalDay(item.on) } : item.from ? { occurrenceDate: { gte: parseOptionalDay(item.from) } } : {}),
+      ...(item.on
+        ? { occurrenceDate: parseOptionalDay(item.on) }
+        : item.from
+          ? { occurrenceDate: { gte: parseOptionalDay(item.from), ...(item.except?.length && { notIn: item.except.map((day) => parseOptionalDay(day)!) }) } }
+          : {}),
     }));
   return [...(gone.routineIds?.length ? [{ routineId: { in: [...gone.routineIds] } }] : []), ...occurrences('routineId', gone.routines), ...occurrences('eventId', gone.events)];
 }

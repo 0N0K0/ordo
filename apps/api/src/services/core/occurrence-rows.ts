@@ -95,6 +95,38 @@ export async function remapOccurrenceRows(
 }
 
 /**
+ * Rows of an occurrence of items (its comments and checklist, the links of a routine with events…), by id: what a
+ * merge of that occurrence into another one brings there, given back to its day if the merge is undone.
+ * @param {OccurrenceOwner} owner Column of the items (`eventId`, `routineId`).
+ * @param {readonly string[]} ids Items (a routine and the sub-routines its occurrence moves along).
+ * @param {string} day Day that identifies the occurrence.
+ * @returns {Promise<string[]>} Ids of its rows, every model together.
+ */
+export async function occurrenceRowIds(owner: OccurrenceOwner, ids: readonly string[], day: string): Promise<string[]> {
+  const found: string[] = [];
+  for (const { model, day: column = 'occurrenceDate' } of OCCURRENCE_ROWS[owner]) {
+    const rows = await modelDelegate<OccurrenceRowDelegate>(model).findMany({ where: { [owner]: { in: [...ids] }, [column]: parseOptionalDay(day) }, select: { id: true } });
+    found.push(...rows.map((row) => row.id as string));
+  }
+  return found;
+}
+
+/**
+ * Puts rows of occurrences (`occurrenceRowIds`) back on a day, whichever item of the owner they belong to; those gone
+ * since are passed over.
+ * @param {OccurrenceOwner} owner Column of the items (`eventId`, `routineId`).
+ * @param {readonly string[]} rowIds Rows.
+ * @param {string} day Day they go back to.
+ * @returns {Promise<void>}
+ */
+export async function putOccurrenceRows(owner: OccurrenceOwner, rowIds: readonly string[], day: string): Promise<void> {
+  if (!rowIds.length) return;
+  for (const { model, day: column = 'occurrenceDate' } of OCCURRENCE_ROWS[owner]) {
+    await modelDelegate<OccurrenceRowDelegate>(model).updateMany({ where: { id: { in: [...rowIds] } }, data: { [column]: parseOptionalDay(day) } });
+  }
+}
+
+/**
  * Days of the occurrences of an item that have rows (comments, links of times), one-off occurrence (no day) aside.
  * @param {OccurrenceOwner} owner Column of the item (`eventId`, `routineId`).
  * @param {string} id Item.

@@ -756,7 +756,12 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
   const base = item.anchor ?? item.since ?? periodStart;
   const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
   const anchor = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
-  if (rule.frequency === 'WEEKLY') return { ...result, anchor, rule: { ...rule, weekdays: [weekdayOf(to)] } };
+  if (rule.frequency === 'WEEKLY') {
+    // Moved into another week: even or odd weeks swap when it changes week an odd number of times.
+    const weeks = Math.floor((weekdayOf(date) - 1 + daysBetween(date, to)) / 7);
+    const weekParity = rule.weekParity && Math.abs(weeks) % 2 === 1 ? (rule.weekParity === 'EVEN' ? 'ODD' : 'EVEN') : rule.weekParity;
+    return { ...result, anchor, rule: { ...rule, weekdays: [weekdayOf(to)], weekParity } };
+  }
   if (rule.frequency === 'DAILY') return { ...result, anchor };
   return { ...result, anchor, rule: ruleMovedTo(rule, to) };
 }
@@ -774,7 +779,8 @@ function shiftedCase(item: ScheduleCase, periodStart: string, periodEnd: string 
   const shift = (day: string | null) => day && addDays(day, days);
   const result: ScheduleCase = { ...item, since: shift(item.since), until: shift(item.until), anchor: shift(item.anchor) };
   if (!item.rule) return result;
-  return { ...result, rule: shiftedRecurrence(item.rule, item.rule.frequency === 'MONTHLY' || item.rule.frequency === 'YEARLY' ? caseFirstDay(item, periodStart, periodEnd) : null, days) };
+  const needsFirst = item.rule.frequency === 'MONTHLY' || item.rule.frequency === 'YEARLY' || (item.rule.frequency === 'WEEKLY' && !item.rule.weekdays.length);
+  return { ...result, rule: shiftedRecurrence(item.rule, needsFirst ? caseFirstDay(item, periodStart, periodEnd) : null, days) };
 }
 
 /**

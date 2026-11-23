@@ -446,7 +446,7 @@ type Documents = {
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!, $reason: TaskCloseReason, $restoring: Boolean) {\n    setTasksClosed(ids: $ids, closed: $closed, reason: $reason, restoring: $restoring)\n  }\n": typeof types.SetTasksClosedDocument,
     "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {\n    bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)\n  }\n": typeof types.BulkUpdateTasksDocument,
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n      lost\n    }\n  }\n": typeof types.BulkTransferTasksDocument,
-    "\n  mutation RestoreTaskLinks($links: JSON!) {\n    restoreTaskLinks(links: $links)\n  }\n": typeof types.RestoreTaskLinksDocument,
+    "\n  mutation UndoTaskTransfer($moves: [TaskProjectMoveInput!]!, $links: JSON!) {\n    undoTaskTransfer(moves: $moves, links: $links)\n  }\n": typeof types.UndoTaskTransferDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetTasksArchivedDocument,
     "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n": typeof types.BulkDeleteTasksDocument,
     "\n  query DoableTasks($utcOffset: Int!) {\n    doableTasks(utcOffset: $utcOffset) {\n      id\n      reason\n    }\n  }\n": typeof types.DoableTasksDocument,
@@ -949,7 +949,7 @@ const documents: Documents = {
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!, $reason: TaskCloseReason, $restoring: Boolean) {\n    setTasksClosed(ids: $ids, closed: $closed, reason: $reason, restoring: $restoring)\n  }\n": types.SetTasksClosedDocument,
     "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {\n    bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)\n  }\n": types.BulkUpdateTasksDocument,
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n      lost\n    }\n  }\n": types.BulkTransferTasksDocument,
-    "\n  mutation RestoreTaskLinks($links: JSON!) {\n    restoreTaskLinks(links: $links)\n  }\n": types.RestoreTaskLinksDocument,
+    "\n  mutation UndoTaskTransfer($moves: [TaskProjectMoveInput!]!, $links: JSON!) {\n    undoTaskTransfer(moves: $moves, links: $links)\n  }\n": types.UndoTaskTransferDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetTasksArchivedDocument,
     "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n": types.BulkDeleteTasksDocument,
     "\n  query DoableTasks($utcOffset: Int!) {\n    doableTasks(utcOffset: $utcOffset) {\n      id\n      reason\n    }\n  }\n": types.DoableTasksDocument,
@@ -2748,7 +2748,7 @@ export function graphql(source: "\n  mutation BulkTransferTasks($ids: [ID!]!, $p
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation RestoreTaskLinks($links: JSON!) {\n    restoreTaskLinks(links: $links)\n  }\n"): typeof import('./graphql').RestoreTaskLinksDocument;
+export function graphql(source: "\n  mutation UndoTaskTransfer($moves: [TaskProjectMoveInput!]!, $links: JSON!) {\n    undoTaskTransfer(moves: $moves, links: $links)\n  }\n"): typeof import('./graphql').UndoTaskTransferDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

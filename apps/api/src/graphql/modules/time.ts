@@ -8,7 +8,7 @@ import { builder, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
 import { deletedTreeIds, subtreeIds } from '../../services/core/trees';
 import { goneOccurrences, placeLegacyEventComments } from '../../services/calendar/calendar-events';
-import { placeLegacyRoutineComments } from '../../services/routines/routines';
+import { followingOccurrencesGone, placeLegacyRoutineComments } from '../../services/routines/routines';
 import { calendarEventsGone } from '../../services/calendar/calendars';
 import { EventScope } from './calendar';
 import { reloaded } from '../reload';
@@ -225,7 +225,7 @@ builder.queryFields((t) => ({
       const comments = await commentsLostOnDelete({
         routineIds: routinesGone,
         // A cancelled occurrence stays shown with its comments: only the following ones deleted lose theirs.
-        routines: routineOccurrence?.scope === 'FOLLOWING' ? [{ id: routineOccurrence.id, from: routineOccurrence.date }] : [],
+        routines: routineOccurrence?.scope === 'FOLLOWING' ? await followingOccurrencesGone(routineOccurrence.id, routineOccurrence.date) : [],
         events: events.map((gone) => ({ id: gone.eventId, on: gone.on, from: gone.from })),
       });
       return { times: times.length, comments };

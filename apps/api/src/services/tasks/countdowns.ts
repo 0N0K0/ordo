@@ -3,6 +3,9 @@ import { prisma } from '../../db';
 import type { Countdown } from '../../generated/prisma/client';
 import { orNotFound, parseInput } from '../../graphql/errors';
 
+/** Clock gap allowed between the device that rings a timer and the server, in milliseconds. */
+const RING_CLOCK_GAP_MS = 5000;
+
 /**
  * Timers (« minuteurs ») of a user, shared by the workspaces as the rings (`AlarmRing`): several run at
  * once; a running one keeps its end (`endsAt`, the moment the server can push it), a paused one the seconds
@@ -110,14 +113,16 @@ export async function extendCountdown(userId: string, id: string, minutes: numbe
 }
 
 /**
- * Records that the end of a timer rang (its ring goes on as an `AlarmRing`): it no longer shows. Already rung or
- * cancelled: nothing.
+ * Records that the end of a timer rang (its ring goes on as an `AlarmRing`): it no longer shows. Only a timer that
+ * runs and has ended is recorded (a few seconds of clock gap between the device and the server allowed): one paused
+ * or given more minutes elsewhere meanwhile, already rung or cancelled: nothing.
  * @param {string} userId User.
  * @param {string} id Timer.
  * @returns {Promise<void>} Done.
  */
 export async function ringCountdown(userId: string, id: string): Promise<void> {
-  await prisma.countdown.updateMany({ where: { id, userId, rungAt: null }, data: { rungAt: new Date() } });
+  const now = Date.now();
+  await prisma.countdown.updateMany({ where: { id, userId, rungAt: null, endsAt: { lte: new Date(now + RING_CLOCK_GAP_MS) } }, data: { rungAt: new Date(now) } });
 }
 
 /**

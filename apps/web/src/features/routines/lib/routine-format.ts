@@ -180,7 +180,7 @@ export function movableOccurrence(routine: Routine): string | null {
  * @returns {RoutineMove | undefined} Move.
  */
 export const moveTo = (routine: Routine, date: string | null): (RoutineMove & { to: string }) | undefined =>
-  date ? (movesOf(routine).find((move) => move.to !== null && move.to !== move.from && moveKey(move) === date) as (RoutineMove & { to: string }) | undefined) : undefined;
+  date ? (movesOf(routine).find((move) => move.to !== null && move.to !== move.from && !move.merged && moveKey(move) === date) as (RoutineMove & { to: string }) | undefined) : undefined;
 
 /**
  * Due day of the current or next occurrence of a routine, from the day that identifies it (another one only when it

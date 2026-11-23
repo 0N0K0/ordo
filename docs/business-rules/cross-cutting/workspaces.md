@@ -12,6 +12,7 @@ Sources : `apps/api/src/workspace-context.ts`, `apps/api/src/db.ts`.
 - Le client Prisma `prisma` est limité à l’espace courant : les lectures, mises à jour et suppressions sont filtrées par `workspaceId`, et les créations (y compris les créations imbriquées des relations) reçoivent l’espace courant. L’espace d’une ligne ne change jamais.
 - L’espace courant est porté par un `AsyncLocalStorage` (`runInWorkspace`, `currentWorkspace`, `currentWorkspaceId`). Une requête sur des données d’espace hors de tout espace lève une erreur interne (« No workspace… »).
 - `unscopedPrisma` sert aux modèles partagés et aux opérations qui traversent les espaces (liste des espaces, suppression…).
+- `inTransaction(work)` (`db.ts`) : tout ce que `prisma` exécute pendant `work` (dans les services appelés aussi, SQL brut et `$transaction` imbriqués compris) fait partie d’une seule transaction : tout est écrit ou rien (un échec annule tout). Appelée à l’intérieur d’une autre, elle en fait partie. Sert aux annulations qui enchaînent plusieurs écritures habituelles (annuler un transfert de tâches).
 - Les scripts (seed, ligne de commande) entrent dans un espace avec `enterWorkspace`.
 
 ## Choix de l’espace d’une requête

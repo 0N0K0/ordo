@@ -1,8 +1,10 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { env } from './env';
-import { PrismaClient } from './generated/prisma/client';
+import { PrismaClient, type Prisma } from './generated/prisma/client';
 import { getDatamodel } from './generated/pothos-types';
 import { currentWorkspaceId } from './workspace-context';
+import { modelDelegate } from './services/core/delegate';
 
 /** Models shared by every workspace (accounts, rate limits, rings and timers of the user); every other one belongs to a workspace. */
 const SHARED = new Set(['Workspace', 'User', 'Session', 'AuthToken', 'RateLimit', 'AlarmRing', 'Countdown', 'PushSubscription']);
@@ -162,27 +164,79 @@ const base = new PrismaClient({
   adapter: new PrismaPg({ connectionString: env.DATABASE_URL }),
 });
 
+/** Transaction the current work runs in (`inTransaction`): every query of `prisma` goes through it. */
+const ambient = new AsyncLocalStorage<Prisma.TransactionClient>();
+
+/** Raw SQL methods, run in the current transaction when there is one. */
+const RAW = new Set(['$queryRaw', '$queryRawUnsafe', '$executeRaw', '$executeRawUnsafe']);
+
 /**
- * Database client. Every row but the accounts and the workspaces belongs to a workspace: queries only see the rows
- * of the current one (see `runInWorkspace`), and fail outside one. Raw SQL is not limited: it filters by
- * `currentWorkspaceId()` itself.
+ * Delegate of a model on a transaction client (`Task` → `tx.task`).
+ * @param {Prisma.TransactionClient} tx Transaction client.
+ * @param {string} model Model.
+ * @returns {Record<string, (args: unknown) => Promise<unknown>>} Its operations.
  */
-export const prisma = base.$extends({
+const delegateOf = (tx: Prisma.TransactionClient, model: string) => modelDelegate<Record<string, (args: unknown) => Promise<unknown>>>(model.charAt(0).toLowerCase() + model.slice(1), tx);
+
+const extended = base.$extends({
   name: 'workspaces',
   query: {
     $allModels: {
       /**
-       * Limits the query to the current workspace.
+       * Limits the query to the current workspace; inside `inTransaction`, runs it in that transaction.
        * @param {object} params Query.
        * @returns {Promise<unknown>} Result.
        */
       $allOperations({ model, operation, args, query }) {
-        if (!scoped(model)) return query(args);
-        return query(scopeArgs(model, operation, (args ?? {}) as Data) as typeof args);
+        const raw: unknown = args;
+        const given: unknown = scoped(model) ? scopeArgs(model, operation, (raw ?? {}) as Data) : raw;
+        const tx = ambient.getStore();
+        if (tx) return delegateOf(tx, model)[operation](given);
+        return query(given as typeof args);
       },
     },
   },
+});
+
+/**
+ * Database client. Every row but the accounts and the workspaces belongs to a workspace: queries only see the rows
+ * of the current one (see `runInWorkspace`), and fail outside one. Raw SQL is not limited: it filters by
+ * `currentWorkspaceId()` itself. Inside `inTransaction`, everything it runs (raw SQL and nested `$transaction`
+ * included) is part of that one transaction.
+ */
+export const prisma = new Proxy(extended, {
+  /**
+   * Gives the client's members, routed to the current transaction inside `inTransaction`.
+   * @param {object} target Client.
+   * @param {string | symbol} key Member.
+   * @returns {unknown} Member.
+   */
+  get(target, key) {
+    const tx = ambient.getStore();
+    if (tx && key === '$transaction') {
+      return async (work: unknown) => {
+        // Already in one: a callback runs on this client, a batch runs in order.
+        if (typeof work === 'function') return (work as (client: unknown) => Promise<unknown>)(prisma);
+        const results: unknown[] = [];
+        for (const query of work as Promise<unknown>[]) results.push(await query);
+        return results;
+      };
+    }
+    if (tx && typeof key === 'string' && RAW.has(key)) return modelDelegate<(...args: unknown[]) => unknown>(key, tx).bind(tx);
+    return Reflect.get(target, key);
+  },
 }) as unknown as PrismaClient;
+
+/**
+ * Runs a piece of work in one database transaction: every query of `prisma` made during it (in the services it calls
+ * too) is part of it, all written or none (a failure rolls everything back). Inside another one, it is part of it.
+ * @param {() => Promise<T>} work Work.
+ * @returns {Promise<T>} What it returns.
+ */
+export function inTransaction<T>(work: () => Promise<T>): Promise<T> {
+  if (ambient.getStore()) return work();
+  return base.$transaction((tx) => ambient.run(tx, work), { maxWait: 10_000, timeout: 60_000 });
+}
 
 /** Client without the workspace limits: for the workspaces themselves (and their deletion). */
 export const unscopedPrisma = base;

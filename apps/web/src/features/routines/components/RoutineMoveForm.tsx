@@ -164,7 +164,9 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                     ? 'annulée'
                     : item.to === item.from
                       ? 'autres horaires'
-                      : `${shortText(item.to)} (${item.to > item.from ? 'reportée' : 'avancée'}${item.times ? ', autres horaires' : ''}${item.apart ? ', à part de celle du jour' : ''})`}
+                      : item.merged
+                        ? `fusionnée avec celle du ${shortText(item.to)}`
+                        : `${shortText(item.to)} (${item.to > item.from ? 'reportée' : 'avancée'}${item.times ? ', autres horaires' : ''}${item.apart ? ', à part de celle du jour' : ''})`}
                 </Text>
                 <RemoveButton
                   label="Remettre à son jour"

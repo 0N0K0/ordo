@@ -1,7 +1,7 @@
-import { addDays, type RoutineMoveTimes } from '@ordo/shared';
+import { addDays, movedFrom, type RoutineMoveTimes } from '@ordo/shared';
 import { notifyWithUndo, ON_ERROR, onMutationError } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../api';
-import { dueDayOf, movableOccurrence } from '../lib/routine-format';
+import { dueDayOf, movableOccurrence, movesOf } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
 
 /** Times of the day of an occurrence moved: those chosen, and those it had (to undo). */
@@ -17,7 +17,7 @@ interface MovedTimes {
  *   the occurrence moved is the one given, by default the current one (the next one once ticked).
  */
 export function useRoutineMove() {
-  const { moveOccurrence } = useRoutineMutations();
+  const { moveOccurrence, removeMove } = useRoutineMutations();
   return (routine: Routine, to: string, date: string | null = movableOccurrence(routine), onDone?: () => void, times?: MovedTimes) => {
     if (!date) return;
     // The day it is on now (its identity stays the day of its rule when it was kept apart on another one's day).
@@ -27,11 +27,15 @@ export function useRoutineMove() {
       { id: routine.id, date, to, times: times?.times },
       {
         onError: onMutationError,
-        onSuccess: (key) => {
+        onSuccess: ({ key, merged }) => {
           onDone?.();
-          // Back where it was: kept apart again when it was.
+          // Back where it was: kept apart again when it was; merged, it comes back from the occurrence it went into
+          // with what it brought there only.
+          const from = movedFrom(movesOf(routine), date);
           notifyWithUndo(`« ${routine.label} » ${what}.`, () =>
-            moveOccurrence.mutate({ id: routine.id, date: key, to: due, times: times?.previous, ...(due !== date && { sameDay: 'KEEP_BOTH' }) }, ON_ERROR),
+            merged
+              ? removeMove.mutate({ id: routine.id, from }, ON_ERROR)
+              : moveOccurrence.mutate({ id: routine.id, date: key, to: due, times: times?.previous, ...(due !== date && { sameDay: 'KEEP_BOTH' }) }, ON_ERROR),
           );
         },
       },

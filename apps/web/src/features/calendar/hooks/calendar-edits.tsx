@@ -23,6 +23,8 @@ export interface RoutineOccurrenceRef {
   date: string;
   /** Its due day (the day it shows on once past). */
   dueDate: string;
+  /** Day it shows on (its due day once past, today while it runs, its first day before): a drag moves it from there. Optional. Default = its due day. */
+  shownDate?: string;
   slot: RoutineSlotTimes;
   /** Cancelled (shown struck through): only given back. Optional. Default = false. */
   cancelled?: boolean;

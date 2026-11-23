@@ -74,8 +74,8 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
 
 /**
  * Transfer of tasks with their sub-tasks to another project, or out of any (no number, milestone, sprint nor GitHub
- * item then); links leaving the project tree are removed, with a warning. Undone from its toast when no link was
- * removed.
+ * item then); links leaving the project tree are removed, with a warning. Undone from its toast (tasks and links put
+ * back, all or nothing).
  * @param {TasksDialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */

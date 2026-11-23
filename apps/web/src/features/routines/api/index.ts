@@ -750,11 +750,15 @@ export function useRoutineMutations() {
       (data, { id, done, date, slot }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done))),
     ),
     // Onto a day that has its own occurrence: keeping both or merging them is asked first (unless given); cancelled,
-    // nothing moves. Gives the day that identifies the occurrence now.
-    moveOccurrence: useRoutineMutation(
-      async ({ sameDay: given, ...variables }: { id: string; date: string; to: string; times?: RoutineMoveTimes; sameDay?: RoutineSameDayChoice }) =>
-        withSameDayChoice(async (sameDay = given) => (await execute(MoveRoutineOccurrenceDocument, { ...variables, sameDay })).moveRoutineOccurrence),
-    ),
+    // nothing moves. Gives the day that identifies the occurrence now, and whether it was merged into that day's.
+    moveOccurrence: useRoutineMutation(async ({ sameDay: given, ...variables }: { id: string; date: string; to: string; times?: RoutineMoveTimes; sameDay?: RoutineSameDayChoice }) => {
+      let chosen = given;
+      const key = await withSameDayChoice(async (sameDay = given) => {
+        chosen = sameDay;
+        return (await execute(MoveRoutineOccurrenceDocument, { ...variables, sameDay })).moveRoutineOccurrence;
+      });
+      return { key, merged: chosen === 'MERGE' };
+    }),
     changeOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope; to: string; slot: number; fromTime: string | null; dueTime: string | null }) =>
         withLossConfirmation(async (confirmLoss) =>
