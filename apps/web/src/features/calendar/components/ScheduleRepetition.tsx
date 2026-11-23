@@ -7,7 +7,7 @@ import { useState, type ReactNode } from 'react';
 import { RepetitionEditor, type CaseStart, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import * as fmt from '../../../lib/format';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { defaultScheduleTimes, describeScheduleCase, describeScheduleTimes, exceptionPeriod, newScheduleCase } from '../lib/schedule-text';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { rangeProps } from '../../../components/inputs/date-range';
@@ -112,7 +112,7 @@ export function ScheduleCases({ cases, onChange, start, caseStart }: { cases: Sc
  * @returns {JSX.Element} Settings.
  */
 function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetitionValue; setDraft: (value: ScheduleRepetitionValue) => void }) {
-  const start = draft.startDate || localToday();
+  const start = draft.startDate || parisToday();
   /**
    * Changes an exception.
    * @param {number} index Exception.
@@ -172,7 +172,7 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
           </Paper>
         );
       })}
-      <AddItemButton onClick={() => setDraft({ ...draft, exceptions: [...draft.exceptions, { from: localToday(), to: localToday(), label: 'Congés', cases: [] }] })}>
+      <AddItemButton onClick={() => setDraft({ ...draft, exceptions: [...draft.exceptions, { from: parisToday(), to: parisToday(), label: 'Congés', cases: [] }] })}>
         Ajouter une exception
       </AddItemButton>
     </Stack>
@@ -195,7 +195,7 @@ export function ScheduleRepetition({ value, onChange, error }: { value: Schedule
       onChange={onChange}
       valid={(draft) => Boolean(draft.startDate) && draft.cases.length > 0}
       describe={(item) => {
-        const start = item.startDate || localToday();
+        const start = item.startDate || parisToday();
         return [
           item.startDate ? `${item.endDate ? `Du ${fmt.day(item.startDate)} au ${fmt.day(item.endDate)}` : `À partir du ${fmt.day(item.startDate)}`}` : 'Dates à choisir',
           ...item.cases.map((other) => describeScheduleCase(other, start)),

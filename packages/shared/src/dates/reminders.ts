@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { readStoredList } from '../core/rules';
-import { addDays, dayIn } from './days';
+import { addDays, dayIn, PARIS_ZONE } from './days';
 import { zonedInstant } from './recurrence';
 import { isRingtone, type RingtoneId } from './ringing';
 import { timeOfDaySchema, timeToMinutes } from './times';
@@ -14,9 +14,6 @@ import { timeOfDaySchema, timeToMinutes } from './times';
  * end (`anchor`); routines from the start or the end of the opening day or of the due day of an
  * occurrence; each reminder may name its ringtone (`ringtone`; none: the one of the settings of the user).
  */
-
-/** Time zone of the reminders (every hour of Ordo is a Paris hour). */
-export const PARIS_ZONE = 'Europe/Paris';
 
 /** Reminders of an item, at most. */
 export const REMINDERS_MAX = 10;

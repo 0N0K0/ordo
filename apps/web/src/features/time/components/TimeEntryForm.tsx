@@ -1,8 +1,8 @@
 import { SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { formDateTime } from '../../../components/inputs/date-fields';
-import { durationText, parseDuration, TIME_OF_DAY_PATTERN, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
-import { localInstant, localParts, localToday, parisDay } from '../../../lib/dates';
+import { durationText, parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
+import { parisInstant, parisParts, parisToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
@@ -26,7 +26,7 @@ interface TimeEntryFormProps {
 }
 
 /**
- * Input of the API from the values of the form (local day and time).
+ * Input of the API from the values of the form (day and time in Paris).
  * @param {TimeEntryFormValues} values Values.
  * @returns {TimeEntryValues} Input.
  */
@@ -35,7 +35,7 @@ const entryInput = (values: TimeEntryFormValues): TimeEntryValues => ({
   routineIds: values.routineIds,
   taskIds: values.taskIds,
   description: values.description,
-  startedAt: localInstant(values.date, values.start).toISOString(),
+  startedAt: parisInstant(values.date, values.start).toISOString(),
   duration: parseDuration(values.duration)!,
   events: parseEventKeys(values.events),
 });
@@ -63,21 +63,20 @@ const changedInput = (changes: Partial<TimeEntryFormValues>, values: TimeEntryFo
 };
 
 /**
- * Day of a time from the day and start time typed (local): its day in Paris, as the API reads it (the events of that
- * day are offered); today while the day is not typed.
+ * Day of a time from the day typed (a Paris day, as the API reads it: the events of that day are offered); today while
+ * the day is not typed.
  * @param {string} date Day typed (YYYY-MM-DD).
- * @param {string} start Start time typed (HH:MM).
  * @returns {string} Day in Paris.
  */
-const entryDay = (date: string, start: string): string => (date ? parisDay(localInstant(date, TIME_OF_DAY_PATTERN.test(start) ? start : '00:00')) : parisDay(new Date()));
+const entryDay = (date: string): string => date || parisToday();
 
 /**
- * Values of the form of an existing time (its local day and start time, its duration as « h:mm »).
+ * Values of the form of an existing time (its day and start time in Paris, its duration as « h:mm »).
  * @param {TimeEntry} entry Time.
  * @returns {TimeEntryFormValues} Values.
  */
 const timeEntryFormValues = (entry: TimeEntry): TimeEntryFormValues => {
-  const { date, time } = localParts(entry.startedAt);
+  const { date, time } = parisParts(entry.startedAt);
   // A chrono of a few seconds (or none) shows « 0:00 ».
   const minutes = Math.round((entry.duration ?? 0) / 60);
   return {
@@ -108,7 +107,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
   const base = useAppForm<TimeEntryFormValues>({
     initialValues: entry
       ? timeEntryFormValues(entry)
-      : { projectId: defaultProjectId ?? '', routineIds: [], taskIds: [], events: [], description: '', date: localToday(), start: '09:00', duration: '1:00' },
+      : { projectId: defaultProjectId ?? '', routineIds: [], taskIds: [], events: [], description: '', date: parisToday(), start: '09:00', duration: '1:00' },
     schema: timeEntryFormSchema,
   });
   // The time of the cache followed (changed in a cell, another tab), whatever list holds it.
@@ -149,7 +148,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
           <TimeSubjectsFields
             context={context}
             projectId={form.values.projectId || null}
-            day={entryDay(form.values.date, form.values.start)}
+            day={entryDay(form.values.date)}
             entry={entry}
             value={{ routineIds: form.values.routineIds, taskIds: form.values.taskIds, events: form.values.events }}
             onChange={(change) => form.setValues(change)}

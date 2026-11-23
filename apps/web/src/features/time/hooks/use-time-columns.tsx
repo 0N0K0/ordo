@@ -2,7 +2,7 @@ import { entrySeconds, formatDuration, lineageOf, round2 } from '@ordo/shared';
 import { DURATION_COLUMN, TIME_COLUMN, type DataColumn } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { collator } from '../../../lib/text';
 import { DRAFT_NAME } from '../../accounting/lib/labels';
@@ -59,7 +59,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       locked: true,
       sortValue: (entry) => entry.startedAt,
       text: (entry) => fmt.capitalize(fmt.dayLong(entry.startedAt)),
-      filter: { kind: 'date', value: (entry) => localDay(entry.startedAt) },
+      filter: { kind: 'date', value: (entry) => parisDay(entry.startedAt) },
       groupable: true,
     },
     monthColumn('month', 'Mois', (entry) => entry.startedAt, 140),

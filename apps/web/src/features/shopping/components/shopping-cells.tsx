@@ -1,6 +1,6 @@
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
 import { Select } from '@mantine/core';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps, itemSelectProps, chosenAvatar } from '../../../components/items/item-look';
 import { DateField } from '../../../components/inputs/DateField';
@@ -153,7 +153,7 @@ interface ExpiryCellProps {
  */
 export function ExpiryCell({ value, label, disabled = false, readOnly = false, onSave }: ExpiryCellProps) {
   if (disabled) return null;
-  const expired = Boolean(value) && (value ?? '') < localToday();
+  const expired = Boolean(value) && (value ?? '') < parisToday();
   return (
     <DateField
       {...cellField}

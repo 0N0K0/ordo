@@ -17,7 +17,7 @@ import { useMemo } from 'react';
 import { useNow } from '../../../lib/use-now';
 import { archivedIds } from '../../../lib/archive';
 import { scheduleRules, useCalendarEvents } from '../api';
-import { localDay, parisParts } from '../../../lib/dates';
+import { parisDay, parisParts } from '../../../lib/dates';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { slotChoices } from '../lib/slot-choices';
 import { inWorkspace } from '../lib/layer-label';
@@ -111,7 +111,7 @@ export interface SlotRules {
 export function useSlotRules(): SlotRules {
   const sources = useSlotSources();
   const minute = useNow(true, 60_000);
-  const today = localDay(new Date(minute));
+  const today = parisDay(new Date(minute));
   // Events of the coming days keep their contributors (none: « Moi ») busy.
   const { data: events } = useCalendarEvents({ from: addDays(today, -1), to: addDays(today, NEXT_ALLOWED_DAYS) });
   const { context } = useTaskContext();
@@ -138,14 +138,17 @@ export function useSlotRules(): SlotRules {
      * @param {unknown} [hours] Hours of a task (JSON). Optional. Default = none.
      * @returns {import('@ordo/shared').ConditionBlock | null} What keeps it.
      */
-    const blockAt = (value: unknown, at: Date, hours?: unknown) => conditionBlockAt(readSlotCondition(value), slotsOn, localDay(at), fmt.time(at), readTaskHours(hours));
+    const blockAt = (value: unknown, at: Date, hours?: unknown) => {
+      const { date, time } = parisParts(at);
+      return conditionBlockAt(readSlotCondition(value), slotsOn, date, time, readTaskHours(hours));
+    };
     /**
      * Event keeping a task or a routine busy at a moment.
      * @param {Doable} item Task or routine.
      * @param {Date} at Moment.
      * @returns {BusyEvent | undefined} Event.
      */
-    const blockingAt = (item: Doable, at: Date) => blockingEvent(events ?? [], item, meId, at, localDay(at));
+    const blockingAt = (item: Doable, at: Date) => blockingEvent(events ?? [], item, meId, at, parisDay(at));
 
     return {
       allowed: (item, at = new Date(minute)) => blockAt(item.slotCondition, at, item.hours) === null && !blockingAt(item, at),

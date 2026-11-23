@@ -2,7 +2,7 @@
 
 Calcul et affichage des jours, mois, semaines, périodes, heures et répétitions, communs au web et à l'API. Source : `packages/shared/src/dates/`. Les règles métier qui en découlent sont décrites dans [Dates](../../business-rules/cross-cutting/dates.md).
 
-Principe : un jour de calendrier est une chaîne `YYYY-MM-DD` (un mois `YYYY-MM`), manipulée à minuit UTC, sans fuseau. Un instant (`Date`, ISO avec heure) est affiché dans le fuseau de l'environnement (celui de l'utilisateur dans le web ; l'API utilise Paris, voir `apps/api/src/today.ts`).
+Principe : un jour de calendrier est une chaîne `YYYY-MM-DD` (un mois `YYYY-MM`), manipulée à minuit UTC, sans fuseau. Un instant (`Date`, ISO avec heure) est lu et affiché à l'heure de Paris (`PARIS_ZONE`), dans le web comme dans l'API, quel que soit le fuseau du navigateur ou du serveur.
 
 ## `days.ts` — jours
 
@@ -10,10 +10,11 @@ Principe : un jour de calendrier est une chaîne `YYYY-MM-DD` (un mois `YYYY-MM`
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `DAY_MS`                            | `86 400 000` : millisecondes d'un jour (arithmétique UTC).                                                        |
 | `CALENDAR_DAY`                      | Expression `^\d{4}-\d{2}(-\d{2})?$` : jour ou mois de calendrier, lu tel quel quel que soit le fuseau.            |
+| `PARIS_ZONE`                        | `'Europe/Paris'` : fuseau de tous les jours et heures d'Ordo (l'API le reprend en `PARIS`).                       |
 | `parseDay(date)`                    | `Date` à minuit UTC d'un jour.                                                                                    |
-| `dayIn(instant, timeZone?)`         | Jour `YYYY-MM-DD` d'un instant dans un fuseau donné (Paris pour l'API), ou dans le fuseau local.                  |
+| `dayIn(instant, timeZone?)`         | Jour `YYYY-MM-DD` d'un instant dans un fuseau (Paris par défaut).                                                 |
 | `timeIn(instant, timeZone)`         | Heure `HH:MM` d'un instant dans un fuseau (l'inverse de `zonedInstant` avec `dayIn`) : report d'un rappel de routine à l'heure de Paris. |
-| `localInstant(day, time = '00:00')` | Instant d'un jour et d'une heure dans le fuseau local (alarme, saisie de temps) ; inverse de `dayIn` sans fuseau. |
+| `parisParts(instant)`               | `{ date, time }` d'un instant à Paris (`dayIn` et `timeIn`) : moment présent des tâches faisables (API), aides du web (`lib/dates`), archive ZIP. |
 | `parseOptionalDay(date)`            | `parseDay` qui conserve `null` (champ effacé) et `undefined` (inchangé).                                          |
 | `formatDay(date)`                   | `YYYY-MM-DD` d'une date UTC.                                                                                      |
 | `formatOptionalDay(date)`           | Miroir de `parseOptionalDay`.                                                                                     |
@@ -85,7 +86,6 @@ Les rappels des tâches, routines, évènements, éphémérides et anniversaires
 
 | Export                                     | Rôle                                                                                                                                      |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `PARIS_ZONE`                               | `'Europe/Paris'` : fuseau des heures d'Ordo (l'API le reprend en `PARIS`).                                                                |
 | `REMINDERS_MAX`                            | 10 rappels au plus par élément.                                                                                                           |
 | `REMINDER_MINUTES_MAX`                     | 1 440 : un rappel « avant » 24 heures au plus.                                                                                            |
 | `REMINDER_DAYS_MAX`                        | 30 : un rappel « N jours avant, à HH:MM » 30 jours au plus.                                                                 |
@@ -188,7 +188,7 @@ La semaine est un réglage de l'espace (`weekStart`, `weekEnd`) : du lundi au di
 
 ## `format.ts` — affichage des dates
 
-Formats partagés par le web et les PDF de l'API, en `fr-FR`. Un jour ou un mois de calendrier est affiché tel quel (formateur UTC) ; un instant dans le fuseau de l'environnement.
+Formats partagés par le web et les PDF de l'API, en `fr-FR`. Un jour ou un mois de calendrier est affiché tel quel (formateur UTC) ; un instant à l'heure de Paris, quel que soit le fuseau du navigateur ou du serveur.
 
 | Export               | Rôle                                                                                                                 |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------- |

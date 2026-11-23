@@ -15,7 +15,7 @@ import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { PeriodField } from '../../../components/inputs/PeriodField';
 import { vatRateOptions } from '../lib/labels';
@@ -67,7 +67,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
     .filter((entry) => entry.duration !== null && !entry.documentId && !excludeIds.includes(entry.id))
     .map((entry) => ({
       id: entry.id,
-      day: localDay(entry.startedAt),
+      day: parisDay(entry.startedAt),
       seconds: entry.duration ?? 0,
       description: entry.description ?? null,
       tasks: entry.taskIds.map((id) => context?.taskById.get(id)?.label).filter((task): task is string => Boolean(task)),

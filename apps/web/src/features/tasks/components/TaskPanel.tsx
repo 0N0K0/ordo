@@ -13,7 +13,7 @@ import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type 
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { ON_ERROR, onMutationError } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
@@ -145,7 +145,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    * @returns {Promise<unknown>} Saved task.
    */
   const saveNow = (input: Omit<TaskInputValues, 'projectId'>) => updateTask.mutateAsync({ id: task.id, input });
-  const overdue = isTaskOverdue(task, localToday());
+  const overdue = isTaskOverdue(task, parisToday());
   // The label and the effort: saved on leaving them, also when the panel closes while they are typed.
   const texts: { label: string; effort: number | '' } = { label: task.label, effort: task.effort ?? '' };
   const textBase = useAppForm<typeof texts>({ initialValues: texts, schema: taskPanelFormSchema });

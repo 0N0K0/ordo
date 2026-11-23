@@ -23,7 +23,7 @@ import {
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { unarchived, unarchivedOffered } from '../../../lib/archive';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
@@ -245,7 +245,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
           // Its type is its own (not inherited, as a sub-task's).
           typeId: null,
           parentId: parent?.id ?? null,
-          startDate: parent && parent.startDate > localToday() ? parent.startDate : localToday(),
+          startDate: parent && parent.startDate > parisToday() ? parent.startDate : parisToday(),
           recurrence: (parent && ruleOf(parent)) ?? DAILY,
           estimate: null,
           fromTime: null,

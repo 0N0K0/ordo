@@ -4,7 +4,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { CellMultiSelect, EditableDate, EditableText, EditableTime } from '../../../components/data-table/cells/EditableCells';
 import { StackedMultiCell, type StackedItem } from '../../../components/data-table/cells/StackedMultiCell';
 
-import { localInstant, localParts, parisDay } from '../../../lib/dates';
+import { parisInstant, parisParts, parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCalendarEvents } from '../../calendar/api';
 import { useRoutinesData } from '../../routines/api';
@@ -25,13 +25,13 @@ type Save = (entry: TimeEntry, change: BulkChange<TimeEntry, Partial<TimeEntryVa
  * @returns {JSX.Element} Cell.
  */
 export function TimeDayCell({ entry, readOnly, label, save }: { entry: TimeEntry; readOnly: boolean; label: string; save: Save }) {
-  const start = localParts(entry.startedAt);
+  const start = parisParts(entry.startedAt);
   if (readOnly) return <>{fmt.dayLong(entry.startedAt)}</>;
   return (
     <EditableDate
       value={start.date}
       label={label}
-      onSave={(date) => date && date !== start.date && save(entry, (row) => ({ startedAt: localInstant(date, localParts(row.startedAt).time).toISOString() }))}
+      onSave={(date) => date && date !== start.date && save(entry, (row) => ({ startedAt: parisInstant(date, parisParts(row.startedAt).time).toISOString() }))}
     />
   );
 }
@@ -42,9 +42,9 @@ export function TimeDayCell({ entry, readOnly, label, save }: { entry: TimeEntry
  * @returns {JSX.Element} Cell.
  */
 export function TimeStartCell({ entry, readOnly, label, save }: { entry: TimeEntry; readOnly: boolean; label: string; save: Save }) {
-  const start = localParts(entry.startedAt);
+  const start = parisParts(entry.startedAt);
   if (readOnly) return <>{start.time}</>;
-  return <EditableTime label={label} value={start.time} onSave={(time) => time && save(entry, (row) => ({ startedAt: localInstant(localParts(row.startedAt).date, time).toISOString() }))} />;
+  return <EditableTime label={label} value={start.time} onSave={(time) => time && save(entry, (row) => ({ startedAt: parisInstant(parisParts(row.startedAt).date, time).toISOString() }))} />;
 }
 
 /**

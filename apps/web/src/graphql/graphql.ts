@@ -4730,9 +4730,7 @@ export type BulkDeleteTasksMutationVariables = Exact<{
 
 export type BulkDeleteTasksMutation = { bulkDeleteTasks: boolean };
 
-export type DoableTasksQueryVariables = Exact<{
-  utcOffset: number;
-}>;
+export type DoableTasksQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type DoableTasksQuery = { doableTasks: Array<{ id: string, reason: TaskWaitReason | null }> };
@@ -10825,8 +10823,8 @@ export const BulkDeleteTasksDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<BulkDeleteTasksMutation, BulkDeleteTasksMutationVariables>;
 export const DoableTasksDocument = new TypedDocumentString(`
-    query DoableTasks($utcOffset: Int!) {
-  doableTasks(utcOffset: $utcOffset) {
+    query DoableTasks {
+  doableTasks {
     id
     reason
   }

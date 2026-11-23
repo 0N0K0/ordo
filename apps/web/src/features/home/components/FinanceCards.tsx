@@ -1,7 +1,7 @@
 import { LateBadge } from '../../../components/feedback/LateBadge';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { SubSection } from '../../../components/page/SubSection';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import { Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { Sparkline } from '@mantine/charts';
 import { addDays, daysBetween } from '@ordo/shared';
@@ -80,7 +80,7 @@ export function QuotesCard({ summary, today }: { summary: BillingSummary | null;
         <HomeList
           items={summary.pendingQuotes}
           render={(quote) => {
-            const sent = quote.sentAt ? localDay(quote.sentAt) : quote.issueDate;
+            const sent = quote.sentAt ? parisDay(quote.sentAt) : quote.issueDate;
             return (
               <HomeRow
                 key={quote.id}

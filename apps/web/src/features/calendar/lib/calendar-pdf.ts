@@ -61,12 +61,18 @@ function hexColor(color: string | undefined, fallback: string): string {
     .join('')}`;
 }
 
+/** A day, or a day and time without zone (YYYY-MM-DD, YYYY-MM-DDTHH:MM[:SS]). */
+const WALL_TIME = /^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?)?$/;
+
 /**
  * Paris "YYYY-MM-DDTHH:MM" of a FullCalendar date (the agenda is shown in Paris time, whatever the browser's zone).
  * @param {EventInput['start']} value Date, string or timestamp.
  * @returns {string} Date-time in Paris.
  */
 function parisDateTime(value: EventInput['start']): string {
+  // A day, or a day and time without zone, is already a Paris one (the agenda reads it in Paris).
+  const wall = typeof value === 'string' ? WALL_TIME.exec(value) : null;
+  if (wall) return `${wall[1]}T${wall[2] ?? '00:00'}`;
   const parts = parisParts(value instanceof Date ? value : new Date(value as string | number));
   return `${parts.date}T${parts.time}`;
 }

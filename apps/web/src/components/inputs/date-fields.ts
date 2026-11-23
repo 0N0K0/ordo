@@ -1,6 +1,6 @@
 import type { UseFormReturnType } from '@mantine/form';
 import type { ReactNode } from 'react';
-import { localDay, localToday, monthOfDay } from '../../lib/dates';
+import { parisDay, parisToday, monthOfDay } from '../../lib/dates';
 
 /** Name of the action that picks today, in every date picker. */
 export const TODAY_LABEL = 'Aujourd’hui';
@@ -20,7 +20,17 @@ interface PickerPreset {
  * @returns {string} Day (YYYY-MM-DD).
  */
 export function pickerDay(bound: string | Date): string {
-  return typeof bound === 'string' ? bound.split(' ')[0] : localDay(bound);
+  return typeof bound === 'string' ? bound.split(' ')[0] : parisDay(bound);
+}
+
+/**
+ * Days of a Mantine calendar with today marked in Paris: Mantine marks the day of the browser's zone, this one is the
+ * day of the app (`data-today`, highlighted with `highlightToday`). The props of each day given are kept.
+ * @param {(day: string) => P} [getDayProps] Props of each day. Optional. Default = none.
+ * @returns {(day: string) => P & { 'data-today': true | undefined }} Props of each day.
+ */
+export function parisTodayDays<P extends object = object>(getDayProps?: (day: string) => P): (day: string) => P & { 'data-today': true | undefined } {
+  return (day) => ({ ...(getDayProps?.(day) as P), 'data-today': day === parisToday() || undefined });
 }
 
 /**
@@ -30,7 +40,7 @@ export function pickerDay(bound: string | Date): string {
  * @returns {PickerPreset[] | undefined} Presets.
  */
 export function todayPresets({ min, max, time }: { min?: string | Date | null; max?: string | Date | null; time?: string | null } = {}): PickerPreset[] | undefined {
-  const today = localToday();
+  const today = parisToday();
   if ((min && pickerDay(min) > today) || (max && pickerDay(max) < today)) return undefined;
   return [{ value: time === undefined ? today : `${today} ${time ?? '00:00'}:00`, label: TODAY_LABEL }];
 }
@@ -41,7 +51,7 @@ export function todayPresets({ min, max, time }: { min?: string | Date | null; m
  * @returns {PickerPreset[] | undefined} Presets.
  */
 export function thisMonthPresets({ min, max }: { min?: string | null; max?: string | null } = {}): PickerPreset[] | undefined {
-  const month = monthOfDay(localToday());
+  const month = monthOfDay(parisToday());
   if ((min && monthOfDay(min) > month) || (max && monthOfDay(max) < month)) return undefined;
   return [{ value: `${month}-01`, label: THIS_MONTH_LABEL }];
 }

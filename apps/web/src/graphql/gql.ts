@@ -449,7 +449,7 @@ type Documents = {
     "\n  mutation UndoTaskTransfer($moves: [TaskProjectMoveInput!]!, $links: JSON!) {\n    undoTaskTransfer(moves: $moves, links: $links)\n  }\n": typeof types.UndoTaskTransferDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetTasksArchivedDocument,
     "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n": typeof types.BulkDeleteTasksDocument,
-    "\n  query DoableTasks($utcOffset: Int!) {\n    doableTasks(utcOffset: $utcOffset) {\n      id\n      reason\n    }\n  }\n": typeof types.DoableTasksDocument,
+    "\n  query DoableTasks {\n    doableTasks {\n      id\n      reason\n    }\n  }\n": typeof types.DoableTasksDocument,
     "\n  mutation CreateMilestone($input: MilestoneInput!) {\n    createMilestone(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateMilestoneDocument,
     "\n  mutation UpdateMilestone($id: ID!, $input: MilestoneUpdateInput!) {\n    updateMilestone(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateMilestoneDocument,
     "\n  mutation DeleteMilestone($id: ID!) {\n    deleteMilestone(id: $id)\n  }\n": typeof types.DeleteMilestoneDocument,
@@ -952,7 +952,7 @@ const documents: Documents = {
     "\n  mutation UndoTaskTransfer($moves: [TaskProjectMoveInput!]!, $links: JSON!) {\n    undoTaskTransfer(moves: $moves, links: $links)\n  }\n": types.UndoTaskTransferDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetTasksArchivedDocument,
     "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n": types.BulkDeleteTasksDocument,
-    "\n  query DoableTasks($utcOffset: Int!) {\n    doableTasks(utcOffset: $utcOffset) {\n      id\n      reason\n    }\n  }\n": types.DoableTasksDocument,
+    "\n  query DoableTasks {\n    doableTasks {\n      id\n      reason\n    }\n  }\n": types.DoableTasksDocument,
     "\n  mutation CreateMilestone($input: MilestoneInput!) {\n    createMilestone(input: $input) {\n      id\n    }\n  }\n": types.CreateMilestoneDocument,
     "\n  mutation UpdateMilestone($id: ID!, $input: MilestoneUpdateInput!) {\n    updateMilestone(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateMilestoneDocument,
     "\n  mutation DeleteMilestone($id: ID!) {\n    deleteMilestone(id: $id)\n  }\n": types.DeleteMilestoneDocument,
@@ -2760,7 +2760,7 @@ export function graphql(source: "\n  mutation BulkDeleteTasks($ids: [ID!]!, $del
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query DoableTasks($utcOffset: Int!) {\n    doableTasks(utcOffset: $utcOffset) {\n      id\n      reason\n    }\n  }\n"): typeof import('./graphql').DoableTasksDocument;
+export function graphql(source: "\n  query DoableTasks {\n    doableTasks {\n      id\n      reason\n    }\n  }\n"): typeof import('./graphql').DoableTasksDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

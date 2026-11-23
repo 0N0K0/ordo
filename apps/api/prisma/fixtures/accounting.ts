@@ -12,7 +12,7 @@ import { createRecurringInvoice, issueDueInvoices } from '../../src/services/acc
 import { createAccount, createEntry, realizeForecast } from '../../src/services/treasury/treasury';
 import { importStatement } from '../../src/services/treasury/treasury-import';
 import { createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
-import { clientRootProject, EMPTY_ENTRY, localAt, maybe, relativeDay, rule, treasuryCategoryMaker } from './factories';
+import { clientRootProject, EMPTY_ENTRY, parisAt, maybe, relativeDay, rule, treasuryCategoryMaker } from './factories';
 import { logoFile } from './images';
 import { tinyPdf } from './mail';
 import { setCompanyLogo } from '../../src/services/accounting/company';
@@ -288,7 +288,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
    */
   const finalize = async (id: string, date: string) => {
     await finalizeDocument(id);
-    await prisma.accountingDocument.update({ where: { id }, data: { finalizedAt: localAt(date, 10) } });
+    await prisma.accountingDocument.update({ where: { id }, data: { finalizedAt: parisAt(date, 10) } });
     return id;
   };
 
@@ -530,7 +530,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
         { value: 'OTHER', weight: 1 },
       ]),
     });
-    await prisma.accountingDocument.update({ where: { id }, data: { sentAt: localAt(date, 9, 30) } });
+    await prisma.accountingDocument.update({ where: { id }, data: { sentAt: parisAt(date, 9, 30) } });
   };
   const finals = await prisma.accountingDocument.findMany({ where: { status: 'FINAL' }, select: { id: true, issueDate: true } });
   for (const document of finals) await sent(document.id, formatDay(document.issueDate));
@@ -545,7 +545,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     const amount = fixed ?? round2((await due(id)) * share);
     if (amount > 0) await recordPayment(id, { accountId: bank.id, date, amount, methodId: methodOf(faker.helpers.arrayElement(['Virement', 'Virement', 'Chèque'])) });
   };
-  const remind = (id: string | undefined, date: string, note: string) => id && prisma.documentReminder.create({ data: { documentId: id, date: localAt(date, 11), note } });
+  const remind = (id: string | undefined, date: string, note: string) => id && prisma.documentReminder.create({ data: { documentId: id, date: parisAt(date, 11), note } });
 
   await pay(ids.archived, day(-150));
   await pay(ids.depositA, day(-140));

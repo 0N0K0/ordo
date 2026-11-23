@@ -13,7 +13,7 @@ import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, da
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
@@ -221,7 +221,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   // Without a choice, the event goes into the first calendar not archived.
   const defaultCalendarId = unarchived(calendars)[0]?.id ?? null;
   // Questions are stacked over this form's panel: it must stay mounted to finish the save.
-  const today = localToday();
+  const today = parisToday();
   // Edited with its series (« Toutes les occurrences », « Celle-ci et les suivantes »): an occurrence changed on its own
   // shows the fields of its series on its date.
   const initial: CalendarEventInput = occurrence

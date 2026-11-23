@@ -30,7 +30,7 @@ import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { inheritedDateHint } from '../lib/inherited-dates';
 import { LocationCell } from '../../geo/components/LocationCell';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { taskHoursLines } from '../lib/task-hours-text';
 import { StackedLines } from '../../../components/data-table/cells/StackedValues';
 import { tasksLabel } from '../lib/bulk-label';
@@ -465,7 +465,7 @@ export function TaskHoursCell({ task }: { task: Task }) {
     </Text>
   );
   // A case a line.
-  const lines = taskHoursLines(hours, localToday());
+  const lines = taskHoursLines(hours, parisToday());
   if (task.archived) return <StackedLines lines={lines} empty={anytime} />;
   return (
     <>

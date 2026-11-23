@@ -11,7 +11,7 @@ import { useMemo, type ReactNode } from 'react';
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView, useTableViews, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
@@ -125,7 +125,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   const alarmCounts = useTaskAlarmCounts();
   const { data: shoppingLists } = useShoppingLists();
   const [openId] = useSearchParam(TASK_PARAM);
-  const today = localToday();
+  const today = parisToday();
   const tasks = useMemo(
     () => taskTableRows((context?.tasks ?? []).filter((task) => !projectIds || (task.projectId && projectIds.has(task.projectId)))),
     [context, projectIds],

@@ -225,7 +225,7 @@ Comportement interne notable :
 
 ### `month-column.ts`
 
-`monthColumn(id, label, date, size?)` — colonne « Mois » cachée par défaut : triée et groupable par mois (YYYY-MM, un instant pris dans le fuseau de l’utilisateur), affichée « Novembre 2026 », centrée comme une date, non filtrée ; largeur 150 par défaut. Une règle eslint renvoie vers elle (pas de `.slice(0, 7)`). Utilisé par `accounting`, `stock`, `time`, `treasury`.
+`monthColumn(id, label, date, size?)` — colonne « Mois » cachée par défaut : triée et groupable par mois (YYYY-MM, un instant pris à l’heure de Paris), affichée « Novembre 2026 », centrée comme une date, non filtrée ; largeur 150 par défaut. Une règle eslint renvoie vers elle (pas de `.slice(0, 7)`). Utilisé par `accounting`, `stock`, `time`, `treasury`.
 
 ### `table-height.ts`
 

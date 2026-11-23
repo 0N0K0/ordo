@@ -2,7 +2,7 @@ import { NO_SUBJECT } from '@ordo/shared';
 import { unarchived } from '../../../lib/archive';
 import { mailPath, PAGES } from '../../../app/pages';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import { Text } from '@mantine/core';
 import { CheckCircleIcon, EnvelopeSimpleIcon } from '@phosphor-icons/react';
 
@@ -34,7 +34,7 @@ export function MailCard({ today }: { today: string }) {
         <HomeList
           items={unread.data}
           render={({ accountId, message }) => {
-            const day = message.date ? localDay(message.date) : null;
+            const day = message.date ? parisDay(message.date) : null;
             const account = several ? accounts.data?.find((item) => item.id === accountId) : undefined;
             return (
               <HomeRow

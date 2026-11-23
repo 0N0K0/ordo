@@ -10,7 +10,7 @@ import { timeOfDaySchema, daySchema } from '../dates/times';
 import { monthIndex, shiftMonth } from '../dates/months';
 import { startRemindersSchema } from '../dates/reminders';
 
-/** Hours of a day of a case, in local time. */
+/** Hours of a day of a case, in Paris time. */
 const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine(...endAfter('start', 'end', true));
 type TimeRange = z.infer<typeof timeRangeSchema>;
 

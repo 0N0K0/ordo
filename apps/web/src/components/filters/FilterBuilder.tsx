@@ -5,7 +5,7 @@ import { DATE_PERIOD_LABELS, MAX_FILTER_DEPTH, VALUELESS_OPERATORS, type FilterC
 import type { ComponentProps } from 'react';
 import { FolderSimplePlusIcon, TrashIcon } from '@phosphor-icons/react';
 import classes from './FilterBuilder.module.css';
-import { localToday } from '../../lib/dates';
+import { parisToday } from '../../lib/dates';
 import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor } from './filter-meta';
 import { BatchMultiSelect } from '../inputs/BatchMultiSelect';
 import { RemoveButton } from '../actions/RemoveButton';
@@ -46,7 +46,7 @@ export function DayValue({ value, onChange }: DayValueProps) {
         ]}
         value={mode}
         allowDeselect={false}
-        onChange={(next) => onChange(next === 'today' ? 'today' : next === 'past' ? `today-${days}` : next === 'future' ? `today+${days}` : localToday())}
+        onChange={(next) => onChange(next === 'today' ? 'today' : next === 'past' ? `today-${days}` : next === 'future' ? `today+${days}` : parisToday())}
         w={140}
       />
       {(mode === 'past' || mode === 'future') && (

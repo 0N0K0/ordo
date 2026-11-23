@@ -7,7 +7,7 @@ import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
 import { isDone, panelOccurrence, routineTreeOptions, currentRoutineState, waitingFor, blockedRoutineIds } from './routine-format';
 import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_BADGES, type RoutineEnv } from './routine-view';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import { LAST_RANK } from '../../../components/data-table/table/table-engine';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 import { stateColumn } from '../../../components/data-table/table/state-column';
@@ -204,7 +204,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       hiddenByDefault: true,
       sortValue: (routine) => routine.lastDoneAt || null,
       text: (routine) => (routine.lastDoneAt ? fmt.dateTime(routine.lastDoneAt) : ''),
-      filter: { kind: 'date', value: (routine) => (routine.lastDoneAt ? localDay(routine.lastDoneAt) : null) },
+      filter: { kind: 'date', value: (routine) => (routine.lastDoneAt ? parisDay(routine.lastDoneAt) : null) },
     },
     {
       id: 'assignees',

@@ -1,6 +1,7 @@
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 
-import { parisInstant, plannedPauses, plannedSlots, withinSlots, type WorkScheduleRule } from '@ordo/shared';
+import { plannedPauses, plannedSlots, withinSlots, type WorkScheduleRule } from '@ordo/shared';
+import { parisInstant } from '../../../lib/dates';
 
 import { useWorkingHours } from '../api';
 import { useActiveWorkspace } from '../../workspaces/api';

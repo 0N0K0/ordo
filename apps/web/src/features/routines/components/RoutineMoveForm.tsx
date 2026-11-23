@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { SubSection } from '../../../components/page/SubSection';
 import { ON_ERROR } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useRoutineMutations, useRoutineOccurrences, useRoutinesData, type RoutineOccurrence } from '../api';
 import { dueDayOf, movableOccurrence, moveTo, movesOf, windowText } from '../lib/routine-format';
 import { useRoutineMove } from '../hooks/use-routine-move';
@@ -53,7 +53,7 @@ const timesOf = (occurrence: RoutineOccurrence | undefined): Times =>
 export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDone: () => void }) {
   const { data } = useRoutinesData();
   const routine = data?.routines.find((item) => item.id === routineId);
-  const today = localToday();
+  const today = parisToday();
   const [range] = useState(() => ({ from: addDays(today, -PAST_DAYS), to: addDays(today, NEXT_DAYS) }));
   const { data: allOccurrences } = useRoutineOccurrences(range);
   // Those not ticked (a ticked one is not changed) nor cancelled (given back from the exceptions), late ones only when past.

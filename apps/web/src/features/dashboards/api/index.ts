@@ -35,7 +35,7 @@ const SprintTaskStatusesDocument = graphql(`
 
 /**
  * Status of the tasks of the ended sprints at the end of each sprint, by "sprint|task".
- * @param {string} today User's day.
+ * @param {string} today Today in Paris.
  * @param {boolean} enabled Loaded (charts by sprint or filtered on it).
  * @returns {UseQueryResult<Map<string, SprintTaskStatus>>} Query state.
  */

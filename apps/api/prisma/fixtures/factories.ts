@@ -1,4 +1,4 @@
-import { addDays, chartConfigSchema, DAY_MS, DEFAULT_RECURRENCE, emptyTableFilter, minutesToTime, parseDay, type Recurrence, twoDigits, wholeDaysCase } from '@ordo/shared';
+import { addDays, chartConfigSchema, DAY_MS, dayIn, DEFAULT_RECURRENCE, emptyTableFilter, minutesToTime, parisInstant, parseDay, type Recurrence, twoDigits, weekdayOfDate, wholeDaysCase } from '@ordo/shared';
 import type { z } from 'zod';
 import { fakerFR as faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
@@ -40,13 +40,20 @@ const TASK_OBJECTS = [
 ];
 
 /**
- * Calendar date (midnight UTC), as stored in @db.Date columns.
+ * Calendar date (midnight UTC) of the Paris day of a date, as stored in @db.Date columns.
  * @param {Date} date Any date.
  * @returns {Date} Date at midnight UTC.
  */
 export function utcDay(date: Date): Date {
-  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  return parseDay(dayIn(date));
 }
+
+/**
+ * Whether a date falls on a Saturday or a Sunday in Paris.
+ * @param {Date} date Date.
+ * @returns {boolean} A weekend day.
+ */
+const onWeekend = (date: Date): boolean => weekdayOfDate(dayIn(date)) >= 6;
 
 /**
  * Days counted from today, as the fixtures date things: `const day = relativeDay(today); day(-3)`.
@@ -58,15 +65,14 @@ export function relativeDay(today: string): (offset: number) => string {
 }
 
 /**
- * Instant at a local hour of a day (the machine's time zone, as the app's users).
+ * Instant at a Paris hour of a day (every hour of Ordo is a Paris hour).
  * @param {string} day Day, YYYY-MM-DD.
  * @param {number} hour Hour, 0 to 23.
  * @param {number} [minute] Minute. Optional. Default = 0.
  * @returns {Date} Instant.
  */
-export function localAt(day: string, hour: number, minute = 0): Date {
-  // eslint-disable-next-line no-restricted-syntax -- localAt itself.
-  return new Date(`${day}T${twoDigits(hour)}:${twoDigits(minute)}:00`);
+export function parisAt(day: string, hour: number, minute = 0): Date {
+  return parisInstant(day, `${twoDigits(hour)}:${twoDigits(minute)}`);
 }
 
 /**
@@ -222,15 +228,15 @@ const WORK_DETAILS = [
 ];
 
 /**
- * Finished time entry on a working day of the last six weeks, between 8:00 and 18:00 (local time),
+ * Finished time entry on a working day of the last six weeks, between 8:00 and 18:00 (Paris time),
  * from 15 minutes to 3 h 30. Entries tracked with the timer sometimes include pauses.
  */
 export const timeEntryFactory = Factory.define<Prisma.TimeEntryUncheckedCreateInput, object, TimeEntry>(({ onCreate }) => {
   onCreate((data) => prisma.timeEntry.create({ data }));
   let day = faker.date.recent({ days: 42 });
   // Working days only.
-  while (day.getDay() === 0 || day.getDay() === 6) day = new Date(day.getTime() - DAY_MS);
-  const startedAt = new Date(day.getFullYear(), day.getMonth(), day.getDate(), faker.number.int({ min: 8, max: 16 }), faker.helpers.arrayElement([0, 15, 30, 45]));
+  while (onWeekend(day)) day = new Date(day.getTime() - DAY_MS);
+  const startedAt = parisInstant(dayIn(day), `${twoDigits(faker.number.int({ min: 8, max: 16 }))}:${twoDigits(faker.helpers.arrayElement([0, 15, 30, 45]))}`);
   const duration = faker.number.int({ min: 1, max: 14 }) * 15 * 60;
   const pausedSeconds = faker.datatype.boolean(0.25) ? faker.number.int({ min: 2, max: 30 }) * 60 : 0;
   const lines = [faker.helpers.arrayElement(WORK_LOG)];
@@ -244,10 +250,6 @@ export const timeEntryFactory = Factory.define<Prisma.TimeEntryUncheckedCreateIn
     duration,
   };
 });
-
-/** Time zone of the machine, for the fixtures' days. */
-// eslint-disable-next-line no-restricted-syntax -- TIME_ZONE itself.
-const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const EVENT_LABELS = [
   'Rendez-vous client',
@@ -263,15 +265,7 @@ const EVENT_LABELS = [
 ];
 const PLACES = ['Bureau', 'Salle Ada', 'Salle Turing', 'Chez le client', 'Café du coin', 'Visio'];
 
-/**
- * Local YYYY-MM-DD of a date.
- * @param {Date} date Date.
- * @returns {string} Calendar date.
- */
-export function localDate(date: Date): string {
-  // eslint-disable-next-line no-restricted-syntax -- the parts of a local day, not a display format.
-  return new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
-}
+
 
 /**
  * One-off event on a working day from three weeks ago to five weeks ahead, between 8:00 and 18:00, lasting
@@ -281,10 +275,10 @@ export function localDate(date: Date): string {
 export const calendarEventFactory = Factory.define<Prisma.CalendarEventUncheckedCreateInput, object, CalendarEvent>(({ onCreate }) => {
   onCreate(async (data) => prisma.calendarEvent.create({ data: { ...data, calendarId: data.calendarId || (await resolveCalendarId()) } }));
   let day = faker.date.between({ from: new Date(Date.now() - 21 * DAY_MS), to: new Date(Date.now() + 35 * DAY_MS) });
-  while (day.getDay() === 0 || day.getDay() === 6) day = new Date(day.getTime() + DAY_MS);
+  while (onWeekend(day)) day = new Date(day.getTime() + DAY_MS);
   const start = faker.number.int({ min: 16, max: 34 }) * 30;
   const end = Math.min(start + faker.helpers.arrayElement([30, 60, 60, 90, 120, 180]), 20 * 60);
-  const date = parseDay(localDate(day));
+  const date = parseDay(dayIn(day));
   const place = faker.helpers.arrayElement(PLACES);
   return {
     label: faker.helpers.arrayElement(EVENT_LABELS),

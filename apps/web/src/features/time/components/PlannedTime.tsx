@@ -1,7 +1,7 @@
 import { Group, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { addDays, daysBetween, entrySecondsWithin, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
 import { useMemo } from 'react';
-import { localMidnight } from '../../../lib/dates';
+import { parisMidnight } from '../../../lib/dates';
 import { useWorkingHours } from '../../calendar/api';
 import { schedulesTitle } from '../../calendar/lib/schedule-text';
 import { useActiveWorkspace } from '../../workspaces/api';
@@ -47,7 +47,7 @@ export function PlannedTime() {
   const sunday = addDays(after, -1);
   const length = daysBetween(monday, after);
   const { data: rules } = useWorkingHours();
-  const entries = useTimeEntriesSince(localMidnight(monday));
+  const entries = useTimeEntriesSince(parisMidnight(monday));
   const running = (entries.data ?? []).some((entry) => entry.endedAt === null && entry.pausedAt === null);
   const now = useNow(running);
 
@@ -60,7 +60,7 @@ export function PlannedTime() {
     for (const entry of entries.data ?? []) {
       for (let index = 0; index < length; index += 1) {
         const day = addDays(monday, index);
-        const seconds = entrySecondsWithin(entry, Date.parse(localMidnight(day)), Date.parse(localMidnight(addDays(day, 1))), now);
+        const seconds = entrySecondsWithin(entry, Date.parse(parisMidnight(day)), Date.parse(parisMidnight(addDays(day, 1))), now);
         if (seconds) trackedByDay.set(day, (trackedByDay.get(day) ?? 0) + seconds);
       }
     }

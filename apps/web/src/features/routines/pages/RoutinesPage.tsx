@@ -15,7 +15,7 @@ import { PageTabs } from '../../../components/tabs/PageTabs';
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { ON_ERROR } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -79,7 +79,7 @@ function movedCategories(categoryIds: string[], from: string | null, to: string 
 export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; projectIds?: ReadonlySet<string> }) {
   const { data, isLoading } = useRoutinesData();
   const { context } = useTaskContext();
-  const today = localToday();
+  const today = parisToday();
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const { data: running } = useRunningTimers();

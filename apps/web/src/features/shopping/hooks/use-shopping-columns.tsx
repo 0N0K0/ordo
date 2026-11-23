@@ -6,7 +6,7 @@ import { FEEDBACK_COLORS } from '../../../components/feedback/feedback-colors';
 import { BADGE_COLUMN, multiValues, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { itemChoices } from '../../../components/items/item-look';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
@@ -159,7 +159,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       size: 110,
       sortValue: (list) => list.createdAt,
       text: (list) => fmt.day(list.createdAt),
-      filter: { kind: 'date', value: (list) => localDay(list.createdAt) },
+      filter: { kind: 'date', value: (list) => parisDay(list.createdAt) },
     },
     {
       id: 'closedAt',
@@ -168,7 +168,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       hiddenByDefault: true,
       sortValue: (list) => list.closedAt || null,
       text: (list) => (list.closedAt ? fmt.day(list.closedAt) : ''),
-      filter: { kind: 'date', value: (list) => (list.closedAt ? localDay(list.closedAt) : null) },
+      filter: { kind: 'date', value: (list) => (list.closedAt ? parisDay(list.closedAt) : null) },
     },
     booleanColumn<ShoppingList>({ id: 'paid', label: 'Payée', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Payée', no: 'À payer' }, value: (list) => list.entryId !== null }),
     {
@@ -334,7 +334,7 @@ export function useBaseListColumns(baseList: ShoppingBaseList | null, products: 
         size: 120,
         sortValue: (product) => product.lastPurchasedAt ?? null,
         text: (product) => (product.lastPurchasedAt ? `${fmt.day(product.lastPurchasedAt)}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
-        filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(product.lastPurchasedAt) : null) },
+        filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? parisDay(product.lastPurchasedAt) : null) },
       },
       booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, states: MISSING_STATES, groupLabels: { yes: 'Manquants', no: 'Pourvus' }, value: (product) => product.missing }),
       booleanColumn<ShoppingProduct>({ id: 'stockTracked', label: 'Suivie en stock', size: 130, bulk: true, hiddenByDefault: true, groupable: true, states: STOCK_TRACKED_STATES, groupLabels: { yes: 'Suivis en stock', no: 'Non suivis en stock' }, value: (product) => product.stockTracked }),

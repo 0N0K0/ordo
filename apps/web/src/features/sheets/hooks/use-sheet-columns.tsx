@@ -3,7 +3,7 @@ import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColum
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 import type { DataColumn, YesNoStates } from '../../../components/data-table/table/data-table';
 import { itemChoices } from '../../../components/items/item-look';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
@@ -85,7 +85,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       hiddenByDefault: true,
       sortValue: (sheet) => sheet.updatedAt,
       text: (sheet) => fmt.day(sheet.updatedAt),
-      filter: { kind: 'date', value: (sheet) => localDay(sheet.updatedAt) },
+      filter: { kind: 'date', value: (sheet) => parisDay(sheet.updatedAt) },
     },
   ];
 }

@@ -1,4 +1,4 @@
-import { chart, localAt } from './factories';
+import { chart, parisAt } from './factories';
 import { fakerFR as faker } from '@faker-js/faker';
 import { addDays, documentChartFilterSchema, emptyTableFilter, INVOICE_TYPES, parseDay } from '@ordo/shared';
 import type { z } from 'zod';
@@ -59,7 +59,7 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
       if (index < 3) {
         for (const task of chosen.filter((item) => item.closedAt)) {
           const day = addDays(start, faker.number.int({ min: 1, max: index === 2 ? 6 : 13 }));
-          await prisma.task.update({ where: { id: task.id }, data: { closedAt: localAt(day, faker.number.int({ min: 9, max: 17 })) } });
+          await prisma.task.update({ where: { id: task.id }, data: { closedAt: parisAt(day, faker.number.int({ min: 9, max: 17 })) } });
         }
       }
     }

@@ -13,7 +13,7 @@ import { Link } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { localDay, localToday } from '../../../lib/dates';
+import { parisDay, parisToday } from '../../../lib/dates';
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccounts } from '../../mail/api';
 import { OVERDUE_COLUMNS } from '../lib/accounting-columns';
@@ -38,7 +38,7 @@ const REMIND_AFTER_DAYS = 7;
  */
 function daysSinceReminder(invoice: OverdueInvoice, today: string): number | null {
   if (!invoice.lastReminderAt) return null;
-  return daysBetween(localDay(invoice.lastReminderAt), today);
+  return daysBetween(parisDay(invoice.lastReminderAt), today);
 }
 
 /**
@@ -47,7 +47,7 @@ function daysSinceReminder(invoice: OverdueInvoice, today: string): number | nul
  * @returns {JSX.Element} Panel.
  */
 export function OverdueInvoicesPanel() {
-  const today = localToday();
+  const today = parisToday();
   const { data: invoices, isPending } = useOverdueInvoices(today);
   const { data: accounts } = useMailAccounts();
   const { sendReminders } = useTrackingMutations();
@@ -188,7 +188,7 @@ export function OverdueInvoicesPanel() {
         }}
         cells={(invoice) => {
           // Reminders count from the sending.
-          const sentDay = invoice.sentAt ? localDay(invoice.sentAt) : null;
+          const sentDay = invoice.sentAt ? parisDay(invoice.sentAt) : null;
           const sentSince = sentDay ? daysBetween(sentDay, today) : 0;
           const since = daysSinceReminder(invoice, today);
           return {

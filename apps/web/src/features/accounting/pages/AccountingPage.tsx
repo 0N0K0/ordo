@@ -18,7 +18,7 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { ChipChoiceCell } from '../../../components/data-table/cells/ChipChoiceCell';
 import { useSearchParams } from 'react-router';
-import { localToday, yearOfDay } from '../../../lib/dates';
+import { parisToday, yearOfDay } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import { CatalogPanel } from '../components/CatalogPanel';
 import { OverdueInvoicesPanel } from '../components/OverdueInvoicesPanel';
@@ -181,7 +181,7 @@ export function AccountingPage() {
   const [tab, setTab] = usePageTab(PAGE_TABS, 'QUOTE', ACCOUNTING_MOVED_TABS);
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
-  const overdue = useOverdueInvoices(localToday());
+  const overdue = useOverdueInvoices(parisToday());
   const [settingsTab, setSettingsTab] = useSettingsTab(SETTINGS_TABS);
   // The former parameter of the tab of the settings (links, bookmarks): the one of every page.
   useEffect(() => {
@@ -192,7 +192,7 @@ export function AccountingPage() {
   // of every type and year.
   // Years of the documents, offered by the download of a period.
   const yearOf = (date: string) => String(yearOfDay(date));
-  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), yearOf(localToday())])]
+  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), yearOf(parisToday())])]
     .sort()
     .reverse();
   // Archived ones are not to do any more.

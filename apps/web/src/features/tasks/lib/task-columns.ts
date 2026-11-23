@@ -33,7 +33,7 @@ import { type TaskContext, taskNumber } from '../hooks/use-task-context';
 import { BULK_EDITABLE_COLUMNS, COLUMN_LABELS, COLUMN_SIZES, LOCKED_COLUMNS } from './columns-meta';
 import { eventCell, taskCell } from './export';
 import { eventSortValue, sortValue } from './task-rows';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
 import { isTaskOverdue } from './task-overdue';
 import { taggedKey } from '../../../lib/tagged-key';
@@ -289,7 +289,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       }
       case 'createdAt':
       case 'updatedAt':
-        return { kind: 'date', value: (row) => (row.kind === 'task' ? localDay(row.task[id]) : null) };
+        return { kind: 'date', value: (row) => (row.kind === 'task' ? parisDay(row.task[id]) : null) };
       case 'slots':
         // Schedules and kinds its condition names, on or out of them.
         return {

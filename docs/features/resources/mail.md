@@ -216,7 +216,7 @@ Le focus va sur « À » s’il est vide, sinon au début du corps.
 
 « Programmer » (mêmes conditions que « Envoyer ») ouvre « Envoyer plus tard » :
 
-- « Cet après-midi » (14 h, proposé seulement avant 13 h), « Demain matin » (8 h), « \<Premier jour de la semaine\> matin » (8 h, le prochain premier jour de semaine de l’espace, ex. « Lundi matin ») ; l’heure exacte est affichée à droite.
+- Heures de Paris, quel que soit le fuseau du navigateur : « Cet après-midi » (14 h, proposé seulement avant 13 h), « Demain matin » (8 h), « \<Premier jour de la semaine\> matin » (8 h, le prochain premier jour de semaine de l’espace, ex. « Lundi matin ») ; l’heure exacte est affichée à droite.
 - « Date et heure » libres (à partir d’aujourd’hui, le jour et l’heure dans un seul sélecteur), puis « Programmer l’envoi ».
 
 Toast « Envoi programmé le \<date courte et heure\>. ». Le mail est construit tout de suite (fichiers compris) et son brouillon est supprimé.

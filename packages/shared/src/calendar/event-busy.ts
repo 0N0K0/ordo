@@ -1,6 +1,6 @@
-import { addDays, dayIn, timeIn } from '../dates/days';
+import { addDays, dayIn, PARIS_ZONE, timeIn } from '../dates/days';
 import { zonedInstant } from '../dates/recurrence';
-import { PARIS_ZONE, parisInstant } from '../dates/reminders';
+import { parisInstant } from '../dates/reminders';
 import { nextConditionMoment, type SlotCondition, type SlotsOn } from './slot-conditions';
 import type { ScheduleCase } from './work-schedules';
 
@@ -49,7 +49,7 @@ const peopleOf = (ids: readonly string[], meId: string | null) => (ids.length ? 
  * @param {BusyItem} item Task or routine.
  * @param {string | null} meId « Moi ».
  * @param {Date} at Moment.
- * @param {string} day Local day of the moment (YYYY-MM-DD).
+ * @param {string} day Day of the moment in Paris (YYYY-MM-DD).
  * @returns {BusyEvent | undefined} Event, if any.
  */
 export function blockingEvent(events: readonly BusyEvent[], item: BusyItem, meId: string | null, at: Date, day: string): BusyEvent | undefined {
@@ -67,17 +67,14 @@ export function blockingEvent(events: readonly BusyEvent[], item: BusyItem, meId
 
 /**
  * Moment an event stops keeping someone busy: its end, or the midnight after its last day for an all-day one (in a
- * time zone, else the local one).
+ * time zone).
  * @param {BusyEvent} event Event.
- * @param {string} [timeZone] Time zone of its days. Optional. Default = the local one.
+ * @param {string} [timeZone] Time zone of its days. Optional. Default = Paris.
  * @returns {Date} Moment.
  */
-export function busyUntil(event: BusyEvent, timeZone?: string): Date {
+export function busyUntil(event: BusyEvent, timeZone: string = PARIS_ZONE): Date {
   if (!event.allDay) return new Date(event.end);
-  const next = addDays(event.endDate, 1);
-  if (timeZone) return zonedInstant(next, '00:00', timeZone);
-  const [year, month, day] = next.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  return zonedInstant(addDays(event.endDate, 1), '00:00', timeZone);
 }
 
 /** Days ahead the next moment a task or a routine can be done is looked for. */

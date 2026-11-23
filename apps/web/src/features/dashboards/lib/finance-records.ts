@@ -14,7 +14,7 @@ import {
   fromCents,
   DRAFT_NAME,
 } from '@ordo/shared';
-import { localDay, localToday } from '../../../lib/dates';
+import { parisDay, parisToday } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../../accounting/lib/labels';
@@ -112,7 +112,7 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
     imported: false,
     issueDate: document.issueDate,
     dueDate: document.dueDate || null,
-    sentAt: document.sentAt ? localDay(document.sentAt) : null,
+    sentAt: document.sentAt ? parisDay(document.sentAt) : null,
     acceptedAt: document.acceptedAt || null,
     clientId: document.clientId,
     clientName: document.clientName,
@@ -142,7 +142,7 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
         totalGross: document.totalGross,
         paid: document.paid ?? 0,
         balance: document.balance ?? 0,
-        overdue: Boolean(document.dueDate && (document.balance ?? 0) > 0 && document.dueDate < localToday()),
+        overdue: Boolean(document.dueDate && (document.balance ?? 0) > 0 && document.dueDate < parisToday()),
       }))
     : [];
   return [...own, ...before].filter(
@@ -163,7 +163,7 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
  * @param {ChartConfig} config Configuration.
  * @param {TaskContext} context Task context (projects).
  * @param {Set<string> | null} projects Projects of the dashboard scope, or null.
- * @param {string} today User's day.
+ * @param {string} today Today in Paris.
  * @returns {ChartData} Data.
  */
 export function documentChartData(
@@ -330,7 +330,7 @@ interface ChartMovement {
  * @param {ChartConfig} input.config Configuration.
  * @param {TaskContext} input.context Task context (projects).
  * @param {Set<string> | null} input.projects Projects of the dashboard scope, or null.
- * @param {string} input.today User's day.
+ * @param {string} input.today Today in Paris.
  * @returns {ChartData} Data.
  */
 export function treasuryChartData({
@@ -526,7 +526,7 @@ export function treasuryChartData({
  * and expected after (when the forecast is included).
  * @param {TreasuryProjection | null} projection Projection.
  * @param {ChartConfig} config Configuration.
- * @param {string} today User's day.
+ * @param {string} today Today in Paris.
  * @returns {ChartData} Data.
  */
 function balanceChartData(projection: TreasuryProjection | null, config: ChartConfig, today: string): ChartData {

@@ -5,7 +5,7 @@ import { monthColumn } from '../../../components/data-table/table/month-column';
 import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
 import { signedText } from '../../../components/money/signed-text';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
@@ -37,7 +37,7 @@ export const MOVEMENT_COLUMNS: DataColumn<StockMovement>[] = [
     required: true,
     sortValue: (movement) => movement.date,
     text: (movement) => fmt.dateTime(movement.date),
-    filter: { kind: 'date', value: (movement) => localDay(movement.date) },
+    filter: { kind: 'date', value: (movement) => parisDay(movement.date) },
   },
   monthColumn('month', 'Mois', (movement) => movement.date, 130),
   { id: 'item', label: 'Article', size: 200, locked: true, required: true, sortValue: (movement) => movement.itemLabel, text: (movement) => movement.itemLabel, groupable: true },
@@ -86,7 +86,7 @@ export const LOT_COLUMNS: DataColumn<StockLot>[] = [
     size: 130,
     sortValue: (lot) => lot.createdAt,
     text: (lot) => fmt.day(lot.createdAt),
-    filter: { kind: 'date', value: (lot) => localDay(lot.createdAt) },
+    filter: { kind: 'date', value: (lot) => parisDay(lot.createdAt) },
   },
 ];
 
@@ -193,7 +193,7 @@ export function useStockItemColumns(): DataColumn<StockItem>[] {
       hiddenByDefault: true,
       sortValue: (item) => item.updatedAt,
       text: (item) => fmt.day(item.updatedAt),
-      filter: { kind: 'date', value: (item) => localDay(item.updatedAt) },
+      filter: { kind: 'date', value: (item) => parisDay(item.updatedAt) },
     },
     commentColumn<StockItem>(
       comments,
@@ -225,7 +225,7 @@ export function useCountColumns(): DataColumn<StockCount>[] {
       locked: true,
       sortValue: (count) => count.date,
       text: (count) => fmt.dateTime(count.date),
-      filter: { kind: 'date', value: (count) => localDay(count.date) },
+      filter: { kind: 'date', value: (count) => parisDay(count.date) },
     },
     {
       id: 'location',

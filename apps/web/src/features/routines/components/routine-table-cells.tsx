@@ -1,7 +1,7 @@
 import { Badge, Group, Text, Tooltip } from '@mantine/core';
 import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
 import { ArrowBendUpRightIcon } from '@phosphor-icons/react';
-import { localToday, parisParts } from '../../../lib/dates';
+import { parisToday, parisParts } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useNow } from '../../../lib/use-now';
 import { TimerToggle } from '../../time/components/TimerToggle';
@@ -131,7 +131,7 @@ export function AddRoutineRow({ categoryId, projectId, groupName }: { categoryId
           description: null,
           categoryIds: categoryId ? [categoryId] : [],
           parentId: null,
-          startDate: localToday(),
+          startDate: parisToday(),
           recurrence: DAILY,
           estimate: null,
           projectId,

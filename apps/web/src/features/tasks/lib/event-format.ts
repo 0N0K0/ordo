@@ -3,7 +3,7 @@ import type { EventOccurrence } from '../../calendar/api';
 import * as fmt from '../../../lib/format';
 
 /**
- * Start or end of an event: its day for an all-day event (the end day included), else its local date and time.
+ * Start or end of an event: its day for an all-day event (the end day included), else its date and time in Paris.
  * @param {EventOccurrence} event Occurrence.
  * @param {'start' | 'end'} side Start or end.
  * @param {boolean} [numeric] Numeric format (01/02/2026 09:30), for exports. Optional.

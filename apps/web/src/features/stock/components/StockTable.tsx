@@ -15,7 +15,7 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
 
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { addDays } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { ON_ERROR } from '../../../lib/notify';
@@ -56,7 +56,7 @@ export function StockTable() {
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
   const setArchived = useSetArchived('STOCK_ITEM', [stockKey]);
   const { shown: rows, toggle: archivedToggle } = useArchivedToggle(items ?? []);
-  const today = localToday();
+  const today = parisToday();
   const soon = addDays(today, SOON);
   const categories = shopping?.shoppingCategories ?? [];
   const columns = useStockItemColumns();

@@ -3,7 +3,7 @@ import { Checkbox, Fieldset, FileInput, Select, SimpleGrid, Stack, Text, TextInp
 import { DateField } from '../../../components/inputs/DateField';
 import { ACCOUNTING_DOCUMENT_TYPES, type AccountingDocumentType, importedDocumentSchema, round2 } from '@ordo/shared';
 import { FilePdfIcon, FileArrowUpIcon } from '@phosphor-icons/react';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { useCachedItem } from '../../../lib/mutation';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
@@ -52,7 +52,7 @@ const TOTALS = ['totalNet', 'totalVat', 'totalGross'] as const;
 const importedValues = (document?: ImportedDocument): FormValues => ({
   type: document?.type ?? 'INVOICE',
   number: document?.number ?? '',
-  issueDate: document ? document.issueDate : localToday(),
+  issueDate: document ? document.issueDate : parisToday(),
   dueDate: document?.dueDate ? document.dueDate : null,
   clientId: document?.clientId ?? null,
   clientName: document && !document.clientId ? document.clientName : '',

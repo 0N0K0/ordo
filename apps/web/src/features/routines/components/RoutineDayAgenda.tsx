@@ -2,7 +2,6 @@ import { archivedIds } from '../../../lib/archive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, ClockIcon } from '@phosphor-icons/react';
 import type { EventClickArg, EventInput } from '@fullcalendar/core';
-import frLocale from '@fullcalendar/core/locales/fr';
 import interactionPlugin from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -10,7 +9,7 @@ import { Group, Stack, Text } from '@mantine/core';
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { addDays, plannedSlots, routineMinutes, routineSlotSpan, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
-import { localDay, localInstant } from '../../../lib/dates';
+import { parisDay, parisInstant } from '../../../lib/dates';
 import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
 import { useCalendarEvents, useCalendars, useScheduleSources, useSubscribedCalendarEvents } from '../../calendar/api';
 import { useNow } from '../../../lib/use-now';
@@ -18,6 +17,7 @@ import { occurrenceSpan, scheduleSources, slotBarLook, slotLookClasses } from '.
 import calendarClasses from '../../calendar/pages/CalendarPage.module.css';
 import { useRoutineMutations, type Routine, type RoutineCheck } from '../api';
 import { windowText } from '../lib/routine-format';
+import { parisCalendarOptions } from '../../calendar/lib/paris-calendar';
 import * as fmt from '../../../lib/format';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { taggedKey } from '../../../lib/tagged-key';
@@ -91,9 +91,9 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   const { setDone } = useRoutineMutations();
   const [time, setTime] = useState(() => proposedTime(item, today));
   // Day it was done: when it was if ticked, else its own (today for one to come); later for a late one.
-  const [day, setDay] = useState(() => (item.check ? localDay(item.check.doneAt) : item.dueDate > today ? today : item.dueDate));
+  const [day, setDay] = useState(() => (item.check ? parisDay(item.check.doneAt) : item.dueDate > today ? today : item.dueDate));
   const state = historyItemState(item, today);
-  const at = localInstant(day, time || '00:00');
+  const at = parisInstant(day, time || '00:00');
   // Now when the form opened: a later hour is refused.
   const now = useNow(false);
   const future = at.getTime() > now;
@@ -250,13 +250,13 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const span = routineSlotSpan(item, minutes);
     let start = span?.start ?? null;
     let end = span ? (span.end ?? MIDNIGHT) : null;
-    if (!span && doneAt && localDay(doneAt) === day) {
+    if (!span && doneAt && parisDay(doneAt) === day) {
       start = fmt.time(doneAt);
       const stop = shiftTime(start, minutes);
       end = stop > start ? stop : MIDNIGHT;
     }
     const timed = start !== null && end !== null && start < end;
-    const status = doneAt ? `faite à ${localDay(doneAt) === item.dueDate ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
+    const status = doneAt ? `faite à ${parisDay(doneAt) === item.dueDate ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
     events.push({
       id: taggedKey('routine', item.key),
       title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}${routine?.archived ? ' (archivée)' : ''}`,
@@ -290,10 +290,10 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     <FullCalendar
       // A new day: a new agenda on that day.
       key={day}
-      plugins={[timeGridPlugin, interactionPlugin]}
+      // Its hours and « now » are those of Paris, as the agenda.
+      {...parisCalendarOptions([timeGridPlugin, interactionPlugin])}
       initialView="timeGridDay"
       initialDate={day}
-      locale={frLocale}
       headerToolbar={false}
       dayHeaders={false}
       height="auto"

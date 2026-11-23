@@ -82,7 +82,7 @@ export type ChartPeriod = (typeof CHART_PERIODS)[number] | `${CalendarScale}:${s
 /**
  * First day and day after the last one of a calendar period, or null when the period is not one.
  * @param {string} period Period ("month:0", "quarter:-1", "year:2026-01-01"…).
- * @param {string} today User's day.
+ * @param {string} today Today in Paris.
  * @returns {[string, string] | null} Range.
  */
 export function calendarRange(period: string, today: string): [string, string] | null {

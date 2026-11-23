@@ -17,7 +17,7 @@ import { EditableDate, EditableSelect, EditableText } from '../../../components/
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { readOnlyCells } from '../../../components/data-table/table/data-table';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { notifyError, ON_ERROR } from '../../../lib/notify';
@@ -111,8 +111,8 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
     initialValues: schedule
       ? scheduleInputOf(schedule)
       : ephemeris
-        ? { label: '', startDate: localToday(), endDate: localToday(), cases: [wholeDaysCase()], exceptions: [], typeId: null, ephemeris: true, unavailable: false, reminders: [] }
-        : { label: 'Semaine type', startDate: localToday(), endDate: null, cases: [newScheduleCase(localToday())], exceptions: [], typeId: null, ephemeris: false, unavailable: false, reminders: [] },
+        ? { label: '', startDate: parisToday(), endDate: parisToday(), cases: [wholeDaysCase()], exceptions: [], typeId: null, ephemeris: true, unavailable: false, reminders: [] }
+        : { label: 'Semaine type', startDate: parisToday(), endDate: null, cases: [newScheduleCase(parisToday())], exceptions: [], typeId: null, ephemeris: false, unavailable: false, reminders: [] },
     schema: workScheduleSchema,
   });
   const { form, saving } = useFieldSave(base, {
@@ -264,7 +264,7 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
       clear,
     });
   const defaultColor = ephemeris ? EPHEMERIS_COLOR : (defaultKind?.color ?? null);
-  const today = localToday();
+  const today = parisToday();
   const rows = scheduleRows(schedules ?? [], today);
   const view = useDataView({
     tableKey: ephemeris ? 'ephemerides' : 'work-schedules',

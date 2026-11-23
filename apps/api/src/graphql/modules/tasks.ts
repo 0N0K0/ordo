@@ -566,9 +566,10 @@ builder.queryFields((t) => ({
   }),
   doableTasks: t.field({
     type: [TaskDoabilityRef],
-    description: 'Open tasks and whether they can be done now: opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.',
-    args: { utcOffset: t.arg.int({ required: true }) },
-    resolve: async (_root, { utcOffset }, ctx) => taskDoability(utcOffset, ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null),
+    description: 'Open tasks and whether they can be done now (Paris time): opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.',
+    // Still accepted so that an app installed before Paris time was read on the server keeps working until it updates.
+    args: { utcOffset: t.arg.int({ required: false, deprecationReason: 'Ignored: doability is read in Paris time.' }) },
+    resolve: async (_root, _args, ctx) => taskDoability(ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null),
   }),
   taskViews: t.prismaField({
     type: ['TaskView'],

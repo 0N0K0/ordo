@@ -3,8 +3,7 @@ import { END_AFTER_START, endsAfter, markdownSchema, markdownTextSchema, optiona
 import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, storedRecurrence, zonedInstant, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
-import { addDays, dayIn } from '../dates/days';
-import { PARIS_ZONE } from '../dates/reminders';
+import { addDays, dayIn, PARIS_ZONE } from '../dates/days';
 import { twoDigits } from '../core/numbers';
 
 /** What was done during a tracked time: markdown (its editor). Blank becomes null. */

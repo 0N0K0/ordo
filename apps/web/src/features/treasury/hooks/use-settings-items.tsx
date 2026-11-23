@@ -4,7 +4,7 @@ import { treasuryAccountSchema, treasuryCategorySchema, treasuryCounterpartySche
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { itemMutations, treeItemInput, type TreeItemValues } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { unarchived } from '../../../lib/archive';
 import { useTreasuryMutations, type TreasuryAccount, type TreasuryCategory, type TreasuryCounterpartyItem, type TreasuryPaymentMethod } from '../api';
@@ -42,7 +42,7 @@ export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtr
     extra: {
       initial: (account) => ({
         openingBalance: account?.openingBalance ?? 0,
-        openingDate: account ? account.openingDate : localToday(),
+        openingDate: account ? account.openingDate : parisToday(),
       }),
       onBlur: ['openingBalance'],
       render: (form) => (

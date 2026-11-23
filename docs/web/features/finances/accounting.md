@@ -420,7 +420,7 @@ Colonnes des tableaux de la facturation qui ne dépendent pas des données, lues
 | Export                        | Rôle                                                                                                                        |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `TimeGrouping` (type)         | `TOTAL`, `DAY`, `TASK`, `ENTRY`.                                                                                            |
-| `BillableTime` (interface)    | Temps à facturer : jour, secondes, description, tâches.                                                                     |
+| `BillableTime` (interface)    | Temps à facturer : jour (à Paris, `parisDay`), secondes, description, tâches.                                               |
 | `timeLines(entries, options)` | Lignes facturant du temps (voir [Règles](../../../business-rules/finances/accounting.md#temps-facturé)). `TimeBillingForm`. |
 
 Internes : `TimeLineOptions`, `quantityOf` (heures ou jours, arrondi au quart d’heure), `doneList` (descriptions en liste markdown).

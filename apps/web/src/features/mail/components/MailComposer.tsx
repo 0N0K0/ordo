@@ -1,7 +1,7 @@
 import { IconAction } from '../../../components/actions/IconAction';
 import { openModal } from '../../../components/panels/open-modal';
 import { addDays, WEEKDAY_LABELS, weekdayOfDate, twoDigits } from '@ordo/shared';
-import { localInstant, localToday } from '../../../lib/dates';
+import { parisInstant, parisParts, parisToday } from '../../../lib/dates';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
@@ -29,19 +29,19 @@ const AUTOSAVE_MS = 4000;
  * @returns {{ label: string, at: Date }[]} Moments to come.
  */
 function schedulePresets(): { label: string; at: Date }[] {
-  const today = localToday();
+  const today = parisToday();
   /**
    * A whole hour some days from today.
    * @param {number} days Days from today.
    * @param {number} hour Hour.
    * @returns {Date} Instant.
    */
-  const at = (days: number, hour: number) => localInstant(addDays(today, days), `${twoDigits(hour)}:00`);
+  const at = (days: number, hour: number) => parisInstant(addDays(today, days), `${twoDigits(hour)}:00`);
   // First day of the next week of the workspace.
   const week = currentWeek();
   const nextStart = (week.start - weekdayOfDate(today) + 7) % 7 || 7;
   return [
-    ...(new Date().getHours() < 13 ? [{ label: 'Cet après-midi', at: at(0, 14) }] : []),
+    ...(parisParts(new Date()).time < '13:00' ? [{ label: 'Cet après-midi', at: at(0, 14) }] : []),
     { label: 'Demain matin', at: at(1, 8) },
     { label: `${fmt.capitalize(WEEKDAY_LABELS[week.start - 1])} matin`, at: at(nextStart, 8) },
   ];
@@ -87,7 +87,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
   const accounts = allAccounts && unarchived(allAccounts);
   const { send, saveDraft, deleteDraft, schedule } = useMailActions();
   const [scheduling, setScheduling] = useState(false);
-  const [sendAt, setSendAt] = useState<string | null>(null);
+  const [sendAt, setSendAt] = useState<{ day: string; time: string } | null>(null);
   const [accountId, setAccountId] = useState<string | null>(options.accountId ?? null);
   const [to, setTo] = useState(options.to ?? []);
   const [cc, setCc] = useState(options.cc ?? []);
@@ -454,13 +454,13 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                 <DateTimeField
                   label="Date et heure"
                   placeholder="Choisir…"
-                  minDate={new Date()}
-                  day={sendAt?.split(' ')[0] ?? null}
-                  time={sendAt?.split(' ')[1].slice(0, 5) ?? null}
-                  onChange={(day, time) => setSendAt(day && time ? `${day} ${time}:00` : null)}
+                  minDate={parisToday()}
+                  day={sendAt?.day ?? null}
+                  time={sendAt?.time ?? null}
+                  onChange={(day, time) => setSendAt(day && time ? { day, time } : null)}
                   popoverProps={{ withinPortal: false }}
                 />
-                <ActionButton size="xs" icon={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && void scheduleAt(new Date(sendAt.replace(' ', 'T')))}>
+                <ActionButton size="xs" icon={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && void scheduleAt(parisInstant(sendAt.day, sendAt.time))}>
                   Programmer l’envoi
                 </ActionButton>
               </Stack>

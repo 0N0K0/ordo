@@ -1,4 +1,4 @@
-import { localMidnight, monthOfDay, yearOfDay } from '../../../lib/dates';
+import { parisMidnight, monthOfDay, yearOfDay } from '../../../lib/dates';
 import { addDays, entrySecondsWithin, filterPeriod } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
@@ -205,7 +205,7 @@ export interface WeekTime {
  */
 export function useWeekTime(today: string): WeekTime | null {
   const [monday] = filterPeriod('thisWeek', today, currentWeek());
-  const entries = useTimeEntriesSince(localMidnight(monday));
+  const entries = useTimeEntriesSince(parisMidnight(monday));
   const running = entries.data?.some((entry) => !entry.endedAt && !entry.pausedAt && entry.duration === null) ?? false;
   const now = useNow(running);
   return useMemo(() => {
@@ -213,9 +213,9 @@ export function useWeekTime(today: string): WeekTime | null {
     const time: WeekTime = { today: 0, week: 0, byProject: [] };
     const byProject = new Map<string, number>();
     // The part of each time within the week and within today (a timer running past midnight counts on both days).
-    const weekStart = Date.parse(localMidnight(monday));
-    const dayStart = Date.parse(localMidnight(today));
-    const dayEnd = Date.parse(localMidnight(addDays(today, 1)));
+    const weekStart = Date.parse(parisMidnight(monday));
+    const dayStart = Date.parse(parisMidnight(today));
+    const dayEnd = Date.parse(parisMidnight(addDays(today, 1)));
     for (const entry of entries.data) {
       const seconds = entrySecondsWithin(entry, weekStart, Number.POSITIVE_INFINITY, now);
       time.week += seconds;

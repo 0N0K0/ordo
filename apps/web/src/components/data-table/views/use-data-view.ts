@@ -14,7 +14,7 @@ import { useCallback, useState } from 'react';
 import { useBulkSelection, type BulkCellProps, type BulkSelection } from '../selection/bulk-selection';
 import { newConditionFor } from '../../filters/filter-meta';
 import type { ColumnMenuExtras } from '../toolbar/ColumnHeaderMenu';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useSavedViews, viewParam, type SavedViewsState } from './use-saved-views';
 import { useTableColumnDefaults } from './api';
 import { shownColumns, type DataColumn, type ShownColumn } from '../table/data-table';
@@ -213,7 +213,7 @@ export function useDataView<R>({
   const sorting = config?.sorting ?? [];
   // The archived rows, once asked.
   const { shown: pool, toggle } = useArchivedToggle(rows, archived ?? NEVER_ARCHIVED);
-  const applied = config ? viewRows(pool, columns, config, localToday(), alwaysKept) : null;
+  const applied = config ? viewRows(pool, columns, config, parisToday(), alwaysKept) : null;
   const kept = applied?.rows ?? [];
   const [filterOpened, setFilterOpened] = useState(false);
   const fields = tableFilterFields(columns);

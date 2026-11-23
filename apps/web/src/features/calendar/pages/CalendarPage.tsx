@@ -12,19 +12,18 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { StateSwitch } from '../../../components/inputs/StateSwitch';
 
 import type { DateSelectArg, DatesSetArg, EventClickArg, EventDropArg, EventInput } from '@fullcalendar/core';
-import frLocale from '@fullcalendar/core/locales/fr';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import luxonPlugin from '@fullcalendar/luxon3';
+import { parisCalendarOptions } from '../lib/paris-calendar';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
-import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, PARIS_ZONE, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
+import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
 import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
-import { localMidnight, localToday, parisParts } from '../../../lib/dates';
+import { parisMidnight, parisToday, parisParts } from '../../../lib/dates';
 import { taskPlacement, type TaskSpanKind } from '../lib/task-calendar';
 import { notifyError, notifyWarning, onMutationError } from '../../../lib/notify';
 import { useSlotRules } from '../hooks/use-slot-rules';
@@ -166,9 +165,9 @@ export function CalendarPage() {
   const { data: birthdayLook } = useBirthdayLook();
   const openPerson = usePersonOpener();
   const { perso } = useActiveWorkspace();
-  // Tracked times of the displayed period (from its first day, local midnight).
+  // Tracked times of the displayed period (from its first day, midnight in Paris).
   const showTimers = config.timers;
-  const timeEntries = useTimeEntriesSince(range ? localMidnight(range.from) : null, showTimers && range !== null);
+  const timeEntries = useTimeEntriesSince(range ? parisMidnight(range.from) : null, showTimers && range !== null);
   const timerRunning = (timeEntries.data ?? []).some((entry) => entry.endedAt === null && entry.pausedAt === null);
   // A running timer grows every minute in the calendar.
   const now = useNow(showTimers && timerRunning);
@@ -481,7 +480,7 @@ export function CalendarPage() {
     // Birthdays of the people: read-only all-day events opening the person, hidden with the créneaux and éphémérides.
     if (range && birthdays && config.schedules) result.push(...birthdayEvents(birthdays, birthdayLook, range.from, range.to));
     if (config.tasks) {
-      const today = localToday();
+      const today = parisToday();
       for (const task of context.tasks) {
         if (task.archived || !kept.task(task.id)) continue;
         // Its dates, from start to end or to today; its latest acceptable date apart, today when late.
@@ -929,9 +928,8 @@ export function CalendarPage() {
       <Paper withBorder radius="md" p="xs" className={classes.calendar}>
         <FullCalendar
           ref={calendarRef}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, luxonPlugin]}
           // Days and hours of the app are those of Paris: shown and read so, whatever the zone of the browser.
-          timeZone={PARIS_ZONE}
+          {...parisCalendarOptions([dayGridPlugin, timeGridPlugin, interactionPlugin])}
           // Lane of a line of planned slots, beside (or above) those of the other schedules that day.
           eventDidMount={(info) => {
             const lane: unknown = info.event.extendedProps.slotLane;
@@ -948,7 +946,6 @@ export function CalendarPage() {
           slotDuration={config.fineSlots ? '00:05:00' : '00:30:00'}
           slotLabelInterval="01:00:00"
           initialDate={requestedDate ?? undefined}
-          locale={frLocale}
           headerToolbar={false}
           // The month grows with its days (every task shown); week and day take the height left to the page.
           height={fill ? '100%' : 'auto'}

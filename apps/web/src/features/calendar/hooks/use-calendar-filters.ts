@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { filterRows, tableFilterFields } from '../../../components/data-table/table/table-engine';
 import type { FilterFields } from '../../../components/filters/FilterBuilder';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useNow } from '../../../lib/use-now';
 import type { Routine, RoutineCategory } from '../../routines/api';
 import { useRoutineColumns } from '../../routines/hooks/use-routine-columns';
@@ -91,7 +91,7 @@ const keeps =
  */
 export function useCalendarFilters(config: CalendarViewConfig, items: CalendarItems): { sections: CalendarFilterSection[]; kept: CalendarKept } {
   const { context, events, routines, routineCategories, entries, schedules, calendars, categories, perso } = items;
-  const today = localToday();
+  const today = parisToday();
   const { filters } = config;
   const taskColumns = useTaskColumns(context, today, { doable: config.tasks && filterUses(filters.tasks, 'doableNow') });
   const { columns: routineColumns } = useRoutineColumns(routines, routineCategories, today);

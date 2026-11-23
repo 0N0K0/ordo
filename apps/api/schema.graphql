@@ -3354,9 +3354,9 @@ type Query {
   defaultScheduleKind: DefaultScheduleKind!
 
   """
-  Open tasks and whether they can be done now: opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.
+  Open tasks and whether they can be done now (Paris time): opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.
   """
-  doableTasks(utcOffset: Int!): [TaskDoability!]!
+  doableTasks(utcOffset: Int @deprecated(reason: "Ignored: doability is read in Paris time.")): [TaskDoability!]!
   documentFolders: [DocumentFolder!]!
 
   """

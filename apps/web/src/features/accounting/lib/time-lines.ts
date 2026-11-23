@@ -8,7 +8,7 @@ export type TimeGrouping = 'TOTAL' | 'DAY' | 'TASK' | 'ENTRY';
 
 export interface BillableTime {
   id: string;
-  /** Local day, YYYY-MM-DD. */
+  /** Day in Paris, YYYY-MM-DD. */
   day: string;
   seconds: number;
   description: string | null;

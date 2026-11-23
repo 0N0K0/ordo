@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
-import { INHERITANCE_RULES, planReferencesConfig, TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
+import { INHERITANCE_RULES, PARIS_TIME_RULES, planReferencesConfig, TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
 
 // Detail panels saved field by field (useFieldSave): every one of the app.
 const D22_PANELS =
@@ -44,8 +44,8 @@ const RESTRICTED_PATHS = [
   },
   {
     name: '@ordo/shared',
-    importNames: ['dayIn', 'localInstant'],
-    message: 'Utiliser localDay / localInstant de lib/dates (le jour de l’utilisateur) : un seul chemin.',
+    importNames: ['dayIn', 'timeIn', 'zonedInstant', 'parisInstant', 'parisParts'],
+    message: 'Utiliser parisDay / parisToday / parisParts / parisInstant de lib/dates : tout jour et toute heure se lisent à l’heure de Paris, un seul chemin.',
   },
   {
     name: '@mantine/dates',
@@ -286,6 +286,12 @@ const RESTRICTED_SYNTAX = [
     selector: 'CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/]',
     message: 'Utiliser lib/format (fmt.day, fmt.time, fmt.number…) : un format par rôle.',
   },
+  // Days and times: read in Paris, whatever the zone of the browser.
+  ...PARIS_TIME_RULES,
+  {
+    selector: "ImportSpecifier[imported.name='localDay']",
+    message: 'Utiliser parisDay (lib/dates) : localDay n’est gardé que pour la bibliothèque de documents, à réécrire.',
+  },
   // Rows set back: the states of DataTable, not an opacity of their own.
   {
     selector: "JSXAttribute[name.name='rowProps'] Property[key.name='opacity']",
@@ -407,12 +413,12 @@ const RESTRICTED_SYNTAX = [
   // Days: a DateTime cut gives the UTC day; the Date scalar is already a day.
   {
     selector: "CallExpression[callee.property.name='slice'][arguments.length=2][arguments.0.value=0]:matches([arguments.1.value=7], [arguments.1.value=10])",
-    message: 'Pas de .slice(0, 10) / .slice(0, 7) : localDay(instant) (lib/dates) pour un instant, le scalaire Date tel quel pour un jour, monthColumn pour un mois.',
+    message: 'Pas de .slice(0, 10) / .slice(0, 7) : parisDay(instant) (lib/dates) pour un instant, le scalaire Date tel quel pour un jour, monthColumn pour un mois.',
   },
   {
     selector:
       "CallExpression[callee.property.name='substring'][arguments.length=2][arguments.0.value=0]:matches([arguments.1.value=7], [arguments.1.value=10]), MemberExpression[computed=true][property.value=0] > CallExpression.object[callee.property.name='split'][arguments.0.value='T']",
-    message: "Pas de .substring(0, 10) / .split('T')[0] : localDay(instant) (lib/dates) pour un instant, le scalaire Date tel quel pour un jour.",
+    message: "Pas de .substring(0, 10) / .split('T')[0] : parisDay(instant) (lib/dates) pour un instant, le scalaire Date tel quel pour un jour.",
   },
   {
     selector: "NewExpression[callee.name='Date'] TemplateElement[value.raw=/^T00:00/]",

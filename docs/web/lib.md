@@ -124,7 +124,7 @@ Voir [Règles : archivage](../business-rules/cross-cutting/archiving.md).
 
 ## Formats (`format.ts`)
 
-Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme numérique seulement dans les exports. Les dates acceptent un jour calendaire (YYYY-MM-DD, affiché tel quel) ou un instant (affiché dans le fuseau de l'utilisateur). eslint interdit `Intl.*Format` avec options et `toLocale*String` ailleurs.
+Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme numérique seulement dans les exports. Les dates acceptent un jour calendaire (YYYY-MM-DD, affiché tel quel) ou un instant (affiché à l'heure de Paris, quel que soit le fuseau du navigateur). eslint interdit `Intl.*Format` avec options et `toLocale*String` ailleurs.
 
 | Fonction                       | Exemple                                 | Rôle                                                              |
 | ------------------------------ | --------------------------------------- | ----------------------------------------------------------------- |
@@ -162,16 +162,16 @@ Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme
 
 ### `dates.ts`
 
-- `localDay(instant)` : jour (YYYY-MM-DD) d'un instant dans le fuseau de l'utilisateur.
-- `dayOf(value)` : jour d'un jour (ou mois) tel quel, ou d'un instant dans le fuseau de l'utilisateur.
-- `localToday()` : jour courant de l'utilisateur (~50 fichiers).
-- `localParts(instant)` : `{ date: 'YYYY-MM-DD', time: 'HH:MM' }` locaux.
-- `parisParts(instant)` : `{ date, time }` à l'heure de Paris, celle des jours et heures des routines et évènements, quel que soit le fuseau du navigateur.
-- `parisDay(value)` : jour à Paris d'un instant (date, texte ISO ou horodatage), un jour `YYYY-MM-DD` tel quel : le jour d'un temps (les évènements de son jour, comme l'API), des éléments du PDF de l'agenda.
-- `localMidnight(day)` : minuit local d'un jour, en date-heure ISO.
-- Réexports de `@ordo/shared` (seul chemin autorisé par eslint) : `monthOfDay`, `yearOfDay`, `localInstant` (instant d'un jour et d'une heure de l'utilisateur, partagé avec les alarmes).
+Tout jour et toute heure du web sont ceux de Paris, comme l'API, quel que soit le fuseau du navigateur ; un jour `YYYY-MM-DD` (ou un mois `YYYY-MM`) est gardé tel quel.
 
-eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('…T00:00')` : utiliser ces aides. Voir [Dates](../business-rules/cross-cutting/dates.md).
+- `parisDay(value)` : jour à Paris d'un instant (date, texte ISO ou horodatage), un jour ou un mois tel quel : jour d'un temps, d'une ligne d'un tableau, filtres et groupes par date, colonne « Mois »…
+- `parisToday()` : aujourd'hui à Paris (`useToday()` de `use-now.ts` le suit au passage de minuit).
+- `parisParts(instant)` : `{ date: 'YYYY-MM-DD', time: 'HH:MM' }` à Paris d'un instant (date ou texte ISO).
+- `parisMidnight(day)` : minuit à Paris d'un jour, en date-heure ISO.
+- `localDay` : `parisDay` sous son ancien nom, lu seulement par la bibliothèque de documents (à réécrire) ; eslint l'interdit ailleurs.
+- Réexports de `@ordo/shared` (seul chemin autorisé par eslint) : `monthOfDay`, `yearOfDay`, `parisInstant` (instant d'un jour et d'une heure de Paris : saisie d'un temps, envoi programmé, coche après coup…).
+
+eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('…T00:00')`, l'import de `dayIn`, `timeIn`, `zonedInstant`, `parisInstant`, `parisParts` depuis `@ordo/shared`, et la lecture d'une `Date` dans le fuseau du navigateur (`get`/`set` `FullYear`, `Month`, `Date`, `Day`, `Hours`, `Minutes`, `Seconds`, `getTimezoneOffset`, `toDateString`, `toTimeString`, `new Date(année, mois, …)`, `dayjs()` sans argument ; règle `PARIS_TIME_RULES` de `packages/shared/eslint-rules.js`, commune au web, au paquet partagé et à l'API) : utiliser ces aides. Voir [Dates](../business-rules/cross-cutting/dates.md).
 
 ### `periods.ts`
 

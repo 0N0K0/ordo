@@ -2,7 +2,7 @@ import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textare
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
 import { z } from 'zod';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
@@ -66,7 +66,7 @@ function alarmFormValues(alarm: Alarm): AlarmFormValues {
     label: alarm.label,
     note: alarm.note ?? '',
     type: alarm.type,
-    startDate: alarm.startDate ?? localToday(),
+    startDate: alarm.startDate ?? parisToday(),
     time: alarm.time ?? '09:00',
     recurrence: alarmRule(alarm),
     minutes: alarm.minutes ?? 50,
@@ -115,7 +115,7 @@ export function AlarmForm({ context, alarm, defaults, onDone }: AlarmFormProps) 
           label: defaults?.label ?? '',
           note: '',
           type: 'REMINDER',
-          startDate: localToday(),
+          startDate: parisToday(),
           time: '09:00',
           recurrence: null,
           minutes: 50,
@@ -165,7 +165,7 @@ export function AlarmForm({ context, alarm, defaults, onDone }: AlarmFormProps) 
               <RuleEditor
                 rule={draft.recurrence}
                 onChange={(recurrence) => setDraft({ ...draft, recurrence })}
-                start={draft.startDate ?? localToday()}
+                start={draft.startDate ?? parisToday()}
                 footer={
                   <DateTimeField
                     label={draft.recurrence ? 'À partir du' : 'Date et heure'}

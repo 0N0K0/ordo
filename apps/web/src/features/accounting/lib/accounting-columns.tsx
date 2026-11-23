@@ -3,7 +3,7 @@ import { DURATION_COLUMN, STACKED_COLUMN, type DataColumn } from '../../../compo
 import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
 import { FEEDBACK_COLORS } from '../../../components/feedback/feedback-colors';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { CatalogItem } from '../api/catalog';
@@ -44,8 +44,8 @@ export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     size: 230,
     ...STACKED_COLUMN,
     sortValue: (invoice) => invoice.sentAt ?? null,
-    text: (invoice) => (invoice.sentAt ? fmt.day(localDay(invoice.sentAt)) : ''),
-    filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? localDay(invoice.sentAt) : null) },
+    text: (invoice) => (invoice.sentAt ? fmt.day(parisDay(invoice.sentAt)) : ''),
+    filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? parisDay(invoice.sentAt) : null) },
   },
   {
     id: 'balance',
@@ -63,7 +63,7 @@ export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     ...STACKED_COLUMN,
     sortValue: (invoice) => invoice.lastReminderAt ?? null,
     text: (invoice) => (invoice.lastReminderAt ? fmt.day(invoice.lastReminderAt) : 'Jamais'),
-    filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(invoice.lastReminderAt) : null) },
+    filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? parisDay(invoice.lastReminderAt) : null) },
   },
   { id: 'email', label: 'Destinataire', size: 240, sortValue: (invoice) => invoice.billingEmail ?? null, text: (invoice) => invoice.billingEmail ?? '' },
 ];

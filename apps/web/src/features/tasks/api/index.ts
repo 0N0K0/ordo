@@ -673,8 +673,8 @@ const BulkDeleteTasksDocument = graphql(`
 `);
 
 const DoableTasksDocument = graphql(`
-  query DoableTasks($utcOffset: Int!) {
-    doableTasks(utcOffset: $utcOffset) {
+  query DoableTasks {
+    doableTasks {
       id
       reason
     }
@@ -710,7 +710,7 @@ const waitReasonsOf = (tasks: DoableTasksQuery['doableTasks']): TaskWaitReasons 
 function useDoableTasks<T>(enabled: boolean, select: (tasks: DoableTasksQuery['doableTasks']) => T) {
   const { data } = useQuery({
     queryKey: doableTasksKey,
-    queryFn: async () => (await execute(DoableTasksDocument, { utcOffset: -new Date().getTimezoneOffset() })).doableTasks,
+    queryFn: async () => (await execute(DoableTasksDocument)).doableTasks,
     select,
     enabled,
     refetchInterval: 60_000,
