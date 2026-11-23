@@ -2,7 +2,10 @@ import {
   addDays,
   caseStart,
   changedList,
+  crossedWeeks,
   daysBetween,
+  movedWeekdays,
+  weeksChange,
   dayIn,
   daySchema,
   formatDay,
@@ -1723,6 +1726,42 @@ function shiftedRule(rule: Recurrence, start: string, date: string, to: string, 
   return { ...rule, weekdays, count, exceptions: split ? rule.exceptions.filter((day) => day >= date) : rule.exceptions };
 }
 
+/** A piece of the rule of a routine going on from an occurrence moved: its rule, and the day it counts from (none: as before). */
+interface ShiftedPiece {
+  recurrence: Recurrence;
+  from: string | null;
+}
+
+/**
+ * Rule going on from an occurrence moved to another day (`shiftedRule`), as one piece or two. Weekly with its weeks
+ * counted (every n weeks, even or odd weeks), the weekday of the occurrence moved into a week counted otherwise takes
+ * its weeks along: it becomes a piece of its own (its even or odd weeks swapped, its rhythm counted from its first
+ * day moved: `movedWeekdays`), its other weekdays another one on their former weeks (from the occurrence when split);
+ * a number of occurrences then becomes the day of the last one (moved for the weekday moved), so that the pieces keep
+ * the same occurrences together. A rule without weekdays moves its rhythm with the occurrence.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First day it counts from.
+ * @param {string} date Occurrence.
+ * @param {string} to New day.
+ * @param {boolean} split The rule goes on from the occurrence (the former one ends before it).
+ * @returns {ShiftedPiece[]} Pieces.
+ */
+function shiftedPieces(rule: Recurrence, start: string, date: string, to: string, split: boolean): ShiftedPiece[] {
+  const same = shiftedRule(rule, start, date, to, split);
+  const days = daysBetween(date, to);
+  if (rule.frequency !== 'WEEKLY' || !weeksChange(rule, crossedWeeks(weekdayOf(date), days))) return [{ recurrence: same, from: null }];
+  const weekday = weekdayOf(date);
+  const others = rule.weekdays.filter((day) => day !== weekday);
+  let base: Recurrence = { ...same, weekdays: rule.weekdays };
+  if (others.length && base.count !== null) {
+    const last = occurrenceDates(rule, start, start, addDays(start, 36_600)).at(-1);
+    if (last) base = { ...base, count: null, until: last };
+  }
+  const moved = movedWeekdays(base, split ? date : start, [weekday], days);
+  const pieces: ShiftedPiece[] = others.length ? [{ recurrence: { ...base, weekdays: others }, from: split ? date : null }] : [];
+  return [...pieces, { recurrence: { ...moved.rule, until: base.until && others.length ? addDays(base.until, days) : base.until }, from: moved.anchor }];
+}
+
 /**
  * Whether a rule has occurrences before a date.
  * @param {Recurrence} rule Rule.
@@ -1814,14 +1853,14 @@ export async function changeRoutineOccurrence(
     if (split) {
       pieces = [
         { ...item, recurrence: endedBefore(item.recurrence, own, origin) },
-        { ...item, from: parsedTo, recurrence: shiftedRule(item.recurrence, own, origin, parsedTo, true), slots },
+        ...shiftedPieces(item.recurrence, own, origin, parsedTo, true).map((piece) => ({ ...item, from: piece.from ?? parsedTo, recurrence: piece.recurrence, slots })),
       ];
     } else {
       // Weekly on listed days: the weekday changes; else its repetition counts from as much later or earlier.
       const listed = item.recurrence.frequency === 'WEEKLY' && item.recurrence.weekdays.length > 0;
       const from = delta === 0 || listed ? item.from : addDays(own, delta);
-      if (from && from < start) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
-      pieces = [{ ...item, from, recurrence: shiftedRule(item.recurrence, own, origin, parsedTo, false), slots }];
+      pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false).map((piece) => ({ ...item, from: piece.from ?? from, recurrence: piece.recurrence, slots }));
+      if (pieces.some((piece) => piece.from && piece.from < start)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
     }
     changes = { cases: [...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)] };
   } else {
@@ -1831,22 +1870,29 @@ export async function changeRoutineOccurrence(
     const changedMoments = (own.length ? own : [{ fromTime: null, dueTime: null, optional: false }]).map((moment, index) =>
       index === slot ? { ...moment, fromTime: window.fromTime, dueTime: window.dueTime } : moment,
     );
+    // Cases its repetition becomes keep its condition and its « Ouverture » (a routine with cases holds them on its cases).
+    const kept = { condition: storedCondition(routine), opens: readOpens(routine.opensOn) };
     if (scope === 'FOLLOWING' && hasBefore(rule, start, origin)) {
-      // Its repetition becomes two cases: the former one up to the occurrence, the new one from it; both keep its
-      // condition and its « Ouverture » (a routine with cases holds them on its cases).
-      const kept = { condition: storedCondition(routine), opens: readOpens(routine.opensOn) };
+      // Its repetition becomes cases: the former one up to the occurrence, the new one (or its pieces) from it.
       changes = {
         cases: [
           { from: null, until: null, recurrence: endedBefore(rule, start, origin), slots: storedMoments(routine), ...kept },
-          { from: parsedTo, until: null, recurrence: shiftedRule(rule, start, origin, parsedTo, true), slots: changedMoments, ...kept },
+          ...shiftedPieces(rule, start, origin, parsedTo, true).map((piece) => ({ from: piece.from ?? parsedTo, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept })),
         ],
         slotCondition: null,
         opensOn: null,
       };
     } else {
       const listed = rule.frequency === 'WEEKLY' && rule.weekdays.length > 0;
-      const startDate = delta === 0 || listed ? start : addDays(start, delta);
-      changes = { startDate, recurrence: shiftedRule(rule, start, origin, parsedTo, false), moments: changedMoments, cases: [] };
+      const pieces = shiftedPieces(rule, start, origin, parsedTo, false);
+      if (pieces.length === 1) {
+        const startDate = pieces[0].from ?? (delta === 0 || listed ? start : addDays(start, delta));
+        changes = { startDate, recurrence: pieces[0].recurrence, moments: changedMoments, cases: [] };
+      } else {
+        // Its weekdays on weeks of their own: its repetition becomes a case for each.
+        if (pieces.some((piece) => piece.from && piece.from < start)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
+        changes = { cases: pieces.map((piece) => ({ from: piece.from, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept })), slotCondition: null, opensOn: null };
+      }
     }
   }
   // The other occurrences the new rule no longer has lose their comments, once confirmed (the one changed keeps its

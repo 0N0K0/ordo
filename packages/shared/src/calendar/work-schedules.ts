@@ -3,7 +3,7 @@ import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema, UserError } from '../core/rules';
 import { addDays, daysBetween, monthOfDay, weekdayOfDate, yearOfDay } from '../dates/days';
-import { DEFAULT_RECURRENCE, ONE_DAY, ruleMovedTo, shiftedRecurrence, type Duration, type Recurrence } from '../dates/recurrence';
+import { DEFAULT_RECURRENCE, movedWeekdays, ONE_DAY, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
@@ -757,10 +757,9 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
   const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
   const anchor = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
   if (rule.frequency === 'WEEKLY') {
-    // Moved into another week: even or odd weeks swap when it changes week an odd number of times.
-    const weeks = Math.floor((weekdayOf(date) - 1 + daysBetween(date, to)) / 7);
-    const weekParity = rule.weekParity && Math.abs(weeks) % 2 === 1 ? (rule.weekParity === 'EVEN' ? 'ODD' : 'EVEN') : rule.weekParity;
-    return { ...result, anchor, rule: { ...rule, weekdays: [weekdayOf(to)], weekParity } };
+    // Moved into another week: its weeks go with it (even or odd weeks swapped, every n weeks from its week moved).
+    const moved = movedWeekdays(rule, base, [weekdayOf(date)], daysBetween(date, to));
+    return { ...result, anchor: moved.anchor, rule: moved.rule };
   }
   if (rule.frequency === 'DAILY') return { ...result, anchor };
   return { ...result, anchor, rule: ruleMovedTo(rule, to) };
@@ -768,19 +767,22 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
 
 /**
  * Case moved with its whole period by a number of days: its bounds and anchor, the end, skipped days and pauses of
- * its rule, its weekdays, and its monthly and yearly values (those of its first day, moved).
+ * its rule, its weekdays, and its monthly and yearly values (those of its first day, moved). Weekly with its weeks
+ * counted (every n weeks, even or odd weeks), its weekdays changing week and those that do not become two cases, each
+ * on its own weeks (`shiftedRulePieces`).
  * @param {ScheduleCase} item Case.
  * @param {string} periodStart First day of its period (before the move).
  * @param {string | null} periodEnd Last day of its period (before the move), none: open.
  * @param {number} days Days moved (negative: earlier).
- * @returns {ScheduleCase} Case.
+ * @returns {ScheduleCase[]} Case, or its pieces.
  */
-function shiftedCase(item: ScheduleCase, periodStart: string, periodEnd: string | null, days: number): ScheduleCase {
+function shiftedCases(item: ScheduleCase, periodStart: string, periodEnd: string | null, days: number): ScheduleCase[] {
   const shift = (day: string | null) => day && addDays(day, days);
   const result: ScheduleCase = { ...item, since: shift(item.since), until: shift(item.until), anchor: shift(item.anchor) };
-  if (!item.rule) return result;
+  if (!item.rule) return [result];
   const needsFirst = item.rule.frequency === 'MONTHLY' || item.rule.frequency === 'YEARLY' || (item.rule.frequency === 'WEEKLY' && !item.rule.weekdays.length);
-  return { ...result, rule: shiftedRecurrence(item.rule, needsFirst ? caseFirstDay(item, periodStart, periodEnd) : null, days) };
+  const pieces = shiftedRulePieces(item.rule, needsFirst ? caseFirstDay(item, periodStart, periodEnd) : null, days, item.anchor ?? item.since ?? periodStart);
+  return pieces.map((piece) => ({ ...result, rule: piece.rule, anchor: piece.anchor ?? result.anchor }));
 }
 
 /**
@@ -807,12 +809,12 @@ function shiftedSchedule(schedule: WorkScheduleRule, days: number): ChangedSched
   return {
     startDate: addDays(schedule.startDate, days),
     endDate: schedule.endDate && addDays(schedule.endDate, days),
-    cases: schedule.cases.map((item) => shiftedCase(item, schedule.startDate, schedule.endDate, days)),
+    cases: schedule.cases.flatMap((item) => shiftedCases(item, schedule.startDate, schedule.endDate, days)),
     exceptions: schedule.exceptions.map((exception) => ({
       ...exception,
       from: addDays(exception.from, days),
       to: addDays(exception.to, days),
-      cases: exception.cases.map((item) => shiftedCase(item, exception.from, exception.to, days)),
+      cases: exception.cases.flatMap((item) => shiftedCases(item, exception.from, exception.to, days)),
     })),
   };
 }
