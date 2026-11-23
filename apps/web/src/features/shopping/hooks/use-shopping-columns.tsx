@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
+import { ShoppingCartIcon } from '@phosphor-icons/react';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { multiValues, WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
+import { multiValues, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { itemChoices } from '../../../components/items/item-look';
 import { localDay } from '../../../lib/dates';
@@ -19,10 +20,10 @@ import { categoriesForBaseList, leftToBuy, listClosed, listTasks, shoppingProgre
 type ShoppingItem = ShoppingList['items'][number];
 
 
-/** States of « Manque » of a reference, in its column and on its state buttons: a warning yes, a neutral no. */
+/** States of « Manque » of a reference, in its column and on its state buttons: a blue cart (to buy), an empty one. */
 export const MISSING_STATES: YesNoStates = {
   labels: { yes: 'Manque', no: 'Pourvu' },
-  icons: WARNING_YES_NEUTRAL_NO_ICONS,
+  icons: { yes: { icon: ShoppingCartIcon, tone: 'info', badge: true }, no: 'empty' },
   toggleLabels: { yes: 'Marquer comme manquant (sur la prochaine liste générée)', no: 'Marquer comme pourvu' },
 };
 
@@ -267,7 +268,7 @@ export function useShoppingItemColumns(list: ShoppingList | undefined): DataColu
     },
     [
       optionalColumn<ShoppingItem>(),
-      booleanColumn<ShoppingItem>({ id: 'bought', label: 'Acheté', size: 100, hiddenByDefault: true, groupLabels: BOUGHT_STATES.labels, value: (item) => Boolean(item.purchasedAt) }),
+      booleanColumn<ShoppingItem>({ id: 'bought', label: 'Acheté', size: 100, hiddenByDefault: true, states: BOUGHT_STATES, value: (item) => Boolean(item.purchasedAt) }),
       {
         id: 'inStock',
         label: 'En stock',
@@ -342,10 +343,10 @@ export function useBaseListColumns(baseList: ShoppingBaseList | null, products: 
         text: (product) => (product.lastPurchasedAt ? `${fmt.day(product.lastPurchasedAt)}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
         filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(product.lastPurchasedAt) : null) },
       },
-      booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Manquants', no: 'Pourvus' }, icons: MISSING_STATES.icons, value: (product) => product.missing }),
-      booleanColumn<ShoppingProduct>({ id: 'stockTracked', label: 'Suivie en stock', size: 130, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Suivis en stock', no: 'Non suivis en stock' }, value: (product) => product.stockTracked }),
+      booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, states: MISSING_STATES, groupLabels: { yes: 'Manquants', no: 'Pourvus' }, value: (product) => product.missing }),
+      booleanColumn<ShoppingProduct>({ id: 'stockTracked', label: 'Suivie en stock', size: 130, bulk: true, hiddenByDefault: true, groupable: true, states: STOCK_TRACKED_STATES, groupLabels: { yes: 'Suivis en stock', no: 'Non suivis en stock' }, value: (product) => product.stockTracked }),
       consumableColumn<ShoppingProduct>({ hiddenByDefault: true }),
-      booleanColumn<ShoppingProduct>({ id: 'autoStock', label: 'Ajout auto au stock', size: 150, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Ajoutés automatiquement au stock', no: 'Non ajoutés automatiquement au stock' }, value: (product) => product.autoStock }),
+      booleanColumn<ShoppingProduct>({ id: 'autoStock', label: 'Ajout auto au stock', size: 150, bulk: true, hiddenByDefault: true, groupable: true, states: AUTO_STOCK_STATES, groupLabels: { yes: 'Ajoutés automatiquement au stock', no: 'Non ajoutés automatiquement au stock' }, value: (product) => product.autoStock }),
       {
         id: 'stockLocation',
         label: 'Emplacement en stock',

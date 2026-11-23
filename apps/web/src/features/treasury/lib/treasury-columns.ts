@@ -242,7 +242,7 @@ export function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       text: (row) => signedText(row.amount),
       filter: { kind: 'number', value: (row) => row.amount },
     },
-    booleanColumn<LineRow>({ id: 'loan', bulk: true, label: 'Prêt', size: 80, groupLabels: LOAN_STATES.labels, icons: LOAN_STATES.icons, value: (row) => row.line.loan }),
+    booleanColumn<LineRow>({ id: 'loan', bulk: true, label: 'Prêt', size: 80, states: LOAN_STATES, value: (row) => row.line.loan }),
     {
       id: 'date',
       bulk: true,

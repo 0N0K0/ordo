@@ -48,7 +48,7 @@ Composant `Sidebar`, à gauche de l’application.
   - client actif : « Ajouter un projet » ;
   - projet actif sous la profondeur maximale : « Ajouter un sous-projet » ;
   - « Tout développer » / « Tout réduire » s’il a des enfants ;
-  - élément actif : « Modifier », « Ajouter aux favoris » / « Retirer des favoris » ;
+  - élément actif : « Modifier », « Ajouter aux favoris » (étoile grise vide) / « Retirer des favoris » (étoile jaune pleine) ;
   - « Archiver » / « Restaurer » (« avec ses projets et ses contacts » pour un client) et « Supprimer ».
 
 ### Glisser-déposer (« Clients » et « Projets »)
@@ -63,7 +63,7 @@ Disponible en ordre manuel, hors recherche, et pas sur écran tactile ni télép
 
 Route `/clients/:id` (PRO seulement). Composant `ClientPage`.
 
-- En-tête : avatar (logo ou initiales sur sa couleur), nom, badge « Archivé », nombre de projets, interrupteur « Favori » (client actif), bouton « Nouveau projet » (client actif), menu « … » (archiver / restaurer, supprimer).
+- En-tête : avatar (logo ou initiales sur sa couleur), nom, badge « Archivé », nombre de projets, bouton étoile « Favori » (client actif : étoile grise vide, jaune pleine quand c’est un favori ; un clic bascule, infobulle « Ajouter aux favoris » / « Retirer des favoris »), bouton « Nouveau projet » (client actif), menu « … » (archiver / restaurer, supprimer).
 - Section « Projets » : liste encadrée de ses projets et sous-projets en retrait, actifs puis archivés, avec avatar, statut et badge « Archivé ». Chaque projet replie ses sous-projets ; les projets actifs se déplacent par leur poignée : en haut d’une ligne = avant, en bas = après, au milieu = dedans (en dernier), dans la limite de profondeur. État vide « Aucun projet pour ce client. ».
 - Documents de facturation du client et de ses projets (et sous-projets) : voir [Facturation](../finances/accounting.md).
 - Panneau des paramètres (« Paramètres du client »), deux onglets : « Facturation » (coordonnées, prestations, contacts : voir [Facturation](../finances/accounting.md)) et « Nom, couleur et icône » (formulaire du client).
@@ -75,7 +75,7 @@ Route `/projects/:id`. Composant `ProjectPage`. L’onglet est dans l’adresse 
 
 ### En-tête
 
-Avatar, libellé, badge « Archivé », fil d’Ariane (client ou « Sans client » en PRO, puis les projets parents, chacun cliquable), interrupteur « Favori », bouton « Nouveau sous-projet » (projet actif sous la profondeur maximale), menu « … » (archiver / restaurer, supprimer).
+Avatar, libellé, badge « Archivé », fil d’Ariane (client ou « Sans client » en PRO, puis les projets parents, chacun cliquable), bouton étoile « Favori » (élément actif : étoile grise vide, jaune pleine quand c’est un favori ; un clic bascule, infobulle « Ajouter aux favoris » / « Retirer des favoris »), bouton « Nouveau sous-projet » (projet actif sous la profondeur maximale), menu « … » (archiver / restaurer, supprimer).
 
 ### Onglets
 

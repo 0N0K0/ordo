@@ -1,4 +1,12 @@
 import * as fmt from '../../../lib/format';
+import type { YesNoStates } from '../../../components/data-table/table/data-table';
+
+/** States of « Traité » of mails: on the state button of their toolbar, and the mark of a row of a list. */
+export const MAIL_DONE_STATES: YesNoStates = {
+  labels: { yes: 'Traité', no: 'À traiter' },
+  toggleLabels: { yes: 'Marquer comme traité', no: 'Marquer comme à traiter' },
+};
+
 /** Address of a mail, as returned by the API. */
 export interface Address {
   name?: string | null;

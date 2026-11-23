@@ -139,7 +139,7 @@ export const OPTIONAL_STATES: YesNoStates = {
  * @returns {DataColumn<T>} Column.
  */
 export function optionalColumn<T extends { optional?: boolean | null }>(): DataColumn<T> {
-  return booleanColumn<T>({ id: 'optional', bulk: true, label: 'Facultatif', size: 110, groupable: true, groupLabels: OPTIONAL_STATES.labels, icons: OPTIONAL_STATES.icons, value: (item) => Boolean(item.optional) });
+  return booleanColumn<T>({ id: 'optional', bulk: true, label: 'Facultatif', size: 110, groupable: true, states: OPTIONAL_STATES, value: (item) => Boolean(item.optional) });
 }
 
 /** Columns of the shopping items a sheet item has too (store, conservation, whom it is for, link). */

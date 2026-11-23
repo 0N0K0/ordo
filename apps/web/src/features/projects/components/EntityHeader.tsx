@@ -1,14 +1,14 @@
-import { StateSwitch } from '../../../components/inputs/StateSwitch';
+import { StateButton } from '../../../components/data-table/cells/StateButton';
+import { FAVORITE_STATES } from '../../../components/data-table/table/data-table';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { DetailHeader } from '../../../components/page/DetailHeader';
-import { StarIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 
 /**
  * Header of the page of a client or a project, as the other detail pages (`DetailHeader`): avatar, name,
- * state badges, favorite and other actions, then the « … » menu archiving and deleting it (it is edited in the settings
+ * state badges, favourite star (a state button) and other actions, then the « … » menu archiving and deleting it (it is edited in the settings
  * sidebar of its page).
  * @param {object} props Component props.
  * @param {EntityRef} props.entity Client or project.
@@ -30,15 +30,7 @@ export function EntityHeader({ entity, subtitle, extraActions }: { entity: Entit
       actions={
         <>
           {!item.archived && (
-            <StateSwitch
-              label="Favori"
-              showLabel
-              hint={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-              checked={item.favorite}
-              color="yellow"
-              icon={<StarIcon weight="fill" aria-hidden />}
-              onChange={(favorite) => actions.setFavorite(entity, favorite)}
-            />
+            <StateButton {...FAVORITE_STATES} value={item.favorite} size="md" onChange={(favorite) => actions.setFavorite(entity, favorite)} />
           )}
           {extraActions}
         </>

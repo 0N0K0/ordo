@@ -62,7 +62,7 @@ Le regroupement par catégories suit l'arbre des catégories (une sous-catégori
 | `project`                     | « Projet »                          | visible              | Projet où va le temps chronométré.                                                                                                                                         |
 | `description`                 | « Description »                     | masquée              | Texte.                                                                                                                                                                     |
 | `documents`                   | « Documents »                       | masquée              | Nombre de documents liés (choisis et ouverts dans le panneau).                                                                                                             |
-| `done`                        | « Faite »                           | masquée              | Oui / non (coche verte, croix rouge) : l'occurrence en cours est faite ; « Faites » / « À faire ».                                                                                                    |
+| `done`                        | « Faite »                           | masquée              | Oui / non (carré vert coché « Faite », carré gris vide « À faire », comme son bouton d’état) : l'occurrence en cours est faite ; « Faites » / « À faire ».                                                                                                    |
 | `waiting`                     | « En attente »                      | masquée              | Oui / non : une routine requise n'est pas encore faite ; « En attente » (triangle orange) / « Libre » (coche verte).                                                                                                                    |
 | `doableNow`                   | « Faisable maintenant »             | masquée              | Oui / non : aucun évènement n'occupe ses assignés maintenant et aucun créneau « Indisponible » ne tient le moment (sa condition de créneaux garde déjà ses moments aux heures permises) ; groupée en « Maintenant » / « Plus tard ». |
 | commentaires                  | (colonne commune)                   |                      | Nombre de commentaires (la description compte pour un).                                                                                                                    |
@@ -82,7 +82,7 @@ Les lignes faites et archivées sont estompées ; le libellé d'une routine fait
 
 ### Cocher
 
-- Un bouton d’état à gauche du libellé (carré vide « À faire », coche verte « Faite ») coche l'occurrence en cours. Infobulle « Marquer comme faite (lun. 10 nov.) », puis « Marquer comme à faire ».
+- Un bouton d’état à gauche du libellé (rond gris vide « À faire », rond vert coché « Faite ») coche l'occurrence en cours. Infobulle « Marquer comme faite (lun. 10 nov.) », puis « Marquer comme à faire ».
 - Une routine à plusieurs moments a un petit bouton d’état par moment (infobulle « Marquer comme faite (7:00–9:00) », « (fois 2) »…), chacun coché à part ; les moments facultatifs ont un contour en pointillés (« …, facultatif »).
 - Désactivé (« Pas encore commencée ») avant la première occurrence, et pour une routine archivée ou en cours de création.
 

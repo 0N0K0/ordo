@@ -4,6 +4,7 @@ import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import { openLabelForm } from '../../dialogs/open-label-form';
 
 import { viewLabelSchema } from '@ordo/shared';
+// eslint-disable-next-line no-restricted-syntax -- the star of the default view, not a favourite.
 import { ArrowCounterClockwiseIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
 import { duplicateRowsAction, rowMenuEntry } from '../selection/selection-actions';
 import type { SavedView, SavedViewsState } from './use-saved-views';

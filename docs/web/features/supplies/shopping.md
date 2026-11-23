@@ -140,7 +140,7 @@ Champs de formulaire partagés par les achats et le stock.
 
 ### `components/StoreMode.tsx`
 
-- `StoreMode({ list, onClose })` : mode collecte plein écran (`Modal fullScreen`) : sections des livraisons (avec « Réceptionnée »), puis par magasin et arbre de catégories (`shoppingRows` + `visibleRows`), lignes `Checkbox.Card` cochées d'un tap, section « Acheté » ; propose le stock après achat (`useStockProposal`). Utilisé par `ShoppingListPage`.
+- `StoreMode({ list, onClose })` : mode collecte plein écran (`Modal fullScreen`) : sections des livraisons (avec « Réceptionnée »), puis par magasin et arbre de catégories (`shoppingRows` + `visibleRows`), lignes touchables entières avec un `StateButton` « Acheté » (`BOUGHT_STATES`, taille `xl`) en tête, un tap sur le bouton ou la ligne bascule, section « Acheté » ; propose le stock après achat (`useStockProposal`). Utilisé par `ShoppingListPage`.
 - Internes : `HeadingProps`, `Heading(props)` (titre repliable avec badge du reste à acheter, vert à 0), `toggle(key)`, `row(item, depth)`, `categories(storeKey, storeItems)`.
 
 ### `components/OrderPanel.tsx`
@@ -200,7 +200,7 @@ Colonnes des tableaux des achats, chacune lue par son tableau et par `ShoppingSe
 | `listSheets(items)` | Fiches d'origine des éléments d'une liste, chacune une fois. Utilisé aussi par `ShoppingListPage` (`SheetPicker`). |
 | `useShoppingItemColumns(list)` | Colonnes des éléments d'une liste (`shopping-list`) : `itemColumns` + `optionalColumn` + « Acheté », « En stock », « Livraison » (masquée hors commande à distance), « Fiches », commentaires ; sans liste (paramètres) : sans livraisons, fiches ni commentaires. |
 | `useBaseListColumns(baseList, products)` | Colonnes des produits d'une référence (`shopping-base-list`) : `itemColumns` + commentaires, « Dernier achat », « Manque », « Suivie en stock », « Consommable », « Ajout auto au stock », « Emplacement en stock » ; sans référence : toutes les catégories. |
-| `MISSING_STATES`, `BOUGHT_STATES`, `STOCK_TRACKED_STATES`, `AUTO_STOCK_STATES` | États des boutons d'état (`YesNoStates`) : « Manque » / « Pourvu » (triangle orange / coche bleue, aussi les icônes de la colonne), « Acheté » / « À acheter » (aussi les groupes de la colonne), « Suivie en stock » / « Non suivie en stock », « Ajoutée au stock une fois achetée » / « Pas ajoutée au stock », avec ce que fait un clic. Utilisé par `BaseList`, `ShoppingListPage`. |
+| `MISSING_STATES`, `BOUGHT_STATES`, `STOCK_TRACKED_STATES`, `AUTO_STOCK_STATES` | États des boutons d'état (`YesNoStates`) : « Manque » / « Pourvu » (chariot blanc sur fond bleu, `ShoppingCartIcon` en `badge` / carré gris vide), « Acheté » / « À acheter », « Suivie en stock » / « Non suivie en stock », « Ajoutée au stock une fois achetée » / « Pas ajoutée au stock », avec ce que fait un clic ; aussi les icônes et noms de leurs colonnes (`booleanColumn({ states })`). Utilisé par `BaseList`, `ShoppingListPage`, `StoreMode`. |
 
 Internes : `ListEnv`, `projectsOf(list, context)`, `listColumns(env)`.
 

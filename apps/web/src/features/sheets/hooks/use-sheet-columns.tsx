@@ -161,7 +161,7 @@ export function useChecklistColumns(list: { items: readonly ChecklistItem[] } | 
   const { data: shopping } = useShoppingData();
   const categories = shopping?.shoppingCategories ?? [];
   return [
-    booleanColumn<ChecklistItem>({ id: 'done', label: 'Fait', size: 70, bulk: true, groupLabels: { yes: 'Collectés', no: 'À collecter' }, value: (item) => Boolean(item.checkedAt) }),
+    booleanColumn<ChecklistItem>({ id: 'done', label: 'Fait', size: 70, bulk: true, states: CHECKLIST_DONE_STATES, groupLabels: { yes: 'Collectés', no: 'À collecter' }, value: (item) => Boolean(item.checkedAt) }),
     { id: 'label', required: true, label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     quantityColumn<ChecklistItem>(),
     unitColumn<ChecklistItem>(),

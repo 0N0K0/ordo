@@ -134,7 +134,7 @@ Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RoutineDoneToggles({ routine, dateLabel?, disabled? })` | Bouton(s) d'état « Faite » / « À faire » de l'occurrence en cours (`ROUTINE_DONE_STATES`) : un seul, ou un par moment (facultatif en pointillés). Utilisé par `RoutinesPanel`, `RoutineForm` et `features/home/components/LifeCards.tsx`. |
 
-Interne : `DoneToggle` (`StateButton` : carré vide, puis coche verte).
+Interne : `DoneToggle` (`StateButton` : rond gris vide, puis rond vert coché).
 
 ### `components/RoutineBulkBar.tsx`
 

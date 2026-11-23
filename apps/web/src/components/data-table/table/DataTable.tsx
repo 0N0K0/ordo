@@ -223,6 +223,13 @@ function getProjection(items: DragItem[], activeId: string, overId: string, offs
 }
 
 /**
+ * Whether a row of data, in its groups, has sub-rows (a group heading alone does not count).
+ * @param {Item<R>[]} items Items.
+ * @returns {boolean} A row has sub-rows.
+ */
+const hasSubRows = <R,>(items: Item<R>[]): boolean => items.some((item) => (item.kind === 'row' && item.children.length > 0) || (item.kind === 'group' && hasSubRows(item.children)));
+
+/**
  * Rows as a tree: each under its parent when its parent is shown, at the top otherwise; their order kept.
  * @param {R[]} rows Rows, in order.
  * @param {(row: R) => string} getKey Key of a row.
@@ -459,6 +466,9 @@ export function DataTable<R>({
     },
     onExpandedChange: (updater) => setExpanded((current) => apply(updater, current)),
   });
+
+  // A row of the table has sub-rows: the first cell of the others keeps the place of the chevron.
+  const foldable = tree && hasSubRows(items);
 
   const order = columnOrder(view.columns, layout);
   const visibleRows = table.getRowModel().rows;
@@ -719,7 +729,8 @@ export function DataTable<R>({
                           {row.getCanExpand() ? (
                             <FoldButton expanded={row.getIsExpanded()} about="les sous-éléments" inRow onToggle={() => row.toggleExpanded()} />
                           ) : (
-                            <span className={classes.chevronSpacer} />
+                            // Aligned on its folding siblings: only when some row of the table folds.
+                            foldable && <span className={classes.chevronSpacer} />
                           )}
                           <div style={{ minWidth: 0, flex: 1 }}>{cellOf(column)}</div>
                         </Group>

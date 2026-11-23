@@ -72,7 +72,7 @@ export const CONSUMABLE_STATES: YesNoStates = {
  * @returns {DataColumn<T>} Column.
  */
 export function consumableColumn<T extends { consumable: boolean }>(options: ColumnOptions<T> = {}): DataColumn<T> {
-  return booleanColumn<T>({ id: 'consumable', label: 'Consommable', size: 120, bulk: true, groupable: true, groupLabels: CONSUMABLE_STATES.labels, ...options, value: (item) => item.consumable });
+  return booleanColumn<T>({ id: 'consumable', label: 'Consommable', size: 120, bulk: true, groupable: true, states: CONSUMABLE_STATES, ...options, value: (item) => item.consumable });
 }
 
 /**

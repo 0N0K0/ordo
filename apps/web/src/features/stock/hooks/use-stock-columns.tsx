@@ -163,7 +163,7 @@ export function useStockItemColumns(): DataColumn<StockItem>[] {
       },
       groupable: true,
     },
-    booleanColumn<StockItem>({ id: 'perishable', label: 'Périssable', size: 110, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: PERISHABLE_STATES.labels, icons: PERISHABLE_STATES.icons, value: (item) => item.perishable }),
+    booleanColumn<StockItem>({ id: 'perishable', label: 'Périssable', size: 110, bulk: true, hiddenByDefault: true, groupable: true, states: PERISHABLE_STATES, value: (item) => item.perishable }),
     consumableColumn<StockItem>({ bulk: false, hiddenByDefault: true }),
     {
       id: 'reference',

@@ -4,6 +4,8 @@ import { collator } from '../../../lib/text';
 import { archivedIds } from '../../../lib/archive';
 import { toggledInList } from '../../../lib/sets';
 import { createElement, type ReactNode } from 'react';
+// eslint-disable-next-line no-restricted-syntax -- the one star of the favourites.
+import { StarIcon, type Icon } from '@phosphor-icons/react';
 import { StackedLines } from '../cells/StackedValues';
 
 /** Choice of a column filtered by its values. */
@@ -83,17 +85,39 @@ export interface YesNoLabels {
 
 /**
  * Icon of a yes / no value: a filled square with a check, a red filled square with a cross, an orange warning triangle,
- * or an empty gray outlined square (a state still to reach, « À faire », on a state button).
+ * or an empty gray outlined square (a state still to reach, « À faire »); rounds instead of squares on a state button.
  */
 export type YesNoIconKind = 'check' | 'cross' | 'warning' | 'empty';
 
 /**
- * Icons of the values of a yes / no column: yes a check, no a cross unless set (a value that is a warning: `warning`);
- * the check green (`success`) or, for a neutral yes, blue (`info`).
+ * Colour of an icon of a yes / no value: a feedback colour (success green, information blue, warning orange, error red),
+ * the favourite yellow, or neutral gray.
+ */
+export type YesNoTone = 'success' | 'info' | 'warning' | 'error' | 'favorite' | 'neutral';
+
+/**
+ * Icon of its own of a yes / no state (a blue cart for « Manque », a yellow star for « Favori »): its Phosphor icon,
+ * filled in its colour unless outlined (an empty state), or white in a square or a round of its colour (`badge`).
+ */
+export interface YesNoIconSpec {
+  icon: Icon;
+  tone: YesNoTone;
+  /** Outlined, not filled (a state still to reach, not a favourite). Optional. Default = false. */
+  outline?: boolean;
+  /**
+   * Drawn white in a square (a round on a state button) filled with its colour, as the check and the cross (a cart).
+   * Optional. Default = false.
+   */
+  badge?: boolean;
+}
+
+/**
+ * Icons of the values of a yes / no column: yes a check, no a cross unless set (a value that is a warning: `warning`; a
+ * state with an icon of its own: a `YesNoIconSpec`); the check green (`success`) or, for a neutral yes, blue (`info`).
  */
 export interface YesNoIcons {
-  yes?: YesNoIconKind;
-  no?: YesNoIconKind;
+  yes?: YesNoIconKind | YesNoIconSpec;
+  no?: YesNoIconKind | YesNoIconSpec;
   /** Colour of the check. Optional. Default = success. */
   check?: 'success' | 'info';
 }
@@ -101,20 +125,21 @@ export interface YesNoIcons {
 /** Icons of a yes that is a warning (late, blocked, advanced): an orange triangle for yes, a green check for no. */
 export const WARNING_YES_ICONS: YesNoIcons = { yes: 'warning', no: 'check' };
 
-/** Icons of a yes that is a warning whose no is neutral (missing, perishable): an orange triangle, a blue check. */
+/** Icons of a yes that is a warning whose no is neutral (perishable): an orange triangle, a blue check. */
 export const WARNING_YES_NEUTRAL_NO_ICONS: YesNoIcons = { yes: 'warning', no: 'check', check: 'info' };
 
 /** Icons of a neutral yes whose no is a warning (optional / required): a blue check, an orange triangle. */
 export const NEUTRAL_YES_WARNING_NO_ICONS: YesNoIcons = { yes: 'check', no: 'warning', check: 'info' };
 
 /**
- * States of a yes / no changed in place by a state button (`StateButton`): the names of its two states for one row, yes
- * first (« Faite » / « À faire »), its icons (those of its column) and what a click does to reach each state.
+ * States of a yes / no changed in place by a state button (`StateButton`), and shown by its read-only column
+ * (`booleanColumn({ states })`) with the same icons and names: the names of its two states for one row, yes first
+ * (« Faite » / « À faire »), its icons and what a click does to reach each state.
  */
 export interface YesNoStates {
   /** Names of the states of one row, yes first: the current one is the button's name. */
   labels: YesNoLabels;
-  /** Icons of the states. Optional. Default = a green check for yes, an empty gray square for no. */
+  /** Icons of the states. Optional. Default = a green check for yes, an empty gray square for no (rounds on the button). */
   icons?: YesNoIcons;
   /**
    * What a click does, to reach yes / to reach no (« Marquer comme faite » / « Marquer comme à faire »): its tooltip.
@@ -122,6 +147,32 @@ export interface YesNoStates {
    */
   toggleLabels?: YesNoLabels;
 }
+
+/**
+ * Icons of the states of a yes / no: theirs, a no without icon being the empty gray square (round on the button) (a state still to reach),
+ * never the red cross (kept for a no that is bad news, set by the column).
+ * @param {YesNoStates} states States.
+ * @returns {YesNoIcons} Icons.
+ */
+export const stateIcons = (states: YesNoStates): YesNoIcons => ({ no: 'empty', ...states.icons });
+
+/**
+ * What a click on a state does from a value (« Marquer comme faite » from « À faire »): the tooltip of its state button,
+ * the entry of a menu toggling it.
+ * @param {YesNoStates} states States.
+ * @param {boolean} value Current value.
+ * @returns {string} Action.
+ */
+export const nextStateLabel = (states: YesNoStates, value: boolean): string =>
+  value ? (states.toggleLabels?.no ?? `Passer à « ${states.labels.no} »`) : (states.toggleLabels?.yes ?? `Passer à « ${states.labels.yes} »`);
+
+/** States of a favourite (a client, a project): a filled yellow star, an empty outlined star; one click toggles it. */
+export const FAVORITE_STATES: YesNoStates = {
+  labels: { yes: 'Favori', no: 'Pas favori' },
+  icons: { yes: { icon: StarIcon, tone: 'favorite' }, no: { icon: StarIcon, tone: 'neutral', outline: true } },
+  // eslint-disable-next-line no-restricted-syntax -- the one place naming the favourite actions.
+  toggleLabels: { yes: 'Ajouter aux favoris', no: 'Retirer des favoris' },
+};
 
 /** Names of the values of a lateness column (late tasks, late forecasts). */
 export const LATE_GROUP_LABELS: YesNoLabels = { yes: 'En retard', no: 'Dans le délai' };

@@ -2,7 +2,9 @@ import { formCallbacks } from '../../../lib/form';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { plural } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
-import { Anchor, Badge, Checkbox, CloseButton, Group, Modal, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Badge, CloseButton, Group, Modal, Stack, Text, Title } from '@mantine/core';
+import { StateButton } from '../../../components/data-table/cells/StateButton';
+import { BOUGHT_STATES } from '../hooks/use-shopping-columns';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { ArrowSquareOutIcon, PackageIcon } from '@phosphor-icons/react';
@@ -69,7 +71,7 @@ function Heading({ label, color, iconUrl, count, depth, collapsed, onToggle }: H
 }
 
 /**
- * Collect mode: the items to get as big rows ticked with a thumb: those of the deliveries of a remote order (each
+ * Collect mode: the items to get as big rows bought with a thumb (a large « Acheté » state button, or a tap on the row): those of the deliveries of a remote order (each
  * received in a tap), then by store and by category (as their tree), each folded or not with the number of items left;
  * the bought ones at the bottom.
  * @param {{ list: ShoppingList, onClose: () => void }} props Component props.
@@ -112,31 +114,36 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
     });
 
   /**
-   * One item, ticked or unticked by a tap anywhere on its row.
+   * Marks an item bought or to buy; once bought, proposes to put it in the stock.
+   * @param {ShoppingItem} item Item.
+   * @param {boolean} purchased Bought.
+   * @returns {void}
+   */
+  const buy = (item: ShoppingItem, purchased: boolean) =>
+    setPurchased.mutate({ id: item.id, purchased }, { onSuccess: () => purchased && propose([item]), onError: onMutationError });
+
+  /**
+   * One item, bought or not by its large state button or by a tap anywhere on its row.
    * @param {ShoppingItem} item Item.
    * @param {number} [depth=0] Indent. Optional.
    * @returns {JSX.Element} Row.
    */
   const row = (item: ShoppingItem, depth = 0) => (
-    <Checkbox.Card
+    <div
       key={item.id}
       className={classes.storeRow}
       data-purchased={item.purchasedAt ? true : undefined}
-      checked={Boolean(item.purchasedAt)}
-      onClick={() => {
-        const purchased = !item.purchasedAt;
-        setPurchased.mutate({ id: item.id, purchased }, { onSuccess: () => purchased && propose([item]), onError: onMutationError });
-      }}
+      onClick={() => buy(item, !item.purchasedAt)}
       style={{ marginLeft: `calc(${depth} * var(--mantine-spacing-md))` }}
     >
-      <Checkbox.Indicator size="lg" />
+      <StateButton {...BOUGHT_STATES} value={Boolean(item.purchasedAt)} label={item.label} size="xl" onChange={(purchased) => buy(item, purchased)} />
       <Text className={classes.storeName}>{item.label}</Text>
       {fmt.quantity(item) && (
         <Text size="md" fw={600} className={classes.nowrap}>
           {fmt.quantity(item)}
         </Text>
       )}
-    </Checkbox.Card>
+    </div>
   );
 
   /**

@@ -984,6 +984,13 @@ const RESTRICTED_SYNTAX = [
       'Utiliser StateButton (components/data-table/cells/StateButton) pour un oui / non d’une cellule ou d’une ligne de liste, StateSwitch (components/inputs/StateSwitch) pour un réglage ou un mode, un SegmentedControl pour un choix de mode.',
   },
   {
+    // A favourite is a star (empty / filled yellow) toggled by one click, never a switch nor a check box: one set of states.
+    selector:
+      "JSXOpeningElement[name.name=/^(Switch|StateSwitch|Checkbox)$/]:has(Literal[value=/[Ff]avori/]), Literal[value=/^(Ajouter aux|Retirer des) favoris$/], ImportSpecifier[imported.name='StarIcon']",
+    message:
+      'Utiliser FAVORITE_STATES (components/data-table/table/data-table) : <StateButton {...FAVORITE_STATES} /> (étoile vide, jaune pleine si favori), nextStateLabel(FAVORITE_STATES, favori) et <YesNoIcon icons={FAVORITE_STATES.icons} decorative /> dans un menu ; jamais un interrupteur ni une case.',
+  },
+  {
     selector: 'Literal[value=/^(Réduire|Développer)\\b/], TemplateElement[value.raw=/^(Réduire|Développer)\\b/], JSXText[value=/^\\s*(Réduire|Développer)\\b/]',
     message: 'Utiliser foldAction(expanded) / foldLabel(expanded, about) (components/actions/fold-label), ou about de FoldButton / FoldHeading : « Développer / Réduire ».',
   },
