@@ -30,10 +30,10 @@ Tout changement (affichage, filtre, réglage de la vue) va dans la copie de trav
 - **Semaine** : la semaine de l’espace (`currentWeek()` : premier jour et longueur réglés dans les paramètres de l’agenda, onglet « Paramètres », section « Semaine », voir [Dates](../../business-rules/cross-cutting/dates.md)), avancée d’une semaine à la fois ; numéros de semaine affichés.
 - **Jour**.
 - Semaine et jour remplissent la fenêtre (défilement interne), défilement initial à 08:00, indicateur de l’heure actuelle.
-- Ligne « journée entière » (semaine, jour) : repliée à 2 lignes par défaut ; le bouton de pliage dans l’en-tête de la ligne, ou le lien « +N », la déplie sur tous les jours (mémorisé).
+- Ligne « journée entière » (semaine, jour) : repliée à 2 lignes par défaut ; le bouton de pliage dans l’en-tête de la ligne, ou le lien « +N », la déplie sur tous les jours (non mémorisé : repliée à chaque ouverture).
 - Graduation des heures par 30 minutes, ou par 5 minutes (réglage « Par 5 minutes ») ; un glisser déplace d’autant.
 - Jours et heures affichés et saisis à l’heure de Paris (celle des évènements, routines et créneaux), quel que soit le fuseau du navigateur : un glisser, une sélection, l’indicateur de l’heure actuelle et les temps suivis sont à l’heure de Paris.
-- Affichage, filtres et réglages d’affichage sont ceux de la vue (voir [Vues de l’agenda](#vues-de-lagenda)) ; seul le dépliage de la ligne journée entière reste mémorisé dans le navigateur (`localStorage` `ordo.calendar.allDayExpanded`), pour toutes les vues. Affichage par défaut : semaine.
+- Affichage, filtres et réglages d’affichage sont ceux de la vue (voir [Vues de l’agenda](#vues-de-lagenda)) ; le dépliage de la ligne journée entière n’est pas mémorisé : elle est repliée à chaque ouverture de la page. Affichage par défaut : semaine.
 
 ### Filtres
 

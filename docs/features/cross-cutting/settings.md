@@ -114,7 +114,7 @@ Réglages de l’agenda, selon ce qu’ils règlent :
 | Affichage « Mois » / « Semaine » / « Jour »                                                               | vue         | page (barre d’outils)                |
 | Filtres (une section par sorte d’éléments affichée)                                                       | vue         | page (« Filtrer »)                   |
 | Calendriers et créneaux / éphémérides affichés, « Aussi dans l’agenda », « Afficher les archivés », « Par 5 minutes » | vue | paramètres, « Affichage et export » |
-| Ligne journée entière dépliée                                                                             | navigateur  | page (en-tête de la ligne, « +N »)   |
+| Ligne journée entière dépliée                                                                             | non gardé (repliée à chaque ouverture) | page (en-tête de la ligne, « +N »)   |
 | Mode « Modifier les créneaux et éphémérides »                                                             | page ouverte (non gardé) | page (barre d’outils) |
 | Semaine, calendriers, abonnements, catégories, créneaux sans type, types de créneaux et d’éphémérides (couleur, affichage dans l’agenda, « Indisponible »), anniversaires (couleur, « Afficher dans l’agenda »), créneaux des autres espaces, colonnes des nouvelles vues | espace | paramètres, « Paramètres » |
 

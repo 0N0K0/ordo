@@ -19,7 +19,6 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import luxonPlugin from '@fullcalendar/luxon3';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
 import { addDays, calendarViewConfig, type CalendarDisplay, type CalendarViewConfig, entrySeconds, PARIS_ZONE, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
 import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -141,11 +140,9 @@ export function CalendarPage() {
    */
   const change = (patch: Partial<CalendarViewConfig>) => views.change((current) => ({ ...current, ...patch }));
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
-  // Week and day: the all-day row (tasks…) is collapsed to a few rows, or expanded across every day.
-  const [allDayExpanded, setAllDayExpanded] = useLocalStorage({
-    key: 'ordo.calendar.allDayExpanded',
-    defaultValue: false,
-  });
+  // Week and day: the all-day row (tasks…) is collapsed to a few rows, or expanded across every day; collapsed again
+  // each time the page opens (not remembered).
+  const [allDayExpanded, setAllDayExpanded] = useState(false);
   const [title, setTitle] = useState('');
   // Archived ones too: shown on demand.
   const events = useCalendarEvents(range, true);
