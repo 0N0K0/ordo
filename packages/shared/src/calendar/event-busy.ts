@@ -19,7 +19,8 @@ export interface BusyEvent {
   /** Tasks the event is about: they are done during it, it does not block them. */
   taskIds: readonly string[];
   /** Routines of a day the event is about: on that day it does not block them. Optional. */
-  routineLinks?: readonly { routineId: string; date: string }[];
+  /** Routines it is about: the day that identifies each occurrence, and the day it shows on (another one when moved and kept apart). */
+  routineLinks?: readonly { routineId: string; date: string; shownDate?: string }[];
   calledOff: boolean;
 }
 
@@ -58,7 +59,7 @@ export function blockingEvent(events: readonly BusyEvent[], item: BusyItem, meId
     (event) =>
       !event.calledOff &&
       !(item.taskId && event.taskIds.includes(item.taskId)) &&
-      !(item.routineId && event.routineLinks?.some((link) => link.routineId === item.routineId && link.date === day)) &&
+      !(item.routineId && event.routineLinks?.some((link) => link.routineId === item.routineId && (link.shownDate ?? link.date) === day)) &&
       peopleOf(event.contributorIds, meId).some((id) => people.has(id)) &&
       (event.allDay ? event.startDate <= day && day <= event.endDate : new Date(event.start).getTime() <= at.getTime() && at.getTime() < new Date(event.end).getTime()),
   );

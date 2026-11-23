@@ -303,20 +303,23 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   // One occurrence edited alone: the fields of the series stay as they are (the API keeps them).
   const seriesFields = target.scope === 'THIS' && target.occurrenceDate !== null;
   const { perso } = useActiveWorkspace();
-  // Routines due on the days of the event (an occurrence each), with someone in common with it; those chosen stay. One
-  // moved onto a day that has its own and kept apart is not linked (its links stay on the day of its rule).
+  // Routines due on the days of the event (an occurrence each, as the agenda shows them: one moved there and kept apart
+  // too, told by the day it comes from), with someone in common with it; those chosen stay.
   const { data: routinesData } = useRoutinesData();
   const { data: routineDays } = useRoutineOccurrences(values.startDate && values.endDate ? { from: values.startDate, to: values.endDate } : null);
   const routineById = mapById(routinesData?.routines ?? []);
   const multiDay = values.startDate !== values.endDate;
   const chosenLinks = new Set((values.routineLinks ?? []).map(routineLinkKey));
+  const shownDays = new Map((routineDays ?? []).map((item) => [routineLinkKey(item), item.dueDate]));
   const routineOptions = [
-    ...new Map([...unarchived(routineDays ?? []).filter((item) => !item.cancelled && item.date === item.dueDate).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [routineLinkKey(link), link])).values(),
+    ...new Map([...unarchived(routineDays ?? []).filter((item) => !item.cancelled).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [routineLinkKey(link), link])).values(),
   ].flatMap((link) => {
     const routine = routineById.get(link.routineId);
     const key = routineLinkKey(link);
     if (!routine || (!chosenLinks.has(key) && (routine.archived || !sharePeople(routine.assigneeIds, values.contributorIds)))) return [];
-    return [{ value: key, label: multiDay ? `${routine.label} (${fmt.weekday(link.date)})` : routine.label }];
+    const shown = shownDays.get(key) ?? link.date;
+    const details = [...(multiDay ? [fmt.weekday(shown)] : []), ...(shown !== link.date ? [`déplacée du ${fmt.weekday(link.date)}`] : [])];
+    return [{ value: key, label: details.length ? `${routine.label} (${details.join(', ')})` : routine.label }];
   });
   const recurring = target.occurrenceDate !== null;
 

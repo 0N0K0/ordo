@@ -108,7 +108,7 @@ Un évènement existant s’enregistre champ par champ : chaque champ est enregi
 Disposition commune aux panneaux des tâches, des routines et des évènements (voir [Application](../../web/app.md#formulaires-et-modales)) ; un panneau étroit (téléphone, panneau rétréci) met la colonne de droite sous la principale :
 
 - en-tête : « Libellé », menu « … » (« Dupliquer », « Annuler l’évènement » / « Rétablir », « Reporter », « Archiver » / « Restaurer », « Supprimer », puis ses minuteurs) ; « Projet », badges « Annulé », « Reporté », « Archivé », « Enregistré » ; dessous, les lignes du report et de la portée ;
-- colonne principale : « Description » ; « Relations » (« Tâches », « Routines ») ; « Commentaires » ;
+- colonne principale : « Description » ; « Relations » (« Tâches », « Routines » : les occurrences des routines dues ses jours, comme l’agenda les montre ; une occurrence reportée sur un jour qui avait déjà la sienne et gardée à part est proposée aussi, « (déplacée du lun. 10 nov.) ») ; « Commentaires » ;
 - colonne de droite, en groupes : « Classement » (« Calendrier », « Catégories ») ; « Parties prenantes » (« Assignés », « Bénéficiaires ») ; « Dates et heures » (la répétition, sa fin et ses pauses, « Journée entière », « Période », l’avertissement de disponibilité, « Temps passé » avec « Démarrer le chrono ») directement dans le panneau, sans fenêtre ; « Lieu » (lieu, trajets, départ) ; « Alarmes » (« Rappels », « Minuteurs ») ; « Ressources » (« Liens », « Documents », fiches).
 
 

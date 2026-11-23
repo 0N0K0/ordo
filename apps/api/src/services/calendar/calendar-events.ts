@@ -50,6 +50,7 @@ import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { effectiveTasks } from '../tasks/task-inheritance';
 import { effectiveRoutineOf, loadRoutineInheritance, type StoredInheritingRoutine } from '../routines/routine-inheritance';
+import { linkShownDay, loadLinkShownDays, ROUTINE_LINK_SELECT, type RoutineLinkRow } from './routine-link-days';
 
 /** One occurrence of an event in a period, with the fields of its series (or of its own changes). */
 export interface EventOccurrence {
@@ -101,8 +102,8 @@ export interface EventOccurrence {
   projectResourceIds: string[];
   /** Saved timers launched from the event (its whole series). */
   savedCountdownIds: string[];
-  /** Routines of a day of the occurrence it is about (their occurrence of that day is done during it). */
-  routineLinks: { routineId: string; date: string }[];
+  /** Routines of a day of the occurrence it is about (their occurrence of that day is done during it): the day that identifies each occurrence, and the day it shows on. */
+  routineLinks: { routineId: string; date: string; shownDate: string }[];
   /** Cancelled but kept in the calendar. */
   calledOff: boolean;
   /** Event (and occurrence) this one postpones. */
@@ -133,7 +134,7 @@ export type EventWithRelations = CalendarEvent & {
   libraryDocuments: { id: string }[];
   projectResources: { id: string }[];
   savedCountdowns: { id: string }[];
-  routineLinks: { routineId: string; date: Date }[];
+  routineLinks: RoutineLinkRow[];
   postponedFrom: { label: string } | null;
   postponements: { id: string; label: string; startDate: Date; startTime: string | null; postponedFromDate: Date | null }[];
   timeEntryLinks: {
@@ -153,7 +154,7 @@ export const occurrenceInclude = {
   savedCountdowns: { select: { id: true } },
   tasks: { select: { id: true } },
   ...LINKED_DOCUMENTS_SELECT,
-  routineLinks: { select: { routineId: true, date: true } },
+  routineLinks: { select: ROUTINE_LINK_SELECT },
   postponedFrom: { select: { label: true } },
   postponements: { select: { id: true, label: true, startDate: true, startTime: true, postponedFromDate: true } },
   timeEntryLinks: {
@@ -205,14 +206,17 @@ export async function placeLegacyEventComments(ids: readonly string[]): Promise<
 }
 
 /**
- * Routines linked on the days of an occurrence.
- * @param {{ routineId: string, date: Date }[]} links Links of the event.
+ * Routines linked on the days of an occurrence: those shown on one of its days (an occurrence moved there and kept
+ * apart included, its link stored on the day of its rule).
+ * @param {RoutineLinkRow[]} links Links of the event.
  * @param {string} from First day (YYYY-MM-DD).
  * @param {string} to Last day, included.
- * @returns {{ routineId: string, date: string }[]} Links of those days.
+ * @returns {{ routineId: string, date: string, shownDate: string }[]} Links of those days (the day that identifies each occurrence, the day it shows on).
  */
-function linksWithin(links: readonly { routineId: string; date: Date }[], from: string, to: string): { routineId: string; date: string }[] {
-  return links.map((link) => ({ routineId: link.routineId, date: formatDay(link.date) })).filter((link) => link.date >= from && link.date <= to);
+function linksWithin(links: readonly RoutineLinkRow[], from: string, to: string): { routineId: string; date: string; shownDate: string }[] {
+  return links
+    .map((link) => ({ routineId: link.routineId, date: formatDay(link.date), shownDate: linkShownDay(link) }))
+    .filter((link) => link.shownDate >= from && link.shownDate <= to);
 }
 
 /** Days of an occurrence (first and last, included). */
@@ -231,8 +235,14 @@ interface OccurrenceDays {
  * @returns {Promise<void>}
  */
 async function saveRoutineLinks(eventId: string, links: readonly { routineId: string; date: string }[], replaced: OccurrenceDays | null): Promise<void> {
+  // The links of its days: by the day each occurrence shows on (one kept apart is stored on the day of its rule).
+  const held = replaced ? await prisma.calendarEventRoutine.findMany({ where: { eventId }, select: { id: true, ...ROUTINE_LINK_SELECT } }) : [];
+  const gone = held.filter((link) => {
+    const day = linkShownDay(link);
+    return day >= replaced!.from && day <= replaced!.to;
+  });
   await prisma.$transaction([
-    prisma.calendarEventRoutine.deleteMany({ where: { eventId, ...(replaced && { date: { gte: parseDay(replaced.from), lte: parseDay(replaced.to) } }) } }),
+    prisma.calendarEventRoutine.deleteMany({ where: { eventId, ...(replaced && { id: { in: gone.map((link) => link.id) } }) } }),
     prisma.calendarEventRoutine.createMany({
       data: [...new Map(links.map((link) => [occurrenceKey(link.routineId, link.date), link])).values()].map((link) => ({ eventId, routineId: link.routineId, date: parseDay(link.date) })),
       skipDuplicates: true,
@@ -361,8 +371,10 @@ async function parseEvent(
   // A task is about an event of someone of its assignees, its own or inherited (or either side has nobody).
   const taskAssignees = tasks.length ? await effectiveTasks(tasks.map((task) => task.id)) : new Map<string, EffectiveTask>();
   const apart: { label: string }[] = tasks.filter((task) => !sharePeople([...(taskAssignees.get(task.id)?.assigneeIds ?? [])], event.contributorIds));
-  // Routines of a day of the event (the one edited, for an occurrence).
-  if (event.routineLinks.some((link) => link.date < event.startDate || link.date > event.endDate)) {
+  // Routines of a day of the event (the one edited, for an occurrence): by the day each occurrence shows on (one moved
+  // there and kept apart is identified by the day of its rule).
+  const shownOn = await loadLinkShownDays(event.routineLinks);
+  if (event.routineLinks.some((link) => shownOn(link) < event.startDate || shownOn(link) > event.endDate)) {
     const message = 'Une routine rattachée doit l’être un jour de l’évènement.';
     throw fieldError('routineLinks', message);
   }

@@ -1303,9 +1303,14 @@ enum DocumentStatusScope {
 
 """Occurrence of a routine (its day) an event is about."""
 type EventRoutineLink {
-  """YYYY-MM-DD."""
+  """
+  Day that identifies the occurrence (YYYY-MM-DD): its due day, or the day of its rule when moved onto a day that has its own and kept apart.
+  """
   date: String!
   routineId: ID!
+
+  """Day the occurrence shows on (a day of the event; YYYY-MM-DD)."""
+  shownDate: String!
 }
 
 input EventRoutineLinkInput {

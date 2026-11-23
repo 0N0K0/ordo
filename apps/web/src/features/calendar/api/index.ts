@@ -67,6 +67,7 @@ graphql(`
     routineLinks {
       routineId
       date
+      shownDate
     }
     calledOff
     postponedFrom {
