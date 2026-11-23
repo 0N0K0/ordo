@@ -216,7 +216,7 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 ### `hooks/use-routine-day.ts`
 
 - `RoutineDay` (interface) : routines, `byId`, moments prévus du jour (`items`), cochés (`doneCount`), chargement.
-- `useRoutineDay(day, routineId?)` : chaque moment prévu ce jour-là (`useRoutineOccurrences` du jour, celles dues ce jour-là, annulées écartées, une routine seule ou toutes ; deux occurrences d’une routine ce jour-là, chacune les siens) avec sa coche (`useRoutineChecks` depuis le plus ancien jour qui les identifie : celle d’une occurrence gardée à part est à son jour d’origine), triés par heure puis libellé (interne `historyItems`), et combien sont cochés. Utilisé par `RoutineHistory` (onglet « Historique ») et `RoutinesNavBadge` (barre latérale, aujourd’hui).
+- `useRoutineDay(day, routineId?)` : chaque moment prévu ce jour-là (`useRoutineOccurrences` du jour, celles dues ce jour-là, annulées écartées, une routine seule ou toutes ; deux occurrences d’une routine ce jour-là, chacune les siens) avec sa coche (`useRoutineChecks` du plus ancien au plus récent des jours qui les identifient : celle d’une occurrence gardée à part est à son jour d’origine, plus tôt ou plus tard), triés par heure puis libellé (interne `historyItems`), et combien sont cochés. Utilisé par `RoutineHistory` (onglet « Historique ») et `RoutinesNavBadge` (barre latérale, aujourd’hui).
 
 ### `hooks/use-routine-columns.ts`
 

@@ -71,3 +71,13 @@ export { localInstant };
 export function parisParts(instant: Date): { date: string; time: string } {
   return { date: dayIn(instant, PARIS_ZONE), time: timeIn(instant, PARIS_ZONE) };
 }
+
+/**
+ * Day of an instant in Paris, the day of the app's items (a time and the events of its day, as the API reads it); a
+ * calendar day as it is.
+ * @param {Date | string | number} value Instant (a date, its ISO text or timestamp), or a day (YYYY-MM-DD).
+ * @returns {string} Day (YYYY-MM-DD) in Paris.
+ */
+export function parisDay(value: Date | string | number): string {
+  return typeof value === 'string' && CALENDAR_DAY.test(value) ? value : dayIn(value instanceof Date ? value : new Date(value), PARIS_ZONE);
+}

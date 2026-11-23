@@ -13,7 +13,7 @@ import { useTimeMutations, type TimeEntry, type TimeEntryValues } from '../api';
 import classes from './TimerCard.module.css';
 import { TimeSubjectsFields, type TimeSubjectsValue } from './TimeSubjectsFields';
 import { entryEventKeys, parseEventKeys } from '../lib/time-events';
-import { localDay, localToday } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import { useNow } from '../../../lib/use-now';
 import { TimerControls } from './TimerControls';
 import { useStartTimer } from '../hooks/use-start-timer';
@@ -78,7 +78,7 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
             }}
             {...extra}
           />
-          <TimeSubjectsFields context={context} projectId={projectId} day={localToday()} value={subjects} onChange={(change) => setSubjects((current) => ({ ...current, ...change }))} {...extra} />
+          <TimeSubjectsFields context={context} projectId={projectId} day={parisDay(new Date())} value={subjects} onChange={(change) => setSubjects((current) => ({ ...current, ...change }))} {...extra} />
         </div>
         <MarkdownEditor label="Description" placeholder="Ce que vous faites…" minRows={2} value={description} onChange={setDescription} suggestions={context.suggestionsFor(projectId)} />
         <FormActions submitLabel="Démarrer le chrono" submitIcon={<PlayIcon aria-hidden />} disabled={empty} loading={starting} />
@@ -166,7 +166,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
         <TimeSubjectsFields
           context={context}
           projectId={entry.projectId}
-          day={localDay(entry.startedAt)}
+          day={parisDay(entry.startedAt)}
           entry={entry}
           value={{ routineIds: entry.routines.map((routine) => routine.id), taskIds: entry.taskIds, events: entryEventKeys(entry) }}
           onChange={(change) => save({ ...change, events: change.events && parseEventKeys(change.events) })}

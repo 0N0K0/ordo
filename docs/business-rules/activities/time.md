@@ -83,8 +83,8 @@ Source : `stopTimer(id)`, `stopAllTimers` (« Arrêter tout »).
 Source : `capRunningTimers`, `scheduleTimerCap` (tâche de fond « Chronos de plus de 24 heures », voir [Tâches de fond](../cross-cutting/background-jobs.md)).
 
 - Un chrono qui a tourné **24 heures** (pauses déduites, `DURATION_MAX_SECONDS`, la durée maximale d’un temps) est **arrêté tout seul** par l’API, même app fermée : sa fin est posée au moment où il atteint 24 heures (début + pauses + 24 h), sa durée vaut 24 heures. Un chrono en pause avant d’atteindre 24 heures n’est pas arrêté (sa durée n’avance plus).
-- Vérifié toutes les 5 minutes dans chaque espace : un chrono peut tourner jusqu’à 5 minutes de plus avant d’être arrêté, sa durée restant 24 heures.
-- L’app le montre : le chrono disparaît des chronos en cours (rechargés chaque minute) avec la notification « Chrono arrêté après 24 heures » (ce sur quoi il portait, « Sa durée est de 24 heures, le maximum d’un temps. »).
+- Vérifié toutes les 5 minutes dans chaque espace, et à chaque lecture des temps (`timeEntries`, `runningTimeEntries` arrêtent d’abord ceux qui ont passé 24 heures) : sa durée reste 24 heures.
+- L’app le montre au moment où il atteint 24 heures, sans attendre le retour du focus : elle recharge alors les temps (pastille, accueil, « Prévu et réalisé », journal) et les tâches ; le chrono disparaît des chronos en cours (rechargés aussi chaque minute) avec la notification « Chrono arrêté après 24 heures » (ce sur quoi il portait, « Sa durée est de 24 heures, le maximum d’un temps. »).
 
 ### Abandonner
 
@@ -112,6 +112,7 @@ Source : `updateTimeEntry`.
 - Les tâches, routines et évènements donnés remplacent ceux du temps.
 - Chrono en cours : sa durée ne se modifie pas (« La durée d’un chrono en cours ne se modifie pas. ») et son début ne peut pas être dans le futur (« Le début ne peut pas être dans le futur. ») ; en pause, son début doit précéder la pause, ses pauses passées déduites (« Le début doit précéder la pause. »). Il continue de tourner.
 - Temps terminé : changer le début ou la durée recalcule la fin (début + durée).
+- Le jour d’un temps est celui de son début à l’heure de Paris, pour l’API comme pour l’app (les évènements et routines de son jour proposés, `parisDay`), quel que soit le fuseau du navigateur.
 - Début changé de jour (heure de Paris) sans que ses évènements soient donnés : le temps quitte les évènements qui ne sont pas ce jour-là (une occurrence d’un autre jour, un évènement unique qui ne couvre pas ce jour) ; ceux de ce jour restent. S’il n’a plus rien (sans projet, ni tâche, ni routine), le changement est refusé comme un retrait du dernier (« Choisissez un projet, une tâche, une routine ou un évènement. »).
 
 ## Suppression

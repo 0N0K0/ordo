@@ -112,8 +112,11 @@ import {
   type RoutineDaySlot,
   type RoutineOccurrenceSpan,
   type RoutineSpan,
+  type RoutineTick,
   type RoutineTiming,
   type ScheduleContext,
+  ticksOf,
+  LATEST_CHECKS,
 } from './routine-occurrences';
 import { changedRoutineInheritance, clearedRoutineInput, effectiveRoutineOf, freezeRoutineInheritance, loadRoutineInheritance, syncInheritedRoutineProjects, withOwnMoves, type StoredInheritingRoutine } from './routine-inheritance';
 
@@ -122,21 +125,25 @@ import { changedRoutineInheritance, clearedRoutineInput, effectiveRoutineOf, fre
  * today, the next one the first starting after; then its exceptions (occurrences moved to another day or deleted).
  * Each is given by the day that identifies it (`moveKey`). Two due the same day (one moved there and kept apart): the
  * current one is the first not done yet, in the order of their days (the last once both are done), as its ticks tell
- * when the routine comes with its latest ones (`checks`); else the first.
+ * when the routine comes with its latest ones (`checks`, with those of its occurrences kept apart: `ticksOf`); else the
+ * first. To take a tick away, the current one among them is the last ticked (the one a tick was just given to).
  * @param {RoutineTiming & { checks?: { date: Date, slot: number }[] }} routine Routine (with its latest ticks, optional).
  * @param {string} [today] Today. Optional. Default = today in Paris.
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
+ * @param {boolean} [unticking] For a tick taken away. Optional. Default = false.
  * @returns {{ current: string | null, next: string | null }} Occurrences.
  */
 export function occurrencesOf(
-  given: RoutineTiming & { checks?: { date: Date; slot: number }[] },
+  given: RoutineTiming & { checks?: readonly RoutineTick[] },
   today = parisToday(),
   schedules: ScheduleContext = NO_SCHEDULES,
+  unticking = false,
 ): { current: string | null; next: string | null } {
   // An archived routine has nothing due: nothing computed.
   if (given.archivedAt) return { current: null, next: null };
   const routine = occurrenceTiming(given, schedules);
-  return remember(routine, schedules, joinedKey('occurrences', today, given.checks ? 'ticks' : ''), () => {
+  const checks = ticksOf(given, schedules);
+  return remember(routine, schedules, joinedKey('occurrences', today, checks ? 'ticks' : '', unticking ? 'untick' : ''), () => {
     const start = formatDay(routine.startDate);
     /**
      * Occurrences of the rule alone around a day: looked for close to it first, further when none is there.
@@ -155,9 +162,10 @@ export function occurrencesOf(
       if (found.next === null && found.current !== null && found.current < day) found = { ...found, current: null };
       return found;
     };
-    // Several due the same day: the first not done yet (their ticks), else the last.
-    const checks = given.checks;
-    const pick = (dates: string[]) => (checks ? (dates.find((date) => !occurrenceDone(routine, date, checks, schedules)) ?? dates.at(-1)!) : dates[0]);
+    // Several due the same day: the first not done yet (their ticks), else the last; to take a tick away, the last ticked.
+    const ticked = (date: string) => Boolean(checks?.some((check) => formatDay(check.date) === date));
+    const pick = (dates: string[]) =>
+      checks ? ((unticking ? dates.filter(ticked).at(-1) : undefined) ?? dates.find((date) => !occurrenceDone(routine, date, checks, schedules)) ?? dates.at(-1)!) : dates[0];
     return movedOccurrences(compute, liveMoves(routine, schedules), today, pick);
   });
 }
@@ -350,9 +358,10 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
           .filter((span) => span.start <= last)
           .map((span) => span.date)
       : [];
-  return [current, next, ...later].flatMap((due) => {
+  // Each occurrence once: one kept apart, due after the day of its rule, overlaps the later days too.
+  return [...new Set([current, next, ...later])].flatMap((due) => {
     if (!due) return [];
-    const ticked = new Set(due === current ? routine.checks.filter((check) => formatDay(check.date) === due).map((check) => check.slot) : []);
+    const ticked = new Set(due === current ? (ticksOf(routine, schedules) ?? []).filter((check) => formatDay(check.date) === due).map((check) => check.slot) : []);
     const slots = slotsOf(routine, due, schedules);
     // A done occurrence (every required time ticked) rings no more.
     if (slots.every((slot, index) => ticked.has(index) || slot.optional)) return [];
@@ -1354,9 +1363,6 @@ function hasOpened(routine: Routine, occurrence: string, today: string, schedule
   return due <= today || (span !== undefined && span.start <= today);
 }
 
-/** Latest ticks of a routine: enough to tell which of two occurrences due the same day is the current one. */
-const LATEST_CHECKS = { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true } } as const;
-
 /**
  * Checks that a time of the day of an occurrence of a routine can be ticked or unticked, nothing written.
  * @param {Routine & { checks?: { date: Date, slot: number }[] }} routine Routine (with its latest ticks: the current occurrence among two due the same day).
@@ -1369,11 +1375,12 @@ const LATEST_CHECKS = { orderBy: { date: 'desc' }, take: 20, select: { date: tru
  */
 function checkableOccurrence(routine: Routine & { checks?: { date: Date; slot: number }[] }, slots: ScheduleContext, date?: string | null, slot?: number | null, doneAt?: Date | null, ticking = true): { occurrence: string; index: number } {
   refuseArchived(routine);
-  const occurrence = date ?? occurrencesOf(routine, undefined, slots).current;
+  const occurrence = date ?? occurrencesOf(routine, undefined, slots, !ticking).current;
   if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');
-  // A day given is one of its occurrences (not called off, not before its start, on its rule or moved there); a tick
-  // already there can still be taken away.
-  if (date && ticking && !hasOccurrence(routine, date, slots)) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas d’occurrence ce jour-là.');
+  // A tick is always taken away (nothing else to check: an untick that finds none changes nothing).
+  if (!ticking) return { occurrence, index: slot ?? 0 };
+  // A day given is one of its occurrences (not called off, not before its start, on its rule or moved there).
+  if (date && !hasOccurrence(routine, date, slots)) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas d’occurrence ce jour-là.');
   // During its « Ouverture » an occurrence due later is ticked like the one due today.
   if (!hasOpened(routine, occurrence, parisToday(), slots)) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
   const index = slot ?? 0;
@@ -1429,11 +1436,12 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise
   let count = 0;
   // An archived routine is read only: not ticked.
   for (const routine of await prisma.routine.findMany({ where: { id: { in: ids }, archivedAt: null }, include: { checks: LATEST_CHECKS } })) {
-    const current = occurrencesOf(routine, today, context).current;
+    // Unticked: the occurrence last ticked among two due the same day (the one a bulk tick just did).
+    const current = occurrencesOf(routine, today, context, !done).current;
     if (!current) continue;
     // Every time of the day, or none of them.
     const slots = Math.max(1, slotsOf(routine, current, context).length);
-    for (let slot = 0; slot < slots; slot += 1) writes.push({ id: routine.id, ...checkableOccurrence(routine, context, current, slot) });
+    for (let slot = 0; slot < slots; slot += 1) writes.push({ id: routine.id, ...checkableOccurrence(routine, context, current, slot, null, done) });
     count += 1;
   }
   await prisma.$transaction(writes.map((write) => checkWrite(write.id, done, write.occurrence, write.index)));

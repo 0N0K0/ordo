@@ -167,6 +167,7 @@ Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme
 - `localToday()` : jour courant de l'utilisateur (~50 fichiers).
 - `localParts(instant)` : `{ date: 'YYYY-MM-DD', time: 'HH:MM' }` locaux.
 - `parisParts(instant)` : `{ date, time }` à l'heure de Paris, celle des jours et heures des routines et évènements, quel que soit le fuseau du navigateur.
+- `parisDay(value)` : jour à Paris d'un instant (date, texte ISO ou horodatage), un jour `YYYY-MM-DD` tel quel : le jour d'un temps (les évènements de son jour, comme l'API), des éléments du PDF de l'agenda.
 - `localMidnight(day)` : minuit local d'un jour, en date-heure ISO.
 - Réexports de `@ordo/shared` (seul chemin autorisé par eslint) : `monthOfDay`, `yearOfDay`, `localInstant` (instant d'un jour et d'une heure de l'utilisateur, partagé avec les alarmes).
 

@@ -30,6 +30,7 @@ import {
   type EffectiveTask,
   shiftedSeries,
   storedRecurrence,
+  shiftedRoutineLink,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { PARIS } from '../../today';
@@ -276,7 +277,7 @@ async function moveRoutineLinks(tx: Prisma.TransactionClient, eventId: string, f
   const held = await tx.calendarEventRoutine.findMany({ where: { eventId }, select: { id: true, ...ROUTINE_LINK_SELECT } });
   const moving = held.flatMap((link) => {
     const shown = linkShownDay(link);
-    return !from || shown >= from ? [{ id: link.id, routineId: link.routineId, date: formatDay(link.date), shownDate: addDays(shown, shift) }] : [];
+    return !from || shown >= from ? [{ id: link.id, ...shiftedRoutineLink({ routineId: link.routineId, date: formatDay(link.date) }, shown, shift) }] : [];
   });
   if (!moving.length) return;
   await tx.calendarEventRoutine.deleteMany({ where: { id: { in: moving.map((link) => link.id) } } });
@@ -561,7 +562,8 @@ export async function updateCalendarEvent(id: string, input: CalendarEventInput,
   await followProject(before, updated.projectId, fields.contributorIds);
   // The routines of the days of the occurrence edited, on the event it now belongs to (given on the days of its series,
   // they go to its own days when it was changed alone: shown on other days).
-  const links = linkShift ? fields.routineLinks.map((link) => ({ ...link, shownDate: addDays(link.shownDate ?? link.date, linkShift) })) : fields.routineLinks;
+  const shownOn = linkShift ? await loadLinkShownDays(fields.routineLinks) : null;
+  const links = shownOn ? fields.routineLinks.map((link) => shiftedRoutineLink(link, link.shownDate ?? shownOn(link), linkShift)) : fields.routineLinks;
   await saveRoutineLinks(updated.id, links, linkDays);
   return updated;
 }

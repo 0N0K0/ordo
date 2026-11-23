@@ -92,20 +92,15 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
   const leavesTree = chosen && tasks.some((task) => !inProjectTree(context, target)(task.projectId));
 
   /**
-   * Moved tasks (those no other one moved holds), then their sub-tasks level by level, as they are now.
-   * @returns {Task[][]} Levels.
+   * Moved tasks: those no other one moved holds, as they are now.
+   * @returns {Task[]} Tasks.
    */
-  const movedLevels = () => {
-    const levels = [
-      outermost(
-        tasks,
-        (task) => task.id,
-        (id) => context.taskById.get(id)?.parentId,
-      ),
-    ];
-    while (levels[levels.length - 1].length > 0) levels.push(levels[levels.length - 1].flatMap((task) => context.childrenOf(task.id)));
-    return levels.slice(0, -1);
-  };
+  const movedTasks = () =>
+    outermost(
+      tasks,
+      (task) => task.id,
+      (id) => context.taskById.get(id)?.parentId,
+    );
 
   /**
    * Transfers the tasks.
@@ -113,14 +108,14 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
    */
   const handleConfirm = () => {
     if (!chosen) return;
-    const levels = movedLevels();
+    const moved = movedTasks();
     transfer.mutate(
       { ids: tasks.map((task) => task.id), projectId: target },
       {
         onSuccess: ({ removedLinks, lost }) => {
           const message = single ? `Tâche ${taskName(single)} transférée.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'transférée')}.`;
           // « Annuler » puts the tasks back with the links, milestones, sprints and documents removed.
-          notifyWithUndo(message + removedLinksNote(removedLinks), undo.transfer(levels, lost));
+          notifyWithUndo(message + removedLinksNote(removedLinks), undo.transfer(moved, lost));
           onDone(true);
         },
         onError: onMutationError,

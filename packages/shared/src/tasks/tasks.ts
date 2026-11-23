@@ -218,7 +218,9 @@ const idList = z.array(z.string().min(1));
 /**
  * Links a transfer of tasks removed because they left the project tree, as the transfer tells them, to put them back
  * (« Annuler »): blocks and relations with the tasks left behind, the parent left behind (with the fields the task
- * inherited from it), milestones, sprints and project documents of another tree.
+ * inherited from it), milestones, sprints and project documents of another tree. Also what the undo needs to give
+ * the moved tasks back as they were: the sub-tasks in another project than their parent (each put back in its own,
+ * parents first), and the tasks that stopped inheriting their project (left in another project than their parent).
  */
 export const taskLinksLostSchema = z.object({
   blocks: z.array(z.object({ blockerId: z.string().min(1), blockedId: z.string().min(1) })),
@@ -227,11 +229,46 @@ export const taskLinksLostSchema = z.object({
   milestones: z.array(z.object({ id: z.string().min(1), milestoneId: z.string().min(1) })),
   sprints: z.array(z.object({ id: z.string().min(1), sprintIds: idList })),
   resources: z.array(z.object({ id: z.string().min(1), resourceIds: idList })),
+  projects: z.array(z.object({ id: z.string().min(1), projectId: z.string().min(1).nullable() })).default([]),
+  inheritedProjects: idList.default([]),
 });
 export type TaskLinksLost = z.infer<typeof taskLinksLostSchema>;
 
 /** No link removed (a transfer that kept them all, an undo with no link to put back). */
-export const NO_TASK_LINKS_LOST: TaskLinksLost = { blocks: [], relations: [], parents: [], milestones: [], sprints: [], resources: [] };
+export const NO_TASK_LINKS_LOST: TaskLinksLost = { blocks: [], relations: [], parents: [], milestones: [], sprints: [], resources: [], projects: [], inheritedProjects: [] };
+
+/** A task of a tree as `subtaskProjects` reads it. */
+interface ProjectedTask {
+  id: string;
+  parentId: string | null;
+  projectId: string | null;
+}
+
+/**
+ * Sub-tasks (at any depth) of the tasks given whose project is not their parent's, parents first: a transfer moves a
+ * task with its whole sub-tree, so its undo puts each of them back in its own project, level by level (the sub-tasks
+ * in their parent's project follow it).
+ * @param {readonly ProjectedTask[]} tasks Tasks of the trees, as they are before the move.
+ * @param {readonly string[]} rootIds Tasks moved with their sub-trees.
+ * @returns {{ id: string, projectId: string | null }[]} Sub-tasks and their project.
+ */
+export function subtaskProjects(tasks: readonly ProjectedTask[], rootIds: readonly string[]): { id: string; projectId: string | null }[] {
+  const children = new Map<string, ProjectedTask[]>();
+  for (const task of tasks) if (task.parentId) children.set(task.parentId, [...(children.get(task.parentId) ?? []), task]);
+  const byId = new Map(tasks.map((task) => [task.id, task]));
+  const found: { id: string; projectId: string | null }[] = [];
+  const seen = new Set<string>(rootIds);
+  let level = rootIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
+  while (level.length) {
+    const next = level.flatMap((task) => (children.get(task.id) ?? []).filter((child) => !seen.has(child.id)));
+    for (const child of next) {
+      seen.add(child.id);
+      if (child.projectId !== byId.get(child.parentId!)!.projectId) found.push({ id: child.id, projectId: child.projectId });
+    }
+    level = next;
+  }
+  return found;
+}
 
 /**
  * Number of links a transfer removed (each sprint and each document counted).

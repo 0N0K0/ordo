@@ -4,7 +4,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { CellMultiSelect, EditableDate, EditableText, EditableTime } from '../../../components/data-table/cells/EditableCells';
 import { StackedMultiCell, type StackedItem } from '../../../components/data-table/cells/StackedMultiCell';
 
-import { localDay, localInstant, localParts } from '../../../lib/dates';
+import { localInstant, localParts, parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCalendarEvents } from '../../calendar/api';
 import { useRoutinesData } from '../../routines/api';
@@ -154,7 +154,8 @@ export function TimeTasksCell({ entry, context, readOnly, label, save }: { entry
  * @returns {JSX.Element} Multi-select.
  */
 function DayEventsSelect({ entry, ...props }: SubjectSelectProps & { entry: TimeEntry }) {
-  const day = localDay(entry.startedAt);
+  // Its day in Paris, as the API reads it.
+  const day = parisDay(entry.startedAt);
   const { data: events } = useCalendarEvents({ from: day, to: day });
   return <CellMultiSelect {...props} data={dayEventOptions(events ?? [], day, entry)} nothingFoundMessage="Aucun évènement ce jour-là" />;
 }

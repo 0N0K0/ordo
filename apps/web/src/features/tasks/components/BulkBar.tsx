@@ -107,8 +107,10 @@ export function useTaskRowsActions(context: TaskContext | null) {
         about: tasksLabel(activeIds.length),
         withParent: active.filter((task) => task.parentId).length,
         onApply: async (change) => {
+          // Every task as it is before the change: the undo puts the sub-tasks back in their own projects.
+          const before = [...(context?.taskById.values() ?? [])];
           await update.mutateAsync({ ids: activeIds, changes: change });
-          notifyWithUndo(`Héritage changé pour ${tasksLabel(activeIds.length)}.`, undo.inheritance(active, [...change.inheritFields, ...change.clearFields]));
+          notifyWithUndo(`Héritage changé pour ${tasksLabel(activeIds.length)}.`, undo.inheritance(active, [...change.inheritFields, ...change.clearFields], before));
         },
         onDone: onClear,
       }),

@@ -8,7 +8,9 @@ import { RunningPill } from '../../../components/feedback/RunningPill';
 import { useNow } from '../../../lib/use-now';
 import { countOf } from '../../../lib/text';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
-import { useRunningTimers, type TimeEntry } from '../api';
+import { timeQueryKey, useRunningTimers, type TimeEntry } from '../api';
+import { tasksQueryKey } from '../../tasks/api';
+import { useQueryClient } from '@tanstack/react-query';
 import { useStopTimer } from '../hooks/use-stop-timer';
 import { entrySubject } from '../lib/entry-subject';
 import { RunningTimer } from './TimerCard';
@@ -111,6 +113,29 @@ function useTimerCapNotice(entries: readonly TimeEntry[]): void {
 }
 
 /**
+ * Refreshes the time data (badge, home, « Prévu et réalisé », journal) and the tasks (their tracked time) the moment a
+ * running timer reaches 24 hours: the API stops it as it reads them, so none counts it as running any more, without
+ * waiting for the focus. A paused timer does not get there.
+ * @param {readonly TimeEntry[]} entries Timers running now.
+ * @returns {void}
+ */
+function useTimerCapRefresh(entries: readonly TimeEntry[]): void {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const now = Date.now();
+    const left = entries.filter((entry) => entry.pausedAt === null).map((entry) => (DURATION_MAX_SECONDS - entrySeconds(entry, now)) * 1000);
+    if (!left.length) return;
+    // A second after the moment (the longest wait a timer of the browser takes).
+    const wait = Math.min(Math.max(0, Math.min(...left)) + 1000, 2 ** 31 - 1);
+    const timer = window.setTimeout(() => {
+      void queryClient.invalidateQueries({ queryKey: timeQueryKey });
+      void queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+    }, wait);
+    return () => window.clearTimeout(timer);
+  }, [entries, queryClient]);
+}
+
+/**
  * Running timers in the app header, on every page (a timer is started from the « Ajouter » menu): the one running, or
  * the number of those running (several at once).
  * @returns {JSX.Element | null} Pill, while a timer runs.
@@ -119,6 +144,7 @@ export function TimerWidget() {
   const running = useRunningTimers();
   const entries = running.data ?? [];
   useTimerCapNotice(entries);
+  useTimerCapRefresh(entries);
   if (!entries.length) return null;
   return entries.length === 1 ? <RunningControls entry={entries[0]} /> : <SeveralRunning entries={entries} />;
 }

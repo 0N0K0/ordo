@@ -1,8 +1,8 @@
 import { SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { formDateTime } from '../../../components/inputs/date-fields';
-import { durationText, parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
-import { localInstant, localParts, localToday } from '../../../lib/dates';
+import { durationText, parseDuration, TIME_OF_DAY_PATTERN, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
+import { localInstant, localParts, localToday, parisDay } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
@@ -61,6 +61,15 @@ const changedInput = (changes: Partial<TimeEntryFormValues>, values: TimeEntryFo
   ];
   return Object.fromEntries(fields.map((field) => [field, all[field]]));
 };
+
+/**
+ * Day of a time from the day and start time typed (local): its day in Paris, as the API reads it (the events of that
+ * day are offered); today while the day is not typed.
+ * @param {string} date Day typed (YYYY-MM-DD).
+ * @param {string} start Start time typed (HH:MM).
+ * @returns {string} Day in Paris.
+ */
+const entryDay = (date: string, start: string): string => (date ? parisDay(localInstant(date, TIME_OF_DAY_PATTERN.test(start) ? start : '00:00')) : parisDay(new Date()));
 
 /**
  * Values of the form of an existing time (its local day and start time, its duration as « h:mm »).
@@ -140,7 +149,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
           <TimeSubjectsFields
             context={context}
             projectId={form.values.projectId || null}
-            day={form.values.date || localToday()}
+            day={entryDay(form.values.date, form.values.start)}
             entry={entry}
             value={{ routineIds: form.values.routineIds, taskIds: form.values.taskIds, events: form.values.events }}
             onChange={(change) => form.setValues(change)}

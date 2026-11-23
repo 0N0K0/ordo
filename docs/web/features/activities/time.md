@@ -59,13 +59,13 @@ Cellules modifiables du tableau des temps ; chacune reçoit `{ entry, readOnly, 
 | `TimeDurationCell`            | Durée tapée (`parseDuration`) ; « Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h. » (`DURATION_TEXT_INVALID`, comme le formulaire).                            |
 | `TimeRoutinesCell` (+ `context`) | Routines de l’arborescence du projet (`timeRoutineOptions`). |
 | `TimeTasksCell` (+ `context`) | Tâches du projet (`timeTasks`, `timeTaskOptions`). |
-| `TimeEventsCell`              | Évènements du jour, chargés à l’ouverture de la liste (`DayEventsSelect`, `dayEventOptions`). |
+| `TimeEventsCell`              | Évènements du jour (à l’heure de Paris, `parisDay`), chargés à l’ouverture de la liste (`DayEventsSelect`, `dayEventOptions`). |
 
 Les trois cellules de sujets passent par l’interne `TimeSubjectCell({ kind, entry, readOnly, label, items, select, save })` : valeurs l’une sous l’autre (`StackedMultiCell`), liste `CellMultiSelect` à l’ouverture ; en masse, chaque ligne reçoit les ajouts et perd les retraits (`applyDiff` sur `TIME_SUBJECTS[kind]`). Internes : `Save`, `SubjectSelectProps`, `DayEventsSelect`.
 
 ### `components/TimeEntryForm.tsx`
 
-- `TimeEntryForm({ context, entry?, defaultProjectId?, onDone })` : formulaire d’ajout (« Ajouter ») ou panneau d’un temps existant enregistré champ par champ (`useFieldSave` : durée et description en les quittant, le reste dès qu’il change, `SaveStatus` en tête ; entrée de l’API par `entryInput` à l’ajout, par interne `changedInput` en modification : seuls les champs changés, durée et début gardés exacts sinon) : projet (facultatif avec une tâche, une routine ou un évènement ; le changer vide routines et tâches, enregistrés ensemble), jour, début, durée, routines, tâches et évènements du jour (`TimeSubjectsFields`, valeurs `routineIds`, `taskIds`, `events` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`) ; le temps du cache est suivi (`useCachedItem` sur `timeQueryKey`, valeurs d’un temps : interne `timeEntryFormValues`). Ouvert par `useTimeEntryDialogs`.
+- `TimeEntryForm({ context, entry?, defaultProjectId?, onDone })` : formulaire d’ajout (« Ajouter ») ou panneau d’un temps existant enregistré champ par champ (`useFieldSave` : durée et description en les quittant, le reste dès qu’il change, `SaveStatus` en tête ; entrée de l’API par `entryInput` à l’ajout, par interne `changedInput` en modification : seuls les champs changés, durée et début gardés exacts sinon) : projet (facultatif avec une tâche, une routine ou un évènement ; le changer vide routines et tâches, enregistrés ensemble), jour, début, durée, routines, tâches et évènements du jour (le jour à Paris du jour et du début saisis, interne `entryDay` ; `TimeSubjectsFields`, valeurs `routineIds`, `taskIds`, `events` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`) ; le temps du cache est suivi (`useCachedItem` sur `timeQueryKey`, valeurs d’un temps : interne `timeEntryFormValues`). Ouvert par `useTimeEntryDialogs`.
 
 ### `components/TimeLogActions.tsx`
 
@@ -114,7 +114,7 @@ Classes `clock` (horloge, en couleur atténuée quand `data-paused`) et `fields`
 ### `components/TimerWidget.tsx`
 
 - `TimerWidget()` : chronos en cours dans l’en-tête de l’app (rien sans chrono), en pastille `RunningPill` (`components/feedback`). Monté par `app/layout/AppLayout.tsx` (pas sur téléphone).
-- Internes : `RunningControls({ entry })` (un seul chrono : sujet et horloge, bulle « Détails du chrono » avec `RunningTimer`, `TimerControls`) ; `SeveralRunning({ entries })` (plusieurs : « 2 chronos » et l’horloge du plus long, bulle « Chronos en cours » : une ligne `RunningRow` par chrono, puis « Arrêter tout ») ; `RunningRow({ entry })` (sujet, horloge, `TimerControls`). ; `useTimerCapNotice(entries)` (notification « Chrono arrêté après 24 heures » quand un chrono disparaît des chronos en cours après 24 heures).
+- Internes : `RunningControls({ entry })` (un seul chrono : sujet et horloge, bulle « Détails du chrono » avec `RunningTimer`, `TimerControls`) ; `SeveralRunning({ entries })` (plusieurs : « 2 chronos » et l’horloge du plus long, bulle « Chronos en cours » : une ligne `RunningRow` par chrono, puis « Arrêter tout ») ; `RunningRow({ entry })` (sujet, horloge, `TimerControls`). ; `useTimerCapNotice(entries)` (notification « Chrono arrêté après 24 heures » quand un chrono disparaît des chronos en cours après 24 heures) ; `useTimerCapRefresh(entries)` (au moment où un chrono qui tourne atteint 24 heures, recharge les temps, `timeQueryKey`, et les tâches, `tasksQueryKey` : l’API l’arrête en les lisant).
 
 Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`components/feedback/RunningPill.module.css`), commune aux chronos et aux minuteurs.
 

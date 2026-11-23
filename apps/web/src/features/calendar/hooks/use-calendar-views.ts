@@ -1,7 +1,10 @@
 import { CALENDAR_VIEW_KEY, calendarViewConfig, type CalendarDisplay, type CalendarViewConfig } from '@ordo/shared';
 import { useSavedViews, viewParam } from '../../../components/data-table/views/use-saved-views';
 
-/** Settings the calendar kept in the browser before its views (read once, to make its first view). */
+/**
+ * Settings the calendar kept in the browser before its views: they make the first view of each workspace that has
+ * none (its first visit), and are never dropped (a creation that fails loses nothing; every workspace takes them).
+ */
 const LEGACY_KEYS = { view: 'ordo.calendar.view', filters: 'ordo.calendar.filters' } as const;
 
 /** Displays of the former settings of the browser. */
@@ -23,13 +26,13 @@ function legacyValue(key: string): unknown {
 
 /**
  * Configuration of the first view of the calendar: what the browser showed before the views (its display, the items
- * shown, the calendars and schedules hidden), else the defaults; the former settings are then dropped.
+ * shown, the calendars and schedules hidden), else the defaults; the former settings stay in the browser.
  * @returns {CalendarViewConfig} Configuration.
  */
 function legacyConfig(): CalendarViewConfig {
   const display = legacyValue(LEGACY_KEYS.view);
   const filters = legacyValue(LEGACY_KEYS.filters) as Record<string, unknown> | null;
-  const config = calendarViewConfig({
+  return calendarViewConfig({
     ...(typeof display === 'string' && LEGACY_DISPLAYS[display] ? { display: LEGACY_DISPLAYS[display] } : {}),
     ...(filters && typeof filters === 'object'
       ? {
@@ -44,12 +47,6 @@ function legacyConfig(): CalendarViewConfig {
         }
       : {}),
   });
-  try {
-    Object.values(LEGACY_KEYS).forEach((key) => localStorage.removeItem(key));
-  } catch {
-    // The browser refuses its storage: nothing to drop.
-  }
-  return config;
 }
 
 /**

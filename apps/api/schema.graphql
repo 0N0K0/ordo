@@ -3525,7 +3525,7 @@ type Query {
   routines: [Routine!]!
 
   """
-  Running timers of the workspace (several at once), the first started first.
+  Running timers of the workspace (several at once), the first started first; those past their 24 hours are stopped first.
   """
   runningTimeEntries: [TimeEntry!]!
 
@@ -3633,7 +3633,7 @@ type Query {
   tasks: [Task!]!
 
   """
-  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since).
+  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since). Timers past their 24 hours are stopped first.
   """
   timeEntries(projectId: ID, routineId: ID, since: DateTime): [TimeEntry!]!
 
@@ -5590,7 +5590,7 @@ Outcome of a transfer of tasks: the links removed because they left the project 
 """
 type TaskTransferResult {
   """
-  { blocks, relations, parents, milestones, sprints, resources }: the links removed, as undoTaskTransfer takes them back.
+  { blocks, relations, parents, milestones, sprints, resources, projects, inheritedProjects }: the links removed, the sub-tasks in another project than their parent and the tasks that stopped inheriting their project, as undoTaskTransfer takes them back.
   """
   lost: JSON!
 

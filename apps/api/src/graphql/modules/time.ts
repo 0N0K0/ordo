@@ -182,9 +182,11 @@ const alarmInput = (input: typeof AlarmInput.$inferInput) => ({
 builder.queryFields((t) => ({
   timeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description: 'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since).',
+    description: 'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since). Timers past their 24 hours are stopped first.',
     args: { projectId: t.arg.id(), routineId: t.arg.id(), since: t.arg({ type: 'DateTime' }) },
     resolve: async (query, _root, { projectId, routineId, since }) => {
+      // The timers past their 24 hours are stopped first: read stopped, without waiting for the background task.
+      await timeEntries.capRunningTimers();
       const projectIds = projectId ? await subtreeIds('project', projectId) : undefined;
       return prisma.timeEntry.findMany({
         ...query,
@@ -233,8 +235,12 @@ builder.queryFields((t) => ({
   }),
   runningTimeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description: 'Running timers of the workspace (several at once), the first started first.',
-    resolve: (query) => prisma.timeEntry.findMany({ ...query, where: { endedAt: null }, orderBy: [{ startedAt: 'asc' }, { id: 'asc' }] }),
+    description: 'Running timers of the workspace (several at once), the first started first; those past their 24 hours are stopped first.',
+    resolve: async (query) => {
+      // The timers past their 24 hours are stopped first (not running any more).
+      await timeEntries.capRunningTimers();
+      return prisma.timeEntry.findMany({ ...query, where: { endedAt: null }, orderBy: [{ startedAt: 'asc' }, { id: 'asc' }] });
+    },
   }),
   alarms: t.prismaField({
     type: ['Alarm'],

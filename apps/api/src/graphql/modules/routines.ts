@@ -78,7 +78,7 @@ interface SlotState {
 const slotStates = (routine: occurrences.RoutineTiming & { checks: { date: Date; slot: number }[] }, context: occurrences.ScheduleContext) => {
   const { current, next } = routines.occurrencesOf(routine, undefined, context);
   const date = current ?? next;
-  const ticked = new Set(routine.checks.filter((check) => current && formatDay(check.date) === current).map((check) => check.slot));
+  const ticked = new Set((occurrences.ticksOf(routine, context) ?? []).filter((check) => current && formatDay(check.date) === current).map((check) => check.slot));
   return { date, slots: routines.slotsOf(routine, date, context).map((slot, index) => ({ index, ...slot, done: ticked.has(index) })) };
 };
 
@@ -130,7 +130,7 @@ const dueDayOf = (routine: occurrences.RoutineTiming, date: string | null, conte
   date && routines.occurrenceDueDayOf(routine, date, context);
 
 /** Checks loaded to know the times ticked today. */
-const TODAY_CHECKS = { checks: { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true } } } as const;
+const TODAY_CHECKS = { checks: occurrences.LATEST_CHECKS } as const;
 
 /** Ticked occurrences loaded with a routine (the latest ones). */
 const RECENT_CHECKS = 30;

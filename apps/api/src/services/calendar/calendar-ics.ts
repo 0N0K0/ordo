@@ -158,6 +158,22 @@ function parityDates(rule: Recurrence, start: string, until: string | null): { e
 }
 
 /**
+ * First date of a rule from the start of its series (the pattern alone: an excluded or paused first date is excluded
+ * by EXDATE), looked for close first, then further; the start itself when none is found.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start Start of the series.
+ * @returns {string} First date.
+ */
+function firstRuleDate(rule: Recurrence, start: string): string {
+  const pattern = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
+  for (const days of [14, 400, 366 * HORIZON_YEARS]) {
+    const [first] = occurrenceDates(pattern, start, start, addDays(start, days));
+    if (first) return first;
+  }
+  return start;
+}
+
+/**
  * Time zone of the events (every event is in Paris time), for the readers that need it written (Outlook).
  * @returns {string[]} Content lines.
  */
@@ -219,8 +235,9 @@ type ExportedEvent = Omit<EventWithRelations, 'categories'> & { categories: { id
 function eventLines(event: ExportedEvent, stamp: Date): string[] {
   const rule = storedRecurrence(event.recurrence);
   const seriesStart = formatDay(event.startDate);
-  // Even or odd weeks: the series starts on its first occurrence, in a week of the right parity.
-  const start = rule?.weekParity ? (occurrenceDates(rule, seriesStart, seriesStart, addDays(seriesStart, 14))[0] ?? seriesStart) : seriesStart;
+  // The series starts on its first occurrence (a day of its rule, in a week of the right parity): readers count the
+  // DTSTART as an occurrence even off the rule.
+  const start = rule ? firstRuleDate(rule, seriesStart) : seriesStart;
   const uid = `${event.id}@ordo`;
   // An exception whose day is no longer one of the rule (the rule changed since) is left out.
   const current = rule ? event.exceptions.filter((change) => occurrenceDates(rule, seriesStart, formatDay(change.date), formatDay(change.date)).length > 0) : [];

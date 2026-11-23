@@ -800,7 +800,7 @@ export function CalendarPage() {
         view: view === 'dayGridMonth' ? 'month' : view === 'timeGridWeek' ? 'week' : 'day',
         from: range.from,
         to: range.to,
-        today: localToday(),
+        today: parisParts(new Date()).date,
         items: pdfItems(items, classes.closed),
       });
     },

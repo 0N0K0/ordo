@@ -1,5 +1,5 @@
 import { linkInputs } from '../../../lib/links';
-import { addDays, type CalendarEventInput, daysBetween, minutesToTime, occurrenceKey, readOccurrenceKey, timeToMinutes } from '@ordo/shared';
+import { addDays, type CalendarEventInput, daysBetween, minutesToTime, occurrenceKey, readOccurrenceKey, shiftedRoutineLink, timeToMinutes } from '@ordo/shared';
 import type { CalendarEventScope, EventOccurrence } from '../api';
 
 /** A routine done during an event, on one of its days. */
@@ -98,12 +98,8 @@ export function seriesInput(occurrence: EventOccurrence): CalendarEventInput {
 export function withDays(input: CalendarEventInput, startDate: string, endDate: string): CalendarEventInput {
   const shift = daysBetween(input.startDate, startDate);
   const routineLinks = (input.routineLinks ?? [])
-    .map((link) => {
-      const shown = link.shownDate ?? link.date;
-      const moved = addDays(shown, shift);
-      // Kept apart (identified by the day of its rule): the API finds the occurrence shown on its new day.
-      return { routineId: link.routineId, date: shown === link.date ? moved : link.date, shownDate: moved };
-    })
+    // Kept apart (identified by the day of its rule): the API finds the occurrence shown on its new day.
+    .map((link) => shiftedRoutineLink(link, link.shownDate ?? link.date, shift))
     .filter((link) => link.shownDate >= startDate && link.shownDate <= endDate);
   return { ...input, startDate, endDate, routineLinks };
 }

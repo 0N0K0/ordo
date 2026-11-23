@@ -316,16 +316,47 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
   return fields;
 }
 
+/** Synchronized links of a task with other issues, that may point to an archived task. */
+const LINK_FIELDS = ['blockedBy', 'relatesTo'] as const;
+
 /**
- * Links with archived tasks are left alone on both sides: the new snapshot keeps them as the last one had them, so
- * that once the task is restored, what GitHub changed meanwhile (a link removed or added) wins over Ordo's state.
+ * Links with archived tasks are left alone on both sides, so that the side that changed wins as for any other value: a
+ * parent that is (on either side) an archived task is not merged, and the links with archived tasks are taken out of
+ * the last snapshot the values are compared with (neither side shows them).
+ * @param {SyncFields} local Values of the task (changed in place).
+ * @param {SyncFields} remote Values of the item (changed in place).
+ * @param {SyncFields | null} last Last snapshot.
+ * @param {Set<string>} archived Issues of archived tasks.
+ * @param {boolean} archivedParent The parent, in Ordo or on GitHub, is an archived task.
+ * @returns {SyncFields | null} Snapshot to compare with.
+ */
+function setArchivedLinksAside(local: SyncFields, remote: SyncFields, last: SyncFields | null, archived: Set<string>, archivedParent: boolean): SyncFields | null {
+  if (archivedParent) {
+    delete local.parent;
+    delete remote.parent;
+  }
+  if (!last) return null;
+  const base = { ...last };
+  for (const field of LINK_FIELDS) {
+    const before = base[field];
+    if (Array.isArray(before)) base[field] = before.filter((id) => !archived.has(String(id)));
+  }
+  return base;
+}
+
+/**
+ * Links with archived tasks are left alone on both sides: the new snapshot keeps them as the last one had them (the
+ * parent too, when it is an archived task), so that once the task is restored, what GitHub changed meanwhile (a link
+ * removed or added) wins over Ordo's state.
  * @param {SyncFields} next New snapshot (changed in place).
  * @param {SyncFields | null} last Last snapshot.
  * @param {Set<string>} archived Issues of archived tasks.
+ * @param {boolean} archivedParent The parent, in Ordo or on GitHub, is an archived task.
  * @returns {void}
  */
-function keepArchivedLinks(next: SyncFields, last: SyncFields | null, archived: Set<string>): void {
-  for (const field of ['blockedBy', 'relatesTo'] as const) {
+function keepArchivedLinks(next: SyncFields, last: SyncFields | null, archived: Set<string>, archivedParent: boolean): void {
+  if (archivedParent && last && 'parent' in last) next.parent = last.parent;
+  for (const field of LINK_FIELDS) {
     const before = last?.[field];
     const after = next[field];
     if (!Array.isArray(before) || !Array.isArray(after)) continue;
@@ -378,7 +409,7 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   if ('type' in values) data.type = values.type ? { connect: { id: maps.optionType.get(String(values.type))! } } : { disconnect: true };
   if ('deadline' in values) data.deadline = parseOptionalDay((values.deadline as string | null) || null);
   if ('milestone' in values)
-    data.milestone = values.milestone ? { connect: { id: await milestoneOf(task.projectId!, String(values.milestone)) /* synced tasks are in a linked project */ } } : { disconnect: true };
+    data.milestone = values.milestone ? { connect: { id: await milestoneOf(task.projectId!, String(values.milestone), maps) /* synced tasks are in a linked project */ } } : { disconnect: true };
   if ('blockedBy' in values) {
     const wanted = new Set((values.blockedBy as string[]).map((id) => maps.taskByContent.get(id)).filter((id): id is string => Boolean(id)));
     const current = syncedLinks(task.blockedBy.map((block) => block.blocker));
@@ -446,18 +477,22 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
 const PULLED_INHERITED: Record<string, TaskInheritableField> = { priority: 'PRIORITY', deadline: 'DEADLINE', milestone: 'MILESTONE', assignees: 'ASSIGNEES' };
 
 /**
- * Milestone of a project with this label, created when there is none.
+ * Milestone of a project with this label, created when there is none (and then known to the tasks pushed after it in
+ * the same sync).
  * @param {string} projectId Project of the task.
  * @param {string} title Milestone title on GitHub.
+ * @param {Maps} maps Correspondences (milestone labels, completed).
  * @returns {Promise<string>} Milestone id.
  */
-async function milestoneOf(projectId: string, title: string): Promise<string> {
+async function milestoneOf(projectId: string, title: string, maps: Maps): Promise<string> {
   // Cut to the rule of the milestones: a long title is found again by its cut one.
   const cut = clipText(title);
   const found = await prisma.milestone.findFirst({ where: { projectId, label: cut }, select: { id: true } });
   if (found) return found.id;
   const position = await nextPositionIn('milestone', { projectId });
-  return (await prisma.milestone.create({ data: { projectId, label: cut, position }, select: { id: true } })).id;
+  const { id } = await prisma.milestone.create({ data: { projectId, label: cut, position }, select: { id: true } });
+  maps.milestoneLabel.set(id, cut);
+  return id;
 }
 
 /**
@@ -912,8 +947,10 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       // A state of a former sync, closed without its reason: closed as done.
       if (snapshot?.closed === true) snapshot.closed = 'COMPLETED';
       if (snapshot && typeof snapshot.iteration === 'string' && !iterationIds.has(snapshot.iteration)) delete snapshot.iteration;
-      const result = mergeFields(local, remote, snapshot, task.updatedAt.toISOString() > item.updatedAt);
-      keepArchivedLinks(result.snapshot, snapshot, maps.archivedContent);
+      const archivedParent = Boolean(task.parent?.archivedAt) || Boolean(item.parentId && maps.archivedContent.has(item.parentId));
+      const base = setArchivedLinksAside(local, remote, snapshot, maps.archivedContent, archivedParent);
+      const result = mergeFields(local, remote, base, task.updatedAt.toISOString() > item.updatedAt);
+      keepArchivedLinks(result.snapshot, snapshot, maps.archivedContent, archivedParent);
       if (Object.keys(result.push).length) {
         await pushValues(token, link, item, result.push, pushContext(task, (remote.assignees as string[]) ?? []));
         summary.pushed += 1;

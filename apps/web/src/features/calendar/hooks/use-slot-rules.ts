@@ -17,7 +17,7 @@ import { useMemo } from 'react';
 import { useNow } from '../../../lib/use-now';
 import { archivedIds } from '../../../lib/archive';
 import { scheduleRules, useCalendarEvents } from '../api';
-import { localDay } from '../../../lib/dates';
+import { localDay, parisParts } from '../../../lib/dates';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { slotChoices } from '../lib/slot-choices';
 import { inWorkspace } from '../lib/layer-label';
@@ -73,7 +73,7 @@ export interface SlotRules {
   inHours: (hours: unknown, at?: Date) => boolean;
   /**
    * Names of the schedules « Indisponible » of the workspace (of it, or of another one through its subscriptions) met
-   * at a moment (now by default), or between two moments (the end excluded).
+   * at a moment (now by default), or between two moments (the end excluded), in Paris time.
    * @param {Date} [from] Moment, or start. Optional. Default = now.
    * @param {Date} [to] End. Optional. Default = the moment alone.
    * @returns {string[]} Names (« Sommeil », « Sport · Perso »), each once.
@@ -152,8 +152,8 @@ export function useSlotRules(): SlotRules {
       blocking: (item, at = new Date(minute)) => blockingAt(item, at),
       inSlots: (value, at = new Date(minute)) => blockAt(value, at) !== 'slots',
       inHours: (hours, at = new Date(minute)) => blockAt(null, at, hours) !== 'hours',
-      unavailable: (from = new Date(minute), to) =>
-        unavailableScheduleIds(slotsOn, { date: localDay(from), time: fmt.time(from) }, to && { date: localDay(to), time: fmt.time(to) }).map((id) => labels.get(id) ?? id),
+      // In Paris time, as the agenda and its panel show them.
+      unavailable: (from = new Date(minute), to) => unavailableScheduleIds(slotsOn, parisParts(from), to && parisParts(to)).map((id) => labels.get(id) ?? id),
       // The next moment its condition and its hours allow out of the slots « Indisponible », past the events keeping
       // it busy then, in Paris time (the server defers the same way).
       nextAllowedAt: (item, from) =>

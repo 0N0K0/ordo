@@ -41,7 +41,7 @@ import { birthdays } from '../calendar/birthdays';
 import { eventOccurrences } from '../calendar/calendar-events';
 import { scheduleRule } from '../calendar/work-schedules';
 import { occurrencesOf, reminderOccurrences, slotsOf } from '../routines/routines';
-import { loadScheduleContext } from '../routines/routine-occurrences';
+import { LATEST_CHECKS, loadScheduleContext } from '../routines/routine-occurrences';
 import { forEachWorkspace, listWorkspaces, meContributorId, scheduleJob } from '../workspaces/workspaces';
 import { markAlarmFired } from './alarms';
 import { ringAgainOutside, ringOutside } from './alarm-rings';
@@ -127,7 +127,7 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
     prisma.project.findMany({ select: { id: true, label: true } }),
     prisma.routine.findMany({
       where: { archivedAt: null, ...withReminders },
-      include: { checks: { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true } }, assignees: { select: { id: true } } },
+      include: { checks: LATEST_CHECKS, assignees: { select: { id: true } } },
     }),
     prisma.workSchedule.findMany({ where: { ephemeris: true, archivedAt: null, ...withReminders }, include: { type: { select: { archivedAt: true } } } }),
     birthdays(),

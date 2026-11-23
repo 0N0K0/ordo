@@ -5,9 +5,11 @@ import {
   conditionWindows,
   effectiveRoutineTiming,
   formatDay,
+  groupBy,
   joinedKey,
   moveKey,
   opensReach,
+  parseDay,
   readOpens,
   readSlotCondition,
   type Recurrence,
@@ -56,6 +58,23 @@ export interface ScheduleContext {
    * Default = each routine computed on its own columns.
    */
   routines?: ReadonlyMap<string, StoredInheritingRoutine>;
+  /**
+   * Ticks of the occurrences kept apart, by routine: identified by the day of their rule, maybe long before the latest
+   * ticks a routine is loaded with. Optional. Default = none.
+   */
+  apartTicks?: ReadonlyMap<string, readonly RoutineTick[]>;
+}
+
+/**
+ * Latest ticks of a routine, as it is loaded with them to tell its current occurrence (with those of its occurrences
+ * kept apart, from the context: `ticksOf`).
+ */
+export const LATEST_CHECKS = { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true } } as const;
+
+/** A time of the day of an occurrence ticked, by the day that identifies the occurrence. */
+export interface RoutineTick {
+  date: Date;
+  slot: number;
 }
 
 /** Without schedules: no slot anywhere. */
@@ -101,7 +120,39 @@ export async function loadScheduleContext(change?: ScheduleChange): Promise<Sche
   // A change may set slots « Indisponible »: every ticked occurrence then counts.
   const every = Boolean(change) || (await hasUnavailableSlots());
   const [slotsOn, checked, routines] = await Promise.all([loadSlotsOn(undefined, change), loadCheckedOccurrences(every), loadRoutineInheritance()]);
-  return { memo: new Map(), slotsOn, checked, routines };
+  return { memo: new Map(), slotsOn, checked, routines, apartTicks: await loadApartTicks(routines) };
+}
+
+/**
+ * Ticks of the occurrences kept apart of the routines (their own exceptions, or their parent's when they inherit
+ * them), by routine.
+ * @param {ReadonlyMap<string, StoredInheritingRoutine>} routines Routines of the workspace.
+ * @returns {Promise<Map<string, RoutineTick[]>>} Ticks.
+ */
+async function loadApartTicks(routines: ReadonlyMap<string, StoredInheritingRoutine>): Promise<Map<string, RoutineTick[]>> {
+  const wanted = [...routines.values()].flatMap((routine) =>
+    storedMoves(effectiveRoutineTiming(routine, routines).moves)
+      .filter((move) => move.apart && move.to)
+      .map((move) => ({ routineId: routine.id, date: parseDay(move.from) })),
+  );
+  if (!wanted.length) return new Map();
+  const ticks = await prisma.routineCheck.findMany({ where: { OR: wanted }, select: { routineId: true, date: true, slot: true } });
+  return new Map([...groupBy(ticks, (tick) => tick.routineId)].map(([id, list]) => [id, list.map(({ date, slot }) => ({ date, slot }))]));
+}
+
+/**
+ * Ticks of a routine its occurrences are told done from: those it is loaded with (its latest ones), and those of its
+ * occurrences kept apart (`apartTicks` of the context), each once.
+ * @param {{ id?: string, checks?: readonly RoutineTick[] }} routine Routine (without ticks: none asked).
+ * @param {ScheduleContext} schedules Schedules.
+ * @returns {readonly RoutineTick[] | undefined} Ticks (undefined: none asked).
+ */
+export function ticksOf(routine: { id?: string; checks?: readonly RoutineTick[] }, schedules: ScheduleContext): readonly RoutineTick[] | undefined {
+  const apart = routine.id ? schedules.apartTicks?.get(routine.id) : undefined;
+  if (!routine.checks || !apart?.length) return routine.checks;
+  const key = (tick: RoutineTick) => joinedKey(formatDay(tick.date), tick.slot);
+  const known = new Set(routine.checks.map(key));
+  return [...routine.checks, ...apart.filter((tick) => !known.has(key(tick)))];
 }
 
 /**

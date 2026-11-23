@@ -62,8 +62,10 @@ export function useRoutineDay(day: string, routineId: string | null = null): Rou
     () => (occurrences ?? []).filter((occurrence) => occurrence.dueDate === day && !occurrence.cancelled && (!routineId || occurrence.routineId === routineId)),
     [occurrences, day, routineId],
   );
+  // Its ticks are read from the earliest to the latest of those days (one moved earlier comes from a later day).
   const first = ofDay.reduce((earliest, occurrence) => (occurrence.date < earliest ? occurrence.date : earliest), day);
-  const { data: checks, isPending } = useRoutineChecks(first, day);
+  const last = ofDay.reduce((latest, occurrence) => (occurrence.date > latest ? occurrence.date : latest), day);
+  const { data: checks, isPending } = useRoutineChecks(first, last);
   return useMemo(() => {
     const routines = routinesData?.routines ?? [];
     const byId = mapById(routines);

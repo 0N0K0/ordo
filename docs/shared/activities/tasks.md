@@ -46,7 +46,7 @@ Champs de `taskFormSchema` :
 
 - `taskRef(task)` (« #12 », vide sans projet) et `taskNumbered(task)` (« #12 Libellé ») : pour le web et les sonneries poussées par le serveur ; le web les réexporte (`use-task-context`).
 - `TaskBulkChanges` : mêmes changements faits à plusieurs tâches (statut, priorité, type, jalon, effort, dates, ajouts / retraits d'assignés, d'étiquettes, de sprints, `inheritFields`, `clearFields`) : la modification en masse du web (`BulkChanges`), son annulation, l'annulation d'une automatisation.
-- `taskLinksLostSchema`, `TaskLinksLost`, `taskLinksLostCount(lost)` : liens qu'un transfert a retirés en sortant de l'arborescence (blocages, relations, parent avec les champs hérités, jalons, sprints, documents de projet), renvoyés par `bulkTransferTasks` (`lost`) et remis par `undoTaskTransfer` ; leur nombre (`removedLinks`) ; `NO_TASK_LINKS_LOST` : aucun lien retiré.
+- `taskLinksLostSchema`, `TaskLinksLost`, `taskLinksLostCount(lost)` : liens qu'un transfert a retirés en sortant de l'arborescence (blocages, relations, parent avec les champs hérités, jalons, sprints, documents de projet), avec les sous-tâches d'un autre projet que leur parent (`projects`) et les tâches dont le projet n'est plus hérité (`inheritedProjects`), renvoyés par `bulkTransferTasks` (`lost`) et remis par `undoTaskTransfer` ; `subtaskProjects(tasks, rootIds)` : sous-tâches (à toute profondeur) dans un autre projet que leur parent, parents d'abord (l'annulation les remet dans le leur, niveau par niveau) ; leur nombre (`removedLinks`) ; `NO_TASK_LINKS_LOST` : aucun lien retiré.
 
 ## `task-inheritance.ts` — héritage des sous-tâches et dates suivies
 

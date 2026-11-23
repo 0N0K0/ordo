@@ -541,6 +541,20 @@ export function occurrenceDueDay(moves: readonly RoutineMove[], date: string): s
 }
 
 /**
+ * Link of an event with an occurrence of a routine, moved with the event by some days from the day the occurrence
+ * shows on: an occurrence shown on the day that identifies it is asked on its new day (`date`: that day), one kept
+ * apart (identified by the day of its rule) keeps its day, so that `relinkedOccurrence` takes the one of the same kind.
+ * @param {{ routineId: string, date: string }} link Link (`date`: the day that identifies its occurrence).
+ * @param {string} shown Day its occurrence shows on.
+ * @param {number} shift Days moved.
+ * @returns {{ routineId: string, date: string, shownDate: string }} Link moved (`shownDate`: its new day).
+ */
+export function shiftedRoutineLink(link: { routineId: string; date: string }, shown: string, shift: number): { routineId: string; date: string; shownDate: string } {
+  const moved = addDays(shown, shift);
+  return { routineId: link.routineId, date: shown === link.date ? moved : link.date, shownDate: moved };
+}
+
+/**
  * Occurrence of a routine a link of an event goes to once the event changes day: the one of that routine shown on the
  * day the link now shows on (`shownDate`), by the day that identifies it; two shown that day (one kept apart), the one
  * it was linked to if still there, else the one of the same kind (kept apart or not). None that day: null (the link

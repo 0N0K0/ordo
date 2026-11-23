@@ -25,7 +25,7 @@ export const TaskTransferResult = builder.objectRef<{ removedLinks: number; lost
     removedLinks: t.exposeInt('removedLinks', { description: 'Links removed because they left the project tree.' }),
     lost: t.field({
       type: 'JSON',
-      description: '{ blocks, relations, parents, milestones, sprints, resources }: the links removed, as undoTaskTransfer takes them back.',
+      description: '{ blocks, relations, parents, milestones, sprints, resources, projects, inheritedProjects }: the links removed, the sub-tasks in another project than their parent and the tasks that stopped inheriting their project, as undoTaskTransfer takes them back.',
       resolve: (result) => result.lost,
     }),
   }),
