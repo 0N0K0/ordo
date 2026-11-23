@@ -42,7 +42,8 @@ export const calendarEventInputSchema = z
     taskIds: z.array(z.string()).max(50, '50 tâches maximum.'),
     /** Routines of a day of the event it is about (that day only, even for a repeated routine). */
     routineLinks: z
-      .array(z.object({ routineId: z.string(), date: daySchema() }))
+      // `shownDate`: the day the occurrence shows on once the event moved (the occurrence of that day is linked).
+      .array(z.object({ routineId: z.string(), date: daySchema(), shownDate: daySchema().optional() }))
       .max(200)
       .default([]),
   })

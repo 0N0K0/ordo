@@ -50,7 +50,7 @@ import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { effectiveTasks } from '../tasks/task-inheritance';
 import { effectiveRoutineOf, loadRoutineInheritance, type StoredInheritingRoutine } from '../routines/routine-inheritance';
-import { linkShownDay, loadLinkShownDays, ROUTINE_LINK_SELECT, type RoutineLinkRow } from './routine-link-days';
+import { linkShownDay, loadLinkShownDays, resolveRoutineLinks, ROUTINE_LINK_SELECT, type RoutineLinkRow } from './routine-link-days';
 
 /** One occurrence of an event in a period, with the fields of its series (or of its own changes). */
 export interface EventOccurrence {
@@ -230,11 +230,13 @@ interface OccurrenceDays {
  * of its other days kept, as those already on its new days: another occurrence may have them), each once by
  * `routineId|date`.
  * @param {string} eventId Event the occurrence belongs to.
- * @param {readonly { routineId: string, date: string }[]} links Routines of its days.
+ * @param {readonly { routineId: string, date: string, shownDate?: string }[]} given Routines of its days (`shownDate`: moved with it, `resolveRoutineLinks`).
  * @param {OccurrenceDays | null} replaced Days whose links are replaced; null: every link of the event (a one-off event).
  * @returns {Promise<void>}
  */
-async function saveRoutineLinks(eventId: string, links: readonly { routineId: string; date: string }[], replaced: OccurrenceDays | null): Promise<void> {
+async function saveRoutineLinks(eventId: string, given: readonly { routineId: string; date: string; shownDate?: string }[], replaced: OccurrenceDays | null): Promise<void> {
+  // Moved with the event: each goes to the occurrence shown on its new day (none: dropped).
+  const links = await resolveRoutineLinks(given);
   // The links of its days: by the day each occurrence shows on (one kept apart is stored on the day of its rule).
   const held = replaced ? await prisma.calendarEventRoutine.findMany({ where: { eventId }, select: { id: true, ...ROUTINE_LINK_SELECT } }) : [];
   const gone = held.filter((link) => {
@@ -251,23 +253,28 @@ async function saveRoutineLinks(eventId: string, links: readonly { routineId: st
 }
 
 /**
- * Moves the routine links of the occurrences of a series from a day, with them: by as many days as they are moved,
- * and / or to another event (a series split).
+ * Moves the routine links of the occurrences of a series from a day, with them: by as many days as they are moved
+ * (from the day each occurrence shows on: the occurrence of that routine shown on the new day is linked, none there:
+ * the link is dropped, `resolveRoutineLinks`), and / or to another event (a series split).
  * @param {Prisma.TransactionClient} tx Transaction.
  * @param {string} eventId Event.
- * @param {string | null} from First day moved; null: every link.
+ * @param {string | null} from First day moved (the day the occurrences show on); null: every link.
  * @param {number} shift Days moved.
  * @param {string} [to] Event they go to. Optional. Default = the same.
  * @returns {Promise<void>}
  */
 async function moveRoutineLinks(tx: Prisma.TransactionClient, eventId: string, from: string | null, shift: number, to: string = eventId): Promise<void> {
   if (shift === 0 && to === eventId) return;
-  const where = { eventId, ...(from && { date: { gte: parseDay(from) } }) };
-  const links = await tx.calendarEventRoutine.findMany({ where, select: { routineId: true, date: true } });
-  if (!links.length) return;
-  await tx.calendarEventRoutine.deleteMany({ where });
+  const held = await tx.calendarEventRoutine.findMany({ where: { eventId }, select: { id: true, ...ROUTINE_LINK_SELECT } });
+  const moving = held.flatMap((link) => {
+    const shown = linkShownDay(link);
+    return !from || shown >= from ? [{ id: link.id, routineId: link.routineId, date: formatDay(link.date), shownDate: addDays(shown, shift) }] : [];
+  });
+  if (!moving.length) return;
+  const links = shift === 0 ? moving.map(({ routineId, date }) => ({ routineId, date })) : await resolveRoutineLinks(moving);
+  await tx.calendarEventRoutine.deleteMany({ where: { id: { in: moving.map((link) => link.id) } } });
   await tx.calendarEventRoutine.createMany({
-    data: links.map((link) => ({ eventId: to, routineId: link.routineId, date: parseDay(addDays(formatDay(link.date), shift)) })),
+    data: links.map((link) => ({ eventId: to, routineId: link.routineId, date: parseDay(link.date) })),
     skipDuplicates: true,
   });
 }
@@ -373,7 +380,9 @@ async function parseEvent(
   const apart: { label: string }[] = tasks.filter((task) => !sharePeople([...(taskAssignees.get(task.id)?.assigneeIds ?? [])], event.contributorIds));
   // Routines of a day of the event (the one edited, for an occurrence): by the day each occurrence shows on (one moved
   // there and kept apart is identified by the day of its rule).
-  const shownOn = await loadLinkShownDays(event.routineLinks);
+  const loaded = await loadLinkShownDays(event.routineLinks);
+  // Moved with the event: the day it shows on now is given.
+  const shownOn = (link: { routineId: string; date: string; shownDate?: string }) => link.shownDate ?? loaded(link);
   if (event.routineLinks.some((link) => shownOn(link) < event.startDate || shownOn(link) > event.endDate)) {
     const message = 'Une routine rattachée doit l’être un jour de l’évènement.';
     throw fieldError('routineLinks', message);

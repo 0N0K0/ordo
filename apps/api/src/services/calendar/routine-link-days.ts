@@ -1,4 +1,4 @@
-import { formatDay, marksInherited, occurrenceDueDay, routineMoveSchema } from '@ordo/shared';
+import { formatDay, marksInherited, occurrenceDueDay, relinkedOccurrence, routineMoveSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 
@@ -60,4 +60,33 @@ export async function loadLinkShownDays(links: readonly { routineId: string; dat
   const routines = ids.length ? await prisma.routine.findMany({ where: { id: { in: ids } }, select: { id: true, ...MOVES_CHAIN } }) : [];
   const byId = new Map<string, MovesChain>(routines.map((routine) => [routine.id, routine]));
   return (link) => shownDay(link.date, byId.get(link.routineId));
+}
+
+/**
+ * Links given to an event, each on the occurrence it goes to: as it is without `shownDate`; with it (the event moved
+ * to other days), the occurrence of that routine shown on that day (`relinkedOccurrence`), by the day that identifies
+ * it, dropped when it has none there.
+ * @param {readonly { routineId: string, date: string, shownDate?: string | null }[]} links Links.
+ * @returns {Promise<{ routineId: string, date: string }[]>} Links to store.
+ */
+export async function resolveRoutineLinks(links: readonly { routineId: string; date: string; shownDate?: string | null }[]): Promise<{ routineId: string; date: string }[]> {
+  const moved = links.filter((link) => link.shownDate);
+  if (!moved.length) return links.map(({ routineId, date }) => ({ routineId, date }));
+  // Loaded when needed: the routines read the calendar for their schedules.
+  const { loadScheduleContext, occurrenceSpansBetween } = await import('../routines/routines');
+  const schedules = await loadScheduleContext();
+  const routines = new Map((await prisma.routine.findMany({ where: { id: { in: [...new Set(moved.map((link) => link.routineId))] } } })).map((routine) => [routine.id, routine]));
+  const occurrences = moved.flatMap((link) => {
+    const routine = routines.get(link.routineId);
+    const day = link.shownDate!;
+    if (!routine) return [];
+    return occurrenceSpansBetween(routine, day, day, schedules, true)
+      .filter((span) => span.end === day)
+      .map((span) => ({ routineId: routine.id, date: span.date, shownDate: span.end, cancelled: span.cancelled }));
+  });
+  return links.flatMap((link) => {
+    if (!link.shownDate) return [{ routineId: link.routineId, date: link.date }];
+    const date = relinkedOccurrence(link, occurrences);
+    return date ? [{ routineId: link.routineId, date }] : [];
+  });
 }

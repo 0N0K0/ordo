@@ -247,7 +247,11 @@ const EventRoutineLinkRef = builder.objectRef<{ routineId: string; date: string;
 });
 
 const EventRoutineLinkInput = builder.inputType('EventRoutineLinkInput', {
-  fields: (t) => ({ routineId: t.id({ required: true }), date: t.string({ required: true, description: 'YYYY-MM-DD, a day of the occurrence.' }) }),
+  fields: (t) => ({
+    routineId: t.id({ required: true }),
+    date: t.string({ required: true, description: 'Day that identifies the occurrence of the routine (YYYY-MM-DD).' }),
+    shownDate: t.string({ description: 'Moved with the event: the day it shows on now (YYYY-MM-DD); the occurrence of that routine shown that day is linked, none there: the link is dropped.' }),
+  }),
 });
 
 const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('ForeignWorkSchedule').implement({
@@ -372,7 +376,7 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   projectId: input.projectId ?? null,
   calendarId: input.calendarId ?? null,
   taskIds: input.taskIds ?? [],
-  routineLinks: (input.routineLinks ?? []).map((link) => ({ routineId: link.routineId, date: link.date })),
+  routineLinks: (input.routineLinks ?? []).map((link) => ({ routineId: link.routineId, date: link.date, ...(link.shownDate && { shownDate: link.shownDate }) })),
   relationIds: input.relationIds ?? [],
   beneficiaryIds: input.beneficiaryIds ?? [],
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],

@@ -55,7 +55,8 @@ export function occurrenceInput(occurrence: EventOccurrence): CalendarEventInput
     taskIds: occurrence.taskIds,
     libraryDocumentIds: occurrence.libraryDocumentIds,
     projectResourceIds: occurrence.projectResourceIds,
-    routineLinks: occurrence.routineLinks.map(({ routineId, date }) => ({ routineId, date })),
+    // The day each occurrence shows on: they move with the event from it (`withDays`).
+    routineLinks: occurrence.routineLinks.map(({ routineId, date, shownDate }) => ({ routineId, date, shownDate })),
   };
 }
 
@@ -86,8 +87,9 @@ export function seriesInput(occurrence: EventOccurrence): CalendarEventInput {
 }
 
 /**
- * Event input moved to other days: its routine links move with it (as many days later or earlier), those then out of
- * its days are left out.
+ * Event input moved to other days: its routine links move with it, as many days later or earlier from the day each
+ * occurrence shows on (`shownDate`, else the day that identifies it; the API links the occurrence of that routine shown
+ * that day, none there: the link is dropped), those then out of its days are left out.
  * @param {CalendarEventInput} input Input.
  * @param {string} startDate New first day.
  * @param {string} endDate New last day.
@@ -95,7 +97,14 @@ export function seriesInput(occurrence: EventOccurrence): CalendarEventInput {
  */
 export function withDays(input: CalendarEventInput, startDate: string, endDate: string): CalendarEventInput {
   const shift = daysBetween(input.startDate, startDate);
-  const routineLinks = (input.routineLinks ?? []).map((link) => ({ ...link, date: addDays(link.date, shift) })).filter((link) => link.date >= startDate && link.date <= endDate);
+  const routineLinks = (input.routineLinks ?? [])
+    .map((link) => {
+      const shown = link.shownDate ?? link.date;
+      const moved = addDays(shown, shift);
+      // Kept apart (identified by the day of its rule): the API finds the occurrence shown on its new day.
+      return { routineId: link.routineId, date: shown === link.date ? moved : link.date, shownDate: moved };
+    })
+    .filter((link) => link.shownDate >= startDate && link.shownDate <= endDate);
   return { ...input, startDate, endDate, routineLinks };
 }
 

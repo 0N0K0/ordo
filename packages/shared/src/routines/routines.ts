@@ -521,6 +521,26 @@ export function occurrenceDueDay(moves: readonly RoutineMove[], date: string): s
 }
 
 /**
+ * Occurrence of a routine a link of an event goes to once the event changes day: the one of that routine shown on the
+ * day the link now shows on (`shownDate`), by the day that identifies it; two shown that day (one kept apart), the one
+ * it was linked to if still there, else the one of the same kind (kept apart or not). None that day: null (the link
+ * is dropped).
+ * @param {{ routineId: string, date: string, shownDate?: string | null }} link Link (`date`: the day that identified its occurrence).
+ * @param {readonly { routineId: string, date: string, shownDate: string, cancelled?: boolean }[]} occurrences Occurrences of the routines on those days (`date`: the day that identifies each).
+ * @returns {string | null} Day that identifies the occurrence linked.
+ */
+export function relinkedOccurrence(
+  link: { routineId: string; date: string; shownDate?: string | null },
+  occurrences: readonly { routineId: string; date: string; shownDate: string; cancelled?: boolean }[],
+): string | null {
+  const shown = link.shownDate ?? link.date;
+  const candidates = occurrences.filter((item) => item.routineId === link.routineId && item.shownDate === shown && !item.cancelled);
+  if (candidates.some((item) => item.date === link.date)) return link.date;
+  const apart = link.date !== shown;
+  return (candidates.find((item) => (item.date !== item.shownDate) === apart) ?? candidates[0])?.date ?? null;
+}
+
+/**
  * Current and next occurrences of a routine with its exceptions: a moved occurrence no longer occurs on its day but on
  * the day it was moved to. When the latest occurrence of the rule is moved away, nothing is due until the day it went
  * to (the occurrences before it do not come back). Each is given by the day that identifies it (`moveKey`); two due the

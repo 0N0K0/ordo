@@ -468,9 +468,11 @@ export type DocumentStatusScope =
   | 'QUOTE';
 
 export type EventRoutineLinkInput = {
-  /** YYYY-MM-DD, a day of the occurrence. */
+  /** Day that identifies the occurrence of the routine (YYYY-MM-DD). */
   date: string;
   routineId: string | number;
+  /** Moved with the event: the day it shows on now (YYYY-MM-DD); the occurrence of that routine shown that day is linked, none there: the link is dropped. */
+  shownDate?: string | null | undefined;
 };
 
 export type GeoPointInput = {
