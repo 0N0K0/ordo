@@ -138,10 +138,12 @@ export type RoutineMoveTimes = z.infer<typeof routineMoveTimesSchema>;
 
 /**
  * Exception to the rule of a routine for one occurrence: moved to another day (postponed or brought forward), its
- * times of the day changed, or deleted (no new day).
+ * times of the day changed, or deleted (no new day). Moved onto a day that has its own occurrence, both may be kept
+ * apart (`apart`): the moved one then keeps the day of its rule as its identity (its ticks, comments, checklist and
+ * links with events), shown on its new day.
  */
 export const routineMoveSchema = z
-  .object({ from: daySchema(), to: daySchema().nullable(), times: routineMoveTimesSchema })
+  .object({ from: daySchema(), to: daySchema().nullable(), times: routineMoveTimesSchema, apart: z.boolean().optional() })
   .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour ou d’autres horaires.');
 export type RoutineMove = z.infer<typeof routineMoveSchema>;
 
@@ -501,18 +503,39 @@ export function withMovedTimes<T extends { fromTime: string | null; dueTime: str
 const MOVED_SCAN = 60;
 
 /**
+ * Day an exception identifies its occurrence by (the day of its ticks, comments, checklist and links with events): the
+ * day it was moved to, or the day of its rule when kept apart from the occurrence of the day it went to.
+ * @param {RoutineMove} move Exception.
+ * @returns {string} Day.
+ */
+export const moveKey = (move: RoutineMove): string => (move.apart || !move.to ? move.from : move.to);
+
+/**
+ * Due day of an occurrence, from the day that identifies it: the day it was moved to when kept apart, else itself.
+ * @param {readonly RoutineMove[]} moves Exceptions.
+ * @param {string} date Occurrence (the day that identifies it).
+ * @returns {string} Due day.
+ */
+export function occurrenceDueDay(moves: readonly RoutineMove[], date: string): string {
+  return moves.find((move) => move.apart && move.from === date)?.to ?? date;
+}
+
+/**
  * Current and next occurrences of a routine with its exceptions: a moved occurrence no longer occurs on its day but on
  * the day it was moved to. When the latest occurrence of the rule is moved away, nothing is due until the day it went
- * to (the occurrences before it do not come back).
+ * to (the occurrences before it do not come back). Each is given by the day that identifies it (`moveKey`); two due the
+ * same day (one kept apart), the first of them in the order of their days (`pick` chooses the current one).
  * @param {(today: string) => { current: string | null, next: string | null }} compute Occurrences of the rule alone, on a day.
  * @param {readonly RoutineMove[]} moves Exceptions.
  * @param {string} today Today.
+ * @param {(dates: string[]) => string} [pick] Current occurrence among several due the same day (in order). Optional. Default = the first.
  * @returns {{ current: string | null, next: string | null }} Dates.
  */
 export function movedOccurrences(
   compute: (today: string) => { current: string | null; next: string | null },
   moves: readonly RoutineMove[],
   today: string,
+  pick: (dates: string[]) => string = (dates) => dates[0],
 ): { current: string | null; next: string | null } {
   const base = compute(today);
   if (!moves.length) return base;
@@ -529,35 +552,54 @@ export function movedOccurrences(
   let next = base.next;
   for (let scanned = 0; next && movedAway.has(next) && scanned < MOVED_SCAN; scanned += 1) next = compute(next).next;
   if (next && movedAway.has(next)) next = null;
+  const ruledNext = next;
   for (const move of moves) if (move.to && movesAway(move) && move.to > today && (!next || move.to < next)) next = move.to;
-  return { current, next };
+  /**
+   * Occurrences due on a day, by the days that identify them: the one of its rule there (unless moved away), those
+   * moved there.
+   * @param {string} due Due day.
+   * @param {boolean} ruled The rule has its occurrence there.
+   * @returns {string[]} Days, in order.
+   */
+  const dueOn = (due: string, ruled: boolean) =>
+    [...new Set([...(ruled && !movedAway.has(due) ? [due] : []), ...moves.filter((move) => move.to === due && movesAway(move)).map(moveKey)])].sort();
+  const at = (due: string | null, ruled: boolean, choose: (dates: string[]) => string) => {
+    if (!due) return null;
+    const dates = dueOn(due, ruled);
+    return dates.length ? choose(dates) : due;
+  };
+  return { current: at(current, current === kept, pick), next: at(next, next === ruledNext, (dates) => dates[0]) };
 }
 
 /**
  * Day of the rule an occurrence comes from: the day it was moved from, or itself.
  * @param {readonly RoutineMove[]} moves Exceptions.
- * @param {string} date Occurrence.
+ * @param {string} date Occurrence (the day that identifies it).
  * @returns {string} Day of the rule (its times of the day are those of that day).
  */
 export function movedFrom(moves: readonly RoutineMove[], date: string): string {
-  return moves.find((move) => move.to === date)?.from ?? date;
+  if (moves.some((move) => move.apart && move.from === date)) return date;
+  return moves.find((move) => !move.apart && move.to === date)?.from ?? date;
 }
 
 /**
  * Exceptions once an occurrence is moved, deleted (no new day) or its times changed: changing a moved one again changes
  * its exception (back to its own day with its own times: no exception).
  * @param {readonly RoutineMove[]} moves Exceptions.
- * @param {string} date Occurrence (its day now).
+ * @param {string} date Occurrence (the day that identifies it).
  * @param {string | null} to New day (null: deleted).
  * @param {RoutineMoveTimes} [times] Changed times. Optional. Default = those already changed.
+ * @param {boolean} [apart] Kept apart from the occurrence of its new day. Optional. Default = as it was.
  * @returns {RoutineMove[]} Exceptions.
  */
-export function withMove(moves: readonly RoutineMove[], date: string, to: string | null, times?: RoutineMoveTimes): RoutineMove[] {
+export function withMove(moves: readonly RoutineMove[], date: string, to: string | null, times?: RoutineMoveTimes, apart?: boolean): RoutineMove[] {
   const from = movedFrom(moves, date);
   const current = moves.find((move) => move.from === from);
   const others = moves.filter((move) => move.from !== from);
   const kept = to === null ? null : times === undefined ? (current?.times ?? null) : times && times.some(Boolean) ? times : null;
-  return from === to && !kept ? others : [...others, { from, to, times: kept }].sort((a, b) => a.from.localeCompare(b.from));
+  if (from === to && !kept) return others;
+  const keptApart = to !== null && to !== from && (apart ?? current?.apart ?? false);
+  return [...others, { from, to, times: kept, ...(keptApart && { apart: true }) }].sort((a, b) => a.from.localeCompare(b.from));
 }
 
 /** Same changes for several routines: values set (null: none, undefined: unchanged), or ids added to and removed from their lists. */

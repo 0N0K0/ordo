@@ -1,4 +1,4 @@
-import { groupBy, readSlotCondition, readTaskHours, taskFieldsGiven, type TaskAutomationRevert, type TaskCloseReason, type TaskInheritableField } from '@ordo/shared';
+import { groupBy, readSlotCondition, readTaskHours, taskFieldsGiven, type TaskAutomationRevert, type TaskCloseReason, type TaskInheritableField, type TaskLinksLost } from '@ordo/shared';
 import { notifySuccess, notifyFailure } from '../../../lib/notify';
 import { originOf } from '../../../components/inheritance/inheritance';
 import { useBulkTaskMutations, useSetTasksClosed, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
@@ -106,7 +106,7 @@ const idsBy = <K>(tasks: Task[], keyOf: (task: Task) => K): [K, string[]][] => [
  * @returns {object} Undo builders.
  */
 export function useBulkUndo() {
-  const { update, archive, transfer } = useBulkTaskMutations();
+  const { update, archive, transfer, restoreLinks } = useBulkTaskMutations();
   const updateTask = useUpdateTask();
   const setClosed = useSetTasksClosed();
 
@@ -187,18 +187,19 @@ export function useBulkUndo() {
 
     /**
      * Undo of the automations of the tasks applied by a change: each task restored when a rule archived it, moved
-     * back to its project, its fields given back (inherited again, emptied again, or their values), then its open /
-     * closed state.
+     * back to its project with the links its transfer removed, its fields given back (inherited again, emptied again,
+     * or their values), then its open / closed state.
      * @param {readonly TaskAutomationRevert[]} reverts What gives each task back (from the API).
      * @returns {() => void} Undo.
      */
     automation: (reverts: readonly TaskAutomationRevert[]) => () =>
       run(
-        reverts.flatMap(({ taskId, projectId, changes, closed, closeReason, restore }) => {
+        reverts.flatMap(({ taskId, projectId, changes, closed, closeReason, restore, links }) => {
           const ids = [taskId];
           return [
             ...(restore ? [() => archive.mutateAsync({ ids, archived: false })] : []),
             ...(projectId !== undefined ? [() => transfer.mutateAsync({ ids, projectId })] : []),
+            ...(links ? [() => restoreLinks.mutateAsync(links)] : []),
             ...(Object.keys(changes).length ? [() => update.mutateAsync({ ids, changes, restoring: true })] : []),
             ...(closed !== undefined ? [() => setClosed.mutateAsync({ ids, closed, reason: closeReason, restoring: true })] : []),
           ];
@@ -207,19 +208,21 @@ export function useBulkUndo() {
 
     /**
      * Undo of a transfer: tasks go back to their project level by level (a transfer moves the sub-tasks
-     * along, deeper ones are then put back in their own project).
+     * along, deeper ones are then put back in their own project), then the links it removed are put back.
      * @param {Task[][]} levels Moved tasks, then their sub-tasks level by level, before the transfer.
+     * @param {TaskLinksLost} lost Links the transfer removed.
      * @returns {() => void} Undo.
      */
-    transfer: (levels: Task[][]) => () =>
-      run(
-        levels.flatMap((level) =>
+    transfer: (levels: Task[][], lost: TaskLinksLost) => () =>
+      run([
+        ...levels.flatMap((level) =>
           idsBy(level, (task) => task.projectId).map(
             ([projectId, ids]) =>
               () =>
                 transfer.mutateAsync({ ids, projectId }),
           ),
         ),
-      ),
+        () => restoreLinks.mutateAsync(lost),
+      ]),
   };
 }

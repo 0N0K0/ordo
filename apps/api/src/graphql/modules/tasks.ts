@@ -17,7 +17,7 @@ import { FieldOriginRef, InheritSourceEnum, TaskInheritableFieldEnum } from '../
 import type { Context } from '../context';
 import * as workspaces from '../../services/workspaces/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
-import { RemovedLinksResult, removedLinks } from '../removed-links';
+import { TaskTransferResult, transferResult } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { labelMutations, labelObject } from '../label-inputs';
 import { relationIds } from '../relation-fields';
@@ -651,10 +651,15 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, changes, restoring }) => done(tasks.bulkUpdateTasks(ids, changes, restoring ?? false)),
   }),
   bulkTransferTasks: t.field({
-    type: RemovedLinksResult,
+    type: TaskTransferResult,
     description: 'Moves the tasks and their sub-tasks to another project, or out of any (projectId null).',
     args: { ids: t.arg.idList({ required: true }), projectId: t.arg.id() },
-    resolve: (_root, { ids, projectId }) => removedLinks(tasks.bulkTransferTasks(ids, projectId ?? null)),
+    resolve: (_root, { ids, projectId }) => transferResult(tasks.bulkTransferTasks(ids, projectId ?? null)),
+  }),
+  restoreTaskLinks: t.boolean({
+    description: 'Undo of a transfer: puts back the links it removed (its lost result), once the tasks are back in their project. Archived values are accepted; tasks deleted since are passed over.',
+    args: { links: t.arg({ type: 'JSON', required: true }) },
+    resolve: (_root, { links }) => done(tasks.restoreTaskLinks(links)),
   }),
   bulkSetTasksArchived: t.boolean({
     description: 'Archiving cascades to sub-tasks; restoring restores them and the archived parents.',

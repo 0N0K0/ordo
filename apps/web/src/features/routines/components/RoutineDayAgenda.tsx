@@ -29,7 +29,10 @@ import { OccurrenceOpening } from './OccurrenceOpening';
 export interface HistoryItem {
   key: string;
   routineId: string;
+  /** Day that identifies its occurrence (its ticks): its due day, or the day of its rule when moved and kept apart. */
   date: string;
+  /** Due day of its occurrence. */
+  dueDate: string;
   /** First day of its occurrence (its « Ouverture »), as the API computes it. */
   startDate: string;
   slot: number;
@@ -60,7 +63,7 @@ const STATES: Record<ItemState, { color: string; text: string }> = {
  * @param {string} today Today (YYYY-MM-DD).
  * @returns {ItemState} State.
  */
-const historyItemState = (item: HistoryItem, today: string): ItemState => (item.check ? 'done' : item.date >= today ? 'todo' : item.optional ? 'skipped' : 'missed');
+const historyItemState = (item: HistoryItem, today: string): ItemState => (item.check ? 'done' : item.dueDate >= today ? 'todo' : item.optional ? 'skipped' : 'missed');
 
 /**
  * Hour proposed to tick a time of the day after the fact: when it was done if it was, else when it was due (its latest
@@ -69,7 +72,7 @@ const historyItemState = (item: HistoryItem, today: string): ItemState => (item.
  * @param {string} today Today (YYYY-MM-DD).
  * @returns {string} HH:MM.
  */
-const proposedTime = (item: HistoryItem, today: string) => (item.check ? fmt.time(item.check.doneAt) : (item.dueTime ?? item.fromTime ?? (item.date === today ? fmt.time(new Date()) : '12:00')));
+const proposedTime = (item: HistoryItem, today: string) => (item.check ? fmt.time(item.check.doneAt) : (item.dueTime ?? item.fromTime ?? (item.dueDate === today ? fmt.time(new Date()) : '12:00')));
 
 interface TickFormProps {
   item: HistoryItem;
@@ -88,7 +91,7 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   const { setDone } = useRoutineMutations();
   const [time, setTime] = useState(() => proposedTime(item, today));
   // Day it was done: when it was if ticked, else its own (today for one to come); later for a late one.
-  const [day, setDay] = useState(() => (item.check ? localDay(item.check.doneAt) : item.date > today ? today : item.date));
+  const [day, setDay] = useState(() => (item.check ? localDay(item.check.doneAt) : item.dueDate > today ? today : item.dueDate));
   const state = historyItemState(item, today);
   const at = localInstant(day, time || '00:00');
   // Now when the form opened: a later hour is refused.
@@ -119,7 +122,7 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
     <Stack gap="md">
       <OccurrenceOpening routine={routine} occurrence={item}>
         <Text size="sm">
-          {fmt.dayLong(item.date)}
+          {fmt.dayLong(item.dueDate)}
           {window ? ` · ${window}` : ''} ·{' '}
           <Text span c={`${STATES[state].color}.7`}>
             {state === 'done' ? `faite à ${fmt.time(item.check!.doneAt)}` : STATES[state].text}
@@ -253,7 +256,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       end = stop > start ? stop : MIDNIGHT;
     }
     const timed = start !== null && end !== null && start < end;
-    const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
+    const status = doneAt ? `faite à ${localDay(doneAt) === item.dueDate ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
     events.push({
       id: taggedKey('routine', item.key),
       title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}${routine?.archived ? ' (archivée)' : ''}`,

@@ -72,6 +72,7 @@ const ElsewhereRemindersDocument = graphql(`
       }
       reminderOccurrences {
         date
+        dueDate
         day
         slots {
           slot

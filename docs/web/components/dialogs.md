@@ -51,6 +51,17 @@ Boutons de tout formulaire et dialogue, en bas à droite : « Annuler » (`secon
 
 Les dialogues destructifs ont leurs propres boutons, dans l'ordre inverse (`DestructiveActions`).
 
+## `ask-choice.tsx`, `ChoiceList.tsx`
+
+Question qui n'est pas la confirmation d'une action destructive, posée dans une modale (`openModal`) et attendue en promesse.
+
+- `Choice<T>` (interface) : une réponse : `value`, `label`, `icon`, `danger` (rouge).
+- `ChoiceList({ question, choices, onAnswer })` (`ChoiceList.tsx`) : la question, un bouton par réponse (l'un sous l'autre), puis « Annuler » en bas à droite (`FormActions` sans bouton de soumission) ; `onAnswer(null)` pour « Annuler ». Utilisé par `ScopeChoices` (agenda) et `askChoice`.
+- `answerInModal(title, render)` : ouvre la modale et attend la réponse que donne son contenu ; `null` si elle est fermée sans réponse (« Annuler », Échap, clic à côté). Utilisé par `askScope` (agenda) et `askChoice`.
+- `askChoice(title, question, choices)` : `ChoiceList` dans `answerInModal`. Utilisé par `askSameDay` (routines : « Garder les deux » / « Fusionner »).
+
+eslint interdit une promesse écrite à la main autour d'`openModal` (`answerInModal` ou `askChoice`).
+
 ## `LabelForm.tsx`
 
 - `LabelFormProps` (interface) : `initial`, `schema` (règle zod du libellé, ex. `requiredText()` ou `mailFolderNameSchema`), `submitLabel` (« Créer », « Renommer »), `onSubmit(label)` (une promesse garde le formulaire ouvert, en attente ; son échec va sous le champ ou en toast), `onDone`, `fieldLabel` (défaut « Libellé » : « Nom » seulement pour une personne), `placeholder`.

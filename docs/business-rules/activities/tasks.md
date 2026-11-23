@@ -307,7 +307,8 @@ Source : `bulkTransferTasks`, `moveTaskTrees` (interne, partagé avec la suppres
   - les documents de projet d’une autre arborescence (ceux de la bibliothèque restent).
 - Hors de tout projet : les items GitHub sont retirés (le lien passe par le projet).
 - Les assignés suivent : ils sont rattachés au projet cible (`attachAssignees`).
-- Le résultat compte les liens retirés (`removedLinks`), documents de projet compris. En masse, seules les tâches du haut de la sélection sont transférées, toutes ensemble : les liens entre tâches transférées restent.
+- Le résultat compte les liens retirés (`removedLinks`), documents de projet compris, et les décrit (`lost` : `TaskLinksLost` de `@ordo/shared`). En masse, seules les tâches du haut de la sélection sont transférées, toutes ensemble : les liens entre tâches transférées restent.
+- **Annuler un transfert** (toast « Annuler » du transfert, et d’une règle d’automatisation qui a changé le projet) : les tâches reviennent dans leur projet niveau par niveau, puis ce que le transfert a retiré est remis (`restoreTaskLinks(links)`, par les écritures habituelles et leurs vérifications ; valeurs et tâches archivées depuis acceptées, comme toute annulation) : la tâche parente (avec les champs qu’elle en héritait, hérités à nouveau ; ceux qu’elle avait vidés restent vides), les blocages et relations, les jalons, sprints et documents de projet des tâches et de leurs sous-tâches. Les tâches supprimées depuis sont passées. Les items GitHub retirés par un transfert hors de tout projet ne reviennent pas.
 
 ## Projet supprimé
 

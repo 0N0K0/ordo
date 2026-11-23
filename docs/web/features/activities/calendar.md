@@ -87,7 +87,7 @@ Classes de la page et de FullCalendar : `fill` (semaine/jour pleine hauteur), `c
 ### `components/ScopeChoices.tsx`
 
 - `ScopeQuestion` (interface) : `action` (`update`, `delete`, `cancel`, `restore`, `cancelOrDelete` : une occurrence de routine, « Annuler cette occurrence » ou « Supprimer celle-ci et les suivantes »), `allowThis`, `allowFollowing`, `allowAll`, `title`, `note` (ce que la modification emporte aussi, après la question : les temps supprimés avec les occurrences).
-- `ScopeChoices({ …question, onAnswer })` : texte et boutons « Cette occurrence », « Celle-ci et les suivantes », « Toutes les occurrences » (rouges pour une suppression), « Annuler ». Utilisé par `askScope`.
+- `ScopeChoices({ …question, onAnswer })` : texte et boutons « Cette occurrence », « Celle-ci et les suivantes », « Toutes les occurrences » (rouges pour une suppression), « Annuler », par `ChoiceList` ([Dialogues](../../components/dialogs.md#ask-choicetsx)). Utilisé par `askScope`.
 
 ### `components/CalendarEditForms.tsx`
 
@@ -187,7 +187,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `hooks/calendar-edits.tsx`
 
-- `RoutineOccurrenceRef` (interface) : `{ routine, date, slot: { index, fromTime, dueTime } }`.
+- `RoutineOccurrenceRef` (interface) : `{ routine, date, dueDate, slot: { index, fromTime, dueTime } }` (`date` : le jour qui identifie l’occurrence, celui des écritures ; `dueDate` : son échéance, montrée et proposée).
 - `useCalendarEdits()` : renvoie `{ changeSlot, changeRoutine, openSlot, openRoutine }` :
   - `changeSlot(schedule, slot, change | null, revert?)` : créneau ou éphéméride (`slotWords` de `@ordo/shared` : question et toasts dans ses mots) ; demande la portée (sans la demander pour une éphéméride d’un seul jour changée de jour : toute sa période se décale), calcule `changedScheduleSlot`, enregistre (`useWorkScheduleMutations().update`), toasts ;
   - `changeRoutine(occurrence, to, times, revert?)` : portée puis `changeOccurrence` (routines) ;
@@ -232,7 +232,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `lib/ask-scope.tsx`
 
-- `askScope(question)` : ouvre `ScopeChoices` dans une modale (`openModal`, au-dessus du panneau), résout la portée ou `null` (fermée). Utilisé par `CalendarPage`, `EventForm` (suppression), `useEventForm` et `calendar-edits` (portée d’un panneau choisie à son ouverture), `event-cells` (tâches).
+- `askScope(question)` : ouvre `ScopeChoices` dans une modale (`answerInModal`, au-dessus du panneau), résout la portée ou `null` (fermée). Utilisé par `CalendarPage`, `EventForm` (suppression), `useEventForm` et `calendar-edits` (portée d’un panneau choisie à son ouverture), `event-cells` (tâches).
 
 ### `lib/scope-title.ts`
 

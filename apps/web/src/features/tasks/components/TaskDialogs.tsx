@@ -7,7 +7,7 @@ import type { TasksDialogProps } from '../lib/open-tasks-dialog';
 import { outermost } from '../../../components/data-table/selection/selection-actions';
 import { CascadeChoice, DestructiveActions, DestructiveRisks } from '../../../components/dialogs/DestructiveActions';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { notifyWithUndo, onMutationError } from '../../../lib/notify';
 import { formCallbacks } from '../../../lib/form';
 import { plural, countWith } from '../../../lib/text';
 import { useBulkTaskMutations } from '../api';
@@ -117,11 +117,10 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
     transfer.mutate(
       { ids: tasks.map((task) => task.id), projectId: target },
       {
-        onSuccess: ({ removedLinks }) => {
+        onSuccess: ({ removedLinks, lost }) => {
           const message = single ? `Tâche ${taskName(single)} transférée.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'transférée')}.`;
-          // Removed links, milestones and sprints cannot come back: no undo then.
-          if (removedLinks > 0) notifySuccess(message + removedLinksNote(removedLinks));
-          else notifyWithUndo(message, undo.transfer(levels));
+          // « Annuler » puts the tasks back with the links, milestones, sprints and documents removed.
+          notifyWithUndo(message + removedLinksNote(removedLinks), undo.transfer(levels, lost));
           onDone(true);
         },
         onError: onMutationError,

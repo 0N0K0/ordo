@@ -20,9 +20,10 @@ import { useQuery, type QueryClient, type QueryKey } from '@tanstack/react-query
 import { tasksQueryKey } from '../../tasks/api';
 import { moveInTree } from '../../../components/tree/category-tree';
 import { graphql } from '../../../graphql';
-import type { CalendarEventScope, DeleteRoutineOccurrenceMutation, RoutineChecksQuery, RoutineOccurrencesQuery, RoutinesDataQuery } from '../../../graphql/graphql';
+import type { CalendarEventScope, DeleteRoutineOccurrenceMutation, RoutineChecksQuery, RoutineOccurrencesQuery, RoutineSameDayChoice, RoutinesDataQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
+import { withSameDayChoice } from '../lib/same-day';
 import { timeQueryKey } from '../../time/api';
 import { conversionDialog } from '../lib/conversion-loss';
 import type { ConversionLoss } from '@ordo/shared';
@@ -67,6 +68,7 @@ const RoutinesDataDocument = graphql(`
       savedCountdownIds
       reminderOccurrences {
         date
+        dueDate
         day
         slots {
           slot
@@ -107,8 +109,10 @@ const RoutinesDataDocument = graphql(`
       requiredIds
       relatedIds
       currentDate
+      currentDueDate
       firstDate
       nextDate
+      nextDueDate
       doneDates
       lastDoneAt
       trackedSeconds
@@ -242,14 +246,24 @@ const SetRoutineDoneDocument = graphql(`
 `);
 
 const MoveRoutineOccurrenceDocument = graphql(`
-  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON, $confirmMerge: Boolean) {
-    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times, confirmMerge: $confirmMerge)
+  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON, $sameDay: RoutineSameDayChoice) {
+    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times, sameDay: $sameDay)
   }
 `);
 
 const ChangeRoutineOccurrenceDocument = graphql(`
-  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {
-    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)
+  mutation ChangeRoutineOccurrence(
+    $id: ID!
+    $date: Date!
+    $scope: CalendarEventScope!
+    $to: Date!
+    $slot: Int!
+    $fromTime: String
+    $dueTime: String
+    $confirmLoss: Boolean
+    $sameDay: RoutineSameDayChoice
+  ) {
+    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss, sameDay: $sameDay)
   }
 `);
 
@@ -313,6 +327,7 @@ const RoutineOccurrencesDocument = graphql(`
     routineOccurrences(from: $from, to: $to) {
       routineId
       date
+      dueDate
       startDate
       shownDate
       movedFrom
@@ -455,8 +470,10 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     requiredIds: input.requiredIds ?? [],
     relatedIds: input.relatedIds ?? [],
     currentDate: null,
+    currentDueDate: null,
     firstDate: null,
     nextDate: null,
+    nextDueDate: null,
     doneDates: [],
     lastDoneAt: null,
     trackedSeconds: 0,
@@ -732,14 +749,17 @@ export function useRoutineMutations() {
       async (variables: { id: string; done: boolean; date?: string | null; slot?: number | null; doneAt?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
       (data, { id, done, date, slot }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done))),
     ),
-    // Onto a day that has its own occurrence: merging both is asked first; declined, nothing moves.
+    // Onto a day that has its own occurrence: keeping both or merging them is asked first (unless given); cancelled,
+    // nothing moves. Gives the day that identifies the occurrence now.
     moveOccurrence: useRoutineMutation(
-      async (variables: { id: string; date: string; to: string; times?: RoutineMoveTimes }) =>
-        withLossConfirmation(async (confirmMerge) => (await execute(MoveRoutineOccurrenceDocument, { ...variables, confirmMerge })).moveRoutineOccurrence),
+      async ({ sameDay: given, ...variables }: { id: string; date: string; to: string; times?: RoutineMoveTimes; sameDay?: RoutineSameDayChoice }) =>
+        withSameDayChoice(async (sameDay = given) => (await execute(MoveRoutineOccurrenceDocument, { ...variables, sameDay })).moveRoutineOccurrence),
     ),
     changeOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope; to: string; slot: number; fromTime: string | null; dueTime: string | null }) =>
-        withLossConfirmation(async (confirmLoss) => (await execute(ChangeRoutineOccurrenceDocument, { ...variables, confirmLoss } as never)).changeRoutineOccurrence),
+        withLossConfirmation(async (confirmLoss) =>
+          withSameDayChoice(async (sameDay) => (await execute(ChangeRoutineOccurrenceDocument, { ...variables, confirmLoss, sameDay } as never)).changeRoutineOccurrence),
+        ),
     ),
     deleteOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope }) => (await execute(DeleteRoutineOccurrenceDocument, variables as never)).deleteRoutineOccurrence,

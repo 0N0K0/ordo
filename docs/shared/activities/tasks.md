@@ -46,6 +46,7 @@ Champs de `taskFormSchema` :
 
 - `taskRef(task)` (« #12 », vide sans projet) et `taskNumbered(task)` (« #12 Libellé ») : pour le web et les sonneries poussées par le serveur ; le web les réexporte (`use-task-context`).
 - `TaskBulkChanges` : mêmes changements faits à plusieurs tâches (statut, priorité, type, jalon, effort, dates, ajouts / retraits d'assignés, d'étiquettes, de sprints, `inheritFields`, `clearFields`) : la modification en masse du web (`BulkChanges`), son annulation, l'annulation d'une automatisation.
+- `taskLinksLostSchema`, `TaskLinksLost`, `taskLinksLostCount(lost)` : liens qu'un transfert a retirés en sortant de l'arborescence (blocages, relations, parent avec les champs hérités, jalons, sprints, documents de projet), renvoyés par `bulkTransferTasks` (`lost`) et remis par `restoreTaskLinks` ; leur nombre (`removedLinks`).
 
 ## `task-inheritance.ts` — héritage des sous-tâches et dates suivies
 
@@ -102,7 +103,7 @@ Règles « quand … alors … » d'un espace (voir [Règles métier — Automat
 | `taskAutomationConditionSchema` / `TaskAutomationCondition` | Condition : un filtre du tableau (`tableFilterSchema`) sur les colonnes lues, chaque condition complète ; vide : `null`. |
 | `taskAutomationActionSchema` / `TaskAutomationAction`, `taskAutomationActionsSchema` | Action `{ kind, field, value }` (valeur selon le type du champ : un id, des ids, un jeton de jour `filterDaySchema`, un nombre `effortSchema`) ; liste de 1 à 20. |
 | `taskAutomationSchema` / `TaskAutomationInput` | Règle : nom (« Le nom est requis. »), couleur, `enabled` (vrai par défaut), déclencheur, condition (`null` par défaut), actions. Formulaire du web et API. |
-| `TaskAutomationRevert`, `TaskAutomationReport`, `TASK_AUTOMATIONS_EXTENSION` | Ce qui remet une tâche comme avant une règle (projet, `TaskBulkChanges`, état fermé et `closeReason`, restauration) ; une règle appliquée pendant une requête (nom, ce qu'elle a fait, tâches, annulations, ou erreur), renvoyée dans les extensions `taskAutomations` de la réponse. |
+| `TaskAutomationRevert`, `TaskAutomationReport`, `TASK_AUTOMATIONS_EXTENSION` | Ce qui remet une tâche comme avant une règle (projet et liens retirés par son transfert `links`, `TaskBulkChanges`, état fermé et `closeReason`, restauration) ; une règle appliquée pendant une requête (nom, ce qu'elle a fait, tâches, annulations, ou erreur), renvoyée dans les extensions `taskAutomations` de la réponse. |
 | `taskAutomationMessage(report)` | « Règle « Démarrage » : statut « En cours » » (« (3 tâches) » pour plusieurs) ; refusée : « Règle « … » non appliquée : <raison> Le changement qui l’a déclenchée est gardé. ». |
 | `taskAutomationActionText(action, nameOf, dayOf)` | Une action en mots : « statut « En cours » », « étiquettes + « Bug » », « échéance vidée », « fermée comme terminée », « fermée comme annulée ». |
 

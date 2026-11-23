@@ -14,7 +14,7 @@ import { effectiveRoutineOf, loadRoutineInheritance } from './routine-inheritanc
 import { parisToday } from '../../today';
 import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
 import { automated } from '../tasks/task-automation-engine';
-import { firstOccurrence, loadScheduleContext, occurrenceSpansBetween, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf, storedCondition, type RoutineTiming } from './routines';
+import { firstOccurrence, loadScheduleContext, occurrenceOn, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf, storedCondition, type RoutineTiming } from './routines';
 
 /** Largest « Ouverture » of a routine before its due day, in days (`routineOpensSchema`, mode BEFORE). */
 const MAX_OPENS_BEFORE = 366;
@@ -236,7 +236,7 @@ export const convertRoutineToTask = automated(async function convertRoutineToTas
   const schedules = await loadScheduleContext();
   const { current, next } = occurrencesOf(routine, undefined, schedules);
   const occurrence = current ?? next ?? firstOccurrence(routine, schedules);
-  const span = occurrence ? occurrenceSpansBetween(routine, occurrence, occurrence, schedules).find((item) => item.end === occurrence) : undefined;
+  const span = occurrence ? occurrenceOn(routine, occurrence, schedules) : undefined;
   const opening = span && span.start < span.end ? span.start : null;
   const onOccurrence = (date: Date | null) => occurrence !== null && formatOptionalDay(date) === occurrence;
   const comments = routine.comments.filter((comment) => onOccurrence(comment.occurrenceDate));
@@ -276,7 +276,7 @@ export const convertRoutineToTask = automated(async function convertRoutineToTas
         deadTimes: toJson(readDeadTimes(routine.deadTimes)),
         savedCountdowns: await linkedSavedCountdowns('ROUTINE', id, tx),
         minDate: parseOptionalDay(opening),
-        deadline: parseOptionalDay(occurrence),
+        deadline: parseOptionalDay(span?.end ?? occurrence),
         location: routine.location,
         locationLat: routine.locationLat,
         locationLon: routine.locationLon,

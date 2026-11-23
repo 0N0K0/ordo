@@ -34,6 +34,8 @@ import {
   type TaskAutomationRevert,
   type TaskAutomationTrigger,
   type TaskInheritableField,
+  type TaskLinksLost,
+  taskLinksLostCount,
   type WeekSpan,
 } from '@ordo/shared';
 import { prisma } from '../../db';
@@ -117,7 +119,7 @@ interface TaskEvents {
 /** Writes of tasks the actions go through (the services of the tasks give them: no import cycle). */
 export interface TaskAutomationWrites {
   bulkUpdate: (ids: string[], changes: TaskBulkChanges, restoring: boolean) => Promise<void>;
-  transfer: (ids: string[], projectId: string | null) => Promise<unknown>;
+  transfer: (ids: string[], projectId: string | null) => Promise<TaskLinksLost>;
   setClosed: (ids: string[], closed: boolean, restoring: boolean, reason?: TaskCloseReason) => Promise<void>;
   archive: (id: string, archived: boolean) => Promise<unknown>;
 }
@@ -588,18 +590,19 @@ function taskWrite(actions: readonly TaskAutomationAction[], task: TaskState, to
 
 /**
  * Applies the writes of a rule on a task, through the writes of the tasks (same checks): its project first (the
- * milestones and sprints of its new tree), its fields, its open / closed state (and how it is closed), then its archive. A task archived by
+ * milestones and sprints of its new tree; the links its transfer removed are told back, for the undo), its fields, its open / closed state (and how it is closed), then its archive. A task archived by
  * the change triggering the rule takes the changes of its fields and state still (as an undo does); not a project.
  * @param {TaskWrite} write Writes.
  * @param {TaskState} task Task.
- * @returns {Promise<void>}
+ * @returns {Promise<TaskLinksLost | null>} Links its transfer removed (null: not moved).
  */
-async function applyWrite(write: TaskWrite, task: TaskState): Promise<void> {
+async function applyWrite(write: TaskWrite, task: TaskState): Promise<TaskLinksLost | null> {
   if (!writes) throw new Error('Task writes not registered.');
-  if (write.projectId !== undefined && write.projectId !== task.values.PROJECT) await writes.transfer([task.id], write.projectId);
+  const lost = write.projectId !== undefined && write.projectId !== task.values.PROJECT ? await writes.transfer([task.id], write.projectId) : null;
   if (Object.keys(write.changes).length) await writes.bulkUpdate([task.id], write.changes, task.archived);
   if (write.close !== undefined && write.close !== task.closeReason) await writes.setClosed([task.id], write.close !== null, task.archived, write.close ?? undefined);
   if (write.archive && !task.archived) await writes.archive(task.id, true);
+  return lost;
 }
 
 /**
@@ -731,10 +734,12 @@ async function applyRules(rules: readonly Rule[], before: Snapshot, timers: Read
       if (!targets.length) continue;
       any = true;
       const errors = new Map<string, string[]>();
+      const lostLinks = new Map<string, TaskLinksLost>();
       for (const task of targets) {
         applied.set(task.id, new Set([...(applied.get(task.id) ?? []), rule.id]));
         try {
-          await applyWrite(taskWrite(rule.actions, task, today), task);
+          const lost = await applyWrite(taskWrite(rule.actions, task, today), task);
+          if (lost) lostLinks.set(task.id, lost);
         } catch (error) {
           const message = userErrorMessage(error, 'Une erreur inattendue est survenue.', `Règle « ${rule.label} »`);
           errors.set(message, [...(errors.get(message) ?? []), task.id]);
@@ -742,7 +747,7 @@ async function applyRules(rules: readonly Rule[], before: Snapshot, timers: Read
       }
       const after = await loadSnapshot();
       names ??= await loadNames();
-      report(rule, targets, state, after, errors, names);
+      report(rule, targets, state, after, { errors, lostLinks }, names);
       state = after;
     }
     if (!any) break;
@@ -756,16 +761,25 @@ async function applyRules(rules: readonly Rule[], before: Snapshot, timers: Read
  * @param {readonly TaskState[]} targets Tasks it applied to.
  * @param {Snapshot} before Tasks before it.
  * @param {Snapshot} after Tasks after it.
- * @param {Map<string, string[]>} errors Refusals, by message: their tasks.
+ * @param {{ errors: Map<string, string[]>, lostLinks: Map<string, TaskLinksLost> }} outcome Refusals, by message: their tasks; links the transfers removed, by task moved.
  * @param {(field: TaskAutomationField, value: string) => string} nameOf Name of an item of a field.
  * @returns {void}
  */
-function report(rule: Rule, targets: readonly TaskState[], before: Snapshot, after: Snapshot, errors: Map<string, string[]>, nameOf: (field: TaskAutomationField, value: string) => string): void {
+function report(
+  rule: Rule,
+  targets: readonly TaskState[],
+  before: Snapshot,
+  after: Snapshot,
+  { errors, lostLinks }: { errors: Map<string, string[]>; lostLinks: Map<string, TaskLinksLost> },
+  nameOf: (field: TaskAutomationField, value: string) => string,
+): void {
   const store = requestReports.getStore();
   if (!store) return;
   const reverts = targets.flatMap((task) => {
     const now = after.tasks.get(task.id);
     const revert = now ? revertOf(before.tasks.get(task.id) ?? task, now) : null;
+    const links = lostLinks.get(task.id);
+    if (revert && links && taskLinksLostCount(links) > 0) revert.links = links;
     return revert ? [revert] : [];
   });
   const base = { ruleId: rule.id, label: rule.label, changes: rule.actions.map((action) => taskAutomationActionText(action, nameOf, dayWords)) };

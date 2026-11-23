@@ -1,24 +1,26 @@
-import { mapById } from '@ordo/shared';
+import { joinedKey, mapById } from '@ordo/shared';
 import { useMemo } from 'react';
 import { useRoutineChecks, useRoutineOccurrences, useRoutinesData, type Routine, type RoutineCheck, type RoutineOccurrence } from '../api';
 import type { HistoryItem } from '../components/RoutineDayAgenda';
 import { collator } from '../../../lib/text';
 
 /**
- * What a day held: each time of the day planned for the routines that day (done or not, with its tick); nothing
- * else (not a late occurrence of another day); by time of the day, then by title.
+ * What a day held: each time of the day planned for the routines that day (done or not, with its tick; two
+ * occurrences of a routine that day, one moved there and kept apart, each with its own); nothing else (not a late
+ * occurrence of another day); by time of the day, then by title.
  * @param {RoutineOccurrence[]} occurrences Occurrences of the day.
- * @param {RoutineCheck[]} checks Ticks of the day.
+ * @param {RoutineCheck[]} checks Ticks of those occurrences (by the day that identifies each).
  * @param {Map<string, Routine>} byId Routines by id.
  * @returns {HistoryItem[]} Items.
  */
 function historyItems(occurrences: RoutineOccurrence[], checks: RoutineCheck[], byId: Map<string, Routine>): HistoryItem[] {
-  const tickOf = new Map(checks.map((check) => [`${check.routineId}/${check.slot}`, check]));
+  const tickOf = new Map(checks.map((check) => [joinedKey(check.routineId, check.date, check.slot), check]));
   const items: HistoryItem[] = occurrences.flatMap((occurrence) =>
     occurrence.slots.map((slot) => ({
-      key: `${occurrence.routineId}/${slot.index}`,
+      key: joinedKey(occurrence.routineId, occurrence.date, slot.index),
       routineId: occurrence.routineId,
       date: occurrence.date,
+      dueDate: occurrence.dueDate,
       startDate: occurrence.startDate,
       slot: slot.index,
       fromTime: slot.fromTime,
@@ -26,7 +28,7 @@ function historyItems(occurrences: RoutineOccurrence[], checks: RoutineCheck[], 
       planned: true,
       optional: slot.optional,
       movedFrom: occurrence.movedFrom,
-      check: tickOf.get(`${occurrence.routineId}/${slot.index}`),
+      check: tickOf.get(joinedKey(occurrence.routineId, occurrence.date, slot.index)),
     })),
   );
   const timeOf = (item: HistoryItem) => item.fromTime ?? item.dueTime ?? '99:99';
@@ -54,17 +56,24 @@ export interface RoutineDay {
  */
 export function useRoutineDay(day: string, routineId: string | null = null): RoutineDay {
   const { data: routinesData } = useRoutinesData();
-  const { data: checks, isPending } = useRoutineChecks(day, day);
   const { data: occurrences, isPending: occurrencesPending } = useRoutineOccurrences({ from: day, to: day });
+  // Due that day: an occurrence moved there and kept apart is identified (ticked) by the day of its rule.
+  const ofDay = useMemo(
+    () => (occurrences ?? []).filter((occurrence) => occurrence.dueDate === day && !occurrence.cancelled && (!routineId || occurrence.routineId === routineId)),
+    [occurrences, day, routineId],
+  );
+  const first = ofDay.reduce((earliest, occurrence) => (occurrence.date < earliest ? occurrence.date : earliest), day);
+  const { data: checks, isPending } = useRoutineChecks(first, day);
   return useMemo(() => {
     const routines = routinesData?.routines ?? [];
     const byId = mapById(routines);
+    const keys = new Set(ofDay.map((occurrence) => joinedKey(occurrence.routineId, occurrence.date)));
+    // A cancelled occurrence is not planned (struck through in the calendar).
     const items = historyItems(
-      // A cancelled occurrence is not planned (struck through in the calendar).
-      (occurrences ?? []).filter((occurrence) => occurrence.date === day && !occurrence.cancelled && (!routineId || occurrence.routineId === routineId)),
-      (checks ?? []).filter((check) => check.date === day && (!routineId || check.routineId === routineId)),
+      ofDay,
+      (checks ?? []).filter((check) => keys.has(joinedKey(check.routineId, check.date))),
       byId,
     );
     return { routines, byId, items, doneCount: items.filter((item) => item.check).length, loading: isPending || occurrencesPending };
-  }, [routinesData, checks, occurrences, isPending, occurrencesPending, day, routineId]);
+  }, [routinesData, checks, ofDay, isPending, occurrencesPending]);
 }

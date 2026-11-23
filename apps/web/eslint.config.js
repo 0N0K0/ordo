@@ -130,6 +130,11 @@ const RESTRICTED_SYNTAX = [
     selector: "CallExpression[callee.property.name='find'][callee.object.property.name='inheritance']",
     message: 'Utiliser originOf(item, field) (components/inheritance/inheritance) et InheritedField pour montrer un champ hérité.',
   },
+  // A question waited for in a modal: one brick (answerInModal, askChoice), not a promise around openModal by hand.
+  {
+    selector: "NewExpression[callee.name='Promise'] CallExpression[callee.name='openModal']",
+    message: 'Utiliser answerInModal ou askChoice (components/dialogs/ask-choice) pour attendre une réponse dans une modale.',
+  },
   // The alignment of a column comes from the kind of its data, declared once per kind (data-table.ts): never per table.
   {
     selector: "Property[key.name='align'][value.type='Literal']",

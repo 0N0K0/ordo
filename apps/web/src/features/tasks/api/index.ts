@@ -1,5 +1,5 @@
 import { tasksQueryKey, doableTasksKey } from '../../../lib/query-keys';
-import type { ContributorLinkValues, TaskBulkChanges, TaskCloseReason, TaskInput, TaskWaitReason } from '@ordo/shared';
+import type { ContributorLinkValues, TaskBulkChanges, TaskCloseReason, TaskInput, TaskLinksLost, TaskWaitReason } from '@ordo/shared';
 import { accountingQueryKey } from '../../accounting/api';
 import { useQuery } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
@@ -649,7 +649,14 @@ const BulkTransferTasksDocument = graphql(`
   mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {
     bulkTransferTasks(ids: $ids, projectId: $projectId) {
       removedLinks
+      lost
     }
+  }
+`);
+
+const RestoreTaskLinksDocument = graphql(`
+  mutation RestoreTaskLinks($links: JSON!) {
+    restoreTaskLinks(links: $links)
   }
 `);
 
@@ -734,7 +741,7 @@ export function useTaskWaitReasons(enabled: boolean) {
 export type BulkChanges = TaskBulkChanges;
 
 /**
- * Bulk changes, transfer, archiving and deletion of selected tasks.
+ * Bulk changes, transfer (and the links it removed put back), archiving and deletion of selected tasks.
  * @returns {object} Bulk mutations.
  */
 export function useBulkTaskMutations() {
@@ -743,7 +750,12 @@ export function useBulkTaskMutations() {
       // `restoring`: an undo, the archived values given back accepted.
       async (variables: { ids: string[]; changes: BulkChanges; restoring?: boolean }) => (await execute(BulkUpdateTasksDocument, variables)).bulkUpdateTasks,
     ),
-    transfer: useTasksMutation(async (variables: { ids: string[]; projectId: string | null }) => (await execute(BulkTransferTasksDocument, variables)).bulkTransferTasks),
+    transfer: useTasksMutation(async (variables: { ids: string[]; projectId: string | null }) => {
+      const { removedLinks, lost } = (await execute(BulkTransferTasksDocument, variables)).bulkTransferTasks;
+      return { removedLinks, lost: lost as TaskLinksLost };
+    }),
+    // Undo of a transfer: the links it removed put back, once the tasks are back in their project.
+    restoreLinks: useTasksMutation(async (links: TaskLinksLost) => (await execute(RestoreTaskLinksDocument, { links })).restoreTaskLinks),
     archive: useTasksMutation(async (variables: { ids: string[]; archived: boolean }) => (await execute(BulkSetTasksArchivedDocument, variables)).bulkSetTasksArchived),
     remove: useTasksMutation(async (variables: { ids: string[]; deleteSubtasks: boolean }) => (await execute(BulkDeleteTasksDocument, variables)).bulkDeleteTasks),
   };

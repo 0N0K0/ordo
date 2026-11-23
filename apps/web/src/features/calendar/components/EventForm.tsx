@@ -303,14 +303,15 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   // One occurrence edited alone: the fields of the series stay as they are (the API keeps them).
   const seriesFields = target.scope === 'THIS' && target.occurrenceDate !== null;
   const { perso } = useActiveWorkspace();
-  // Routines due on the days of the event (an occurrence each), with someone in common with it; those chosen stay.
+  // Routines due on the days of the event (an occurrence each), with someone in common with it; those chosen stay. One
+  // moved onto a day that has its own and kept apart is not linked (its links stay on the day of its rule).
   const { data: routinesData } = useRoutinesData();
   const { data: routineDays } = useRoutineOccurrences(values.startDate && values.endDate ? { from: values.startDate, to: values.endDate } : null);
   const routineById = mapById(routinesData?.routines ?? []);
   const multiDay = values.startDate !== values.endDate;
   const chosenLinks = new Set((values.routineLinks ?? []).map(routineLinkKey));
   const routineOptions = [
-    ...new Map([...unarchived(routineDays ?? []).filter((item) => !item.cancelled).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [routineLinkKey(link), link])).values(),
+    ...new Map([...unarchived(routineDays ?? []).filter((item) => !item.cancelled && item.date === item.dueDate).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [routineLinkKey(link), link])).values(),
   ].flatMap((link) => {
     const routine = routineById.get(link.routineId);
     const key = routineLinkKey(link);

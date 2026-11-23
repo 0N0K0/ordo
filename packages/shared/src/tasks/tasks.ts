@@ -1,4 +1,5 @@
 import { normalize } from '../core/text';
+import { sumOf } from '../core/collections';
 import { z } from 'zod';
 import { endAfter, markdownTextSchema, optionalText, personNameSchema, requiredText } from '../core/rules';
 import { locationPointFields } from '../core/geo';
@@ -11,7 +12,7 @@ import { endDaySchema, startDaySchema } from '../dates/times';
 import { taskRemindersSchema, type ReminderFields } from '../dates/reminders';
 import { deadTimesSchema, type DeadTimeInput } from '../dates/countdowns';
 import { contributorLinkSchema } from '../people/contributor-link';
-import type { TaskInheritableField } from './task-inheritance';
+import { TASK_INHERITABLE_FIELDS, type TaskInheritableField } from './task-inheritance';
 
 export const taskLabelSchema = requiredText();
 
@@ -211,3 +212,28 @@ export interface TaskBulkChanges {
   /** Fields emptied on purpose (« Vider »; never the project). */
   clearFields?: TaskInheritableField[];
 }
+
+const idList = z.array(z.string().min(1));
+
+/**
+ * Links a transfer of tasks removed because they left the project tree, as the transfer tells them, to put them back
+ * (« Annuler »): blocks and relations with the tasks left behind, the parent left behind (with the fields the task
+ * inherited from it), milestones, sprints and project documents of another tree.
+ */
+export const taskLinksLostSchema = z.object({
+  blocks: z.array(z.object({ blockerId: z.string().min(1), blockedId: z.string().min(1) })),
+  relations: z.array(z.object({ taskAId: z.string().min(1), taskBId: z.string().min(1) })),
+  parents: z.array(z.object({ id: z.string().min(1), parentId: z.string().min(1), inheritedFields: z.array(z.enum(TASK_INHERITABLE_FIELDS)) })),
+  milestones: z.array(z.object({ id: z.string().min(1), milestoneId: z.string().min(1) })),
+  sprints: z.array(z.object({ id: z.string().min(1), sprintIds: idList })),
+  resources: z.array(z.object({ id: z.string().min(1), resourceIds: idList })),
+});
+export type TaskLinksLost = z.infer<typeof taskLinksLostSchema>;
+
+/**
+ * Number of links a transfer removed (each sprint and each document counted).
+ * @param {TaskLinksLost} lost Links removed.
+ * @returns {number} Count.
+ */
+export const taskLinksLostCount = (lost: TaskLinksLost): number =>
+  lost.blocks.length + lost.relations.length + lost.parents.length + lost.milestones.length + sumOf(lost.sprints, (item) => item.sprintIds.length) + sumOf(lost.resources, (item) => item.resourceIds.length);

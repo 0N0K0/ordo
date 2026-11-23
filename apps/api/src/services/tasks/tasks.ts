@@ -1,4 +1,4 @@
-import { changedList, copyName, sumOf, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
+import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema, taskLinksLostSchema, type TaskLinksLost } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -455,10 +455,10 @@ export const setTaskArchived = automated(async function setTaskArchived(id: stri
  * @param {string[]} rootIds Tasks moved (with the sub-tasks: none under another one).
  * @param {string | null} projectId Target project; null: none.
  * @param {boolean} [withSubtasks=true] Each task moves with its whole sub-tree; false: only the tasks given. Optional. Default = true.
- * @returns {Promise<number>} Number of removed links.
+ * @returns {Promise<TaskLinksLost>} Removed links (`restoreTaskLinks` puts them back).
  */
-async function moveTaskTrees(rootIds: string[], projectId: string | null, withSubtasks = true): Promise<number> {
-  if (rootIds.length === 0) return 0;
+async function moveTaskTrees(rootIds: string[], projectId: string | null, withSubtasks = true): Promise<TaskLinksLost> {
+  if (rootIds.length === 0) return { blocks: [], relations: [], parents: [], milestones: [], sprints: [], resources: [] };
   const subtrees = withSubtasks ? (await Promise.all(rootIds.map((id) => subtreeIds('task', id, false)))).flat() : [];
   const moved = [...new Set([...rootIds, ...subtrees])];
   const rootOf = await loadRootOf();
@@ -478,14 +478,16 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     .filter(({ id, parentId }) => parentId !== null && (movedSet.has(id) ? outside.has(parentId) : outside.has(id) && movedSet.has(parentId)))
     .map((task) => task.id);
   const outsideIds = [...outside];
-  // Those losing their parent keep, as their own, what they inherited.
+  // Those losing their parent keep, as their own, what they inherited (what they inherited is told back, for the undo).
+  const parents = await prisma.task.findMany({ where: { id: { in: parentOutside } }, select: { id: true, parentId: true, inheritedFields: true } });
   await freezeTaskInheritance(parentOutside);
   // Milestones of another tree cannot follow the moved tasks.
   const movedTasks = await prisma.task.findMany({
     where: { id: { in: moved }, milestoneId: { not: null } },
-    select: { id: true, milestone: { select: { projectId: true } } },
+    select: { id: true, milestoneId: true, milestone: { select: { projectId: true } } },
   });
-  const losingMilestone = movedTasks.filter((item) => item.milestone && rootOf(item.milestone.projectId) !== targetRoot).map((item) => item.id);
+  const milestonesLost = movedTasks.filter((item) => item.milestone && rootOf(item.milestone.projectId) !== targetRoot);
+  const losingMilestone = milestonesLost.map((item) => item.id);
   // Same for sprints: each task leaves those of another tree.
   const sprintTasks = await prisma.task.findMany({
     where: { id: { in: moved }, sprints: { some: {} } },
@@ -505,23 +507,25 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
 
   // Out of any project: their GitHub items go (the link is through the project).
   if (!projectId) await forgetGithubItems(moved);
-  const [blocks, relations] = await prisma.$transaction([
-    prisma.taskBlock.deleteMany({
-      where: {
-        OR: [
-          { blockerId: { in: moved }, blockedId: { in: outsideIds } },
-          { blockedId: { in: moved }, blockerId: { in: outsideIds } },
-        ],
-      },
-    }),
-    prisma.taskRelation.deleteMany({
-      where: {
-        OR: [
-          { taskAId: { in: moved }, taskBId: { in: outsideIds } },
-          { taskBId: { in: moved }, taskAId: { in: outsideIds } },
-        ],
-      },
-    }),
+  const blocksWhere = {
+    OR: [
+      { blockerId: { in: moved }, blockedId: { in: outsideIds } },
+      { blockedId: { in: moved }, blockerId: { in: outsideIds } },
+    ],
+  };
+  const relationsWhere = {
+    OR: [
+      { taskAId: { in: moved }, taskBId: { in: outsideIds } },
+      { taskBId: { in: moved }, taskAId: { in: outsideIds } },
+    ],
+  };
+  const [blocks, relations] = await Promise.all([
+    prisma.taskBlock.findMany({ where: blocksWhere, select: { blockerId: true, blockedId: true } }),
+    prisma.taskRelation.findMany({ where: relationsWhere, select: { taskAId: true, taskBId: true } }),
+  ]);
+  await prisma.$transaction([
+    prisma.taskBlock.deleteMany({ where: blocksWhere }),
+    prisma.taskRelation.deleteMany({ where: relationsWhere }),
     // With the sub-tasks, a sub-task of a moved task is moved too; without them, those of another tree lose their parent.
     prisma.task.updateMany({ where: { id: { in: moved } }, data: projectId ? { projectId } : { projectId: null, githubItemId: null } }),
     prisma.task.updateMany({ where: { id: { in: parentOutside } }, data: { parentId: null } }),
@@ -537,7 +541,14 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     const { inheritedFields } = await prisma.task.findUniqueOrThrow({ where: { id: task.id }, select: { inheritedFields: true } });
     await prisma.task.update({ where: { id: task.id }, data: { inheritedFields: inheritedFields.filter((field) => field !== 'PROJECT') } });
   }
-  return blocks.count + relations.count + parentOutside.length + losingMilestone.length + losingSprints.length + sumOf(losingResources, (item) => item.resources.length);
+  return {
+    blocks,
+    relations,
+    parents: parents.flatMap(({ id, parentId, inheritedFields }) => (parentId ? [{ id, parentId, inheritedFields: inheritedFields as TaskInheritableField[] }] : [])),
+    milestones: milestonesLost.flatMap(({ id, milestoneId }) => (milestoneId ? [{ id, milestoneId }] : [])),
+    sprints: losingSprints.map((item) => ({ id: item.id, sprintIds: item.sprints.map((sprint) => sprint.id) })),
+    resources: losingResources.map((item) => ({ id: item.id, resourceIds: item.resources.map((resource) => resource.id) })),
+  };
 }
 
 /**
@@ -1029,15 +1040,52 @@ export const bulkUpdateTasks = automated(async function bulkUpdateTasks(ids: str
  * Transfers several tasks (with their sub-tasks; none archived) to another project, or out of any.
  * @param {string[]} ids Task ids.
  * @param {string | null} projectId Target project; null: none.
- * @returns {Promise<number>} Number of links removed because they left the project tree.
+ * @returns {Promise<TaskLinksLost>} Links removed because they left the project tree (`restoreTaskLinks` puts them back).
  */
-export const bulkTransferTasks = automated(async function bulkTransferTasks(ids: string[], projectId: string | null): Promise<number> {
+export const bulkTransferTasks = automated(async function bulkTransferTasks(ids: string[], projectId: string | null): Promise<TaskLinksLost> {
   await assertTasks(ids);
   // Refused before any is moved.
   await assertNoneArchived('task', ids);
   if (projectId) await assertProject(projectId);
   // All at once: links between the moved tasks stay.
   return moveTaskTrees(await topmostIds('task', ids), projectId);
+});
+
+/**
+ * Puts back the links a transfer removed (« Annuler » of a transfer or of a rule that changed the project), once the
+ * tasks are back in their project, through the usual writes (same checks; archived values and tasks accepted, as an
+ * undo): the parent (with the fields it inherited again, those it had emptied empty again), the blocks and relations,
+ * the milestones, sprints and project documents. The tasks deleted since are passed over.
+ * @param {unknown} given Links removed, as the transfer told them.
+ * @returns {Promise<void>}
+ */
+export const restoreTaskLinks = automated(async function restoreTaskLinks(given: unknown): Promise<void> {
+  const lost = parseInput(taskLinksLostSchema, given);
+  const named = [
+    ...lost.blocks.flatMap((link) => [link.blockerId, link.blockedId]),
+    ...lost.relations.flatMap((link) => [link.taskAId, link.taskBId]),
+    ...lost.parents.flatMap((link) => [link.id, link.parentId]),
+    ...[...lost.milestones, ...lost.sprints, ...lost.resources].map((link) => link.id),
+  ];
+  const existing = new Set((await prisma.task.findMany({ where: { id: { in: [...new Set(named)] } }, select: { id: true } })).map((task) => task.id));
+  const exist = (...ids: string[]) => ids.every((id) => existing.has(id));
+  for (const { id, parentId, inheritedFields } of lost.parents.filter((link) => exist(link.id, link.parentId))) {
+    // Placed under its parent again: what it had emptied stays empty, not inherited.
+    const emptied = (await adoptedTaskFields(id)).filter((field) => field !== 'PROJECT' && !inheritedFields.includes(field));
+    await updateTask(id, { parentId, inherit: inheritedFields, clear: emptied }, true);
+  }
+  for (const { blockerId, blockedId } of lost.blocks.filter((link) => exist(link.blockerId, link.blockedId))) await addTaskBlock(blockerId, blockedId);
+  for (const { taskAId, taskBId } of lost.relations.filter((link) => exist(link.taskAId, link.taskBId))) await addTaskRelation(taskAId, taskBId);
+  for (const [milestoneId, links] of groupBy(lost.milestones.filter((link) => exist(link.id)), (link) => link.milestoneId)) {
+    await bulkUpdateTasks(links.map((link) => link.id), { milestoneId }, true);
+  }
+  for (const { id, sprintIds } of lost.sprints.filter((link) => exist(link.id))) await bulkUpdateTasks([id], { addSprintIds: sprintIds }, true);
+  for (const { id, resourceIds } of lost.resources.filter((link) => exist(link.id))) {
+    const task = await prisma.task.findUniqueOrThrow({ where: { id }, select: { projectId: true, projectResources: { select: { id: true } } } });
+    const previous = task.projectResources.map((resource) => resource.id);
+    const kept = await checkLinkedDocuments({ projectResourceIds: [...previous, ...resourceIds] }, { projectId: task.projectId, previous });
+    await prisma.task.update({ where: { id }, data: { projectResources: { set: connectIds(kept ?? previous) } } });
+  }
 });
 
 /**

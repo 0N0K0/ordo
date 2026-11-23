@@ -10,7 +10,7 @@ import { ON_ERROR } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { localToday } from '../../../lib/dates';
 import { useRoutineMutations, useRoutineOccurrences, useRoutinesData, type RoutineOccurrence } from '../api';
-import { movableOccurrence, moveTo, movesOf, windowText } from '../lib/routine-format';
+import { dueDayOf, movableOccurrence, moveTo, movesOf, windowText } from '../lib/routine-format';
 import { useRoutineMove } from '../hooks/use-routine-move';
 import * as fmt from '../../../lib/format';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -62,6 +62,8 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
   const [chosen, setChosen] = useState<string | null>(null);
   const date = chosen ?? movable;
   const occurrence = occurrences.find((item) => item.date === date);
+  // The day it is on (`date` identifies it: the day of its rule when moved and kept apart on another one's day).
+  const due = date && (occurrence?.dueDate ?? (routine ? dueDayOf(routine, date) : date));
   const [to, setTo] = useState<string | null>(null);
   const [edited, setEdited] = useState<Times | null>(null);
   const move = useRoutineMove();
@@ -69,7 +71,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
   if (!routine) return <Text size="sm">Cette routine n’existe plus.</Text>;
   const moved = moveTo(routine, date);
   const moves = movesOf(routine);
-  const target = to ?? (date ? addDays(date, 1) : null);
+  const target = to ?? (due ? addDays(due, 1) : null);
   const original = timesOf(occurrence);
   const times = edited ?? original;
   const timesChanged = times.some((item, index) => item.fromTime !== original[index]?.fromTime || item.dueTime !== original[index]?.dueTime);
@@ -79,7 +81,10 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
       .map((slot) => windowText(slot))
       .filter(Boolean)
       .join(', ');
-    return { value: day, label: `${fmt.capitalize(fmt.dayLong(day))}${day === today ? ' (aujourd’hui)' : day < today ? ' (en retard)' : ''}${hours ? ` · ${hours}` : ''}` };
+    // Shown on its due day (two the same day: the one moved there says from where).
+    const shown = item?.dueDate ?? (routine ? dueDayOf(routine, day) : day);
+    const from = shown !== day ? ` · déplacée du ${fmt.dayShort(day)}` : '';
+    return { value: day, label: `${fmt.capitalize(fmt.dayLong(shown))}${shown === today ? ' (aujourd’hui)' : shown < today ? ' (en retard)' : ''}${hours ? ` · ${hours}` : ''}${from}` };
   });
 
   /**
@@ -100,15 +105,15 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
    * @returns {void}
    */
   const changeTimes = (index: number, changes: Partial<Times[number]>) => setEdited(times.map((item, other) => (other === index ? { ...item, ...changes } : item)));
-  const submitLabel = !target || target === date ? 'Changer l’horaire' : target < date! ? 'Avancer' : 'Reporter';
-  const submitIcon = !target || target === date ? <ClockIcon aria-hidden /> : target < date! ? <ArrowBendUpLeftIcon aria-hidden /> : <ArrowBendUpRightIcon aria-hidden />;
+  const submitLabel = !target || target === due ? 'Changer l’horaire' : target < due! ? 'Avancer' : 'Reporter';
+  const submitIcon = !target || target === due ? <ClockIcon aria-hidden /> : target < due! ? <ArrowBendUpLeftIcon aria-hidden /> : <ArrowBendUpRightIcon aria-hidden />;
 
   return (
     <form
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        if (!date || !target || (target === date && !timesChanged)) return;
+        if (!date || !target || (target === due && !timesChanged)) return;
         move(routine, target, date, onDone, timesChanged ? { times: times as RoutineMoveTimes, previous: original as RoutineMoveTimes } : undefined);
       }}
     >
@@ -159,7 +164,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                     ? 'annulée'
                     : item.to === item.from
                       ? 'autres horaires'
-                      : `${shortText(item.to)} (${item.to > item.from ? 'reportée' : 'avancée'}${item.times ? ', autres horaires' : ''})`}
+                      : `${shortText(item.to)} (${item.to > item.from ? 'reportée' : 'avancée'}${item.times ? ', autres horaires' : ''}${item.apart ? ', à part de celle du jour' : ''})`}
                 </Text>
                 <RemoveButton
                   label="Remettre à son jour"
@@ -184,11 +189,11 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
               onClick={() =>
                 confirmDestructive({
                   title: 'Annuler cette occurrence ?',
-                  risks: `L’occurrence du ${fmt.dayLong(date)} n’aura pas lieu : elle reste affichée, barrée, avec ses commentaires ; c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions ou l’agenda.`,
+                  risks: `L’occurrence du ${fmt.dayLong(due!)} n’aura pas lieu : elle reste affichée, barrée, avec ses commentaires ; c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions ou l’agenda.`,
                   confirmLabel: 'Annuler l’occurrence',
                   confirmIcon: <CalendarXIcon aria-hidden />,
                   run: () => deleteOccurrence.mutateAsync({ id: routine.id, date, scope: 'THIS' }).then(() => onDone()),
-                  done: `Occurrence du ${fmt.dayLong(date)} annulée.`,
+                  done: `Occurrence du ${fmt.dayLong(due!)} annulée.`,
                 })
               }
             >
@@ -196,7 +201,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
             </ActionButton>
           )}
           {date && (
-            <ActionButton type="submit" icon={submitIcon} disabled={!target || (target === date && !timesChanged)} loading={moveOccurrence.isPending}>
+            <ActionButton type="submit" icon={submitIcon} disabled={!target || (target === due && !timesChanged)} loading={moveOccurrence.isPending}>
               {submitLabel}
             </ActionButton>
           )}

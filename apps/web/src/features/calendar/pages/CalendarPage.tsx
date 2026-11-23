@@ -585,6 +585,7 @@ export function CalendarPage() {
                 occurrence: {
                   routine,
                   date: occurrence.date,
+                  dueDate: occurrence.dueDate,
                   slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime },
                   cancelled: occurrence.cancelled,
                   archived: occurrence.archived,
@@ -703,7 +704,7 @@ export function CalendarPage() {
         }
         times = { fromTime: from === null ? null : shiftTime('00:00', from), dueTime: due === null ? null : shiftTime('00:00', due) };
       }
-      if (startParts.date === occurrence.date && times.fromTime === fromTime && times.dueTime === dueTime) return;
+      if (startParts.date === occurrence.dueDate && times.fromTime === fromTime && times.dueTime === dueTime) return;
       void edits.changeRoutine(occurrence, startParts.date, times, revert);
       return;
     }

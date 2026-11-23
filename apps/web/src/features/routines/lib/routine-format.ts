@@ -3,6 +3,7 @@ import {
   childrenByParent,
   DAILY_RECURRENCE,
   mapById,
+  moveKey,
   pathOf,
   type Recurrence,
   recurrenceSchema,
@@ -49,7 +50,7 @@ export const isDone = (routine: Routine) => routine.done;
  * @returns {RoutineState} State.
  */
 export const currentRoutineState = (routine: Routine, today: string, doable = true): RoutineState => {
-  const state = routineState(routine.currentDate, isDone(routine), today);
+  const state = routineState(routine.currentDueDate, isDone(routine), today);
   return state === 'due' && !doable ? 'upcoming' : state;
 };
 
@@ -175,11 +176,21 @@ export function movableOccurrence(routine: Routine): string | null {
 /**
  * Exception that brought an occurrence to its day from another one, if any.
  * @param {Routine} routine Routine.
- * @param {string | null} date Occurrence.
+ * @param {string | null} date Occurrence (the day that identifies it: `moveKey`).
  * @returns {RoutineMove | undefined} Move.
  */
 export const moveTo = (routine: Routine, date: string | null): (RoutineMove & { to: string }) | undefined =>
-  date ? (movesOf(routine).find((move) => move.to === date && move.from !== date) as (RoutineMove & { to: string }) | undefined) : undefined;
+  date ? (movesOf(routine).find((move) => move.to !== null && move.to !== move.from && moveKey(move) === date) as (RoutineMove & { to: string }) | undefined) : undefined;
+
+/**
+ * Due day of the current or next occurrence of a routine, from the day that identifies it (another one only when it
+ * was moved onto a day that has its own and kept apart); another day is given back as it is.
+ * @param {Pick<Routine, 'currentDate' | 'currentDueDate' | 'nextDate' | 'nextDueDate'>} routine Routine.
+ * @param {string} date Occurrence (the day that identifies it).
+ * @returns {string} Due day.
+ */
+export const dueDayOf = (routine: Pick<Routine, 'currentDate' | 'currentDueDate' | 'nextDate' | 'nextDueDate'>, date: string): string =>
+  (date === routine.currentDate ? routine.currentDueDate : date === routine.nextDate ? routine.nextDueDate : null) ?? date;
 
 /**
  * Manual order of the routines, as their list shows it: each under its parent routine, siblings by their position.

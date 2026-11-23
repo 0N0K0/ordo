@@ -2044,7 +2044,7 @@ type Mutation {
   """
   Moves the tasks and their sub-tasks to another project, or out of any (projectId null).
   """
-  bulkTransferTasks(ids: [ID!]!, projectId: ID): RemovedLinksResult!
+  bulkTransferTasks(ids: [ID!]!, projectId: ID): TaskTransferResult!
 
   """
   Applies the same changes to several routines; those moved to another project tree lose their links out of it (told back).
@@ -2079,7 +2079,7 @@ type Mutation {
   changePassword(currentPassword: String!, password: String!): Boolean!
 
   """
-  Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all. This one onto a day that has its own occurrence: merging both is confirmed by confirmLoss (extension lost.merge).
+  Changes the day and the times of one time of the day of an occurrence (date: the day that identifies it): this one (an exception), it and the following ones, or all. This one onto a day that has its own occurrence: sameDay. Returns the day that identifies it now.
   """
   changeRoutineOccurrence(
     """
@@ -2090,10 +2090,15 @@ type Mutation {
     dueTime: String
     fromTime: String
     id: ID!
+
+    """
+    Onto a day that has its own occurrence: KEEP_BOTH or MERGE; omitted there: CONFIRMATION_REQUIRED, extension lost.merge (the day), nothing changes.
+    """
+    sameDay: RoutineSameDayChoice
     scope: CalendarEventScope!
     slot: Int!
     to: Date!
-  ): Boolean!
+  ): Date!
   changeUsername(currentPassword: String!, username: String!): User!
 
   """Works without a session: the link may be opened on another device."""
@@ -2466,18 +2471,19 @@ type Mutation {
   moveRoutineCategory(id: ID!, index: Int, parentId: ID): Boolean!
 
   """
-  Moves an occurrence to another day (postponed or brought forward) and / or other times ([{ fromTime, dueTime } | null] by time of the day, null: those of its rule; none: those it had); back to its own day and times, the exception is removed.
+  Moves an occurrence (date: the day that identifies it) to another day (postponed or brought forward) and / or other times ([{ fromTime, dueTime } | null] by time of the day, null: those of its rule; none: those it had); back to its own day and times, the exception is removed. Returns the day that identifies it now (its new day, or the day of its rule when kept apart).
   """
   moveRoutineOccurrence(
-    """
-    Onto a day that has its own occurrence: both merged into one, confirmed (unconfirmed: CONFIRMATION_REQUIRED, extension lost.merge, nothing moves).
-    """
-    confirmMerge: Boolean
     date: Date!
     id: ID!
+
+    """
+    Onto a day that has its own occurrence: KEEP_BOTH or MERGE; omitted there: CONFIRMATION_REQUIRED, extension lost.merge (the day), nothing changes.
+    """
+    sameDay: RoutineSameDayChoice
     times: JSON
     to: Date!
-  ): Boolean!
+  ): Date!
 
   """
   Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
@@ -2601,6 +2607,11 @@ type Mutation {
   """
   resetChecklist(id: ID!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
+
+  """
+  Undo of a transfer: puts back the links it removed (its lost result), once the tasks are back in their project. Archived values are accepted; tasks deleted since are passed over.
+  """
+  restoreTaskLinks(links: JSON!): Boolean!
 
   """
   Records that an alarm or a reminder starts ringing (first ring or repetition); a stopped one is returned as it is.
@@ -3800,9 +3811,14 @@ type Routine {
   categoryIds: [ID!]!
 
   """
-  Current occurrence: the last one on or before today (null before the start or after the end).
+  Current occurrence, by the day that identifies it (its due day, or the day of its rule when moved and kept apart): the last one on or before today (null before the start or after the end); two due the same day, the first not done yet.
   """
   currentDate: Date
+
+  """
+  Due day of the current occurrence (currentDate unless moved and kept apart).
+  """
+  currentDueDate: Date
 
   """« Temps morts »: waits a timer is launched for from an occurrence."""
   deadTimes: [DeadTime!]!
@@ -3855,12 +3871,15 @@ type Routine {
   moments: JSON!
 
   """
-  Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times }] (YYYY-MM-DD), by day of the rule.
+  Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from).
   """
   moves: JSON!
 
-  """First occurrence after today."""
+  """First occurrence after today, by the day that identifies it."""
   nextDate: Date
+
+  """Due day of the next occurrence (nextDate unless moved and kept apart)."""
+  nextDueDate: Date
 
   """
   « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.
@@ -4178,8 +4197,13 @@ type RoutineOccurrence {
   """
   cancelled: Boolean!
 
-  """Due day (its last day)."""
+  """
+  Day that identifies it (its ticks, comments, checklist, links with events, the changes of it): its due day, or the day of its rule when moved onto a day that has its own and kept apart.
+  """
   date: Date!
+
+  """Due day (its last day)."""
+  dueDate: Date!
 
   """Day of the rule it was moved from (an exception)."""
   movedFrom: Date
@@ -4286,13 +4310,18 @@ input RoutinePatch {
 
 """Occurrence of a routine its reminders ring for (Paris time)."""
 type RoutineReminderOccurrence {
-  """Due day of the occurrence."""
+  """
+  Day that identifies the occurrence: its due day, or the day of its rule when moved and kept apart.
+  """
   date: Date!
 
   """
   Its first day (« Ouverture »): the day of its reminders « À HH:MM » (the due day `date`: those from the end).
   """
   day: Date!
+
+  """Due day of the occurrence."""
+  dueDate: Date!
 
   """
   Its times of the day not ticked, with their hours (the moments its reminders « N min avant » count from: `routineSlotAnchors`).
@@ -4309,6 +4338,19 @@ type RoutineReminderSlot {
 
   """Index of its time of the day."""
   slot: Int!
+}
+
+"""
+An occurrence moved onto a day that has its own: both kept apart (the moved one keeps the day of its rule as its identity), or merged into one.
+"""
+enum RoutineSameDayChoice {
+  """Both kept, apart."""
+  KEEP_BOTH
+
+  """
+  Merged into the occurrence of that day, with the ticks and comments of both.
+  """
+  MERGE
 }
 
 """Time of the day of an occurrence of a routine."""
@@ -5521,6 +5563,19 @@ type TaskTag {
   id: ID!
   label: String!
   position: Int!
+}
+
+"""
+Outcome of a transfer of tasks: the links removed because they left the project tree.
+"""
+type TaskTransferResult {
+  """
+  { blocks, relations, parents, milestones, sprints, resources }: the links removed, as restoreTaskLinks takes them back.
+  """
+  lost: JSON!
+
+  """Links removed because they left the project tree."""
+  removedLinks: Int!
 }
 
 type TaskType {

@@ -25,11 +25,11 @@ function DueBadge({ routine }: { routine: Routine }) {
   const { date: today, time: now } = parisParts(new Date(useNow(true, 60_000)));
   const { fromTime, dueTime } = windowOf(routine);
   const { leaveAt } = scheduleOf(routine);
-  if (routine.currentDate && routine.currentDate > today) {
+  if (routine.currentDueDate && routine.currentDueDate > today) {
     const window = windowText({ fromTime, dueTime });
     return (
       <Badge variant="light" color="gray">
-        D’ici {fmt.weekday(routine.currentDate)}
+        D’ici {fmt.weekday(routine.currentDueDate)}
         {window ? ` ${window}` : ''}
       </Badge>
     );
@@ -63,7 +63,7 @@ function DueBadge({ routine }: { routine: Routine }) {
  */
 export function StateCell({ routine, today, doable }: { routine: Routine; today: string; doable: boolean }) {
   const state = currentRoutineState(routine, today, doable);
-  const next = routine.nextDate ? `Prochaine fois : ${fmt.weekday(routine.nextDate)}` : 'Plus d’occurrence à venir';
+  const next = routine.nextDueDate ? `Prochaine fois : ${fmt.weekday(routine.nextDueDate)}` : 'Plus d’occurrence à venir';
   // The occurrence shown comes from another day (an exception).
   const moved = moveTo(routine, state === 'upcoming' ? routine.nextDate : routine.currentDate);
   const label = moved ? `${next} · ${moved.to > moved.from ? 'reportée' : 'avancée'} (prévue le ${fmt.weekday(moved.from)})` : next;
@@ -79,12 +79,12 @@ export function StateCell({ routine, today, doable }: { routine: Routine; today:
         {state === 'due' && <DueBadge routine={routine} />}
         {state === 'late' && (
           <Badge variant="light" color="orange">
-            Depuis {fmt.weekday(routine.currentDate!)}
+            Depuis {fmt.weekday(routine.currentDueDate!)}
           </Badge>
         )}
         {state === 'upcoming' && (
           <Text size="xs" c="dimmed" className={classes.nowrap}>
-            {routine.nextDate ? fmt.weekday(routine.nextDate) : '—'}
+            {routine.nextDueDate ? fmt.weekday(routine.nextDueDate) : '—'}
           </Text>
         )}
       </span>

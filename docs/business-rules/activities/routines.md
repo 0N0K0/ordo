@@ -16,7 +16,7 @@ Champs d'une routine qui comptent pour les occurrences :
 | `slotCondition` | Condition sur les créneaux de l'agenda (groupe ET / OU), suivant la règle.                                                                      |
 | `opensOn`       | « Ouverture » des occurrences de la règle.                                                                                                  |
 | `cases`         | Cas (chacun : `from`, `until`, `recurrence`, `slots`, `condition`, `opens`) ; non vide, ils remplacent la règle, ses moments et sa condition. |
-| `moves`         | Exceptions : `[{ from, to, times }]` (jours `YYYY-MM-DD`).                                                                                    |
+| `moves`         | Exceptions : `[{ from, to, times, apart? }]` (jours `YYYY-MM-DD` ; `apart` : gardée à part de l'occurrence de son nouveau jour).              |
 | `archivedAt`    | Archivée : plus aucune occurrence qui s'ouvre à partir du jour de l'archivage, celles ouvertes avant restent, archivées. `archivedByCascade` : archivée avec sa routine parente. |
 
 Formes lues mais jamais écrites (compatibilité) : `fromTime` / `dueTime` seuls (un seul moment), `scheduleIds` / `excludedScheduleIds` (créneaux suivis / exclus, convertis en condition), `scheduleId` / `scheduleAnchor` (créneau suivi, plus utilisé), `opensOn` en texte `"DD"` (mensuel) ou `"MM-DD"` (annuel).
@@ -110,7 +110,7 @@ Source : `apps/api/src/services/routines/routines.ts` (`ruleSpans`, `occurrences
 
 ### Occurrence
 
-Une occurrence va de son premier jour (son ouverture) à son jour d'échéance (son dernier jour). Elle est identifiée par son jour d'échéance.
+Une occurrence va de son premier jour (son ouverture) à son jour d'échéance (son dernier jour). Elle est identifiée par son jour d'échéance, sauf une occurrence déplacée sur un jour qui a déjà la sienne et **gardée à part** : elle est identifiée par le jour de sa règle (`from` de son exception, `moveKey`) et s'affiche à son nouveau jour, à côté de celle de ce jour. Ce jour qui l'identifie est celui de ses coches (`RoutineCheck`), de ses commentaires, de sa liste à cocher et de ses liens avec des évènements, et le `date` que prennent les écritures d'une occurrence (cocher, déplacer, changer, annuler) ; aucune migration : le jour d'origine est dans son exception. Deux occurrences ont ainsi leurs lignes à part, même dues le même jour.
 
 - Source : les cas s'il y en a, sinon la règle (`storedRule`). Une routine enregistrée avec des créneaux suivis avant les conditions (`scheduleIds` sans `slotCondition`) se répète chaque jour.
 - Un cas compte à partir de son `from` (jamais avant la première fois de la routine) jusqu'à son `until`. Un jour dû par plusieurs cas suit le premier cas (`routineCaseOn`).
@@ -142,7 +142,8 @@ Une occurrence va de son premier jour (son ouverture) à son jour d'échéance (
 - Recherche à ± 35 jours, puis ± 400 jours si rien n'est trouvé (règles mensuelles, annuelles, pauses).
 - Une fois la règle terminée, une dernière occurrence passée n'est plus « en cours ».
 - Exceptions (`movedOccurrences`) : une occurrence déplacée n'a plus lieu à son jour mais au jour où elle va. Si la dernière occurrence de la règle est déplacée plus loin, rien n'est dû jusqu'au jour où elle va (les précédentes ne reviennent pas). Les occurrences suivantes déplacées sont sautées (60 au plus).
-- Champs GraphQL : `currentDate`, `nextDate`, `firstDate` (première occurrence, cherchée sur 10 ans).
+- Deux occurrences dues le même jour (l'une gardée à part) : l'occurrence en cours est la première pas encore faite, dans l'ordre des jours qui les identifient (celle venue d'un jour plus tôt d'abord), la dernière une fois les deux faites ; « Faite » coche donc l'une puis l'autre, et la routine reste « à faire » tant que les deux ne sont pas faites. La suivante : la première des deux.
+- Champs GraphQL : `currentDate`, `nextDate` (le jour qui identifie l'occurrence), `currentDueDate`, `nextDueDate` (leur jour d'échéance : un autre seulement pour une occurrence gardée à part), `firstDate` (première occurrence, cherchée sur 10 ans).
 - Jour d'affichage (`shownDay`) : l'échéance une fois passée, aujourd'hui pendant qu'elle court, son premier jour avant.
 
 ### Moments d'une occurrence (`slotsOf`)
@@ -189,7 +190,7 @@ Source : `setRoutineDone`, `bulkSetRoutinesDone`, `routineChecks`.
 - Routine archivée : refusée (lecture seule).
 - En masse : chaque routine non archivée qui a une occurrence en cours (ouverte, même due plus tard) voit tous ses moments cochés ou décochés ; les autres sont ignorées. Tout est vérifié avant la première écriture, puis écrit d’un coup : un refus ne coche rien.
 - Les coches restent quand la routine est modifiée ; elles sont supprimées avec elle.
-- Requêtes : `doneDates` (30 dernières occurrences cochées), `lastDoneAt`, `routineChecks(from, to)` (2 000 au plus, plus récentes d'abord ; `fromTime` / `dueTime` du moment tels que la routine est maintenant), `routineOccurrences(from, to)` (période de 100 jours au plus : « Période de 100 jours au plus. » ; avec les occurrences annulées, `cancelled`, et celles des routines archivées ouvertes avant leur archivage, `archived`).
+- Requêtes : `doneDates` (30 dernières occurrences cochées), `lastDoneAt`, `routineChecks(from, to)` (2 000 au plus, plus récentes d'abord ; `fromTime` / `dueTime` du moment tels que la routine est maintenant), `routineOccurrences(from, to)` (période de 100 jours au plus : « Période de 100 jours au plus. » ; avec les occurrences annulées, `cancelled`, et celles des routines archivées ouvertes avant leur archivage, `archived` ; chacune avec `date`, le jour qui l'identifie, et `dueDate`, son échéance ; les coches d'une occurrence gardée à part sont lues à son jour d'origine, même hors de la période).
 
 ## Exceptions et déplacements
 
@@ -198,13 +199,17 @@ Source : `moveRoutineOccurrence`, `removeRoutineMove`, `changeRoutineOccurrence`
 - Une exception `{ from, to, times }` : `from` est le jour de la règle, `to` le nouveau jour (`null` : annulée), `times` les horaires changés par moment (`null` : ceux de la règle). Même jour et mêmes horaires : refusé (« Choisissez un autre jour ou d'autres horaires. »).
 - 500 exceptions au plus par routine (« 500 exceptions au plus. »).
 - Une exception dont le jour n'est plus un jour de la règle (ou de ses cas) après un changement de la règle est ignorée (`liveMoves`) : elle ne retire ni n'ajoute d'occurrence (son jour d'arrivée n'en a pas à cause d'elle).
-- Déplacer une occurrence (`moveRoutineOccurrence`, `changeRoutineOccurrence` en `THIS`) sur un jour qui a déjà sa propre occurrence les **fusionne** : il n'y en a plus qu'une ce jour-là, avec les coches et les commentaires des deux. Sans confirmation (`confirmMerge`, `confirmLoss` pour `changeRoutineOccurrence`), rien ne bouge : `CONFIRMATION_REQUIRED` (« Ce jour a déjà son occurrence : confirmez pour fusionner les deux. »), extension `lost.merge` (le jour). L'app pose la question (« Fusionner les occurrences »).
+- Déplacer une occurrence (`moveRoutineOccurrence`, `changeRoutineOccurrence` en `THIS`) sur un jour qui a déjà une autre occurrence de la routine demande ce qu'elles deviennent (`sameDay`, `RoutineSameDayChoice`) ; sans réponse, rien ne bouge : `CONFIRMATION_REQUIRED` (« Ce jour a déjà son occurrence : choisissez de garder les deux ou de les fusionner. »), extension `lost.merge` (le jour) :
+  - **Garder les deux** (`KEEP_BOTH`) : l'occurrence déplacée est gardée à part (`apart` de son exception) : identifiée par le jour de sa règle, avec ses coches, commentaires, liste à cocher et liens, elle s'affiche ce jour-là à côté de l'autre (agenda, historique du jour, « Faite », badges : deux occurrences). Refusé si une autre occurrence a été déplacée sur son jour d'origine (« Une autre occurrence a été déplacée sur son jour d’origine : elle ne peut que fusionner avec celle de ce jour. »).
+  - **Fusionner** (`MERGE`) : il n'y en a plus qu'une ce jour-là, avec les coches et les commentaires des deux (une liste à cocher ou un lien avec un évènement que ce jour a déjà reste à son jour). Seulement avec l'occurrence que ce jour identifie : avec une occurrence gardée à part là, « Cette occurrence ne peut pas être fusionnée avec celle de ce jour : gardez les deux. ».
+- Déplacée sur un jour libre qui identifie pourtant une autre occurrence (celle de ce jour, déplacée ailleurs et gardée à part), elle est gardée à part sans question. Ailleurs, une occurrence déplacée prend son nouveau jour comme identité (ses lignes l'y suivent) ; ses horaires seuls changés, elle reste comme elle est (à part ou non). Ces deux écritures renvoient le jour qui identifie l'occurrence après le changement (« Annuler » le reprend).
 - Une occurrence cochée (un de ses moments) ne se déplace pas : « Cette occurrence est déjà cochée : décochez-la pour la déplacer. » (« … pour la changer. » depuis l'agenda). De même, une occurrence déplacée puis cochée sur son nouveau jour ne se remet pas à son jour (`removeRoutineMove`, « Remettre à son jour ») : même message (« … pour la déplacer. »).
 - Pas avant la première fois : « La routine n'a pas encore commencé ce jour-là. » (champ `to`).
 - Routine archivée : refusée.
 - Redéplacer une occurrence déjà déplacée modifie son exception ; la remettre à son jour avec ses horaires supprime l'exception. Seuls les horaires qui diffèrent de la règle sont gardés.
 - `removeRoutineMove(id, from, comments?)` : supprime l'exception, l'occurrence revient à son jour ; après une annulation (« Annuler » du toast), les commentaires supprimés avec elle lui sont rendus (`comments`, texte vérifié à nouveau, dates d'origine).
-- Les commentaires, la liste à cocher et les liens avec des évènements d'une occurrence déplacée la suivent (vers son nouveau jour, et retour quand l'exception est retirée ; `remapOccurrenceRows`) ; une liste à cocher ou un lien avec un évènement dont le nouveau jour a déjà le sien reste à son jour. Depuis l'agenda, `FOLLOWING` et `ALL` ne déplacent que ceux de l'occurrence changée.
+- Les commentaires, la liste à cocher et les liens avec des évènements d'une occurrence déplacée la suivent vers le jour qui l'identifie désormais (son nouveau jour, ou le jour de sa règle quand elle est gardée à part : ils ne bougent pas), et retour quand l'exception est retirée (`remapOccurrenceRows`) ; une liste à cocher ou un lien avec un évènement dont le nouveau jour a déjà le sien reste à son jour. Depuis l'agenda, `FOLLOWING` et `ALL` ne déplacent que ceux de l'occurrence changée.
+- Une occurrence gardée à part ne se rattache pas à un évènement depuis le formulaire de l'évènement (le lien porte sur un jour de l'évènement) : ses liens d'avant le déplacement restent, sur le jour de sa règle.
 
 Depuis l'agenda (`changeRoutineOccurrence`, portée `THIS` / `FOLLOWING` / `ALL`) :
 

@@ -151,7 +151,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       ...readOnlyCells(columns, routine),
       label: (
         <Group gap={4} wrap="nowrap">
-          <RoutineDoneToggles routine={routine} dateLabel={routine.currentDate ? fmt.weekday(routine.currentDate) : undefined} disabled={readOnly} />
+          <RoutineDoneToggles routine={routine} dateLabel={routine.currentDueDate ? fmt.weekday(routine.currentDueDate) : undefined} disabled={readOnly} />
           <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
             <RoutineLabelCell routine={routine} readOnly={readOnly} />
             <RepetitionText routine={routine} />
