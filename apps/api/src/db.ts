@@ -230,6 +230,8 @@ export const prisma = new Proxy(extended, {
 /**
  * Runs a piece of work in one database transaction: every query of `prisma` made during it (in the services it calls
  * too) is part of it, all written or none (a failure rolls everything back). Inside another one, it is part of it.
+ * A query of `unscopedPrisma` made during it runs outside the transaction (it does not see its writes not yet committed,
+ * and is not rolled back): only reads may go through it there, never writes.
  * @param {() => Promise<T>} work Work.
  * @returns {Promise<T>} What it returns.
  */

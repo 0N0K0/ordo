@@ -10,6 +10,7 @@ import { cachedItem } from '../../../lib/mutation';
 import { timeQueryKey, useTimeMutations, type TimeEntry } from '../api';
 import { TimeEntryForm } from '../components/TimeEntryForm';
 import { parseEventKeys, entryEventKeys } from '../lib/time-events';
+import { endTimerByHand } from './use-stop-timer';
 
 /**
  * Dialogs of the tracked times: the form adding or editing one, and the confirmation of a deletion.
@@ -62,7 +63,8 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
     confirmDestructive({
       title: 'Supprimer le temps',
       risks: `Ce temps (${formatDuration(entrySeconds(entry))}) sera supprimé définitivement et retiré du temps passé de ses tâches.`,
-      run: () => remove.mutateAsync(entry.id),
+      // A running one deleted is ended by hand: not told as stopped after 24 hours.
+      run: () => endTimerByHand(entry.id, () => remove.mutateAsync(entry.id)),
       done: 'Temps supprimé.',
     });
   };

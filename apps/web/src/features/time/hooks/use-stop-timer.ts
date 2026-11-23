@@ -3,16 +3,34 @@ import { toastCallbacks } from '../../../lib/notify';
 import { countOf, plural } from '../../../lib/text';
 import { useTimeMutations, type TimeEntry } from '../api';
 
-/** Timers stopped by hand in this tab: their end is not the stop after 24 hours (`useTimerCapNotice` keeps quiet). */
+/** Timers stopped or abandoned by hand in this tab: their end is not the stop after 24 hours (`useTimerCapNotice` keeps quiet). */
 const stoppedByHand = new Set<string>();
 
 /**
- * Whether a timer was stopped by hand in this tab (not by the API after 24 hours).
+ * Whether a timer was stopped or abandoned by hand in this tab (not stopped by the API after 24 hours).
  * @param {string} id Time entry id.
  * @returns {boolean} Stopped by hand.
  */
 export function wasStoppedByHand(id: string): boolean {
   return stoppedByHand.has(id);
+}
+
+/**
+ * Ends a timer by hand otherwise than by stopping it (abandoned): its end is told as such, not as the stop after 24
+ * hours; failed, it is forgotten again.
+ * @template T
+ * @param {string} id Time entry id.
+ * @param {() => Promise<T>} run What ends it.
+ * @returns {Promise<T>} Its result.
+ */
+export async function endTimerByHand<T>(id: string, run: () => Promise<T>): Promise<T> {
+  stoppedByHand.add(id);
+  try {
+    return await run();
+  } catch (error) {
+    stoppedByHand.delete(id);
+    throw error;
+  }
 }
 
 /**

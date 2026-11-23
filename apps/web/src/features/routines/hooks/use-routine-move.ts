@@ -30,11 +30,11 @@ export function useRoutineMove() {
         onSuccess: ({ key, merged }) => {
           onDone?.();
           // Back where it was: kept apart again when it was; merged, it comes back from the occurrence it went into
-          // with what it brought there only.
+          // with what it brought there only, and the exception it had before (other times, another day).
           const from = movedFrom(movesOf(routine), date);
           notifyWithUndo(`« ${routine.label} » ${what}.`, () =>
             merged
-              ? removeMove.mutate({ id: routine.id, from }, ON_ERROR)
+              ? removeMove.mutate({ id: routine.id, from, undo: true }, ON_ERROR)
               : moveOccurrence.mutate({ id: routine.id, date: key, to: due, times: times?.previous, ...(due !== date && { sameDay: 'KEEP_BOTH' }) }, ON_ERROR),
           );
         },

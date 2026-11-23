@@ -17,6 +17,7 @@ import { parisDay } from '../../../lib/dates';
 import { useNow } from '../../../lib/use-now';
 import { TimerControls } from './TimerControls';
 import { useStartTimer } from '../hooks/use-start-timer';
+import { endTimerByHand } from '../hooks/use-stop-timer';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -122,7 +123,8 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
       title: 'Abandonner le chrono',
       risks: <>Le temps en cours ({formatDuration(entrySeconds(entry))}) ne sera pas enregistré.</>,
       confirmLabel: 'Abandonner',
-      run: () => remove.mutateAsync(entry.id),
+      // Abandoned by hand: not told as stopped after 24 hours.
+      run: () => endTimerByHand(entry.id, () => remove.mutateAsync(entry.id)),
       done: 'Chrono abandonné.',
     });
   };

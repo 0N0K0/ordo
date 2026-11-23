@@ -2556,13 +2556,18 @@ type Mutation {
   removePushSubscription(id: ID!): Boolean!
 
   """
-  Removes an exception: the occurrence goes back to its own day; after its deletion (undo), with the comments deleted with it.
+  Removes an exception: the occurrence goes back to its own day; after its deletion (undo), with the comments deleted with it; undoing a cancel or a merge (undo), as it was before.
   """
   removeRoutineMove(
     """Comments deleted with the occurrence, given back on it."""
     comments: [CommentSnapshotInput!]
     from: Date!
     id: ID!
+
+    """
+    Undo of a cancel or a merge: the occurrence comes back with the exception it had before (moved, kept apart, other times).
+    """
+    undo: Boolean
   ): Boolean!
   removeSheetFromShoppingList(listId: ID!, sheetId: ID!): Boolean!
   removeSignedQuote(id: ID!): Boolean!
@@ -3883,7 +3888,7 @@ type Routine {
   moments: JSON!
 
   """
-  Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart?, merged?, mergedRows? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from); merged: merged into the occurrence of that day (no longer one of its own; mergedRows: the rows it brought).
+  Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart?, merged?, mergedRows?, previous? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from); merged: merged into the occurrence of that day (no longer one of its own; mergedRows: the rows it brought); previous: cancelled or merged, the exception it had before, given back when that is undone.
   """
   moves: JSON!
 

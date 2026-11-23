@@ -142,7 +142,8 @@ export type RoutineMoveTimes = z.infer<typeof routineMoveTimesSchema>;
  * apart (`apart`): the moved one then keeps the day of its rule as its identity (its ticks, comments, checklist and
  * links with events), shown on its new day; or merged (`merged`): it is no longer an occurrence of its own, its rows
  * went to the occurrence identified by its new day, which keeps its own days and times (`mergedRows`: the rows it
- * brought, those that go back to its day when the merge is undone).
+ * brought, those that go back to its day when the merge is undone). Cancelled or merged, it keeps the exception the
+ * occurrence had before (`previous`: moved, kept apart, other times), given back when that is undone.
  */
 export const routineMoveSchema = z
   .object({
@@ -152,9 +153,25 @@ export const routineMoveSchema = z
     apart: z.boolean().optional(),
     merged: z.boolean().optional(),
     mergedRows: z.array(z.string()).max(1000).optional(),
+    previous: z.object({ to: daySchema().nullable(), times: routineMoveTimesSchema, apart: z.boolean().optional() }).optional(),
   })
   .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour ou d’autres horaires.');
 export type RoutineMove = z.infer<typeof routineMoveSchema>;
+
+/**
+ * Exception a cancel or a merge keeps to give back when it is undone (`previous`): the one the occurrence had before
+ * (a cancel or a merge again: the one kept before the first; none, merged before: none).
+ * @param {RoutineMove | undefined} prior Exception of the occurrence before the change.
+ * @param {RoutineMove} move Exception after it.
+ * @returns {RoutineMove['previous']} Exception kept (undefined: none, or the change is neither a cancel nor a merge).
+ */
+export function previousMove(prior: RoutineMove | undefined, move: RoutineMove): RoutineMove['previous'] {
+  const cancel = move.to === null;
+  if (!prior || !(cancel || move.merged)) return undefined;
+  if (cancel ? prior.to === null : prior.merged) return prior.previous;
+  if (prior.merged) return undefined;
+  return { to: prior.to, times: prior.times, ...(prior.apart && { apart: true }) };
+}
 
 /** How an occurrence moved onto a day is identified there: by that day (`OWN`), kept apart by the day of its rule (`APART`), or merged into the occurrence of that day (`MERGED`). */
 export type RoutineMoveJoin = 'OWN' | 'APART' | 'MERGED';

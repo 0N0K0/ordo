@@ -305,7 +305,7 @@ builder.prismaObject('Routine', {
     cases: t.expose('cases', { type: 'JSON', description: 'Cases (days and times of the day); empty: its repetition.' }),
     moves: t.field({
       type: 'JSON',
-      description: 'Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart?, merged?, mergedRows? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from); merged: merged into the occurrence of that day (no longer one of its own; mergedRows: the rows it brought).',
+      description: 'Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart?, merged?, mergedRows?, previous? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from); merged: merged into the occurrence of that day (no longer one of its own; mergedRows: the rows it brought); previous: cancelled or merged, the exception it had before, given back when that is undone.',
       select: { moves: true },
       resolve: (routine) => occurrences.storedMoves(routine.moves),
     }),
@@ -838,13 +838,14 @@ builder.mutationFields((t) => ({
     },
   }),
   removeRoutineMove: t.boolean({
-    description: 'Removes an exception: the occurrence goes back to its own day; after its deletion (undo), with the comments deleted with it.',
+    description: 'Removes an exception: the occurrence goes back to its own day; after its deletion (undo), with the comments deleted with it; undoing a cancel or a merge (undo), as it was before.',
     args: {
       id: t.arg.id({ required: true }),
       from: t.arg({ type: 'Date', required: true }),
       comments: t.arg({ type: [CommentSnapshotInput], description: 'Comments deleted with the occurrence, given back on it.' }),
+      undo: t.arg.boolean({ description: 'Undo of a cancel or a merge: the occurrence comes back with the exception it had before (moved, kept apart, other times).' }),
     },
-    resolve: (_root, { id, from, comments }) => done(routines.removeRoutineMove(id, from, comments ?? [])),
+    resolve: (_root, { id, from, comments, undo }) => done(routines.removeRoutineMove(id, from, comments ?? [], undo ?? false)),
   }),
   setRoutineDone: t.field({
     type: 'Date',

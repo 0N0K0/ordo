@@ -221,6 +221,16 @@ interface OccurrenceDays {
 }
 
 /**
+ * Routine links of an event, with what tells the day each one shows on (`linkShownDay`).
+ * @param {string} eventId Event.
+ * @param {Prisma.TransactionClient} [client] Client or transaction. Optional. Default = the client of the workspace.
+ * @returns {Promise<(RoutineLinkRow & { id: string })[]>} Links.
+ */
+function heldRoutineLinks(eventId: string, client: Prisma.TransactionClient = prisma): Promise<(RoutineLinkRow & { id: string })[]> {
+  return client.calendarEventRoutine.findMany({ where: { eventId }, select: { id: true, ...ROUTINE_LINK_SELECT } });
+}
+
+/**
  * Where of the routine links of an event on some days: by the day each occurrence shows on (one kept apart is stored
  * on the day of its rule).
  * @param {string} eventId Event.
@@ -229,12 +239,34 @@ interface OccurrenceDays {
  */
 async function routineLinksOn(eventId: string, days: { from: string; to?: string } | null): Promise<Prisma.CalendarEventRoutineWhereInput> {
   if (!days) return { eventId };
-  const held = await prisma.calendarEventRoutine.findMany({ where: { eventId }, select: { id: true, ...ROUTINE_LINK_SELECT } });
+  const held = await heldRoutineLinks(eventId);
   const within = held.filter((link) => {
     const day = linkShownDay(link);
     return day >= days.from && (days.to === undefined || day <= days.to);
   });
   return { eventId, id: { in: within.map((link) => link.id) } };
+}
+
+/**
+ * Where of the routine links of occurrences of a series that go (deleted, postponed), by their identity: those shown on
+ * the days of these occurrences (as shown, moved alone included), but those shown on a day of an occurrence that
+ * stays (an earlier one moved past a cut, another one moved onto those days: they show them too); from a cut on, a
+ * link of a day no occurrence shows goes as well.
+ * @param {EventWithRelations} event Event (its exceptions as they are before the change).
+ * @param {{ on: string } | { from: string }} gone The occurrence identified by that day, or every one from that day on.
+ * @returns {Promise<Prisma.CalendarEventRoutineWhereInput>} Where of those links.
+ */
+async function goneRoutineLinks(event: EventWithRelations, gone: { on: string } | { from: string }): Promise<Prisma.CalendarEventRoutineWhereInput> {
+  const held = (await heldRoutineLinks(event.id)).map((link) => ({ id: link.id, day: linkShownDay(link) }));
+  const days = held.map((link) => link.day).sort();
+  const occurrences = days.length ? seriesOccurrences(event, days[0], days.at(-1)!) : [];
+  const goes = (occurrence: EventOccurrence) => occurrence.occurrenceDate !== null && ('on' in gone ? occurrence.occurrenceDate === gone.on : occurrence.occurrenceDate >= gone.from);
+  const within = held.filter(({ day }) => {
+    const shown = occurrences.filter((occurrence) => occurrence.startDate <= day && day <= occurrence.endDate);
+    if (!shown.length) return 'from' in gone && day >= gone.from;
+    return shown.some(goes) && shown.every(goes);
+  });
+  return { eventId: event.id, id: { in: within.map((link) => link.id) } };
 }
 
 /**
@@ -274,7 +306,7 @@ async function saveRoutineLinks(eventId: string, given: readonly { routineId: st
 async function moveRoutineLinks(tx: Prisma.TransactionClient, eventId: string, from: string | null, shift: number, to: string | ((day: string) => string) = eventId): Promise<void> {
   if (shift === 0 && to === eventId) return;
   const targetOf = typeof to === 'string' ? () => to : to;
-  const held = await tx.calendarEventRoutine.findMany({ where: { eventId }, select: { id: true, ...ROUTINE_LINK_SELECT } });
+  const held = await heldRoutineLinks(eventId, tx);
   const moving = held.flatMap((link) => {
     const shown = linkShownDay(link);
     return !from || shown >= from ? [{ id: link.id, ...shiftedRoutineLink({ routineId: link.routineId, date: formatDay(link.date) }, shown, shift) }] : [];
@@ -989,10 +1021,8 @@ export async function deleteCalendarEvent(id: string, scope: EventScope, occurre
   const occurrence = occurrenceOf(event, occurrenceDate);
   const gone = await goneOccurrences(id, scope, occurrenceDate);
   await placeLegacyEventComments([id]);
-  // The routine links of the days of the occurrences deleted, by the day each routine occurrence shows on: those of the
-  // days of the occurrence (as shown), or from its day on (a whole event: in cascade).
-  const shown = gone.on ? shownOccurrence(await findEventWithRelations(id), gone.on) : null;
-  const goneLinks = shown ? await routineLinksOn(id, { from: shown.startDate, to: shown.endDate }) : gone.from ? await routineLinksOn(id, { from: gone.from }) : null;
+  // The routine links of the occurrences deleted, by their identity (a whole event: in cascade).
+  const goneLinks = gone.on || gone.from ? await goneRoutineLinks(await findEventWithRelations(id), gone.on ? { on: gone.on } : { from: gone.from! }) : null;
   // Together: their times, comments and routine links go only with the occurrences.
   await prisma.$transaction(async (tx) => {
     await releaseSubjectTime({ events: [gone] }, tx);
@@ -1105,6 +1135,42 @@ function shownOccurrence(event: EventWithRelations, date: string): EventOccurren
 }
 
 /**
+ * Occurrences of an event overlapping a period (dates included), as shown: with their own changes, those deleted alone
+ * left out; archived, those started before the day it was archived only.
+ * @param {EventWithRelations} event Event.
+ * @param {string} from First date.
+ * @param {string} to Last date.
+ * @returns {EventOccurrence[]} Occurrences.
+ */
+function seriesOccurrences(event: EventWithRelations, from: string, to: string): EventOccurrence[] {
+  const result: EventOccurrence[] = [];
+  const rule = storedRecurrence(event.recurrence);
+  // Archived: its occurrences started before the day it was archived stay (archived), none starting on or after it.
+  const archived = archivedOn(event);
+  const changes = new Map(event.exceptions.map((change) => [formatDay(change.date), change]));
+  const span = daysBetween(formatDay(event.startDate), formatDay(event.endDate));
+  // Moved occurrences may come from a little outside the period.
+  const longest = Math.max(span, rule?.duration ? maxSpanDays(rule.duration) : 0);
+  const near: (string | null)[] = rule ? occurrenceDates(rule, formatDay(event.startDate), addDays(from, -longest - 62), addDays(to, 62)) : [null];
+  // Occurrences moved alone into the period from further away (one of the rule's days).
+  const far = rule
+    ? event.exceptions
+        .filter((change) => !change.cancelled && change.startDate && formatDay(change.startDate) <= to && formatDay(change.endDate ?? change.startDate) >= from)
+        .map((change) => formatDay(change.date))
+        .filter((date) => !near.includes(date) && occursOn(rule, formatDay(event.startDate), date))
+    : [];
+  const dates = [...near, ...far];
+  for (const date of dates) {
+    const change = date ? changes.get(date) : undefined;
+    if (change?.cancelled) continue;
+    const occurrence = toOccurrence(event, date, change);
+    if (archived && occurrence.startDate >= archived) continue;
+    if (occurrence.endDate >= from && occurrence.startDate <= to) result.push(occurrence);
+  }
+  return result;
+}
+
+/**
  * Occurrences of the events overlapping a period (dates included).
  * @param {string} from First date.
  * @param {string} to Last date.
@@ -1127,32 +1193,7 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
     },
     include: occurrenceInclude,
   });
-  const result: EventOccurrence[] = [];
-  for (const event of events) {
-    const rule = storedRecurrence(event.recurrence);
-    // Archived: its occurrences started before the day it was archived stay (archived), none starting on or after it.
-    const archived = archivedOn(event);
-    const changes = new Map(event.exceptions.map((change) => [formatDay(change.date), change]));
-    const span = daysBetween(formatDay(event.startDate), formatDay(event.endDate));
-    // Moved occurrences may come from a little outside the period.
-    const longest = Math.max(span, rule?.duration ? maxSpanDays(rule.duration) : 0);
-    const near: (string | null)[] = rule ? occurrenceDates(rule, formatDay(event.startDate), addDays(from, -longest - 62), addDays(to, 62)) : [null];
-    // Occurrences moved alone into the period from further away (one of the rule's days).
-    const far = rule
-      ? event.exceptions
-          .filter((change) => !change.cancelled && change.startDate && formatDay(change.startDate) <= to && formatDay(change.endDate ?? change.startDate) >= from)
-          .map((change) => formatDay(change.date))
-          .filter((date) => !near.includes(date) && occursOn(rule, formatDay(event.startDate), date))
-      : [];
-    const dates = [...near, ...far];
-    for (const date of dates) {
-      const change = date ? changes.get(date) : undefined;
-      if (change?.cancelled) continue;
-      const occurrence = toOccurrence(event, date, change);
-      if (archived && occurrence.startDate >= archived) continue;
-      if (occurrence.endDate >= from && occurrence.startDate <= to) result.push(occurrence);
-    }
-  }
+  const result = events.flatMap((event) => seriesOccurrences(event, from, to));
   return result.sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
@@ -1292,15 +1333,14 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
       savedCountdowns: await linkedSavedCountdowns('EVENT', id),
     },
   });
-  // Its days before it is postponed: their routine links go with it.
-  const shown = occurrence ? shownOccurrence(await findEventWithRelations(id), occurrence.date) : null;
+  // Its routine links before it is postponed (by its identity: not those of another occurrence on its days) go with it.
+  const goneLinks = occurrence ? await goneRoutineLinks(await findEventWithRelations(id), { on: occurrence.date }) : { eventId: id };
   await setEventCalledOff(id, 'THIS', occurrence?.date ?? null, true);
   // The comments and times of the occurrence follow it to its postponement (a one-off event: its single occurrence),
   // and its routine links (those given, on its new days).
   const from = occurrence?.date ?? null;
   await remapOccurrenceRows('eventId', id, (date) => (date === from ? null : undefined), { to: created.id });
-  // Those of its days, by the day each routine occurrence shows on.
-  await prisma.calendarEventRoutine.deleteMany({ where: await routineLinksOn(id, shown && { from: shown.startDate, to: shown.endDate }) });
+  await prisma.calendarEventRoutine.deleteMany({ where: goneLinks });
   await saveRoutineLinks(created.id, fields.routineLinks, null);
   // Postponed into another project: its contributors follow.
   await followProject(event.projectId, created.projectId, fields.contributorIds);

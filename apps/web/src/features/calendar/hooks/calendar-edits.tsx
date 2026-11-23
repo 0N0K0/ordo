@@ -125,8 +125,8 @@ export function useCalendarEdits() {
         onError: onMutationError,
         onSuccess: ({ archived, comments }) => {
           if (archived) notifySuccess(`Plus aucune occurrence : « ${routine.label} » est archivée.`);
-          // « Annuler » gives the occurrence back (it kept its comments).
-          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(dueDate)} annulée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments }, ON_ERROR));
+          // « Annuler » gives the occurrence back as it was before (its day, kept apart, its times), with its comments.
+          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(dueDate)} annulée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments, undo: true }, ON_ERROR));
           else notifySuccess(`« ${routine.label} » s’arrête avant le ${fmt.dayLong(dueDate)}.`);
         },
       },

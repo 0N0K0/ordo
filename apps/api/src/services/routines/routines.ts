@@ -19,6 +19,7 @@ import {
   occurrenceDates,
   occurrencesBefore,
   parseDay,
+  previousMove,
   reaches,
   groupBy,
   readOpens,
@@ -1622,9 +1623,12 @@ async function saveMoves(routine: Routine, { before, moves, dead = [] }: { befor
   const draft = withOwnMoves(routine, withDead(dead, moves));
   const { follow, following } = await occurrenceChange([{ ...routine, ...draft, moves: draft.moves as Routine['moves'] }], { from: date, to: move?.to === null ? null : key });
   // Merged into another occurrence: the rows it brings are noted, to give them back if the merge is undone.
-  const merging = move?.merged && !before.some((item) => item.from === from && item.merged);
+  const prior = before.find((item) => item.from === from);
+  const merging = move?.merged && !prior?.merged;
   const mergedRows = merging ? await occurrenceRowIds('routineId', [routine.id, ...following], date) : [];
-  const saved = merging ? moves.map((item) => (item === move ? { ...item, mergedRows } : item)) : moves;
+  // Cancelled or merged: the exception it had before is kept, given back when that is undone.
+  const previous = move && previousMove(prior, move);
+  const saved = moves.map((item) => (item === move && (merging || previous) ? { ...item, ...(merging && { mergedRows }), ...(previous && { previous }) } : item));
   await prisma.routine.update({ where: { id: routine.id }, data: withOwnMoves(routine, withDead(dead, saved)) });
   await followOccurrence(routine.id, moved.from, moved.to);
   await follow();
@@ -1673,16 +1677,36 @@ export interface RoutineOccurrenceDeletion {
 }
 
 /**
+ * Exception given back when a cancel or a merge is undone: the one the occurrence had before (`previous`), kept apart
+ * when the day it was moved to now identifies another occurrence (as any occurrence moved onto such a day).
+ * @param {RoutineTiming} routine Routine (its « quand » as it goes).
+ * @param {ScheduleContext} schedules Schedules.
+ * @param {readonly RoutineMove[]} moves Exceptions that apply.
+ * @param {RoutineMove} move Exception of the cancel or the merge.
+ * @returns {RoutineMove | null} Exception (null: none, the occurrence goes back to its own day).
+ */
+function restoredMove(routine: RoutineTiming, schedules: ScheduleContext, moves: readonly RoutineMove[], move: RoutineMove): RoutineMove | null {
+  if (!move.previous) return null;
+  const restored: RoutineMove = { from: move.from, ...move.previous };
+  const elsewhere = restored.to !== null && restored.to !== restored.from;
+  if (elsewhere && !restored.apart && identifiesAnother(routine, schedules, moves, move.from, restored.to!)) return { ...restored, apart: true };
+  return restored;
+}
+
+/**
  * Removes an exception of a routine: the occurrence goes back to its own day; after its deletion (« Annuler »), with
  * the comments deleted with it. Merged into another occurrence, it comes back with the rows it brought there only (the
- * other occurrence keeps its own). An exception left by a change of the rule only goes (no occurrence moves). Refused
- * while another occurrence moved onto its day is identified by it.
+ * other occurrence keeps its own). Undoing a cancel or a merge (`undo`), the occurrence comes back as it was before:
+ * the exception it had then (moved, kept apart, other times) and its rows on the day that identifies it. An exception
+ * left by a change of the rule only goes (no occurrence moves). Refused while another occurrence moved onto its day is
+ * identified by it.
  * @param {string} id Routine id.
  * @param {string} from Day of the rule the occurrence was moved from.
  * @param {readonly CommentSnapshot[]} [comments] Comments deleted with the occurrence, given back on it. Optional. Default = none.
+ * @param {boolean} [undo] Undo of a cancel or a merge: its former exception given back. Optional. Default = removed.
  * @returns {Promise<void>}
  */
-export async function removeRoutineMove(id: string, from: string, comments: readonly CommentSnapshot[] = []): Promise<void> {
+export async function removeRoutineMove(id: string, from: string, comments: readonly CommentSnapshot[] = [], undo = false): Promise<void> {
   const found = await findRoutine(id);
   refuseArchived(found);
   await placeLegacyRoutineComments([id]);
@@ -1695,19 +1719,22 @@ export async function removeRoutineMove(id: string, from: string, comments: read
     if (dead.some((item) => item.from === from)) await prisma.routine.update({ where: { id }, data: withOwnMoves(found, withDead(dead.filter((item) => item.from !== from), moves)) });
     return;
   }
-  // The day that identifies it: the day it went to (the day of its rule when kept apart, or cancelled).
+  // The day that identifies it: the day it went to (the day of its rule when kept apart, or cancelled); the one it
+  // comes back to: the day of its rule, or the one its former exception gives.
   const key = moveKey(move);
-  if (key !== from && identifiesAnother(routine, schedules, moves, from, from)) throw clientError('BAD_USER_INPUT', BACK_TAKEN);
-  const left = withDead(dead, moves.filter((item) => item.from !== from));
+  const restored = undo ? restoredMove(routine, schedules, moves, move) : null;
+  const target = restored ? moveKey(restored) : from;
+  if (key !== target && identifiesAnother(routine, schedules, moves, from, target)) throw clientError('BAD_USER_INPUT', BACK_TAKEN);
+  const next = withDead([], [...moves.filter((item) => item.from !== from), ...(restored ? [restored] : [])]);
   if (move.merged) {
-    await prisma.routine.update({ where: { id }, data: withOwnMoves(found, left) });
-    await putOccurrenceRows('routineId', move.mergedRows ?? [], from);
+    await prisma.routine.update({ where: { id }, data: withOwnMoves(found, withDead(dead, next)) });
+    await putOccurrenceRows('routineId', move.mergedRows ?? [], target);
   } else {
     // Ticked on the day it went to, it stays there: a ticked occurrence is not moved.
     if (move.to && move.to !== from) await assertNotTicked(id, key, 'déplacer');
-    await saveMoves(found, { before: moves, moves: moves.filter((item) => item.from !== from), dead }, key);
+    await saveMoves(found, { before: moves, moves: next, dead }, key);
   }
-  await restoreComments('ROUTINE', id, from, comments);
+  await restoreComments('ROUTINE', id, target, comments);
 }
 
 /** Which occurrences a change applies to: this one (an exception), it and the following ones, or all. */

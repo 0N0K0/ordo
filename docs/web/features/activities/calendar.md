@@ -198,7 +198,7 @@ Utilisés par `ScheduleSettings`.
   - `changeRoutine(occurrence, to, times, revert?)` : portée puis `changeOccurrence` (routines) ;
   - `openSlot(schedule, label, slot)` : demande d’abord la portée (« Modifier un créneau récurrent » / « Modifier une éphéméride récurrente », panneau « Créneau du … » / « Éphéméride du … » ; fermée sans choix : `scope` `null`, panneau en lecture seule), puis panneau `SlotEditForm` ; sa suppression passe par `changeSlot(…, null)` ;
   - `openRoutine(occurrence, movedFrom)` : demande d’abord la portée (« Modifier une routine », sauf occurrence annulée ou d’une routine archivée ; fermée sans choix : `scope` `null`, panneau en lecture seule), puis panneau `RoutineOccurrenceForm` avec elle et `movedFrom` ; « Rétablir » retire l’exception (`removeMove`). `RoutineOccurrenceRef` porte `cancelled` et `archived` (occurrences annulées barrées et non déplaçables ; d’une routine archivée estompées, avec « Afficher les archivés »).
-  - Interne `removeRoutine(occurrence, movedFrom)` : portée (`THIS`/`FOLLOWING`), `deleteOccurrence`, annulation via `removeMove` avec les commentaires supprimés (`comments`).
+  - Interne `removeRoutine(occurrence, movedFrom)` : portée (`THIS`/`FOLLOWING`), `deleteOccurrence`, annulation via `removeMove` avec les commentaires supprimés (`comments`) et `undo` (l’occurrence revient telle qu’elle était avant : jour où elle était déplacée, gardée à part, horaires).
 - Type interne `RoutineSlotTimes`. Utilisé par `openSchedulesManager`.
 
 ### `hooks/use-schedule-columns.tsx`
@@ -210,7 +210,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `hooks/use-calendar-views.ts`
 
-`useCalendarViews()` : vues enregistrées de l’agenda (`useSavedViews`, `kind` `TABLE`, `tableKey` `CALENDAR_VIEW_KEY` = `calendar`, configuration `calendarViewConfig` de `@ordo/shared`, paramètre d’adresse `calendar-view`) ; vue vierge : `calendarViewConfig()` ; première vue « Agenda » : ce que le navigateur gardait avant les vues (`ordo.calendar.view`, `ordo.calendar.filters`, jamais retirés : chaque espace sans vue part d’eux à sa première visite, et une création qui échoue ne perd rien, avec un toast d’erreur), sinon les valeurs par défaut. Internes : `LEGACY_KEYS`, `LEGACY_DISPLAYS`, `legacyValue`, `legacyConfig`, `firstViews`, `blankView`. Utilisé par `CalendarPage`.
+`useCalendarViews()` : vues enregistrées de l’agenda (`useSavedViews`, `kind` `TABLE`, `tableKey` `CALENDAR_VIEW_KEY` = `calendar`, configuration `calendarViewConfig` de `@ordo/shared`, paramètre d’adresse `calendar-view`) ; vue vierge : `calendarViewConfig()` ; première vue « Agenda » : ce que le navigateur gardait avant les vues (`ordo.calendar.view`, `ordo.calendar.filters`, jamais retirés : chaque espace sans vue part d’eux à sa première visite, et une création qui échoue ne perd rien : toast d’erreur avec « Réessayer », nouvel essai à la visite ou au rechargement suivant des vues, `useSavedViews`), sinon les valeurs par défaut. Internes : `LEGACY_KEYS`, `LEGACY_DISPLAYS`, `legacyValue`, `legacyConfig`, `firstViews`, `blankView`. Utilisé par `CalendarPage`.
 
 ### `hooks/use-calendar-filters.ts`
 

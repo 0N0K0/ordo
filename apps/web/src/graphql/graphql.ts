@@ -3764,6 +3764,7 @@ export type RemoveRoutineMoveMutationVariables = Exact<{
   id: string | number;
   from: string;
   comments?: Array<CommentSnapshotInput> | CommentSnapshotInput | null | undefined;
+  undo?: boolean | null | undefined;
 }>;
 
 
@@ -9370,8 +9371,8 @@ export const DeleteRoutineOccurrenceDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteRoutineOccurrenceMutation, DeleteRoutineOccurrenceMutationVariables>;
 export const RemoveRoutineMoveDocument = new TypedDocumentString(`
-    mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {
-  removeRoutineMove(id: $id, from: $from, comments: $comments)
+    mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!], $undo: Boolean) {
+  removeRoutineMove(id: $id, from: $from, comments: $comments, undo: $undo)
 }
     `) as unknown as TypedDocumentString<RemoveRoutineMoveMutation, RemoveRoutineMoveMutationVariables>;
 export const RoutineChecksDocument = new TypedDocumentString(`

@@ -281,8 +281,8 @@ const DeleteRoutineOccurrenceDocument = graphql(`
 `);
 
 const RemoveRoutineMoveDocument = graphql(`
-  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {
-    removeRoutineMove(id: $id, from: $from, comments: $comments)
+  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!], $undo: Boolean) {
+    removeRoutineMove(id: $id, from: $from, comments: $comments, undo: $undo)
   }
 `);
 
@@ -769,7 +769,7 @@ export function useRoutineMutations() {
       async (variables: { id: string; date: string; scope: CalendarEventScope }) => (await execute(DeleteRoutineOccurrenceDocument, variables as never)).deleteRoutineOccurrence,
     ),
     removeMove: useRoutineMutation(
-      async (variables: { id: string; from: string; comments?: CommentSnapshot[] }) => (await execute(RemoveRoutineMoveDocument, variables as never)).removeRoutineMove,
+      async (variables: { id: string; from: string; comments?: CommentSnapshot[]; undo?: boolean }) => (await execute(RemoveRoutineMoveDocument, variables as never)).removeRoutineMove,
     ),
     bulkUpdate: useRoutineMutation(
       async (variables: { ids: string[]; changes: RoutineBulkChanges }) =>

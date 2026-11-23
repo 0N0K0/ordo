@@ -99,7 +99,7 @@ Suppression (`deleteCalendarEvent`) :
 - `THIS` : exception marquée `cancelled` (l’occurrence n’apparaît plus) ;
 - `FOLLOWING` : la série s’arrête la veille (`endSeriesBefore`) ;
 - les commentaires des occurrences supprimées sont supprimés (`deleteGoneComments` ; ceux de tout l’évènement, en cascade).
-- les liens de routines des jours des occurrences supprimées sont retirés, par le jour où s’affiche chaque occurrence de routine (`routineLinksOn`) : `THIS` ceux des jours de l’occurrence telle qu’affichée, `FOLLOWING` ceux de son jour et des suivants (tout l’évènement : en cascade).
+- les liens de routines des occurrences supprimées sont retirés, par l’identité de ces occurrences puis leurs jours tels qu’affichés (`goneRoutineLinks`) : `THIS` l’occurrence supprimée, `FOLLOWING` celles identifiées à partir de son jour (une suivante déplacée avant la coupure comprise) ; un lien (par le jour où s’affiche son occurrence de routine) part s’il s’affiche sur un jour d’une occurrence supprimée et sur aucun d’une occurrence qui reste (une autre occurrence déplacée sur ces jours, une précédente déplacée après la coupure les garde) ; avec `FOLLOWING`, un lien d’un jour à partir de la coupure qu’aucune occurrence n’affiche part aussi (tout l’évènement : en cascade).
 
 Dans la même transaction que la suppression, les temps des occurrences supprimées les perdent ; ceux sans projet qui ne portent plus sur rien sont supprimés (`goneOccurrences`, `releaseSubjectTime`), sauf les facturés ; la confirmation en donne le nombre pour chaque choix, avec celui des commentaires (`lostOnDelete`). Voir [Temps](time.md#suppression-de-ce-sur-quoi-porte-le-temps).
 
@@ -113,7 +113,7 @@ Report (`postponeCalendarEvent`) :
 
 - crée un évènement unique (répétition supprimée) avec les champs donnés, lié par `postponedFromId` et `postponedFromDate` (l’occurrence d’origine) ;
 - puis annule l’occurrence d’origine (`THIS`) ;
-- les commentaires et les temps de l’occurrence d’origine passent au report, comme ses liens de routines (ceux envoyés, sur les nouveaux jours ; ceux des jours de l’occurrence d’origine lui sont retirés, par le jour où chaque occurrence de routine s’affiche, comme pour une modification) ; le report garde les minuteurs enregistrés de l’évènement.
+- les commentaires et les temps de l’occurrence d’origine passent au report, comme ses liens de routines (ceux envoyés, sur les nouveaux jours ; ceux de l’occurrence d’origine lui sont retirés, par son identité comme pour une suppression `THIS` (`goneRoutineLinks` : pas ceux d’une autre occurrence affichée sur ses jours)) ; le report garde les minuteurs enregistrés de l’évènement.
 - Supprimer l’évènement d’origine remet le lien du report à vide (`onDelete: SetNull`).
 
 ### Occurrences (`eventOccurrences`, `toOccurrence`)

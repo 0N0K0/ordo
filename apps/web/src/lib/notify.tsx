@@ -142,13 +142,15 @@ export function notifyWarning(title: string, message: string): void {
 }
 
 /**
- * Shows an error toast that stays until closed.
+ * Shows an error toast that stays until closed, with its actions (« Réessayer »…), each closing it first.
  * @param {string} message Message to display.
+ * @param {NotifyAction[]} [actions] Actions. Optional. Default = none.
  * @returns {void}
  */
-export function notifyError(message: string): void {
+export function notifyError(message: string, actions: NotifyAction[] = []): void {
+  const id = `ordo-error-${(sequence += 1)}`;
   // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
-  notifications.show({ color: FEEDBACK_COLORS.error, icon: <ErrorFeedbackIcon />, title: 'Erreur', message, autoClose: false });
+  notifications.show({ id, color: FEEDBACK_COLORS.error, icon: <ErrorFeedbackIcon />, title: 'Erreur', message: actions.length ? toastBody(id, [message], actions) : message, autoClose: false });
 }
 
 /**
@@ -200,14 +202,15 @@ const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
  * (`ActionDeclined`) too.
  * @param {unknown} error What was thrown.
  * @param {string} [fallback] Message when it has none. Optional. Default = « Une erreur inattendue est survenue. ».
+ * @param {NotifyAction[]} [actions] Actions of the toast (« Réessayer »…). Optional. Default = none.
  * @returns {void}
  */
-export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERROR): void {
+export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERROR, actions: NotifyAction[] = []): void {
   // eslint-disable-next-line no-restricted-syntax -- notifyFailure itself.
   if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') return;
   // Declined at its confirmation: nothing failed.
   if (error instanceof ActionDeclined) return;
-  notifyError(error instanceof Error && error.message ? error.message : fallback);
+  notifyError(error instanceof Error && error.message ? error.message : fallback, actions);
 }
 
 /**
