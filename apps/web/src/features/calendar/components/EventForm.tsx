@@ -9,7 +9,7 @@ import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Anchor, Badge, Fieldset, Select, Stack, Text, TextInput } from '@mantine/core';
 import { PeriodField } from '../../../components/inputs/PeriodField';
-import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, type Recurrence, cutSeriesRule, sharePeople, shiftedSeriesRule, shiftTime, TEXT_MAX } from '@ordo/shared';
+import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, type Recurrence, cutSeries, seriesOn, sharePeople, shiftedSeries, shiftTime, TEXT_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
@@ -279,16 +279,18 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
           // A series moved keeps its days of the week, of the month or of the year (as the API moves its rule).
           const shift = daysBetween(now.occurrenceDate ?? input.startDate, input.startDate);
           const rule = input.recurrence as Recurrence | null | undefined;
-          // The rule the API saved: moved with the series, and, after a cut, its number of occurrences reduced by those
-          // before it; the next saves start from it.
-          const saved = rule ? (split && now.rule && now.occurrenceDate ? cutSeriesRule(rule, now.rule, now.ruleStart, now.occurrenceDate, shift) : shiftedSeriesRule(rule, now.ruleStart, shift)) : null;
-          if (saved && saved !== rule) form.setFieldValue('recurrence', saved);
+          // The series the API saved the occurrence in: moved with the series (its weekdays changing week apart from
+          // the others make series of their own), and, after a cut, its number of occurrences reduced by those before
+          // it; the next saves start from it.
+          const series = rule ? (split && now.rule && now.occurrenceDate ? cutSeries(rule, now.rule, now.ruleStart, now.occurrenceDate, shift) : shiftedSeries(rule, now.ruleStart, shift)) : null;
+          const saved = series && seriesOn(series, input.startDate);
+          if (saved && saved.rule !== rule) form.setFieldValue('recurrence', saved.rule);
           saveTarget.current = {
             eventId,
             occurrenceDate: input.recurrence ? input.startDate : null,
             scope: 'ALL',
-            ruleStart: split || !input.recurrence ? input.startDate : addDays(now.ruleStart, daysBetween(now.occurrenceDate ?? input.startDate, input.startDate)),
-            rule: saved,
+            ruleStart: saved?.start ?? input.startDate,
+            rule: saved?.rule ?? null,
           };
           setTarget(saveTarget.current);
         }
