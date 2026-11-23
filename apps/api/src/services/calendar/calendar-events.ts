@@ -36,6 +36,7 @@ import { PARIS } from '../../today';
 import { assertBeneficiaries } from '../core/beneficiaries';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../../generated/prisma/client';
 import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
+import { copiedEventSheetLinks } from '../shopping/sheets';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { runInWorkspace } from '../../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
@@ -777,7 +778,7 @@ interface SeriesTarget extends MovedSeries {
 /**
  * Creates the events of new series of an event changed (a cut, or the series its weekdays changing week apart make):
  * its fields changed, each on its rule and from its first day, cancelled if the event was (`calledOff` kept), with its
- * saved timers.
+ * saved timers and its sheets.
  * @param {Prisma.TransactionClient} tx Transaction.
  * @param {CalendarEvent} event Event before the change.
  * @param {Awaited<ReturnType<typeof parseEvent>>} fields Its fields once changed.
@@ -806,6 +807,8 @@ async function createSeries(
           ...eventRelations(fields),
           // The new series keeps the saved timers of the event.
           savedCountdowns: await linkedSavedCountdowns('EVENT', event.id, tx),
+          // And its sheets: the checklists of its occurrences to come.
+          sheetLinks: await copiedEventSheetLinks(event.id, tx),
         },
       }),
     );
