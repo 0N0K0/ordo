@@ -46,7 +46,7 @@ import { periodName } from '../../../lib/periods';
 import { EntriesPanel } from '../components/EntriesPanel';
 import { DetailsToggle, PayerCell } from '../components/entry-cells';
 import { entryFieldCells } from '../lib/entry-columns';
-import { FORECAST_KINDS, forecastColumns, type ForecastRow } from '../lib/treasury-columns';
+import { forecastColumns, type ForecastRow } from '../lib/treasury-columns';
 import { useEntryEnv, type EntrySave } from '../lib/entry-env';
 import { bulkCellLabels, bulkSaver, changeOf } from '../../../components/data-table/selection/bulk-edit';
 import type { EntryValues } from '../lib/entry-values';
@@ -426,7 +426,6 @@ export function TreasuryPage() {
             }}
             cells={(row) => {
               const { item } = row;
-              const kind = FORECAST_KINDS[item.kind] ?? FORECAST_KINDS.FORECAST;
               const entry = forecastOf(row);
               if (entry?.archived) {
                 // Read only: the texts of the columns.
@@ -492,13 +491,6 @@ export function TreasuryPage() {
                   <PayerCell entry={entry} env={env} label={forecastLabel('payer', row, entry.amount < 0 ? 'Destinataire' : 'Émetteur')} save={forecastSave(row)('payer')} />
                 ) : (
                   <Text size="sm">{item.payerName ?? ''}</Text>
-                ),
-                origin: (
-                  <>
-                    <Badge size="sm" variant="light" color={kind.color}>
-                      {kind.label}
-                    </Badge>
-                  </>
                 ),
                 amount: entry ? (
                   <SignedAmountCell value={entry.amount} label={forecastLabel('amount', row, 'Montant')} onSave={(change) => forecastSave(row)('amount')(entry, change)} />

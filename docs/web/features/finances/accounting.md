@@ -263,7 +263,7 @@ Les deux sont utilisés par `DocumentsTable`.
 
 | Élément                             | Rôle                                                                                                                                                                                   |
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CatalogPanel()` (export)           | Onglet « Catalogue » : tableau modifiable en place et en lot, « Afficher les archivés » (`useArchivedToggle`), nouvel article, archivage, suppression, commentaires. `AccountingPage`. |
+| `CatalogPanel()` (export)           | Onglet « Catalogue » : tableau modifiable en place et en lot (nature par `ChipChoiceCell` sur `CATALOG_KINDS`, pastille « Débours » du libellé par `ItemBadge` du même état), « Afficher les archivés » (`useArchivedToggle`), nouvel article, archivage, suppression, commentaires. `AccountingPage`. |
 | `CatalogItemForm({ item, onDone })` | Formulaire d’un article (`catalogItemSchema`) et ses commentaires (`CATALOG_ITEM`) ; nouveau : « Ajouter » ; existant : enregistré champ par champ (`useFieldSave`, libellé, description et prix en les quittant, `SaveStatus`, article du cache suivi, archivé en lecture seule). `catalogValues(item?, vatApplicable?)` donne ses valeurs.                                                                                                    |
 
 ### `components/CompanySettings.tsx`
@@ -329,7 +329,7 @@ Utilisés par `ClientBillingSection` et `openContactForm`.
 
 ### `hooks/use-document-columns.tsx`
 
-- `useDocumentColumns(rows, { showType?, showClient? })` : colonnes d’un tableau de documents (numéro, type et client seulement là où ils varient, date, mois, échéance, mois d’échéance, projet, objet, statut, origine (`stateColumn`, interne `DOCUMENT_ORIGINS` : « Ordo » bleu, « Importé » cyan)…, commentaires des documents d’Ordo et importés) ; sans ligne (paramètres) : aucun client ni statut proposé. Utilisé par `DocumentsTable` et `AccountingColumnDefaults`.
+- `useDocumentColumns(rows, { showType?, showClient? })` : colonnes d’un tableau de documents (numéro, type et client seulement là où ils varient, date, mois, échéance, mois d’échéance, projet, objet, statut, origine (`stateColumn`, interne `DOCUMENT_ORIGINS` : « Ordo » bleu, « Importé » `IMPORTED_LOOK`)…, commentaires des documents d’Ordo et importés) ; sans ligne (paramètres) : aucun client ni statut proposé. Utilisé par `DocumentsTable` et `AccountingColumnDefaults`.
 - `DocumentRow` : ligne étiquetée `ordo` / `imported`.
 - `trackingText(row)` : statut en texte (« Brouillon » pour un brouillon). Aussi lu par `DocumentsTable`.
 - Interne : `documentColumns({ rows, projectLabels, projects })`.
@@ -342,6 +342,7 @@ Utilisés par `ClientBillingSection` et `openContactForm`.
 | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `DOCUMENT_TYPE_LABELS`, `documentName`, `documentTitle`, `DRAFT_NAME` | Réexportés de `@ordo/shared` (voir [Partagé : facturation](../../../shared/finances/accounting.md)). |
 | `isFeminineDocumentType(type)`                                        | Type au féminin (factures) pour les messages d’archivage.                                            |
+| `IMPORTED_LOOK`                                                       | Pastille d’un document importé : « Importé », cyan ; « Origine » des documents et du prévisionnel de la trésorerie. |
 | `CLIENT_KIND_LABELS`                                                  | « Professionnel », « Particulier ».                                                                  |
 | `NEW_DOCUMENT_TITLES`                                                 | « Nouveau devis », « Nouvelle facture »…                                                             |
 | `THE_DOCUMENT_TYPE`                                                   | « Le devis », « La facture »…                                                                        |
@@ -357,7 +358,8 @@ Colonnes des tableaux de la facturation qui ne dépendent pas des données, lues
 | Export | Rôle |
 | --- | --- |
 | `OVERDUE_COLUMNS` | Colonnes facture, client, envoi, reste dû, dernière relance, destinataire. `OverdueInvoicesPanel`. |
-| `catalogColumns(comments)` | Article, nature, unité, prix HT, TVA, commentaires (interne `CATALOG_COLUMNS`). `CatalogPanel`. |
+| `catalogColumns(comments)` | Article, nature (`stateColumn`), unité, prix HT, TVA, commentaires (interne `CATALOG_COLUMNS`). `CatalogPanel`. |
+| `CATALOG_KINDS` | Natures d’un article avec leur pastille (`ColumnState`) : « Prestation » (bleu), « Débours » (violet). Colonne « Nature », sa cellule `ChipChoiceCell` et la pastille « Débours » du libellé (`CatalogPanel`). |
 | `workOf(entry)` | Tâches et description d’un temps en un texte (tri, export de la colonne « Temps ») ; la cellule de `TimeBillingForm` les montre l’une sous l’autre (`StackedLines`). |
 | `BILLING_COLUMNS` | Colonnes « Jour », « Temps », « Durée ». `TimeBillingForm`. |
 | `repetitionText(item)` | Phrase de la répétition d’une récurrente (`describeRecurrence`). `AccountingPage`. |

@@ -18,6 +18,12 @@ export const RECURRING_STATES: ColumnState<'active' | 'paused'>[] = [
   { id: 'paused', label: 'En pause', color: 'gray' },
 ];
 
+/** Natures of an item of the catalogue, changed in place: a service blue, a disbursement grape (as its badge by its name). */
+export const CATALOG_KINDS: ColumnState<'ITEM' | 'DISBURSEMENT'>[] = [
+  { id: 'ITEM', label: 'Prestation', color: 'blue' },
+  { id: 'DISBURSEMENT', label: 'Débours', color: 'grape' },
+];
+
 /** Columns of the overdue invoices. */
 export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
   {
@@ -65,25 +71,7 @@ export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
 /** Columns of the catalog. */
 const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
   { id: 'label', required: true, label: 'Article', size: 320, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
-  {
-    id: 'kind',
-    required: true,
-    bulk: true,
-    label: 'Nature',
-    size: 120,
-    hiddenByDefault: true,
-    sortValue: (item) => item.kind,
-    text: (item) => (item.kind === 'DISBURSEMENT' ? 'Débours' : 'Prestation'),
-    filter: {
-      kind: 'choice',
-      value: (item) => (item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM'),
-      options: [
-        { value: 'ITEM', label: 'Prestation' },
-        { value: 'DISBURSEMENT', label: 'Débours' },
-      ],
-    },
-    groupable: true,
-  },
+  stateColumn({ id: 'kind', required: true, bulk: true, label: 'Nature', size: 120, hiddenByDefault: true, states: CATALOG_KINDS, value: (item) => (item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM'), groupable: true }),
   { id: 'unit', required: true, label: 'Unité', size: 120, bulk: true, sortValue: (item) => UNIT_LABELS[item.unit].label, text: (item) => UNIT_LABELS[item.unit].label, groupable: true },
   { id: 'price', required: true, label: 'Prix HT', size: 120, bulk: true, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => fmt.money(item.unitPrice) },
   {

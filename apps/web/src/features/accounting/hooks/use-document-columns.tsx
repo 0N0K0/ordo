@@ -8,16 +8,16 @@ import { commentColumn } from '../../comments/lib/comment-column';
 import { useProjectTree } from '../../projects/api';
 import { projectFullPath, projectOptions } from '../../projects/lib/tree';
 import type { AccountingDocumentSummary, ImportedDocument } from '../api/documents';
-import { DOCUMENT_TYPE_LABELS, documentName, DRAFT_NAME } from '../lib/labels';
+import { DOCUMENT_TYPE_LABELS, documentName, DRAFT_NAME, IMPORTED_LOOK } from '../lib/labels';
 
 /** Row of a table of accounting documents: one of Ordo, or one issued before Ordo (imported). */
 export type DocumentRow = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 type Row = DocumentRow;
 
-/** Origins of a document, with their badge: made in Ordo (blue), issued before Ordo and imported (cyan, as in the treasury). */
+/** Origins of a document, with their badge: made in Ordo (blue), issued before Ordo and imported (`IMPORTED_LOOK`). */
 const DOCUMENT_ORIGINS: ColumnState<DocumentRow['kind']>[] = [
   { id: 'ordo', label: 'Ordo', color: 'blue' },
-  { id: 'imported', label: 'Importé', color: 'cyan' },
+  { id: 'imported', ...IMPORTED_LOOK },
 ];
 
 /**

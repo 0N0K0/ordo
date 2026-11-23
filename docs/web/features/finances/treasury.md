@@ -305,9 +305,8 @@ Colonnes des tableaux de la trésorerie, lues par leur tableau et par `TreasuryC
 
 | Élément | Rôle |
 | --- | --- |
-| `FORECAST_KINDS` | Libellé et couleur de chaque origine (`FORECAST`, `ACTUAL`, `INVOICE`, `CREDIT_NOTE`, `IMPORTED`, `RECURRING_INVOICE`). Aussi lu par `TreasuryPage`. |
 | `ForecastRow` | Ligne du prévisionnel : `{ item, index }`. |
-| `forecastColumns(entryOf, env)` | Colonnes du prévisionnel : « Mois », « Date d’exécution », « Libellé », « Origine », « En retard », colonnes partagées (avec « Répétition »), « Montant ». `TreasuryPage`. |
+| `forecastColumns(entryOf, env)` | Colonnes du prévisionnel : « Mois », « Date d’exécution », « Libellé », « Origine » (`stateColumn` ; internes `FORECAST_ORIGINS`, origines dans leur ordre avec libellé et couleur, « Importé » par `IMPORTED_LOOK` de la facturation, et `forecastOrigin`, « Prévision » pour une origine inconnue), « En retard », colonnes partagées (avec « Répétition »), « Montant ». `TreasuryPage`. |
 | `entryColumns(env)` | Colonnes des mouvements : « Mois », « Date d’exécution », « Libellé », colonnes partagées, « Documents réglés », « Montant ». |
 | `entryTableColumns(env, comments)` | `entryColumns` et les commentaires des mouvements. `EntriesPanel`. |
 | `LineRow` | Ligne de la répartition : rang, valeurs, montant signé, pièces. |
