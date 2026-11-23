@@ -191,14 +191,17 @@ function runningEntry(id: string): Promise<TimeEntry | null> {
 }
 
 /**
- * Stops a running entry (a paused timer ends when its pause started).
- * @param {TimeEntry} entry Running entry.
- * @returns {Promise<TimeEntry>} Stopped entry.
+ * Stops a running entry (a paused timer ends when its pause started), unless it was stopped meanwhile (elsewhere, or
+ * after 24 hours).
+ * @param {TimeEntry} entry Running entry, as read.
+ * @returns {Promise<TimeEntry | null>} Stopped entry, null when it no longer ran.
  */
-function stopEntry(entry: TimeEntry): Promise<TimeEntry> {
+async function stopEntry(entry: TimeEntry): Promise<TimeEntry | null> {
   const endedAt = entry.pausedAt ?? new Date();
   const duration = Math.max(0, Math.floor((endedAt.getTime() - entry.startedAt.getTime()) / 1000) - entry.pausedSeconds);
-  return prisma.timeEntry.update({ where: { id: entry.id }, data: { endedAt, pausedAt: null, duration } });
+  // Only while it still runs as read (a pause or resume meanwhile: not stopped on stale values).
+  const { count } = await prisma.timeEntry.updateMany({ where: { id: entry.id, endedAt: null, pausedAt: entry.pausedAt, pausedSeconds: entry.pausedSeconds }, data: { endedAt, pausedAt: null, duration } });
+  return count ? { ...entry, endedAt, pausedAt: null, duration } : null;
 }
 
 /**
@@ -241,11 +244,11 @@ export async function stopTimer(id: string): Promise<TimeEntry | null> {
 
 /**
  * « Arrêter tout »: stops every running timer of the workspace.
- * @returns {Promise<TimeEntry[]>} Stopped entries.
+ * @returns {Promise<TimeEntry[]>} Entries this call stopped (not those stopped elsewhere meanwhile).
  */
 export async function stopAllTimers(): Promise<TimeEntry[]> {
   const running = await prisma.timeEntry.findMany({ where: { endedAt: null } });
-  return Promise.all(running.map(stopEntry));
+  return (await Promise.all(running.map(stopEntry))).filter((entry): entry is TimeEntry => entry !== null);
 }
 
 /**
@@ -354,6 +357,10 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
   if (running && duration !== undefined) throw fieldError('duration', 'La durée d’un chrono en cours ne se modifie pas.');
   if (running && input.startedAt && input.startedAt.getTime() > Date.now()) {
     throw fieldError('startedAt', 'Le début ne peut pas être dans le futur.');
+  }
+  // Paused: the time run before the pause (its former pauses left out) may not become negative.
+  if (running && input.startedAt && entry.pausedAt && input.startedAt.getTime() + entry.pausedSeconds * 1000 > entry.pausedAt.getTime()) {
+    throw fieldError('startedAt', 'Le début doit précéder la pause.');
   }
   const kept = subjectsOf(entry);
   // Moved to another day (its events not given): it leaves the events that are not on that day.

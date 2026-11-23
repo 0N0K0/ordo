@@ -262,7 +262,7 @@ Source : `taskHoursSchema`, `hoursCaseNeedsStart`, `readTaskHours` (`packages/sh
 
 ## Tâches faisables maintenant
 
-Source : requête `doableTasks(utcOffset)` (`taskDoability`, `services/calendar/slot-conditions.ts`) : chaque tâche ouverte avec, quand elle n’est pas faisable, la raison (`TaskWaitReason`, `TASK_WAIT_REASONS`).
+Source : requête `doableTasks(utcOffset)` (`taskDoability`, `services/tasks/task-doability.ts`) : chaque tâche ouverte avec, quand elle n’est pas faisable, la raison (`TaskWaitReason`, `TASK_WAIT_REASONS`).
 
 Tâches ouvertes de l’espace dont l’« Ouverture » suivie (`effectiveTask`, voir [Dates suivies](#dates-suivies)) n’est pas après le jour de l’utilisateur (avant elle, la tâche n’est pas à faire), dont la condition de créneaux et les horaires (les siens ou hérités ; aucun : n’importe quand, dans les deux types d’espace) autorisent tous deux le moment présent de l’utilisateur, que ne tient aucun créneau « Indisponible » de l’espace (voir [Agenda](calendar.md#créneaux-indisponibles) : rien n’est faisable pendant, condition ou non), et dont aucun évènement n’occupe les assignés (les siens ou hérités ; aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
 

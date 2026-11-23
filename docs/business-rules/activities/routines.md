@@ -63,7 +63,7 @@ Références vérifiées par `parseRoutine` :
 - « Relative à » (`relatedIds`) : chaque routine doit exister (« Routine »), non archivée (sauf si déjà liée) ; pas elle-même (« Une routine ne peut pas être liée à elle-même. »).
 - Dépendances et relations dans la **même arborescence de projets** que la routine, comme les tâches : une routine nouvellement liée d'une autre arborescence est refusée, « Les routines liées doivent appartenir au même projet ou à l’un de ses sous-projets. » ; sans projet : « Une routine sans projet ne se lie qu’à des routines sans projet. » (sous `requiredIds` ou `relatedIds`). Un lien déjà en place hors de l'arborescence reste tant qu'elle n'en change pas.
 - Changement d'arborescence de projets (formulaire, modification en masse, édition sur place) : ses liens avec les routines restées hors de la nouvelle arborescence sont retirés sans erreur, dans les deux sens (celles dont elle dépend, celles qui dépendent d'elle, ses relations), ainsi que ses documents de projet d'une autre arborescence, comme lors d'un transfert de tâche. `updateRoutine`, `patchRoutine` et `bulkUpdateRoutines` renvoient le nombre de liens retirés (`removedLinks`), annoncé à l'utilisateur comme pour les tâches. Une sélection changée de projet d'un coup (`bulkUpdateRoutines`) part ensemble, comme un transfert de tâches en masse : les liens entre ses routines restent, seuls tombent ceux avec les routines restées hors de la nouvelle arborescence (`movedWith`, `outsideMovedTree` commun avec `moveTaskTrees`).
-- `restoring` (annulation d'une modification en masse) : les valeurs archivées remises sont acceptées, seul ce contrôle est sauté.
+- `restoring` (annulation d'une modification) : les valeurs archivées remises sont acceptées, les rappels « avant » remis à une routine sans heure aussi (ils étaient enregistrés) ; ramenée dans une autre arborescence de projet, les liens et documents hors de celle-ci sont retirés au lieu d'être refusés. Tous les autres contrôles sont faits (espace, existence, arborescence du projet quand elle ne change pas, boucles).
 - **Valeurs suivies** : d'une sous-routine, la fin de la répétition, l'« Ouverture », le refus des créneaux et types archivés (condition, cas) et celui des rappels « avant » sans heure lisent son « quand » et sa condition tels qu'elle les suit, hérités compris (`effectiveRoutineTiming`), avant comme après le changement (ce qui est « déjà présent » est ce qu'elle suivait), pas les valeurs enregistrées sur elle. Le refus des créneaux et types archivés ne porte que sur la condition et les cas qu'elle a en propre : une condition héritée est celle de sa parente, et rétablir son héritage est accepté même si elle cite un créneau ou un type archivé.
 
 Normalisation à l'enregistrement :
@@ -106,7 +106,7 @@ Source : `treeListService('routineCategory', …)` dans `routines.ts`, schéma `
 
 ## Calcul des occurrences
 
-Source : `apps/api/src/services/routines/routines.ts` (`ruleSpans`, `occurrencesOf`, `occurrenceSpansBetween`, `slotsOf`), `packages/shared/src/routines/routines.ts`, `packages/shared/src/calendar/slot-conditions.ts`. Tout est calculé en jours de Paris (`parisToday`).
+Source : `apps/api/src/services/routines/routine-occurrences.ts` (`ruleSpans`, `occurrenceSpansBetween`, `loadScheduleContext`), `apps/api/src/services/routines/routines.ts` (`occurrencesOf`, `slotsOf`), `packages/shared/src/routines/routines.ts`, `packages/shared/src/calendar/slot-conditions.ts`. Tout est calculé en jours de Paris (`parisToday`).
 
 ### Occurrence
 

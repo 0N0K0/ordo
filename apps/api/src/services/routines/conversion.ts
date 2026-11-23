@@ -14,7 +14,8 @@ import { effectiveRoutineOf, loadRoutineInheritance } from './routine-inheritanc
 import { parisToday } from '../../today';
 import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
 import { automated } from '../tasks/task-automation-engine';
-import { firstOccurrence, loadScheduleContext, occurrenceOn, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf, storedCondition, type RoutineTiming } from './routines';
+import { firstOccurrence, occurrenceOn, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf } from './routines';
+import { loadScheduleContext, storedCondition, type RoutineTiming } from './routine-occurrences';
 
 /** Largest « Ouverture » of a routine before its due day, in days (`routineOpensSchema`, mode BEFORE). */
 const MAX_OPENS_BEFORE = 366;

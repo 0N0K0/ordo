@@ -258,7 +258,7 @@ builder.mutationFields((t) => ({
   stopTimer: t.prismaField({
     type: 'TimeEntry',
     nullable: true,
-    description: 'Stops a running timer (its time saved); null when it no longer runs. The others keep running.',
+    description: 'Stops a running timer (its time saved); null when it no longer runs or was stopped elsewhere meanwhile. The others keep running.',
     args: { id: t.arg.id({ required: true }) },
     resolve: async (query, _root, { id }) => {
       const entry = await timeEntries.stopTimer(id);
@@ -267,7 +267,7 @@ builder.mutationFields((t) => ({
   }),
   stopAllTimers: t.prismaField({
     type: ['TimeEntry'],
-    description: '« Arrêter tout »: stops every running timer (their time saved).',
+    description: '« Arrêter tout »: stops every running timer (their time saved); returns only those this call stopped.',
     resolve: async (query) => {
       const stopped = await timeEntries.stopAllTimers();
       return prisma.timeEntry.findMany({ ...query, where: { id: { in: stopped.map((entry) => entry.id) } }, orderBy: { startedAt: 'asc' } });

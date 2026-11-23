@@ -1,7 +1,7 @@
 import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
 import { peopleSettler } from '../../services/routines/routines';
 import { done } from '../errors';
-import { taskDoability, type TaskDoability } from '../../services/calendar/slot-conditions';
+import { taskDoability, type TaskDoability } from '../../services/tasks/task-doability';
 import { prisma } from '../../db';
 import { storeAttachment, attachmentUrl } from '../../services/core/attachments';
 import * as contributors from '../../services/projects/contributors';

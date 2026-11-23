@@ -95,7 +95,7 @@ Toasts (en haut à droite, `Notifications` de `main.tsx`) : une erreur reste jus
 - `notifyError(message)` : erreur, titre « Erreur », persistante.
 - `onMutationError(error)` : le gestionnaire de tout `onError` (→ `notifyFailure`).
 - `ON_ERROR` : `{ onError: onMutationError }`, options d'une mutation sans toast de succès.
-- `toastCallbacks(message)` : `onSuccess` (toast) et `onError` d'une mutation sans formulaire.
+- `toastCallbacks(message)` : `onSuccess` (toast) et `onError` d'une mutation sans formulaire ; `message` peut être fait du résultat de la mutation, `null` pour ne pas afficher de toast (rien ne s'est passé).
 - `notifyFailure(error, fallback?)` : échec d'une action quelconque en toast d'erreur : son message, ou « Une erreur inattendue est survenue. » ; une session expirée (`UNAUTHENTICATED`) reste silencieuse (retour à la connexion), une action refusée à sa confirmation (`ActionDeclined`) aussi.
 - `ActionDeclined` (classe) : erreur d'une action que l'utilisateur a refusée à sa confirmation (« Action annulée. ») ; elle s'arrête sans toast. Lancée par `withLossConfirmation`.
 - `notifyWithUndo(message, onUndo)` : succès avec bouton « Annuler » (8 s).

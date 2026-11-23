@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { END_AFTER_START, endsAfter, markdownSchema, markdownTextSchema, optionalPlainText, requiredText } from '../core/rules';
-import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, zonedInstant, type Recurrence } from '../dates/recurrence';
+import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, storedRecurrence, zonedInstant, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
 import { addDays, dayIn } from '../dates/days';
@@ -201,8 +201,8 @@ interface AlarmSchedule {
  * @returns {Recurrence | null} Rule.
  */
 export function alarmRule(schedule: AlarmSchedule): Recurrence | null {
-  const stored = recurrenceSchema.safeParse(schedule.recurrence);
-  if (stored.success) return stored.data;
+  const stored = storedRecurrence(schedule.recurrence);
+  if (stored) return stored;
   if (schedule.frequency === 'ONCE') return null;
   return {
     ...DEFAULT_RECURRENCE,

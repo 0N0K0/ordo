@@ -13,12 +13,12 @@ import {
   treasuryAccountSchema,
   type TreasuryEntryInput,
   treasuryEntrySchema,
+  storedRecurrence,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type TreasuryAccount, type TreasuryEntry } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { storedRecurrence } from '../calendar/calendar-events';
 import { documentBalances, importedBalances, syncPaymentStatus } from '../accounting/document-tracking';
 import { assertMethodFor } from './treasury-settings';
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';

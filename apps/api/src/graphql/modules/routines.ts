@@ -2,6 +2,7 @@ import { parseOptionalDay, sumOf } from '@ordo/shared';
 import { addDays, daysBetween, formatDay, movedFrom, parseDay, readDeadTimes, readOpens, readReminders, reminderDaysAhead, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
+import * as occurrences from '../../services/routines/routine-occurrences';
 import * as routines from '../../services/routines/routines';
 import { convertRoutineToTask, convertTaskToRoutine } from '../../services/routines/conversion';
 import type { Context } from '../context';
@@ -44,16 +45,16 @@ const TIMING = {
   slotCondition: true,
 } as const;
 
-const slotContexts = new WeakMap<Context, Promise<routines.ScheduleContext>>();
+const slotContexts = new WeakMap<Context, Promise<occurrences.ScheduleContext>>();
 
 /**
  * Slots of the workspace for the slot rules of the routines, loaded once per request.
  * @param {Context} ctx GraphQL context.
- * @returns {Promise<routines.ScheduleContext>} Schedules.
+ * @returns {Promise<occurrences.ScheduleContext>} Schedules.
  */
-function slotsOf(ctx: Context): Promise<routines.ScheduleContext> {
+function slotsOf(ctx: Context): Promise<occurrences.ScheduleContext> {
   let slots = slotContexts.get(ctx);
-  if (!slots) slotContexts.set(ctx, (slots = routines.loadScheduleContext()));
+  if (!slots) slotContexts.set(ctx, (slots = occurrences.loadScheduleContext()));
   return slots;
 }
 
@@ -70,11 +71,11 @@ interface SlotState {
 
 /**
  * Times of the day of the current occurrence of a routine (its next one before it starts), with those ticked.
- * @param {routines.RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
- * @param {routines.ScheduleContext} context Schedules of the workspace.
+ * @param {occurrences.RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
+ * @param {occurrences.ScheduleContext} context Schedules of the workspace.
  * @returns {{ date: string | null, slots: SlotState[] }} Day and its times.
  */
-const slotStates = (routine: routines.RoutineTiming & { checks: { date: Date; slot: number }[] }, context: routines.ScheduleContext) => {
+const slotStates = (routine: occurrences.RoutineTiming & { checks: { date: Date; slot: number }[] }, context: occurrences.ScheduleContext) => {
   const { current, next } = routines.occurrencesOf(routine, undefined, context);
   const date = current ?? next;
   const ticked = new Set(routine.checks.filter((check) => current && formatDay(check.date) === current).map((check) => check.slot));
@@ -120,12 +121,12 @@ const RoutineReminderOccurrenceRef = builder.objectRef<routines.RoutineReminderO
 
 /**
  * Due day of an occurrence of a routine, from the day that identifies it.
- * @param {routines.RoutineTiming} routine Routine.
+ * @param {occurrences.RoutineTiming} routine Routine.
  * @param {string | null} date Occurrence (the day that identifies it).
- * @param {routines.ScheduleContext} context Schedules of the workspace.
+ * @param {occurrences.ScheduleContext} context Schedules of the workspace.
  * @returns {string | null} Due day.
  */
-const dueDayOf = (routine: routines.RoutineTiming, date: string | null, context: routines.ScheduleContext): string | null =>
+const dueDayOf = (routine: occurrences.RoutineTiming, date: string | null, context: occurrences.ScheduleContext): string | null =>
   date && routines.occurrenceDueDayOf(routine, date, context);
 
 /** Checks loaded to know the times ticked today. */
@@ -158,16 +159,16 @@ const RoutineEffectiveRef = builder.objectRef<StoredInheritingRoutine>('RoutineE
     beneficiaryRelationIds: t.idList({ resolve: (routine) => routine.beneficiaryRelationIds }),
     categoryIds: t.idList({ resolve: (routine) => routine.categoryIds }),
     priorityId: t.exposeID('priorityId', { nullable: true }),
-    slotCondition: t.field({ type: 'JSON', nullable: true, resolve: (routine) => routines.storedCondition(routine) }),
+    slotCondition: t.field({ type: 'JSON', nullable: true, resolve: (routine) => occurrences.storedCondition(routine) }),
     opensOn: t.field({ type: 'JSON', nullable: true, resolve: (routine) => readOpens(routine.opensOn) }),
     location: t.exposeString('location', { nullable: true }),
     locationLat: t.exposeFloat('locationLat', { nullable: true }),
     locationLon: t.exposeFloat('locationLon', { nullable: true }),
     startDate: t.field({ type: 'Date', resolve: (routine) => routine.startDate }),
-    recurrence: t.field({ type: 'JSON', resolve: (routine) => routines.storedRule(routine) ?? routine.recurrence }),
-    cases: t.field({ type: 'JSON', resolve: (routine) => routines.storedCases(routine.cases) }),
-    moments: t.field({ type: 'JSON', resolve: (routine) => routines.storedMoments(routine) }),
-    moves: t.field({ type: 'JSON', resolve: (routine) => routines.storedMoves(routine.moves) }),
+    recurrence: t.field({ type: 'JSON', resolve: (routine) => occurrences.storedRule(routine) ?? routine.recurrence }),
+    cases: t.field({ type: 'JSON', resolve: (routine) => occurrences.storedCases(routine.cases) }),
+    moments: t.field({ type: 'JSON', resolve: (routine) => occurrences.storedMoments(routine) }),
+    moves: t.field({ type: 'JSON', resolve: (routine) => occurrences.storedMoves(routine.moves) }),
   }),
 });
 
@@ -197,7 +198,7 @@ builder.prismaObject('Routine', {
       type: 'JSON',
       description: 'Rule of its repetition (every day for one saved following calendar schedules).',
       select: { recurrence: true, scheduleIds: true, slotCondition: true },
-      resolve: (routine) => routines.storedRule(routine) ?? routine.recurrence,
+      resolve: (routine) => occurrences.storedRule(routine) ?? routine.recurrence,
     }),
     estimate: t.exposeInt('estimate', { nullable: true, description: 'Minutes.' }),
     projectId: t.exposeID('projectId', { nullable: true }),
@@ -206,9 +207,9 @@ builder.prismaObject('Routine', {
       type: 'JSON',
       nullable: true,
       description: 'Following its rule: on or out of calendar schedules, in groups combined with and / or (the filters of the tables); null: any time.',
-      resolve: (routine) => routines.storedCondition(routine),
+      resolve: (routine) => occurrences.storedCondition(routine),
     }),
-    moments: t.field({ type: 'JSON', description: 'Times of the day following its rule or its schedules, [{ fromTime, dueTime, optional }].', resolve: (routine) => routines.storedMoments(routine) }),
+    moments: t.field({ type: 'JSON', description: 'Times of the day following its rule or its schedules, [{ fromTime, dueTime, optional }].', resolve: (routine) => occurrences.storedMoments(routine) }),
     reminders: t.field({
       type: [ReminderRef],
       description: 'Reminders: minutes (24 hours at most) before the start or the end of each time of the day on the first day (« Ouverture ») or the due day of an occurrence (`anchor`), or a time of one of those days or of some days before it.',
@@ -306,7 +307,7 @@ builder.prismaObject('Routine', {
       type: 'JSON',
       description: 'Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from).',
       select: { moves: true },
-      resolve: (routine) => routines.storedMoves(routine.moves),
+      resolve: (routine) => occurrences.storedMoves(routine.moves),
     }),
     slots: t.field({
       type: [RoutineSlotRef],
@@ -599,13 +600,13 @@ builder.queryFields((t) => ({
       });
       const context = await slotsOf(ctx);
       const today = parisToday();
-      const found = list.map((routine) => ({ routine, spans: routines.occurrenceSpansBetween(routine, from, to, context, true) }));
+      const found = list.map((routine) => ({ routine, spans: occurrences.occurrenceSpansBetween(routine, from, to, context, true) }));
       // Occurrences kept apart are identified by the day of their rule, maybe out of the period: their ticks too.
       const outside = found.flatMap(({ routine, spans }) => spans.filter((span) => span.date < from || span.date > to).map((span) => ({ routineId: routine.id, date: parseDay(span.date) })));
       const more = outside.length ? await prisma.routineCheck.findMany({ where: { OR: outside }, select: { routineId: true, date: true, slot: true } }) : [];
       return found.flatMap(({ routine, spans }) => {
         // Its exceptions as it goes (its parent's when it inherits them).
-        const moves = routines.storedMoves(routines.occurrenceTiming(routine, context).moves);
+        const moves = occurrences.storedMoves(occurrences.occurrenceTiming(routine, context).moves);
         const ticked = new Set([...routine.checks, ...more.filter((check) => check.routineId === routine.id)].map((check) => `${formatDay(check.date)}/${check.slot}`));
         return spans.map(({ start, end, date, cancelled = false }) => {
           const ruleDay = movedFrom(moves, date);
@@ -692,7 +693,7 @@ builder.mutationFields((t) => ({
     args: {
       id: t.arg.id({ required: true }),
       input: t.arg({ type: RoutineInputType, required: true }),
-      restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }),
+      restoring: t.arg.boolean({ description: 'Undo: archived values and hourless « avant » reminders given back are accepted, links out of the tree it moves back to are dropped; every other check is made.' }),
       confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
     },
     resolve: (_root, { id, input, restoring, confirmLoss }) =>

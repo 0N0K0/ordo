@@ -49,7 +49,7 @@ Champs d’une tâche qu’une règle surveille ou change (`TASK_AUTOMATION_FIEL
 
 - `condition` (`taskAutomationConditionSchema`) est un filtre du tableau des tâches, écrit avec le même éditeur et appliqué par le même moteur (`matchesFilter`, `meetsCondition`) : groupes ET / OU, 5 niveaux au plus, mêmes opérateurs et mêmes valeurs (dates relatives à aujourd’hui, périodes de la semaine de l’espace, « Moi », sprints relatifs).
 - Colonnes qu’une règle lit (`TASK_AUTOMATION_FILTER_KINDS`) : libellé, description, numéro, projet (et ceux au-dessus), statut, catégorie de statut, priorité, type, assignés, étiquettes, jalon, sprint, tâche parente (et celles au-dessus), effort, début, fin, « Échéance », « Ouverture », fermée, « Fermeture » (terminée ou annulée ; vide pour une tâche ouverte), archivée, a des sous-tâches. Une condition sur une autre colonne, ou incomplète, est refusée à l’enregistrement.
-- La condition est lue sur les valeurs que la tâche **suit** (héritées comprises), au moment où la règle s’applique (après les règles précédentes). Aujourd’hui est le jour de Paris ; « Moi » est le contributeur de l’utilisateur de l’app.
+- La condition est lue sur les valeurs que la tâche **suit** (héritées comprises), au moment où la règle s’applique (après les règles précédentes). Aujourd’hui est le jour de Paris ; « Moi » est le contributeur « Moi » du premier utilisateur de l’app (le compte le plus ancien), que la règle soit lancée par une action dans l’app, une synchronisation ou une tâche de fond (`firstUserContributorId`).
 
 ## Actions
 

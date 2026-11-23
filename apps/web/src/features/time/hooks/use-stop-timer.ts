@@ -14,16 +14,21 @@ export function savedTimeMessage(entry: TimeEntry): string {
 
 /**
  * Stops a running timer (the others keep running) and reports the saved time; « Arrêter tout » stops every one of them.
+ * Only the timers this call really stopped are told (one already stopped elsewhere: no toast).
  * @returns {{ stopTimer: (entry: TimeEntry) => void, stopAll: (entries: readonly TimeEntry[]) => void, isPending: boolean }} Stop actions and their state.
  */
 export function useStopTimer() {
   const { stop, stopAll } = useTimeMutations();
   return {
-    stopTimer: (entry: TimeEntry) => stop.mutate(entry.id, toastCallbacks(savedTimeMessage(entry))),
+    stopTimer: (entry: TimeEntry) => stop.mutate(entry.id, toastCallbacks((stopped) => (stopped ? savedTimeMessage(entry) : null))),
     stopAll: (entries: readonly TimeEntry[]) =>
       stopAll.mutate(
         undefined,
-        toastCallbacks(`${countOf(entries.length, 'chrono')} ${agreed('arrêté', false, entries.length)}. Temps enregistré : ${formatDuration(sumOf(entries, (entry) => entrySeconds(entry)))}.`),
+        toastCallbacks((result) => {
+          const ids = new Set(result.map((entry) => entry.id));
+          const stopped = entries.filter((entry) => ids.has(entry.id));
+          return stopped.length ? `${countOf(stopped.length, 'chrono')} ${agreed('arrêté', false, stopped.length)}. Temps enregistré : ${formatDuration(sumOf(stopped, (entry) => entrySeconds(entry)))}.` : null;
+        }),
       ),
     isPending: stop.isPending || stopAll.isPending,
   };

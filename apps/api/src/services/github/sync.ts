@@ -4,6 +4,7 @@ import {
   dayPart,
   DEFAULT_LABEL_COLOR,
   effortSchema,
+  lineageOf,
   marksInherited,
   formatOptionalDay,
   mapById,
@@ -896,7 +897,9 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
     const byItem = new Map(linked.map((task) => [task.githubItemId!, task]));
     const iterationIds = new Set(board.fields.find((field) => field.id === link.iterationFieldId)?.iterations.map((iteration) => iteration.id) ?? []);
 
-    for (const item of items) {
+    // Parents first: what a parent receives reaches the sub-tasks that inherit it in the same pass.
+    const depth = (entry: RemoteItem) => lineageOf(maps.inheritance.tasks, byItem.get(entry.itemId)?.id).length;
+    for (const item of [...items].sort((a, b) => depth(a) - depth(b))) {
       const task = byItem.get(item.itemId)!;
       // An archived task is read only: neither it nor its item is written (its snapshot stays, the pair is merged
       // again once it is restored).
@@ -929,6 +932,8 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       });
       // Placed under a parent of another project of the tree: one inheriting its project follows it.
       if ('parent' in result.pull) await followParentProjects([task.id]);
+      // A value its sub-tasks may inherit changed: they go by the new one when their turn comes.
+      if ('parent' in result.pull || Object.keys(PULLED_INHERITED).some((key) => key in result.pull)) maps.inheritance = await loadTaskInheritance();
       if (Object.keys(result.pull).length && !created.has(item.itemId)) summary.pulled += 1;
       // The number of the task follows its issue.
       if (item.type === 'ISSUE' && item.number !== null && (await matchIssueNumber(task.id, item.number))) summary.renumbered += 1;

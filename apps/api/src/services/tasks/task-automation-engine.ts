@@ -43,6 +43,7 @@ import { userErrorMessage } from '../../graphql/errors';
 import { parisToday } from '../../today';
 import { BY_POSITION } from '../core/ordering';
 import { currentWorkspaceFields } from '../workspaces/current-workspace';
+import { firstUserContributorId } from '../people/members';
 import { currentWorkspaceId } from '../../workspace-context';
 import { loadProjectRootOf } from '../projects/project-tree';
 import { effectiveTaskOf, loadTaskInheritance } from './task-inheritance';
@@ -711,8 +712,8 @@ function dayWords(token: string): string {
  */
 async function applyRules(rules: readonly Rule[], before: Snapshot, timers: ReadonlySet<string>): Promise<void> {
   const today = parisToday();
-  const [workspace, me] = await Promise.all([currentWorkspaceFields({ weekStart: true, weekEnd: true }), prisma.contributor.findFirst({ where: { userId: { not: null } }, select: { id: true } })]);
-  const context: ConditionContext = { today, week: readWeek(workspace), meId: me?.id ?? null };
+  const [workspace, me] = await Promise.all([currentWorkspaceFields({ weekStart: true, weekEnd: true }), firstUserContributorId()]);
+  const context: ConditionContext = { today, week: readWeek(workspace), meId: me };
   const applied = new Map<string, Set<string>>();
   let names: Awaited<ReturnType<typeof loadNames>> | null = null;
   let previous = before;

@@ -16,7 +16,6 @@ import {
   parseDay,
   parseOptionalDay,
   type Recurrence,
-  recurrenceSchema,
   sharePeople,
   spanEnd,
   sumOf,
@@ -27,6 +26,7 @@ import {
   type Reminder,
   type EffectiveTask,
   shiftedSeriesRule,
+  storedRecurrence,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { PARIS } from '../../today';
@@ -161,16 +161,6 @@ export const occurrenceInclude = {
     select: { occurrenceDate: true, timeEntry: { select: { startedAt: true, endedAt: true, pausedAt: true, pausedSeconds: true, duration: true, _count: { select: { events: true } } } } },
   },
 } as const;
-
-/**
- * Validated recurrence rule stored in JSON, or null.
- * @param {unknown} value JSON value.
- * @returns {Recurrence | null} Rule.
- */
-export function storedRecurrence(value: unknown): Recurrence | null {
-  const parsed = recurrenceSchema.safeParse(value);
-  return parsed.success ? parsed.data : null;
-}
 
 /**
  * First occurrence of a recurring event shown in the calendar: the first day of its rule (its excluded dates and pauses
@@ -629,7 +619,7 @@ async function updateEventFields(
 
   if (!occurrence) {
     const updated = await prisma.$transaction(async (tx) => {
-      const saved = await tx.calendarEvent.update({ where: { id }, data: { ...eventData(fields), recurrence: fields.recurrence ?? Prisma.JsonNull, ...relations } });
+      const saved = await tx.calendarEvent.update({ where: { id }, data: { ...eventData(fields), recurrence: fields.recurrence ?? Prisma.DbNull, ...relations } });
       // Now repeating: the comments and times of its single occurrence go to its first one shown.
       const first = fields.recurrence ? await firstShownOccurrence(saved, tx) : null;
       if (first) await remapOccurrenceRows('eventId', id, (date) => (date === null ? first : undefined), { client: tx });
@@ -707,7 +697,7 @@ async function updateEventFields(
           ...eventData(fields),
           startDate: parseDay(startDate),
           endDate: parseDay(endDate),
-          recurrence: rule ?? Prisma.JsonNull,
+          recurrence: rule ?? Prisma.DbNull,
           ...relations,
         },
       });
@@ -974,10 +964,11 @@ function shownOccurrence(event: EventWithRelations, date: string): EventOccurren
  */
 export async function eventOccurrences(from: string, to: string, calendarIds?: string[], activeOnly = false): Promise<EventOccurrence[]> {
   const events = await prisma.calendarEvent.findMany({
-    // Recurring events may occur in the period whatever their first date.
+    // Recurring events may occur in the period whatever their first date (a one-off one: no rule, or a JSON null left by
+    // a former change).
     where: {
       OR: [
-        { startDate: { lte: parseDay(addDays(to, 62)) }, OR: [{ recurrence: { not: Prisma.DbNull } }, { endDate: { gte: parseDay(addDays(from, -62)) } }] },
+        { startDate: { lte: parseDay(addDays(to, 62)) }, OR: [{ AND: [{ recurrence: { not: Prisma.DbNull } }, { recurrence: { not: Prisma.JsonNull } }] }, { endDate: { gte: parseDay(addDays(from, -62)) } }] },
         // An occurrence moved alone into the period from further away.
         { exceptions: { some: { cancelled: false, startDate: { lte: parseDay(to) }, endDate: { gte: parseDay(from) } } } },
       ],

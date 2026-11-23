@@ -164,12 +164,17 @@ export const ON_ERROR: { onError: (error: Error) => void } = { onError: onMutati
 
 /**
  * Callbacks of a mutation without form: a toast once done, its error in an error toast.
- * @param {string | ((result: T) => string)} message Success message (« Alarme supprimée. »), or made from what the mutation returned.
+ * @param {string | ((result: T) => string | null)} message Success message (« Alarme supprimée. »), or made from what the mutation returned (null: nothing happened, no toast).
  * @returns {{ onSuccess: (result: T) => void, onError: (error: Error) => void }} Callbacks.
  */
-export function toastCallbacks<T = unknown>(message: string | ((result: T) => string)): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
-  // eslint-disable-next-line no-restricted-syntax -- toastCallbacks itself.
-  return { onSuccess: (result) => notifySuccess(typeof message === 'string' ? message : message(result)), onError: onMutationError };
+export function toastCallbacks<T = unknown>(message: string | ((result: T) => string | null)): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
+  return {
+    onSuccess: (result) => {
+      const text = typeof message === 'string' ? message : message(result);
+      if (text !== null) notifySuccess(text);
+    },
+    onError: onMutationError,
+  };
 }
 
 /** An action the user declined at its confirmation (« Annuler »): it stops there, without an error toast. */

@@ -149,6 +149,16 @@ export const recurrenceSchema = z
 export type Recurrence = z.infer<typeof recurrenceSchema>;
 
 /**
+ * Validated recurrence rule stored in JSON, or null (none, or invalid).
+ * @param {unknown} value JSON value.
+ * @returns {Recurrence | null} Rule.
+ */
+export function storedRecurrence(value: unknown): Recurrence | null {
+  const parsed = recurrenceSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
  * Whether the occurrences of a rule depend on the day it counts from: every n days / weeks / months / years (n > 1,
  * not the even or odd weeks), or a number of occurrences.
  * @param {Recurrence | null} rule Rule (none: a single occurrence).

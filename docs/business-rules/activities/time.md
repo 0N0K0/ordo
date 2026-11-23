@@ -73,8 +73,8 @@ Source : `setTimerPaused(id, paused)`.
 
 Source : `stopTimer(id)`, `stopAllTimers` (« Arrêter tout »).
 
-- Le chrono est désigné par son temps ; s’il ne tourne plus : ne fait rien (renvoie `null`). Les autres continuent.
-- « Arrêter tout » arrête chacun des chronos en cours de l’espace (mêmes règles).
+- Le chrono est désigné par son temps ; s’il ne tourne plus, ou s’il est arrêté, mis en pause ou repris ailleurs pendant l’arrêt : ne fait rien (renvoie `null`). Les autres continuent.
+- « Arrêter tout » arrête chacun des chronos en cours de l’espace (mêmes règles) et ne renvoie que ceux qu’il a arrêtés.
 - Un chrono en pause s’arrête **au début de sa pause**.
 - Durée = (fin − début) en secondes entières − `pausedSeconds`, jamais négative.
 
@@ -110,7 +110,7 @@ Source : `updateTimeEntry`.
 - Refusée si le temps est sur une **facture validée** (voir plus bas).
 - Champ omis (ou `null` pour `taskIds`, `routineIds`, `events`) = inchangé ; une liste vide les retire tous.
 - Les tâches, routines et évènements donnés remplacent ceux du temps.
-- Chrono en cours : sa durée ne se modifie pas (« La durée d’un chrono en cours ne se modifie pas. ») et son début ne peut pas être dans le futur (« Le début ne peut pas être dans le futur. »). Il continue de tourner.
+- Chrono en cours : sa durée ne se modifie pas (« La durée d’un chrono en cours ne se modifie pas. ») et son début ne peut pas être dans le futur (« Le début ne peut pas être dans le futur. ») ; en pause, son début doit précéder la pause, ses pauses passées déduites (« Le début doit précéder la pause. »). Il continue de tourner.
 - Temps terminé : changer le début ou la durée recalcule la fin (début + durée).
 - Début changé de jour (heure de Paris) sans que ses évènements soient donnés : le temps quitte les évènements qui ne sont pas ce jour-là (une occurrence d’un autre jour, un évènement unique qui ne couvre pas ce jour) ; ceux de ce jour restent. S’il n’a plus rien (sans projet, ni tâche, ni routine), le changement est refusé comme un retrait du dernier (« Choisissez un projet, une tâche, une routine ou un évènement. »).
 

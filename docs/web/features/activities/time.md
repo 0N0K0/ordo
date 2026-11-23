@@ -152,7 +152,7 @@ Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`compo
 ### `hooks/use-stop-timer.ts`
 
 - `savedTimeMessage(entry)` : « Temps enregistré : 1 h 05. ».
-- `useStopTimer()` : `{ stopTimer(entry), stopAll(entries), isPending }` : arrête ce chrono (les autres continuent), ou tous (« Arrêter tout » : « 2 chronos arrêtés. Temps enregistré : 1 h 40. »).
+- `useStopTimer()` : `{ stopTimer(entry), stopAll(entries), isPending }` : arrête ce chrono (les autres continuent), ou tous (« Arrêter tout » : « 2 chronos arrêtés. Temps enregistré : 1 h 40. ») ; le toast ne compte que les chronos que l’API dit avoir arrêtés (aucun : pas de toast).
 
 ### `hooks/use-time-dialogs.tsx`
 

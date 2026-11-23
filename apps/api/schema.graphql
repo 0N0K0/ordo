@@ -2872,11 +2872,13 @@ type Mutation {
   """« Arrêter »: the ring is stopped for good, in every tab and device."""
   stopAlarmRing(key: String!): Boolean!
 
-  """« Arrêter tout »: stops every running timer (their time saved)."""
+  """
+  « Arrêter tout »: stops every running timer (their time saved); returns only those this call stopped.
+  """
   stopAllTimers: [TimeEntry!]!
 
   """
-  Stops a running timer (its time saved); null when it no longer runs. The others keep running.
+  Stops a running timer (its time saved); null when it no longer runs or was stopped elsewhere meanwhile. The others keep running.
   """
   stopTimer(id: ID!): TimeEntry
 
@@ -2972,7 +2974,7 @@ type Mutation {
     input: RoutineInput!
 
     """
-    Undo: archived values given back are accepted (only that check is skipped).
+    Undo: archived values and hourless « avant » reminders given back are accepted, links out of the tree it moves back to are dropped; every other check is made.
     """
     restoring: Boolean
   ): RemovedLinksResult!

@@ -1,6 +1,7 @@
 import { formatDay, marksInherited, occurrenceDueDay, relinkedOccurrence, routineMoveSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
+import { loadScheduleContext, occurrenceSpansBetween } from '../routines/routine-occurrences';
 
 /** Exceptions of a routine and whether it inherits them, up its parents (a sub-routine may go by its parent's). */
 interface MovesChain {
@@ -72,8 +73,6 @@ export async function loadLinkShownDays(links: readonly { routineId: string; dat
 export async function resolveRoutineLinks(links: readonly { routineId: string; date: string; shownDate?: string | null }[]): Promise<{ routineId: string; date: string }[]> {
   const moved = links.filter((link) => link.shownDate);
   if (!moved.length) return links.map(({ routineId, date }) => ({ routineId, date }));
-  // Loaded when needed: the routines read the calendar for their schedules.
-  const { loadScheduleContext, occurrenceSpansBetween } = await import('../routines/routines');
   const schedules = await loadScheduleContext();
   const routines = new Map((await prisma.routine.findMany({ where: { id: { in: [...new Set(moved.map((link) => link.routineId))] } } })).map((routine) => [routine.id, routine]));
   const occurrences = moved.flatMap((link) => {

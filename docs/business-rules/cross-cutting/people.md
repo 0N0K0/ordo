@@ -23,6 +23,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Archivage](archivin
 - « Moi » ne peut pas être archivé, ni seul ni avec une personne liée : « Vous ne pouvez pas vous archiver. » (voir [Archivage](archiving.md#personnes-liées)).
 - Dans le calcul d'occupation (`blockingEvent`), un événement sans participant et une tâche ou routine sans assigné comptent comme « Moi ».
 - Filtre « assigné à moi » : valeur `@me` (`ME`).
+- Ce qui ne tourne pour personne en particulier (conditions des règles d’automatisation des tâches) prend le « Moi » du premier utilisateur de l’app, le compte le plus ancien (`firstUserContributorId`, `services/people/members.ts`).
 
 ## Contributeurs
 
