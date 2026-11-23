@@ -58,8 +58,7 @@ Interne : `useStockMutation(fn)` (mutation qui invalide le stock et les achats).
 
 ### `components/MovementsTable.tsx`
 
-- `MovementsTable({ itemId? })` : mouvements, les plus récents d'abord (clé `stock-movements`, ou `stock-item-movements` pour un article ; colonnes `MOVEMENT_COLUMNS`) : « Date », « Mois » (`monthColumn`), « Article », « Mouvement » (badge coloré), « Quantité » (`SignedAmount`, signée), « Origine » (lien vers la liste d'achats ou la fiche), « Description ». Utilisé par `StockPage` et `StockTable` (« Historique »).
-- Interne : `KIND_COLORS` (couleur de chaque type : achat vert, consommation bleu, inventaire violet, perte rouge, correction gris).
+- `MovementsTable({ itemId? })` : mouvements, les plus récents d'abord (clé `stock-movements`, ou `stock-item-movements` pour un article ; colonnes `MOVEMENT_COLUMNS`) : « Date », « Mois » (`monthColumn`), « Article », « Mouvement » (pastille de la colonne), « Quantité » (`SignedAmount`, signée), « Origine » (lien vers la liste d'achats ou la fiche), « Description ». Utilisé par `StockPage` et `StockTable` (« Historique »).
 
 ### `components/StockItemForm.tsx`
 
@@ -103,7 +102,7 @@ Colonnes des tableaux de l’inventaire, chacune lue par son tableau et par `Sto
 
 | Export | Rôle |
 | --- | --- |
-| `MOVEMENT_COLUMNS` | « Date », « Mois », « Article », « Mouvement », « Quantité », « Origine », « Description ». `MovementsTable`. |
+| `MOVEMENT_COLUMNS` | « Date », « Mois », « Article », « Mouvement » (`stateColumn`, dans l'ordre de `STOCK_MOVEMENT_KINDS` ; internes `MOVEMENT_KIND_COLORS` : achat vert, consommation bleu, inventaire violet, perte rouge, correction gris, et `MOVEMENT_KIND_STATES`), « Quantité », « Origine », « Description ». `MovementsTable`. |
 | `LOT_COLUMNS` | « Quantité », « Date de péremption », « Entré le ». `LotsTable`. |
 | `useStockItemColumns()` | Colonnes des articles (avec leurs commentaires). `StockTable`. |
 | `PERISHABLE_STATES` | États de « Périssable » (colonne et bouton d'état) : « Périssable » / « Durable », triangle orange / coche bleue, « Marquer comme périssable » / « Marquer comme durable » (`YesNoStates`). Utilisé par `StockTable`. |

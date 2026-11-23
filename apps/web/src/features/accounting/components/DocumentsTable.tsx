@@ -376,7 +376,6 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
             <DocumentAttachmentsCell kind="imported" document={row.document} onAdd={(files) => bulkFiles(row, files)} />
           ),
         client: row.document.clientName,
-        origin: row.kind === 'imported' ? 'Importé' : 'Ordo',
         net: fmt.money(row.document.totalNet, row.document.currency),
         balance: row.document.balance ? fmt.money(row.document.balance, row.document.currency) : null,
         ...(row.kind === 'ordo' ? ordoCells(row.document) : importedCells(row.document)),

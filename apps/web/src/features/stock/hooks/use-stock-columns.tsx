@@ -1,7 +1,8 @@
-import { STOCK_MOVEMENT_LABELS, type StockMovementKind, mapById, round2 } from '@ordo/shared';
+import { STOCK_MOVEMENT_KINDS, STOCK_MOVEMENT_LABELS, type StockMovementKind, mapById, round2 } from '@ordo/shared';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { BADGE_COLUMN, WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
+import { WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
 import { signedText } from '../../../components/money/signed-text';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { localDay } from '../../../lib/dates';
@@ -21,6 +22,12 @@ export const PERISHABLE_STATES: YesNoStates = {
   toggleLabels: { yes: 'Marquer comme périssable', no: 'Marquer comme durable' },
 };
 
+/** Colour of the badge of each kind of movement. */
+const MOVEMENT_KIND_COLORS: Record<StockMovementKind, string> = { PURCHASE: 'green', CONSUMPTION: 'blue', COUNT: 'grape', LOSS: 'red', CORRECTION: 'gray' };
+
+/** Kinds of movements of the stock, in their declared order, with their name and badge colour. */
+const MOVEMENT_KIND_STATES: ColumnState<StockMovementKind>[] = STOCK_MOVEMENT_KINDS.map((id) => ({ id, label: STOCK_MOVEMENT_LABELS[id], color: MOVEMENT_KIND_COLORS[id] }));
+
 /** Columns of the movements of the stock (all, or those of an item). */
 export const MOVEMENT_COLUMNS: DataColumn<StockMovement>[] = [
   {
@@ -34,17 +41,7 @@ export const MOVEMENT_COLUMNS: DataColumn<StockMovement>[] = [
   },
   monthColumn('month', 'Mois', (movement) => movement.date, 130),
   { id: 'item', label: 'Article', size: 200, locked: true, required: true, sortValue: (movement) => movement.itemLabel, text: (movement) => movement.itemLabel, groupable: true },
-  {
-    id: 'kind',
-    required: true,
-    label: 'Mouvement',
-    size: 130,
-    ...BADGE_COLUMN,
-    sortValue: (movement) => STOCK_MOVEMENT_LABELS[movement.kind as StockMovementKind],
-    text: (movement) => STOCK_MOVEMENT_LABELS[movement.kind as StockMovementKind],
-    filter: { kind: 'choice', value: (movement) => movement.kind, options: Object.entries(STOCK_MOVEMENT_LABELS).map(([value, label]) => ({ value, label })) },
-    groupable: true,
-  },
+  stateColumn({ id: 'kind', required: true, label: 'Mouvement', size: 130, states: MOVEMENT_KIND_STATES, value: (movement) => movement.kind as StockMovementKind, groupable: true }),
   {
     id: 'quantity',
     required: true,

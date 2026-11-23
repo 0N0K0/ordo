@@ -329,7 +329,7 @@ Utilisés par `ClientBillingSection` et `openContactForm`.
 
 ### `hooks/use-document-columns.tsx`
 
-- `useDocumentColumns(rows, { showType?, showClient? })` : colonnes d’un tableau de documents (numéro, type et client seulement là où ils varient, date, mois, échéance, mois d’échéance, projet, objet, statut, origine…, commentaires des documents d’Ordo et importés) ; sans ligne (paramètres) : aucun client ni statut proposé. Utilisé par `DocumentsTable` et `AccountingColumnDefaults`.
+- `useDocumentColumns(rows, { showType?, showClient? })` : colonnes d’un tableau de documents (numéro, type et client seulement là où ils varient, date, mois, échéance, mois d’échéance, projet, objet, statut, origine (`stateColumn`, interne `DOCUMENT_ORIGINS` : « Ordo » bleu, « Importé » cyan)…, commentaires des documents d’Ordo et importés) ; sans ligne (paramètres) : aucun client ni statut proposé. Utilisé par `DocumentsTable` et `AccountingColumnDefaults`.
 - `DocumentRow` : ligne étiquetée `ordo` / `imported`.
 - `trackingText(row)` : statut en texte (« Brouillon » pour un brouillon). Aussi lu par `DocumentsTable`.
 - Interne : `documentColumns({ rows, projectLabels, projects })`.

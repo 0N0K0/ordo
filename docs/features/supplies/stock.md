@@ -89,7 +89,7 @@ Panneau large « Faire l'inventaire » (`StockCountForm`) :
 
 ## Onglet « Mouvements »
 
-Table des mouvements, les plus récents d'abord (2000 au plus) (`MovementsTable`) : « Date » (date et heure), « Mois », « Article », « Mouvement » (badge coloré : « Achat » vert, « Consommation » bleu, « Inventaire » violet, « Perte » rouge, « Correction » gris), « Quantité » (signée), « Origine » (« Liste « X » » avec lien vers la liste, « Fiche « X » » avec lien vers la fiche, « Liste à cocher », « Inventaire »), « Description » (note). Vide : « Aucun mouvement. ». La même table, filtrée sur un article, sert à « Historique ».
+Table des mouvements, les plus récents d'abord (2000 au plus) (`MovementsTable`) : « Date » (date et heure), « Mois », « Article », « Mouvement » (pastille colorée, centrée : « Achat » vert, « Consommation » bleu, « Inventaire » violet, « Perte » rouge, « Correction » gris ; triée dans cet ordre), « Quantité » (signée), « Origine » (« Liste « X » » avec lien vers la liste, « Fiche « X » » avec lien vers la fiche, « Liste à cocher », « Inventaire »), « Description » (note). Vide : « Aucun mouvement. ». La même table, filtrée sur un article, sert à « Historique ».
 
 ## Onglet « Inventaires »
 
