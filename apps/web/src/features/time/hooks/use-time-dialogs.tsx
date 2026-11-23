@@ -1,7 +1,7 @@
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 
-import { entrySeconds, formatDuration } from '@ordo/shared';
+import { DURATION_MAX_SECONDS, DURATION_MIN_SECONDS, entrySeconds, formatDuration } from '@ordo/shared';
 
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -31,7 +31,7 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
     openFormPanel(entry ? 'Temps' : 'Ajouter un temps', (close) => <TimeEntryForm context={context} entry={entry} defaultProjectId={defaultProjectId} onDone={close} />);
   };
 
-  /** « Dupliquer » a time: saved at once (not billed), then its form opens. */
+  /** « Dupliquer » a time: saved at once (not billed, 1 minute to 24 hours), then its form opens. */
   const duplicate: DuplicateOptions<TimeEntry, string> = {
     duplicate: async (entry) =>
       (
@@ -41,7 +41,8 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
           taskIds: entry.taskIds,
           description: entry.description ?? '',
           startedAt: entry.startedAt,
-          duration: entrySeconds(entry),
+          // A time added lasts 1 minute to 24 hours: a timer stopped under a minute is copied as 1 minute.
+          duration: Math.min(DURATION_MAX_SECONDS, Math.max(DURATION_MIN_SECONDS, entrySeconds(entry))),
           events: parseEventKeys(entryEventKeys(entry)),
         })
       ).id,

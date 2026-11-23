@@ -462,8 +462,8 @@ type Documents = {
     "\n  query RunningTimeEntries {\n    runningTimeEntries {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.RunningTimeEntriesDocument,
     "\n  mutation StartTimer($input: TimerInput!) {\n    startTimer(input: $input) {\n      id\n    }\n  }\n": typeof types.StartTimerDocument,
     "\n  mutation SetTimerPaused($id: ID!, $paused: Boolean!) {\n    setTimerPaused(id: $id, paused: $paused) {\n      id\n    }\n  }\n": typeof types.SetTimerPausedDocument,
-    "\n  mutation StopTimer($id: ID!) {\n    stopTimer(id: $id) {\n      id\n    }\n  }\n": typeof types.StopTimerDocument,
-    "\n  mutation StopAllTimers {\n    stopAllTimers {\n      id\n    }\n  }\n": typeof types.StopAllTimersDocument,
+    "\n  mutation StopTimer($id: ID!) {\n    stopTimer(id: $id) {\n      id\n      duration\n    }\n  }\n": typeof types.StopTimerDocument,
+    "\n  mutation StopAllTimers {\n    stopAllTimers {\n      id\n      duration\n    }\n  }\n": typeof types.StopAllTimersDocument,
     "\n  mutation CreateTimeEntry($input: TimeEntryInput!) {\n    createTimeEntry(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateTimeEntryDocument,
     "\n  mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {\n    updateTimeEntry(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateTimeEntryDocument,
     "\n  query LostOnDelete(\n    $taskIds: [ID!]\n    $routineIds: [ID!]\n    $withSubtree: Boolean\n    $eventId: ID\n    $scope: CalendarEventScope\n    $occurrenceDate: Date\n    $calendarId: ID\n    $routineOccurrence: RoutineOccurrenceGoneInput\n  ) {\n    lostOnDelete(\n      taskIds: $taskIds\n      routineIds: $routineIds\n      withSubtree: $withSubtree\n      eventId: $eventId\n      scope: $scope\n      occurrenceDate: $occurrenceDate\n      calendarId: $calendarId\n      routineOccurrence: $routineOccurrence\n    ) {\n      times\n      comments\n    }\n  }\n": typeof types.LostOnDeleteDocument,
@@ -965,8 +965,8 @@ const documents: Documents = {
     "\n  query RunningTimeEntries {\n    runningTimeEntries {\n      ...TimeEntryFields\n    }\n  }\n": types.RunningTimeEntriesDocument,
     "\n  mutation StartTimer($input: TimerInput!) {\n    startTimer(input: $input) {\n      id\n    }\n  }\n": types.StartTimerDocument,
     "\n  mutation SetTimerPaused($id: ID!, $paused: Boolean!) {\n    setTimerPaused(id: $id, paused: $paused) {\n      id\n    }\n  }\n": types.SetTimerPausedDocument,
-    "\n  mutation StopTimer($id: ID!) {\n    stopTimer(id: $id) {\n      id\n    }\n  }\n": types.StopTimerDocument,
-    "\n  mutation StopAllTimers {\n    stopAllTimers {\n      id\n    }\n  }\n": types.StopAllTimersDocument,
+    "\n  mutation StopTimer($id: ID!) {\n    stopTimer(id: $id) {\n      id\n      duration\n    }\n  }\n": types.StopTimerDocument,
+    "\n  mutation StopAllTimers {\n    stopAllTimers {\n      id\n      duration\n    }\n  }\n": types.StopAllTimersDocument,
     "\n  mutation CreateTimeEntry($input: TimeEntryInput!) {\n    createTimeEntry(input: $input) {\n      id\n    }\n  }\n": types.CreateTimeEntryDocument,
     "\n  mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {\n    updateTimeEntry(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateTimeEntryDocument,
     "\n  query LostOnDelete(\n    $taskIds: [ID!]\n    $routineIds: [ID!]\n    $withSubtree: Boolean\n    $eventId: ID\n    $scope: CalendarEventScope\n    $occurrenceDate: Date\n    $calendarId: ID\n    $routineOccurrence: RoutineOccurrenceGoneInput\n  ) {\n    lostOnDelete(\n      taskIds: $taskIds\n      routineIds: $routineIds\n      withSubtree: $withSubtree\n      eventId: $eventId\n      scope: $scope\n      occurrenceDate: $occurrenceDate\n      calendarId: $calendarId\n      routineOccurrence: $routineOccurrence\n    ) {\n      times\n      comments\n    }\n  }\n": types.LostOnDeleteDocument,
@@ -2812,11 +2812,11 @@ export function graphql(source: "\n  mutation SetTimerPaused($id: ID!, $paused: 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation StopTimer($id: ID!) {\n    stopTimer(id: $id) {\n      id\n    }\n  }\n"): typeof import('./graphql').StopTimerDocument;
+export function graphql(source: "\n  mutation StopTimer($id: ID!) {\n    stopTimer(id: $id) {\n      id\n      duration\n    }\n  }\n"): typeof import('./graphql').StopTimerDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation StopAllTimers {\n    stopAllTimers {\n      id\n    }\n  }\n"): typeof import('./graphql').StopAllTimersDocument;
+export function graphql(source: "\n  mutation StopAllTimers {\n    stopAllTimers {\n      id\n      duration\n    }\n  }\n"): typeof import('./graphql').StopAllTimersDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

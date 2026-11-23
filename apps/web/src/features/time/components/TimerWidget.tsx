@@ -11,7 +11,7 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { timeQueryKey, useRunningTimers, type TimeEntry } from '../api';
 import { tasksQueryKey } from '../../tasks/api';
 import { useQueryClient } from '@tanstack/react-query';
-import { useStopTimer } from '../hooks/use-stop-timer';
+import { useStopTimer, wasStoppedByHand } from '../hooks/use-stop-timer';
 import { entrySubject } from '../lib/entry-subject';
 import { RunningTimer } from './TimerCard';
 import { TimerControls } from './TimerControls';
@@ -95,7 +95,7 @@ function SeveralRunning({ entries }: { entries: TimeEntry[] }) {
 
 /**
  * Tells when a running timer is stopped by the API once it has run 24 hours (the longest time): « Chrono arrêté après
- * 24 heures », with what it was spent on.
+ * 24 heures », with what it was spent on; not for one stopped by hand in this tab (its stop toast tells the time).
  * @param {readonly TimeEntry[]} entries Timers running now.
  * @returns {void}
  */
@@ -105,7 +105,8 @@ function useTimerCapNotice(entries: readonly TimeEntry[]): void {
   useEffect(() => {
     const now = Date.now();
     for (const entry of previous.current) {
-      if (entries.some((item) => item.id === entry.id) || entrySeconds(entry, now) < DURATION_MAX_SECONDS) continue;
+      // Stopped by hand in this tab: its own toast tells the time recorded.
+      if (entries.some((item) => item.id === entry.id) || wasStoppedByHand(entry.id) || entrySeconds(entry, now) < DURATION_MAX_SECONDS) continue;
       notifyInfo({ id: `timer-cap-${entry.id}`, title: 'Chrono arrêté après 24 heures', lines: [entrySubject(entry, context), 'Sa durée est de 24 heures, le maximum d’un temps.'] });
     }
     previous.current = entries;

@@ -35,9 +35,16 @@ const eventOf = (row: TaskTableRow): EventOccurrence | null => (row.kind === 'ev
  * @param {TaskContext} context Task context (the tasks offered).
  * @param {readonly Calendar[]} calendars Calendars of the workspace.
  * @param {readonly CalendarCategory[]} categories Categories of the calendar.
+ * @param {number} now Moment the state is read at (ms): to come, ongoing or past.
  * @returns {DataColumn<TaskTableRow>[]} Columns.
  */
-export function eventFilterColumns(taskColumns: readonly DataColumn<TaskTableRow>[], context: TaskContext, calendars: readonly Calendar[], categories: readonly CalendarCategory[]): DataColumn<TaskTableRow>[] {
+export function eventFilterColumns(
+  taskColumns: readonly DataColumn<TaskTableRow>[],
+  context: TaskContext,
+  calendars: readonly Calendar[],
+  categories: readonly CalendarCategory[],
+  now: number,
+): DataColumn<TaskTableRow>[] {
   const shared = EVENT_TASK_COLUMNS.flatMap((id) => taskColumns.filter((column) => column.id === id));
   return [
     ...shared,
@@ -69,7 +76,7 @@ export function eventFilterColumns(taskColumns: readonly DataColumn<TaskTableRow
       states: EVENT_STATE_BADGES,
       value: (row) => {
         const event = eventOf(row);
-        return event ? eventState(event, Date.now()) : null;
+        return event ? eventState(event, now) : null;
       },
     }),
     booleanColumn<TaskTableRow>({ id: 'allDay', label: 'Journée entière', size: 110, groupLabels: { yes: 'Journée entière', no: 'À heures' }, value: (row) => eventOf(row)?.allDay ?? null }),

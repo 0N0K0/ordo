@@ -68,6 +68,7 @@ Source : `setTimerPaused(id, paused)`.
 - Le chrono est désigné par son temps ; s’il ne tourne pas (arrêté, inconnu) : « Ce chrono ne tourne plus. ».
 - Demander l’état déjà en place ne fait rien.
 - Pause : `pausedAt` = maintenant. Reprise : la durée de la pause (en secondes entières) s’ajoute à `pausedSeconds`, `pausedAt` est vidé.
+- Écrit seulement si le chrono tourne encore tel qu’il a été lu : changé ailleurs entre-temps, il est relu ; arrêté entre-temps : « Ce chrono ne tourne plus. ». Un temps terminé ne garde jamais de pause.
 
 ### Arrêter
 
@@ -76,7 +77,7 @@ Source : `stopTimer(id)`, `stopAllTimers` (« Arrêter tout »).
 - Le chrono est désigné par son temps ; s’il ne tourne plus, ou s’il est arrêté, mis en pause ou repris ailleurs pendant l’arrêt : ne fait rien (renvoie `null`). Les autres continuent.
 - « Arrêter tout » arrête chacun des chronos en cours de l’espace (mêmes règles) et ne renvoie que ceux qu’il a arrêtés.
 - Un chrono en pause s’arrête **au début de sa pause**.
-- Durée = (fin − début) en secondes entières − `pausedSeconds`, jamais négative.
+- Durée = (fin − début) en secondes entières − `pausedSeconds`, jamais négative, **24 heures au plus** : un chrono arrêté après avoir passé 24 heures (avant le passage de l’arrêt automatique) finit au moment où il les a atteintes, sa durée vaut 24 heures.
 
 ### Arrêt après 24 heures
 
@@ -84,6 +85,7 @@ Source : `capRunningTimers`, `scheduleTimerCap` (tâche de fond « Chronos de pl
 
 - Un chrono qui a tourné **24 heures** (pauses déduites, `DURATION_MAX_SECONDS`, la durée maximale d’un temps) est **arrêté tout seul** par l’API, même app fermée : sa fin est posée au moment où il atteint 24 heures (début + pauses + 24 h), sa durée vaut 24 heures. Un chrono en pause avant d’atteindre 24 heures n’est pas arrêté (sa durée n’avance plus).
 - Vérifié toutes les 5 minutes dans chaque espace, et à chaque lecture des temps (`timeEntries`, `runningTimeEntries` arrêtent d’abord ceux qui ont passé 24 heures) : sa durée reste 24 heures.
+- Chaque chrono n’est écrit que s’il tourne encore tel qu’il a été lu (comme « Arrêter ») : un chrono arrêté, mis en pause, repris ou abandonné au même moment est laissé tel quel, les autres sont arrêtés.
 - L’app le montre au moment où il atteint 24 heures, sans attendre le retour du focus : elle recharge alors les temps (pastille, accueil, « Prévu et réalisé », journal) et les tâches ; le chrono disparaît des chronos en cours (rechargés aussi chaque minute) avec la notification « Chrono arrêté après 24 heures » (ce sur quoi il portait, « Sa durée est de 24 heures, le maximum d’un temps. »).
 
 ### Abandonner

@@ -49,7 +49,7 @@ function nextTrackingRing(minutes: number, entry: RingTimer, now: Date): Date | 
 /**
  * Next ring after now, with the same planners the alarm center rings from: the reminders of events, tasks, routines,
  * éphémérides and birthdays (`eventRings`, `taskRings`, `routineRings`, `ephemerisRings`, `birthdayRings`), the
- * scheduled alarms (`nextRings`; « pas de chrono » not while a timer runs), the steps of the running timers for the
+ * scheduled alarms (`nextRings`; « pas de chrono » not while a timer runs, nor while the running timers are not loaded), the steps of the running timers for the
  * alarms on their duration, and the ends of the running timers of the user.
  * @param {RingSources} sources What rings.
  * @param {Date} now Now.
@@ -66,7 +66,7 @@ export function nextRingAt(sources: RingSources, now: Date): Date | null {
       ...birthdayRings(sources.birthdays, now),
     ].map((reminder) => reminder.at),
     ...nextRings(sources.alarms ?? [], now)
-      .filter(({ alarm }) => alarm.type !== 'NOT_TRACKING' || timers.length === 0)
+      .filter(({ alarm }) => alarm.type !== 'NOT_TRACKING' || (sources.running !== undefined && timers.length === 0))
       .map(({ at }) => at),
     ...(sources.alarms ?? []).flatMap((alarm) => {
       const { minutes } = alarm;

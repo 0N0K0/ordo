@@ -224,15 +224,15 @@ interface OccurrenceDays {
  * Where of the routine links of an event on some days: by the day each occurrence shows on (one kept apart is stored
  * on the day of its rule).
  * @param {string} eventId Event.
- * @param {OccurrenceDays | null} days Days; null: every link of the event.
+ * @param {{ from: string, to?: string } | null} days Days (no `to`: from that day on); null: every link of the event.
  * @returns {Promise<Prisma.CalendarEventRoutineWhereInput>} Where of those links.
  */
-async function routineLinksOn(eventId: string, days: OccurrenceDays | null): Promise<Prisma.CalendarEventRoutineWhereInput> {
+async function routineLinksOn(eventId: string, days: { from: string; to?: string } | null): Promise<Prisma.CalendarEventRoutineWhereInput> {
   if (!days) return { eventId };
   const held = await prisma.calendarEventRoutine.findMany({ where: { eventId }, select: { id: true, ...ROUTINE_LINK_SELECT } });
   const within = held.filter((link) => {
     const day = linkShownDay(link);
-    return day >= days.from && day <= days.to;
+    return day >= days.from && (days.to === undefined || day <= days.to);
   });
   return { eventId, id: { in: within.map((link) => link.id) } };
 }
@@ -978,7 +978,7 @@ export async function goneOccurrences(id: string, scope: EventScope, occurrenceD
 /**
  * Deletes an event, or for a recurring one: one occurrence, it and the following ones, or the whole series. The times
  * left with nothing attached are deleted first (billed ones kept), the times on the
- * occurrences deleted leave them, and their comments are deleted.
+ * occurrences deleted leave them, and their comments and the routine links of their days are deleted.
  * @param {string} id Event id.
  * @param {EventScope} scope Scope.
  * @param {string | null} [occurrenceDate] Occurrence. Optional for a one-off event.
@@ -989,11 +989,16 @@ export async function deleteCalendarEvent(id: string, scope: EventScope, occurre
   const occurrence = occurrenceOf(event, occurrenceDate);
   const gone = await goneOccurrences(id, scope, occurrenceDate);
   await placeLegacyEventComments([id]);
-  // Together: their times and comments go only with the occurrences.
+  // The routine links of the days of the occurrences deleted, by the day each routine occurrence shows on: those of the
+  // days of the occurrence (as shown), or from its day on (a whole event: in cascade).
+  const shown = gone.on ? shownOccurrence(await findEventWithRelations(id), gone.on) : null;
+  const goneLinks = shown ? await routineLinksOn(id, { from: shown.startDate, to: shown.endDate }) : gone.from ? await routineLinksOn(id, { from: gone.from }) : null;
+  // Together: their times, comments and routine links go only with the occurrences.
   await prisma.$transaction(async (tx) => {
     await releaseSubjectTime({ events: [gone] }, tx);
     // The comments of the occurrences deleted go with them (a whole event: in cascade).
     if (gone.on || gone.from) await deleteGoneComments({ events: [{ id, on: gone.on, from: gone.from }] }, tx);
+    if (goneLinks) await tx.calendarEventRoutine.deleteMany({ where: goneLinks });
     if (!occurrence || (!gone.on && !gone.from)) {
       await tx.calendarEvent.delete({ where: { id } });
       return;

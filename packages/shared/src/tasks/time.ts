@@ -13,11 +13,14 @@ export const timeDescriptionSchema = markdownSchema;
 /** Longest time entry, in seconds (24 hours): typed, or of a timer, stopped on its own once reached. */
 export const DURATION_MAX_SECONDS = 24 * 3600;
 
-/** Duration of a time entry, in seconds: up to 24 hours. */
+/** Shortest time entry added or typed, in seconds (1 minute; a timer stopped sooner keeps its seconds). */
+export const DURATION_MIN_SECONDS = 60;
+
+/** Duration of a time entry, in seconds: 1 minute to 24 hours. */
 export const durationSchema = z
   .number({ error: 'Durée attendue.' })
   .int()
-  .min(60, 'Au moins 1 minute.')
+  .min(DURATION_MIN_SECONDS, 'Au moins 1 minute.')
   .max(DURATION_MAX_SECONDS, '24 heures maximum.');
 
 /** A time has at least a project, a task, a routine or an event. */

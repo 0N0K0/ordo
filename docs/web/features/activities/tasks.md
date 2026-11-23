@@ -129,7 +129,7 @@ Dialogues sur une ou plusieurs tâches (props `TasksDialogProps`), ouverts par `
 | Nom                   | Rôle                                                                                                                                                                           |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `DeleteTasksDialog`   | Confirmation destructive ; choix pour les sous-tâches (`CascadeChoice` : remonter ou supprimer) ; temps sans projet supprimés avec elles (`LostOnDeleteRisk`, selon le choix) ; ferme le panneau si la tâche ouverte est supprimée. |
-| `TransferTasksDialog` | Projet de destination ou « Sans projet » ; avertissement de sortie d’arborescence ; annulation (`useBulkUndo().transfer`, avec les liens retirés, `lost`). Interne : `movedTasks`. |
+| `TransferTasksDialog` | Projet de destination ou « Sans projet » ; avertissement de sortie d’arborescence ; transfert et annulation par `useTransferTasks`. |
 
 ### `components/BulkBar.tsx`
 
@@ -156,7 +156,7 @@ Cellules modifiables en place des tâches (toutes en lecture seule sur une tâch
 | `TaskBeneficiariesCell({ task })`           | Bénéficiaires (`BeneficiariesCell`, `beneficiariesDiff`).                                                                               |
 | `TaskLinksCell({ task, context, kind })`    | « Bloque » ou « Relative à ».                                                                                                           |
 | `ParentCell({ task, context })`             | Tâche parente (pas elle-même ni ses sous-tâches).                                                                                       |
-| `TaskProjectCell({ task, context })`        | Projet : transfert, confirmation si sortie d’arborescence avec liens.                                                                   |
+| `TaskProjectCell({ task, context })`        | Projet : transfert (`useTransferTasks`, « Annuler »), confirmation si sortie d’arborescence avec liens.                                 |
 | `TaskHoursCell({ task })`                   | « Horaires » : un cas par ligne (`taskHoursLines`, `StackedLines` ; « N’importe quand » sans horaires) ; un clic ouvre `TaskHoursModal`, appliqué sur la sélection (`useCellEdit`, enregistré tâche par tâche) ; lecture seule sur une tâche archivée. |
 | `TaskLocationCell({ task })`                | « Lieu » : `LocationCell` (features/geo) sur la sélection (`useCellEdit`, enregistré tâche par tâche).                                  |
 
@@ -321,6 +321,10 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 - `TASK_PARAM` : `'task'`, paramètre d’URL de la tâche ouverte.
 - `useTaskLink()` : `{ to(id), open(id), close() }` : lien / navigation qui ouvre la tâche dans le panneau en gardant les autres paramètres ; `close` remplace l’entrée d’historique.
+
+### `hooks/use-transfer-tasks.ts`
+
+- `useTransferTasks(context)` : `{ transfer(tasks, projectId, message, onDone?), isPending }` : le seul transfert de tâches (avec leurs sous-tâches) vers un projet ou hors de tout projet : dialogue « Transférer », cellule « Projet », panneau d’une tâche. Toast `message` suivi des liens retirés (`removedLinksNote`), avec « Annuler » (`useBulkUndo().transfer` sur les tâches déplacées les plus hautes, `outermost`, et les liens retirés, `lost`). eslint interdit de prendre `transfer` de `useBulkTaskMutations` ailleurs.
 
 ### `hooks/use-task-actions.tsx`
 

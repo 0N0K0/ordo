@@ -463,6 +463,11 @@ export interface RoutineSaveOptions {
    * until it moves) are left out of the copy instead of refused. Optional. Default = not a copy.
    */
   copyOf?: string | null;
+  /**
+   * Its dependencies were checked for loops already, against the final state of the whole selection saved with it
+   * (`assertNoDependencyLoop`): not checked again against the routines as they are now. Optional. Default = checked.
+   */
+  loopsChecked?: boolean;
 }
 
 /** Id given to a routine not created yet, to compute what it inherits. */
@@ -507,7 +512,7 @@ const HOURLESS_REMINDERS = 'Sans heure « dès » ni « jusqu’à » (ni créne
  * @returns {Promise<ReturnType<typeof routineSchema.parse> & { droppedLinks: number }>} Routine, with the links it loses
  * moving to another project tree.
  */
-async function parseRoutine(input: RoutineInput, id?: string, { restoring = false, movedWith = [], copyOf = null }: RoutineSaveOptions = {}) {
+async function parseRoutine(input: RoutineInput, id?: string, { restoring = false, movedWith = [], copyOf = null, loopsChecked = false }: RoutineSaveOptions = {}) {
   const data = parseInput(routineSchema, input);
   data.assigneeIds = [...new Set(data.assigneeIds)];
   data.beneficiaryIds = [...new Set(data.beneficiaryIds)];
@@ -619,7 +624,7 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   }
   if (data.requiredIds.some((requiredId) => !known.has(requiredId))) throw notFound('Routine', 'requiredIds');
   if (id && data.requiredIds.includes(id)) throw fieldError('requiredIds', 'Une routine ne peut pas dépendre d’elle-même.');
-  if (id && data.requiredIds.length) {
+  if (id && data.requiredIds.length && !loopsChecked) {
     // No cycle: none of the required routines may (indirectly) require this one.
     const requires = new Map(all.map((routine) => [routine.id, routine.requires.map((dependency) => dependency.requiredId)]));
     if (reaches((current) => requires.get(current) ?? [], data.requiredIds, id)) throw fieldError('requiredIds', 'Ces dépendances forment une boucle.');
@@ -1260,18 +1265,19 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
   const nexts: Routine[] = [];
   const required = new Map<string, readonly string[]>();
   for (const { id, input } of inputs) {
-    const data = await parseRoutine(input, id, { movedWith });
+    // Loops checked below, against the final state of the whole selection.
+    const data = await parseRoutine(input, id, { movedWith, loopsChecked: true });
     required.set(id, data.requiredIds);
     if (confirmLoss === undefined) continue;
     const current = await findRoutine(id);
     nexts.push(timingOf(current, data));
   }
-  // No loop once the whole selection is saved (each was checked against the others as they are now).
+  // No loop once the whole selection is saved (each routine with the dependencies the others will have).
   await assertNoDependencyLoop(required);
   // Asked once for the whole selection and the sub-routines going by them, before any is saved.
   if (nexts.length) assertLossConfirmed((await occurrenceChange(nexts)).losses, confirmLoss);
   let removed = 0;
-  for (const { id, input } of inputs) removed += await updateRoutine(id, input, { movedWith, ...(confirmLoss !== undefined && { confirmLoss: true }) });
+  for (const { id, input } of inputs) removed += await updateRoutine(id, input, { movedWith, loopsChecked: true, ...(confirmLoss !== undefined && { confirmLoss: true }) });
   return removed;
 }
 

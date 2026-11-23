@@ -1,20 +1,20 @@
 import { Select, Text, UnstyledButton } from '@mantine/core';
 import { ArrowsLeftRightIcon } from '@phosphor-icons/react';
-import { removedLinksNote } from '../../../lib/text';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 import { DateField } from '../../../components/inputs/DateField';
 import { readTaskHours, taskLabelSchema, type TaskColumn, subtreeOf } from '@ordo/shared';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
-import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
+import { ON_ERROR } from '../../../lib/notify';
+import { useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { TaskSelect } from './task-ui';
 
 import { hasTreeLinks, inProjectTree, linkableTasks } from '../lib/task-links';
 import { closedMark, type TaskContext, taskName, taskNumber } from '../hooks/use-task-context';
 import { useTaskLink } from '../hooks/use-task-link';
+import { useTransferTasks } from '../hooks/use-transfer-tasks';
 import { useCellEdit } from '../lib/cell-edit';
 import { listDiff } from '../../../components/data-table/selection/bulk-edit';
 
@@ -416,21 +416,17 @@ export function ParentCell({ task, context }: { task: Task; context: TaskContext
  * @returns {JSX.Element} Cell.
  */
 export function TaskProjectCell({ task, context }: { task: Task; context: TaskContext }) {
-  const { transfer: bulkTransfer } = useBulkTaskMutations();
+  const { transfer: transferTasks } = useTransferTasks(context);
   const { targets, count } = useCellEdit(task, 'project');
   /**
-   * Moves the task.
+   * Moves the task (« Annuler » in its toast).
    * @param {string | null} projectId Target project; null: none.
    * @returns {void}
    */
   const move = (projectId: string | null) => {
     if (projectId === task.projectId && count < 2) return;
     const moved = targets.map((id) => context.taskById.get(id)).filter((item) => item !== undefined);
-    const transfer = () =>
-      bulkTransfer.mutate(
-        { ids: targets, projectId },
-        toastCallbacks(({ removedLinks }: { removedLinks: number }) => `${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.${removedLinksNote(removedLinks)}`),
-      );
+    const transfer = () => transferTasks(moved, projectId, `${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.`);
     if (!moved.some((item) => hasTreeLinks(item) && !inProjectTree(context, projectId)(item.projectId))) return transfer();
     confirmDestructive({
       title: 'Changer de projet',

@@ -77,6 +77,7 @@ const StopTimerDocument = graphql(`
   mutation StopTimer($id: ID!) {
     stopTimer(id: $id) {
       id
+      duration
     }
   }
 `);
@@ -85,6 +86,7 @@ const StopAllTimersDocument = graphql(`
   mutation StopAllTimers {
     stopAllTimers {
       id
+      duration
     }
   }
 `);

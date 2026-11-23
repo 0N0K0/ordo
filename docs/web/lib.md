@@ -191,7 +191,7 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 
 `useNow(active, everyMs = 1000)` : heure courante, rafraîchie à intervalle tant que `active` (juste après chaque changement de seconde, de minute… : une heure affichée à la minute n'est jamais en retard), figée sinon. Utilisé par l'horloge de l'en-tête, les chronos, les routines, l'agenda.
 
-`useToday()` : jour courant de l'utilisateur, qui change tout seul à minuit (vérifié chaque minute) : les pastilles du menu (`NavBadges`) suivent le jour sans recharger ni naviguer.
+`useToday()` : jour courant de l'utilisateur, qui change tout seul à minuit (vérifié chaque minute) : les pastilles du menu (`NavBadges`), l’accueil (`HomePage`) et « Prévu et réalisé » (`PlannedTime`) suivent le jour sans recharger ni naviguer.
 
 ## Sonneries (`alarm-sound.ts`)
 

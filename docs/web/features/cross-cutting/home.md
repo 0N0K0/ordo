@@ -6,7 +6,7 @@ Tous les fichiers de `apps/web/src/features/home/` : la page d’accueil, ses ca
 
 ### `pages/HomePage.tsx`
 
-`HomePage()` : route `/` (index de `AppLayout`). En-tête « Bonjour … » avec « Nouveau client » (PRO) et « Nouveau projet » (`useEntityActions`), tuiles `StatTile`, puis `SortableGrid` des cartes. Ordre gardé par `useLocalStorage` `ordo.home.cards` ; bouton « Disposition par défaut ».
+`HomePage()` : route `/` (index de `AppLayout`) ; son « aujourd’hui » (`useToday`) change tout seul à minuit. En-tête « Bonjour … » avec « Nouveau client » (PRO) et « Nouveau projet » (`useEntityActions`), tuiles `StatTile`, puis `SortableGrid` des cartes. Ordre gardé par `useLocalStorage` `ordo.home.cards` ; bouton « Disposition par défaut ».
 
 Internes : `CardId`, `DEFAULT_ORDER` (`tasks`, `routines`, `agenda`, `chrono`, `shopping`, `billing`, `quotes`, `treasury`, `mail`, `time`), `PRO_CARDS` (`billing`, `quotes`). Données : `useMyTodayTasks`, `useWeekTime`, `useAccountingDocuments`, `useImportedDocuments` + `billingSummary`, `useTreasuryProjection` sur 90 jours + `balanceIn30Days`, `useMailAccounts`, `useUnreadMailCount`.
 

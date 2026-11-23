@@ -4824,12 +4824,12 @@ export type StopTimerMutationVariables = Exact<{
 }>;
 
 
-export type StopTimerMutation = { stopTimer: { id: string } | null };
+export type StopTimerMutation = { stopTimer: { id: string, duration: number | null } | null };
 
 export type StopAllTimersMutationVariables = Exact<{ [key: string]: never; }>;
 
 
-export type StopAllTimersMutation = { stopAllTimers: Array<{ id: string }> };
+export type StopAllTimersMutation = { stopAllTimers: Array<{ id: string, duration: number | null }> };
 
 export type CreateTimeEntryMutationVariables = Exact<{
   input: TimeEntryInput;
@@ -10944,6 +10944,7 @@ export const StopTimerDocument = new TypedDocumentString(`
     mutation StopTimer($id: ID!) {
   stopTimer(id: $id) {
     id
+    duration
   }
 }
     `) as unknown as TypedDocumentString<StopTimerMutation, StopTimerMutationVariables>;
@@ -10951,6 +10952,7 @@ export const StopAllTimersDocument = new TypedDocumentString(`
     mutation StopAllTimers {
   stopAllTimers {
     id
+    duration
   }
 }
     `) as unknown as TypedDocumentString<StopAllTimersMutation, StopAllTimersMutationVariables>;

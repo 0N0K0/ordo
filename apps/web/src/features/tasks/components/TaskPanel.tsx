@@ -14,9 +14,9 @@ import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, ArrowsLeftR
 import { useState } from 'react';
 
 import { localToday } from '../../../lib/dates';
-import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR, onMutationError } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { useBulkTaskMutations, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
+import { useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
 import { TaskShopping } from '../../shopping/components/TaskShopping';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { TrackedTime } from '../../time/components/TrackedTime';
@@ -31,11 +31,11 @@ import { useTaskActions } from '../hooks/use-task-actions';
 
 import { type TaskContext, taskName, taskNumber, useTaskContext } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
+import { useTransferTasks } from '../hooks/use-transfer-tasks';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
 import { TaskHoursField } from './TaskHoursField';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
-import { removedLinksNote } from '../../../lib/text';
 import { PeriodField } from '../../../components/inputs/PeriodField';
 import { EffortInput } from './EffortInput';
 import { TaskLinks } from './TaskLinks';
@@ -125,7 +125,7 @@ interface TaskDetailProps {
  */
 function TaskDetail({ task, context }: TaskDetailProps) {
   const updateTask = useUpdateTask();
-  const { transfer: transferTask } = useBulkTaskMutations();
+  const transferTask = useTransferTasks(context);
   const taskBlock = useTaskBlock();
   const taskRelation = useTaskRelation();
   const actions = useTaskActions(context);
@@ -185,13 +185,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    */
   const changeProject = (projectId: string | null) => {
     if (projectId === task.projectId) return;
-    const transfer = () =>
-      transferTask.mutate(
-        { ids: [task.id], projectId },
-        toastCallbacks(
-          ({ removedLinks }: { removedLinks: number }) => `Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.${removedLinksNote(removedLinks)}`,
-        ),
-      );
+    // « Annuler » in its toast.
+    const transfer = () => transferTask.transfer([task], projectId, `Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.`);
     const linked = hasTreeLinks(task) || subtasks.length > 0;
     if (inProjectTree(context, projectId)(task.projectId) || !linked) return transfer();
     confirmDestructive({

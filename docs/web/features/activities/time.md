@@ -77,7 +77,7 @@ Les trois cellules de sujets passent par l’interne `TimeSubjectCell({ kind, en
 
 ### `components/PlannedTime.tsx`
 
-- `PlannedTime()` : section « Prévu et réalisé » : temps prévu par les créneaux de travail comptés (`useWorkingHours` : ni éphémérides, ni archivés, ni d’un type archivé ; `plannedSlots`, `slotMinutes`) contre temps chronométré, aujourd’hui, la semaine (de l’espace, `weekRange`) et par jour ; en direct pendant un chrono (`useNow`). Rien sans créneaux. Utilisé par `TimePage`.
+- `PlannedTime()` : section « Prévu et réalisé » : temps prévu par les créneaux de travail comptés (`useWorkingHours` : ni éphémérides, ni archivés, ni d’un type archivé ; `plannedSlots`, `slotMinutes`) contre temps chronométré, aujourd’hui, la semaine (de l’espace, `weekRange`) et par jour ; en direct pendant un chrono (`useNow`) ; « aujourd’hui » change tout seul à minuit (`useToday`). Rien sans créneaux. Utilisé par `TimePage`.
 - Interne : `Gauge({ label, tracked, planned })` (jauge, orange au-delà de 100 %).
 
 ### `components/TrackedTime.tsx`
@@ -114,7 +114,7 @@ Classes `clock` (horloge, en couleur atténuée quand `data-paused`) et `fields`
 ### `components/TimerWidget.tsx`
 
 - `TimerWidget()` : chronos en cours dans l’en-tête de l’app (rien sans chrono), en pastille `RunningPill` (`components/feedback`). Monté par `app/layout/AppLayout.tsx` (pas sur téléphone).
-- Internes : `RunningControls({ entry })` (un seul chrono : sujet et horloge, bulle « Détails du chrono » avec `RunningTimer`, `TimerControls`) ; `SeveralRunning({ entries })` (plusieurs : « 2 chronos » et l’horloge du plus long, bulle « Chronos en cours » : une ligne `RunningRow` par chrono, puis « Arrêter tout ») ; `RunningRow({ entry })` (sujet, horloge, `TimerControls`). ; `useTimerCapNotice(entries)` (notification « Chrono arrêté après 24 heures » quand un chrono disparaît des chronos en cours après 24 heures) ; `useTimerCapRefresh(entries)` (au moment où un chrono qui tourne atteint 24 heures, recharge les temps, `timeQueryKey`, et les tâches, `tasksQueryKey` : l’API l’arrête en les lisant).
+- Internes : `RunningControls({ entry })` (un seul chrono : sujet et horloge, bulle « Détails du chrono » avec `RunningTimer`, `TimerControls`) ; `SeveralRunning({ entries })` (plusieurs : « 2 chronos » et l’horloge du plus long, bulle « Chronos en cours » : une ligne `RunningRow` par chrono, puis « Arrêter tout ») ; `RunningRow({ entry })` (sujet, horloge, `TimerControls`). ; `useTimerCapNotice(entries)` (notification « Chrono arrêté après 24 heures » quand un chrono disparaît des chronos en cours après 24 heures, sauf arrêté à la main dans l’onglet, `wasStoppedByHand`) ; `useTimerCapRefresh(entries)` (au moment où un chrono qui tourne atteint 24 heures, recharge les temps, `timeQueryKey`, et les tâches, `tasksQueryKey` : l’API l’arrête en les lisant).
 
 Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`components/feedback/RunningPill.module.css`), commune aux chronos et aux minuteurs.
 
@@ -151,12 +151,13 @@ Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`compo
 
 ### `hooks/use-stop-timer.ts`
 
-- `savedTimeMessage(entry)` : « Temps enregistré : 1 h 05. ».
-- `useStopTimer()` : `{ stopTimer(entry), stopAll(entries), isPending }` : arrête ce chrono (les autres continuent), ou tous (« Arrêter tout » : « 2 chronos arrêtés. Temps enregistré : 1 h 40. ») ; le toast ne compte que les chronos que l’API dit avoir arrêtés (aucun : toast d'information « Ce chrono était déjà arrêté. » / « Ces chronos étaient déjà arrêtés. »).
+- `savedTimeMessage(stopped)` : « Temps enregistré : 1 h 05. », la somme des durées enregistrées par l’API (`duration` renvoyé par `stopTimer` / `stopAllTimers`).
+- `wasStoppedByHand(id)` : le chrono a été arrêté à la main dans cet onglet (« Arrêter », « Arrêter tout ») : `useTimerCapNotice` ne le dit pas arrêté après 24 heures.
+- `useStopTimer()` : `{ stopTimer(entry), stopAll(entries), isPending }` : arrête ce chrono (les autres continuent), ou tous (« Arrêter tout » : « 2 chronos arrêtés. Temps enregistré : 1 h 40. ») ; le toast compte les chronos que l’API dit avoir arrêtés et leur durée enregistrée, ceux inconnus de l’onglet compris (aucun : toast d'information « Ce chrono était déjà arrêté. » / « Ces chronos étaient déjà arrêtés. »).
 
 ### `hooks/use-time-dialogs.tsx`
 
-- `useTimeEntryDialogs(context, defaultProjectId?)` : `{ openForm(entry?), duplicate, confirmDelete(entry) }` : formulaire d’un temps dans le panneau (« Ajouter un temps », ou « Temps » pour un temps existant), « Dupliquer » (`DuplicateOptions` de `duplicateRowsAction` : copie enregistrée tout de suite, jamais facturée, puis son formulaire ouvert via `cachedItem`) et confirmation de suppression. Utilisé par `TimePage`, `ProjectTimePanel`, l’agenda.
+- `useTimeEntryDialogs(context, defaultProjectId?)` : `{ openForm(entry?), duplicate, confirmDelete(entry) }` : formulaire d’un temps dans le panneau (« Ajouter un temps », ou « Temps » pour un temps existant), « Dupliquer » (`DuplicateOptions` de `duplicateRowsAction` : copie enregistrée tout de suite, jamais facturée, durée ramenée de `DURATION_MIN_SECONDS` à `DURATION_MAX_SECONDS`, puis son formulaire ouvert via `cachedItem`) et confirmation de suppression. Utilisé par `TimePage`, `ProjectTimePanel`, l’agenda.
 
 ## lib/
 

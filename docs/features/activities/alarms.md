@@ -104,7 +104,7 @@ Avec « Sonner hors de l’app » et un appareil ajouté, ce qui sonne quand l�
 
 ### Alarmes
 
-- Planifiées (`REMINDER`, `NOT_TRACKING`) : à leur heure ; une occurrence manquée (application fermée) sonne à l’ouverture si elle date de moins de 6 heures. Une occurrence n’est sonnée qu’une fois ; `NOT_TRACKING` ne sonne pas si un chrono au moins tourne dans l’espace de l’alarme (ceux des autres espaces ne comptent pas ; l’occurrence est quand même comptée comme passée).
+- Planifiées (`REMINDER`, `NOT_TRACKING`) : à leur heure ; une occurrence manquée (application fermée) sonne à l’ouverture si elle date de moins de 6 heures. Une occurrence n’est sonnée qu’une fois ; `NOT_TRACKING` ne sonne pas si un chrono au moins tourne dans l’espace de l’alarme (ceux des autres espaces ne comptent pas ; l’occurrence est quand même comptée comme passée) ; tant que la liste des chronos n’est pas chargée (réseau coupé à l’ouverture), elle attend : ni sonnée, ni comptée comme passée.
 - `TRACKING_DURATION` : à chaque multiple de la durée de chacun des chronos en cours (hors pause ; plusieurs chronos à la fois) qui portent sur la tâche de l’alarme, sinon sur son projet ou l’un de ses sous-projets ; une alarme sans tâche ni projet compte tous les chronos. Les paliers déjà franchis à la première vérification ne sonnent pas.
 - Toast : icône d’alarme, libellé, note, lien vers la tâche (« Projet #12 Libellé ») ou le projet.
 

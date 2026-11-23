@@ -508,6 +508,11 @@ const RESTRICTED_SYNTAX = [
       "JSXElement[openingElement.name.name='Tooltip'] > JSXElement[openingElement.name.name=/^(ActionButton|IconAction)$/], JSXElement[openingElement.name.name='Tooltip'] JSXOpeningElement[name.name=/^(Button|ActionButton|IconAction|ActionIcon|UnstyledButton)$/]:has(> JSXAttribute[name.name='disabled']), JSXElement[openingElement.name.name='Tooltip'] > JSXExpressionContainer > Identifier[name=/[bB]utton$/]",
     message: 'Utiliser la prop hint d’ActionButton ou d’IconAction (components/actions) : l’infobulle s’affiche aussi quand le bouton est désactivé.',
   },
+  // Tasks change project in one way, undone from its toast.
+  {
+    selector: "VariableDeclarator[init.callee.name='useBulkTaskMutations'] > ObjectPattern > Property[key.name='transfer']",
+    message: 'Utiliser useTransferTasks (features/tasks/hooks/use-transfer-tasks) : le transfert de tâches et son « Annuler ».',
+  },
   // Relations in a personal workspace: « Proche », with its agreement.
   {
     selector: 'Literal[value=/^(Nouvelle relation|Relation (modifiée|ajoutée|supprimée)\\.?|Supprimer la relation|Modifier la relation|Aucune relation\\.)$/]',

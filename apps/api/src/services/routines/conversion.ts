@@ -15,7 +15,7 @@ import { parisToday } from '../../today';
 import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
 import { automated } from '../tasks/task-automation-engine';
 import { firstOccurrence, occurrenceOn, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf } from './routines';
-import { loadScheduleContext, storedCondition, type RoutineTiming } from './routine-occurrences';
+import { LATEST_CHECKS, loadScheduleContext, storedCondition, type RoutineTiming } from './routine-occurrences';
 
 /** Largest « Ouverture » of a routine before its due day, in days (`routineOpensSchema`, mode BEFORE). */
 const MAX_OPENS_BEFORE = 366;
@@ -218,6 +218,8 @@ export const convertRoutineToTask = automated(async function convertRoutineToTas
       checklists: { select: { id: true, occurrenceDate: true } },
       eventLinks: { select: { eventId: true, date: true } },
       timeEntries: { select: { id: true } },
+      // Its latest ticks, as its panel reads them: of two occurrences due the same day, the same one is current.
+      checks: LATEST_CHECKS,
       _count: { select: { checks: true } },
     },
   });

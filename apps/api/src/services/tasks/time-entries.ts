@@ -192,37 +192,50 @@ function runningEntry(id: string): Promise<TimeEntry | null> {
 }
 
 /**
- * Stops a running entry (a paused timer ends when its pause started), unless it was stopped meanwhile (elsewhere, or
- * after 24 hours).
+ * End and duration of a running entry stopped at a moment: a paused timer ends when its pause started; one that has
+ * run 24 hours or more (pauses left out, the longest time) ends once its 24 hours were reached, its duration 24 hours.
  * @param {TimeEntry} entry Running entry, as read.
- * @returns {Promise<TimeEntry | null>} Stopped entry, null when it no longer ran.
+ * @param {number} now Moment of the stop (ms).
+ * @returns {{ endedAt: Date, duration: number }} End and duration.
+ */
+function stoppedAt(entry: TimeEntry, now: number): { endedAt: Date; duration: number } {
+  const end = entry.pausedAt?.getTime() ?? now;
+  const duration = Math.max(0, Math.floor((end - entry.startedAt.getTime()) / 1000) - entry.pausedSeconds);
+  if (duration < DURATION_MAX_SECONDS) return { endedAt: new Date(end), duration };
+  return { endedAt: new Date(entry.startedAt.getTime() + (entry.pausedSeconds + DURATION_MAX_SECONDS) * 1000), duration: DURATION_MAX_SECONDS };
+}
+
+/**
+ * Condition of a write on a running entry: only while it still runs as read (stopped, paused, resumed or discarded
+ * meanwhile, elsewhere or after 24 hours: nothing is written on stale values).
+ * @param {TimeEntry} entry Running entry, as read.
+ * @returns {Prisma.TimeEntryWhereInput} Prisma `where`.
+ */
+const stillAsRead = (entry: TimeEntry): Prisma.TimeEntryWhereInput => ({ id: entry.id, endedAt: null, pausedAt: entry.pausedAt, pausedSeconds: entry.pausedSeconds });
+
+/**
+ * Stops a running entry (`stoppedAt`: at most 24 hours), unless it was stopped, paused, resumed or discarded meanwhile
+ * (elsewhere, or after 24 hours).
+ * @param {TimeEntry} entry Running entry, as read.
+ * @returns {Promise<TimeEntry | null>} Stopped entry, null when it no longer ran as read.
  */
 async function stopEntry(entry: TimeEntry): Promise<TimeEntry | null> {
-  const endedAt = entry.pausedAt ?? new Date();
-  const duration = Math.max(0, Math.floor((endedAt.getTime() - entry.startedAt.getTime()) / 1000) - entry.pausedSeconds);
-  // Only while it still runs as read (a pause or resume meanwhile: not stopped on stale values).
-  const { count } = await prisma.timeEntry.updateMany({ where: { id: entry.id, endedAt: null, pausedAt: entry.pausedAt, pausedSeconds: entry.pausedSeconds }, data: { endedAt, pausedAt: null, duration } });
+  const { endedAt, duration } = stoppedAt(entry, Date.now());
+  const { count } = await prisma.timeEntry.updateMany({ where: stillAsRead(entry), data: { endedAt, pausedAt: null, duration } });
   return count ? { ...entry, endedAt, pausedAt: null, duration } : null;
 }
 
 /**
  * Stops the timers of the workspace that have run 24 hours (pauses left out, the longest time): each ends once its 24
- * hours are reached, its duration 24 hours, even when the app is closed (`scheduleTimerCap`).
+ * hours are reached, its duration 24 hours, even when the app is closed (`scheduleTimerCap`). Each is written only
+ * while it still runs as read: one stopped, paused or discarded meanwhile is left as it is.
  * @returns {Promise<number>} Timers stopped.
  */
 export async function capRunningTimers(): Promise<number> {
   const now = Date.now();
   const running = await prisma.timeEntry.findMany({ where: { endedAt: null } });
-  const over = running.filter((entry) => ((entry.pausedAt?.getTime() ?? now) - entry.startedAt.getTime()) / 1000 - entry.pausedSeconds >= DURATION_MAX_SECONDS);
-  await prisma.$transaction(
-    over.map((entry) =>
-      prisma.timeEntry.update({
-        where: { id: entry.id },
-        data: { endedAt: new Date(entry.startedAt.getTime() + (entry.pausedSeconds + DURATION_MAX_SECONDS) * 1000), pausedAt: null, duration: DURATION_MAX_SECONDS },
-      }),
-    ),
-  );
-  return over.length;
+  const over = running.filter((entry) => stoppedAt(entry, now).duration >= DURATION_MAX_SECONDS);
+  return (await Promise.all(over.map(stopEntry))).filter((entry) => entry !== null).length;
 }
 
 /**
@@ -286,7 +299,8 @@ export const startTimer = automated(async function startTimer(input: Omit<TimeEn
 }, (input) => input.taskIds ?? []);
 
 /**
- * Pauses or resumes a running timer.
+ * Pauses or resumes a running timer, only while it still runs as read (changed meanwhile: read again; stopped
+ * meanwhile: « Ce chrono ne tourne plus. », a finished time never keeps a pause).
  * @param {string} id Time entry id.
  * @param {boolean} paused Target state.
  * @returns {Promise<TimeEntry>} Running entry.
@@ -295,12 +309,11 @@ export async function setTimerPaused(id: string, paused: boolean): Promise<TimeE
   const entry = await runningEntry(id);
   if (!entry) throw clientError('BAD_USER_INPUT', 'Ce chrono ne tourne plus.');
   if (paused === (entry.pausedAt !== null)) return entry;
-  if (paused) return prisma.timeEntry.update({ where: { id: entry.id }, data: { pausedAt: new Date() } });
-  const pause = Math.floor((Date.now() - entry.pausedAt!.getTime()) / 1000);
-  return prisma.timeEntry.update({
-    where: { id: entry.id },
-    data: { pausedAt: null, pausedSeconds: entry.pausedSeconds + pause },
-  });
+  const data = paused ? { pausedAt: new Date() } : { pausedAt: null, pausedSeconds: entry.pausedSeconds + Math.floor((Date.now() - entry.pausedAt!.getTime()) / 1000) };
+  // Only while it still runs as read: a timer stopped meanwhile keeps no pause.
+  const { count } = await prisma.timeEntry.updateMany({ where: stillAsRead(entry), data });
+  if (!count) return setTimerPaused(id, paused);
+  return { ...entry, ...data };
 }
 
 export interface TimeEntryInput {

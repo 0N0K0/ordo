@@ -1,12 +1,12 @@
 import { Group, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { addDays, daysBetween, entrySecondsWithin, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
 import { useMemo } from 'react';
-import { localMidnight, localToday } from '../../../lib/dates';
+import { localMidnight } from '../../../lib/dates';
 import { useWorkingHours } from '../../calendar/api';
 import { schedulesTitle } from '../../calendar/lib/schedule-text';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useTimeEntriesSince } from '../api';
-import { useNow } from '../../../lib/use-now';
+import { useNow, useToday } from '../../../lib/use-now';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
@@ -40,7 +40,8 @@ function Gauge({ label, tracked, planned }: { label: string; tracked: number; pl
  */
 export function PlannedTime() {
   const { perso } = useActiveWorkspace();
-  const today = localToday();
+  // Changes at midnight on its own.
+  const today = useToday();
   // The week of the workspace (it may start another day than Monday, or last 8 days).
   const [monday, after] = weekRange(today, currentWeek());
   const sunday = addDays(after, -1);

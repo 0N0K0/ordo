@@ -4,6 +4,7 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { filterRows, tableFilterFields } from '../../../components/data-table/table/table-engine';
 import type { FilterFields } from '../../../components/filters/FilterBuilder';
 import { localToday } from '../../../lib/dates';
+import { useNow } from '../../../lib/use-now';
 import type { Routine, RoutineCategory } from '../../routines/api';
 import { useRoutineColumns } from '../../routines/hooks/use-routine-columns';
 import { useTaskColumns } from '../../tasks/hooks/use-task-columns';
@@ -97,7 +98,9 @@ export function useCalendarFilters(config: CalendarViewConfig, items: CalendarIt
   const timeColumns = useTimeColumns(entries, context);
   const { columns: slotColumns } = useScheduleColumns(false);
   const { columns: ephemerisColumns } = useScheduleColumns(true);
-  const eventColumns = useMemo(() => (context ? eventFilterColumns(taskColumns, context, calendars, categories) : []), [taskColumns, context, calendars, categories]);
+  // The « État » of the events (to come, ongoing, past) read again each minute while a filter uses it.
+  const now = useNow(filterUses(filters.events, 'state'), 60_000);
+  const eventColumns = useMemo(() => (context ? eventFilterColumns(taskColumns, context, calendars, categories, now) : []), [taskColumns, context, calendars, categories, now]);
 
   const sections = useMemo(() => {
     const all: (Omit<CalendarFilterSection, 'fields' | 'filter'> & { columns: readonly DataColumn<never>[]; shown: boolean; empty: string })[] = [
