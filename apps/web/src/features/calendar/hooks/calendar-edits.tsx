@@ -186,7 +186,8 @@ export function useCalendarEdits() {
         }}
         onRestore={() => {
           close();
-          removeMove.mutate({ id: occurrence.routine.id, from: occurrence.date }, toastCallbacks(`Occurrence du ${fmt.dayLong(occurrence.date)} rétablie.`));
+          // As before its cancel (its day, kept apart, its times), as « Annuler » of the cancel does.
+          removeMove.mutate({ id: occurrence.routine.id, from: occurrence.date, undo: true }, toastCallbacks(`Occurrence du ${fmt.dayLong(occurrence.date)} rétablie.`));
         }}
       />
     ));
