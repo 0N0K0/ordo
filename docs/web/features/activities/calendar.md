@@ -200,7 +200,7 @@ Utilisés par `ScheduleSettings`.
 
 - `useScheduleColumns(ephemeris)` : `{ columns, typeById, defaultLabel }` : colonnes du tableau des créneaux ou des éphémérides (« Libellé », « Type », « Début », « Fin », « Horaires », « État », commentaires), les types par id et le nom des créneaux sans type (« Travail » ou celui de l’espace ; « Sans type » pour les éphémérides). Utilisé par `WorkSchedulesManager` et `ScheduleColumnDefaults`.
 - `scheduleState(schedule, today)` : `CURRENT`/`UPCOMING`/`PAST` (`periodState`). Utilisé par `WorkSchedulesManager`.
-- `ScheduleState`, `ScheduleRow` (créneau, son état du jour, ses exceptions), `STATE_LABELS`, `STATE_COLORS`, `NO_KIND` = `none`, `NO_KIND_LABEL` = « Sans type » ; internes `PERIOD_OF`, `STATE_OF`, `STATE_ORDER`, `kindLabel`.
+- `ScheduleState`, `ScheduleRow` (créneau, son état du jour, ses exceptions), `NO_KIND` = `none`, `NO_KIND_LABEL` = « Sans type » ; internes `PERIOD_OF`, `STATE_OF`, `SCHEDULE_STATES` (états avec libellé et couleur de `PERIOD_STATES`, colonne « État » par `stateColumn`), `kindLabel`.
 
 ### `hooks/use-schedule-conversion.tsx`
 

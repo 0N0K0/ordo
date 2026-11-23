@@ -1,15 +1,16 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
-import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
+import { ROUTINE_REPETITIONS, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
 import { BADGE_COLUMN, DURATION_COLUMN, multiValues, TIME_COLUMN, WARNING_YES_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
 import { isDone, panelOccurrence, routineTreeOptions, currentRoutineState, waitingFor, blockedRoutineIds } from './routine-format';
-import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
+import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_BADGES, type RoutineEnv } from './routine-view';
 import { localDay } from '../../../lib/dates';
 import { LAST_RANK } from '../../../components/data-table/table/table-engine';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
+import { stateColumn } from '../../../components/data-table/table/state-column';
 import { DOABLE_GROUP_LABELS } from '../../tasks/lib/task-columns';
 import { itemChoices } from '../../../components/items/item-look';
 import type { TaskLabel } from '../../tasks/api';
@@ -89,16 +90,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       text: (routine) => dayText(routine.currentDate || null),
       filter: { kind: 'date', value: (routine) => routine.currentDate || null },
     },
-    {
-      id: 'state',
-      label: 'État',
-      size: 110,
-      required: true,
-      hiddenByDefault: true,
-      sortValue: (routine) => ROUTINE_STATES.indexOf(state(routine)),
-      text: (routine) => ROUTINE_STATE_LABELS[state(routine)],
-      filter: { kind: 'choice', value: state, options: ROUTINE_STATES.map((value) => ({ value, label: ROUTINE_STATE_LABELS[value] })) },
-    },
+    stateColumn({ id: 'state', label: 'État', size: 110, required: true, hiddenByDefault: true, states: ROUTINE_STATE_BADGES, value: state }),
     {
       id: 'firstDate',
       label: 'Première échéance',

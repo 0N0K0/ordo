@@ -3,7 +3,7 @@ import { countOf, copyName } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Badge, Fieldset, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Fieldset, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { StackedLines } from '../../../components/data-table/cells/StackedValues';
 import { DEFAULT_SCHEDULE_KIND_LABEL, readReminders, readScheduleCases, readScheduleExceptions, type ReminderFields, type ScheduleCase, type ScheduleException, type WorkScheduleInput, wholeDaysCase, workScheduleSchema } from '@ordo/shared';
 import { CalendarStarIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
@@ -41,7 +41,7 @@ import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { followBounds } from '../../../components/inputs/date-range';
 import { UnavailableSwitch } from './UnavailableSwitch';
-import { NO_KIND, NO_KIND_LABEL, scheduleState, STATE_COLORS, STATE_LABELS, useScheduleColumns, type ScheduleRow } from '../hooks/use-schedule-columns';
+import { NO_KIND, NO_KIND_LABEL, scheduleState, useScheduleColumns, type ScheduleRow } from '../hooks/use-schedule-columns';
 
 interface ScheduleValues extends Record<string, unknown> {
   label: string;
@@ -317,7 +317,7 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
           verticalSpacing="xs"
           getKey={({ schedule }) => schedule.id}
           cells={(row) => {
-            const { schedule, state: rowState, exceptions } = row;
+            const { schedule, exceptions } = row;
             const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
             const color = type?.color ?? defaultColor ?? 'var(--mantine-color-green-6)';
             const typeLabel = type?.label ?? defaultLabel;
@@ -340,11 +340,6 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
                   </Group>
                 ),
                 hours: <ScheduleHours schedule={schedule} />,
-                state: (
-                  <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
-                    {STATE_LABELS[rowState]}
-                  </Badge>
-                ),
               };
             }
             return {
@@ -407,13 +402,6 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
                       </Tooltip>
                     )}
                   </Stack>
-                </>
-              ),
-              state: (
-                <>
-                  <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
-                    {STATE_LABELS[rowState]}
-                  </Badge>
                 </>
               ),
             };

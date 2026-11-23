@@ -1,5 +1,6 @@
 import { DEFAULT_SCHEDULE_KIND_LABEL, mapById, readScheduleCases, readScheduleExceptions } from '@ordo/shared';
-import { BADGE_COLUMN, type DataColumn } from '../../../components/data-table/table/data-table';
+import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
 import { itemChoices } from '../../../components/items/item-look';
 import * as fmt from '../../../lib/format';
 import { PERIOD_STATES, periodState, type PeriodState } from '../../../lib/periods';
@@ -13,9 +14,8 @@ export type ScheduleState = 'CURRENT' | 'UPCOMING' | 'PAST';
 /** State of its period, for its label and color. */
 const PERIOD_OF: Record<ScheduleState, PeriodState> = { CURRENT: 'current', UPCOMING: 'upcoming', PAST: 'past' };
 const STATE_OF: Record<PeriodState, ScheduleState> = { current: 'CURRENT', upcoming: 'UPCOMING', past: 'PAST' };
-export const STATE_LABELS = Object.fromEntries(Object.entries(PERIOD_OF).map(([state, period]) => [state, PERIOD_STATES[period].label])) as Record<ScheduleState, string>;
-export const STATE_COLORS = Object.fromEntries(Object.entries(PERIOD_OF).map(([state, period]) => [state, PERIOD_STATES[period].color])) as Record<ScheduleState, string>;
-const STATE_ORDER: Record<ScheduleState, number> = { CURRENT: 0, UPCOMING: 1, PAST: 2 };
+/** States of a schedule, in their order, with the label and the colour of their period. */
+const SCHEDULE_STATES: ColumnState<ScheduleState>[] = (['CURRENT', 'UPCOMING', 'PAST'] as const).map((id) => ({ id, ...PERIOD_STATES[PERIOD_OF[id]] }));
 
 /** Row of the table of the schedules: a schedule, its state today, its exceptions. */
 export type ScheduleRow = { schedule: WorkSchedule; state: ScheduleState; exceptions: ReturnType<typeof readScheduleExceptions> };
@@ -114,17 +114,7 @@ export function useScheduleColumns(ephemeris: boolean): ScheduleColumns {
           .filter(Boolean)
           .join(' ; '),
     },
-    {
-      id: 'state',
-      required: true,
-      label: 'État',
-      size: 110,
-      ...BADGE_COLUMN,
-      sortValue: ({ state: rowState }) => STATE_ORDER[rowState],
-      text: ({ state: rowState }) => STATE_LABELS[rowState],
-      filter: { kind: 'choice', value: ({ state: rowState }) => rowState, options: (['CURRENT', 'UPCOMING', 'PAST'] as const).map((value) => ({ value, label: STATE_LABELS[value] })) },
-      groupable: true,
-    },
+    stateColumn<ScheduleRow, ScheduleState>({ id: 'state', required: true, label: 'État', size: 110, states: SCHEDULE_STATES, value: ({ state: rowState }) => rowState, groupable: true }),
     commentColumn<ScheduleRow>(scheduleComments, ({ schedule }) => schedule.id),
   ];
   return { columns, schedules, types, defaultKind, typeById, defaultLabel };

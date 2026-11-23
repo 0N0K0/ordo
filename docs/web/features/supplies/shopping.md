@@ -196,7 +196,7 @@ Colonnes des tableaux des achats, chacune lue par son tableau et par `ShoppingSe
 
 | Export | Rôle |
 | --- | --- |
-| `useShoppingListColumns(lists)` | Colonnes de la table des listes (`shopping-lists`) : liste, tâches, projet, état, achats, restant, produits, total estimé, créée le, clôturée le, payée, catégories, magasins, libellés des produits, commentaires. |
+| `useShoppingListColumns(lists)` | Colonnes de la table des listes (`shopping-lists`) : liste, tâches, projet, état (`stateColumn` : « En cours » bleu, « Clôturée » gris ; interne `LIST_STATES`), achats, restant, produits, total estimé, créée le, clôturée le, payée, catégories, magasins, libellés des produits, commentaires. |
 | `listSheets(items)` | Fiches d'origine des éléments d'une liste, chacune une fois. Utilisé aussi par `ShoppingListPage` (`SheetPicker`). |
 | `useShoppingItemColumns(list)` | Colonnes des éléments d'une liste (`shopping-list`) : `itemColumns` + `optionalColumn` + « Acheté », « En stock », « Livraison » (masquée hors commande à distance), « Fiches », commentaires ; sans liste (paramètres) : sans livraisons, fiches ni commentaires. |
 | `useBaseListColumns(baseList, products)` | Colonnes des produits d'une référence (`shopping-base-list`) : `itemColumns` + commentaires, « Dernier achat », « Manque », « Suivie en stock », « Consommable », « Ajout auto au stock », « Emplacement en stock » ; sans référence : toutes les catégories. |

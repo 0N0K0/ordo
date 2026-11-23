@@ -96,7 +96,7 @@ Tableau « Factures récurrentes » :
 | « Client »     | Client du modèle, regroupable.                                                                                |
 | « Répétition » | Phrase de la règle de récurrence (voir [Récurrence](../../web/components/recurrence.md)).                     |
 | « Prochaine »  | Prochaine date d’émission, ou « Terminée ».                                                                   |
-| « État »       | « Active » / « En pause », modifiable en place, masquée par défaut.                                           |
+| « État »       | Pastille centrée « Active » (vert) / « En pause » (gris), choisie en place dans la liste des pastilles (en lot), masquée par défaut. |
 | « Émises »     | Nombre de factures émises, masquée par défaut.                                                                |
 | « Montant »    | Total TTC du modèle.                                                                                          |
 

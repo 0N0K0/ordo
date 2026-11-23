@@ -4,6 +4,8 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import type { Routine, RoutineCategory, RoutineOccurrence } from '../api';
 import { ruleOf } from './routine-format';
 import * as fmt from '../../../lib/format';
+import { FEEDBACK_COLORS, LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import type { ColumnState } from '../../../components/data-table/table/state-column';
 
 /**
  * « Ouverture » of the rule of a routine in words (« Le 15 du mois »); null without one.
@@ -33,7 +35,16 @@ export function occurrenceOpensWords(routine: Routine, occurrence: Pick<RoutineO
   return (opens && frequency && occurrenceOpensText(opens, frequency, occurrence.startDate, occurrence.date)) || null;
 }
 
-export const ROUTINE_STATE_LABELS: Record<(typeof ROUTINE_STATES)[number], string> = { late: 'En retard', due: 'À faire', upcoming: 'À venir', done: 'Faite' };
+const ROUTINE_STATE_LOOKS: Record<(typeof ROUTINE_STATES)[number], { label: string; color: string }> = {
+  late: { label: 'En retard', color: LATE_COLOR },
+  // Blue, as the badge of a routine due today.
+  due: { label: 'À faire', color: FEEDBACK_COLORS.info },
+  upcoming: { label: 'À venir', color: 'gray' },
+  done: { label: 'Faite', color: FEEDBACK_COLORS.success },
+};
+
+/** States of a routine today, in their order, with their badges (« En retard », « À faire », « À venir », « Faite »). */
+export const ROUTINE_STATE_BADGES: ColumnState<(typeof ROUTINE_STATES)[number]>[] = ROUTINE_STATES.map((id) => ({ id, ...ROUTINE_STATE_LOOKS[id] }));
 
 export const REPETITION_LABELS: Record<(typeof ROUTINE_REPETITIONS)[number], string> = {
   DAILY: 'Chaque jour',

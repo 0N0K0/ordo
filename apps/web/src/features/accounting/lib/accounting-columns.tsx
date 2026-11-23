@@ -1,5 +1,7 @@
 import { formatDuration, recurrenceSchema, UNIT_LABELS } from '@ordo/shared';
 import { DURATION_COLUMN, STACKED_COLUMN, type DataColumn } from '../../../components/data-table/table/data-table';
+import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
+import { FEEDBACK_COLORS } from '../../../components/feedback/feedback-colors';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 import { localDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
@@ -9,6 +11,12 @@ import type { RecurringInvoice } from '../api/documents';
 import type { OverdueInvoice } from '../api/tracking';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import type { BillableTime } from './time-lines';
+
+/** States of a recurring invoice, changed in place: active green, paused gray. */
+export const RECURRING_STATES: ColumnState<'active' | 'paused'>[] = [
+  { id: 'active', label: 'Active', color: FEEDBACK_COLORS.success },
+  { id: 'paused', label: 'En pause', color: 'gray' },
+];
 
 /** Columns of the overdue invoices. */
 export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
@@ -143,25 +151,7 @@ export const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
     text: (item) => (item.nextDate ? fmt.day(item.nextDate) : 'Terminée'),
     filter: { kind: 'date', value: (item) => item.nextDate || null },
   },
-  {
-    id: 'state',
-    required: true,
-    label: 'État',
-    size: 120,
-    bulk: true,
-    hiddenByDefault: true,
-    sortValue: (item) => (item.active ? 0 : 1),
-    text: (item) => (item.active ? 'Active' : 'En pause'),
-    filter: {
-      kind: 'choice',
-      value: (item) => (item.active ? 'active' : 'paused'),
-      options: [
-        { value: 'active', label: 'Active' },
-        { value: 'paused', label: 'En pause' },
-      ],
-    },
-    groupable: true,
-  },
+  stateColumn({ id: 'state', required: true, label: 'État', size: 120, bulk: true, hiddenByDefault: true, states: RECURRING_STATES, value: (item) => (item.active ? 'active' : 'paused'), groupable: true }),
   {
     id: 'issued',
     required: true,

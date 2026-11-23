@@ -172,7 +172,7 @@ Tableau de données commun ([Tableau de données](../../web/components/data-tabl
 | « Début »    | Date (une fin antérieure suit)                                          | Filtre date, tri                  |
 | « Fin »      | Date, effaçable (« Sans fin »)                                          | Filtre date, tri                  |
 | « Horaires » | — (une ligne par cas, « N exceptions » avec infobulle)                  | —                                 |
-| « État »     | — (« En cours », « À venir », « Passée » — libellés de `PERIOD_STATES`) | Filtre, tri, groupement           |
+| « État »     | Pastille centrée (« En cours » vert, « À venir » bleu, « Passée » gris — `PERIOD_STATES`) | Filtre, tri, groupement           |
 | Commentaires | —                                                                       | —                                 |
 
 Actions : « Nouveaux créneaux » ; par ligne « Modifier », « Dupliquer », « Convertir en éphéméride », archiver/restaurer, « Supprimer » ; sur une sélection : archiver/restaurer, supprimer (édition groupée des colonnes éditables). Les créneaux archivés sont en lecture seule et ne comptent plus dans les conditions de créneaux des tâches et des routines ; archiver ou restaurer un créneau (ou un type) qui fait disparaître des occurrences de routines demande aussi la confirmation « Occurrences supprimées ». Créer, modifier ou supprimer un créneau qui fait disparaître des occurrences de routines demande la confirmation « Occurrences supprimées » (voir plus haut). Suppression : le créneau et ses exceptions sont supprimés définitivement (PRO : « il ne comptera plus dans le temps prévu »), les espaces abonnés ne le voient plus, les évènements ne sont pas touchés. État vide : « Aucun créneau. ».

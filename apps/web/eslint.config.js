@@ -1338,6 +1338,11 @@ export default defineConfig([
             'Une cellule s’aligne comme sa colonne (data-align posé par DataTable selon columnAlign) : pas d’alignement écrit dans une cellule ; une rangée d’éléments prend `justify={CELL_JUSTIFY}` (components/data-table/cells/cell-field).',
         },
         {
+          selector: "ObjectExpression:has(> Property[key.name='id'][value.value=/^(state|statusCategory|closeReason)$/]):has(> Property[key.name='text'])",
+          message:
+            'Utiliser stateColumn({ id, label, size, states, value }) (components/data-table/table/state-column) : l’état d’une ligne dans sa pastille colorée, centrée ; son nom à l’export, ses choix au filtre.',
+        },
+        {
           selector: "JSXOpeningElement[name.name=/^(Switch|StateSwitch|Checkbox)$/], JSXOpeningElement[name.object.name='Checkbox']",
           message:
             'Utiliser StateButton (components/data-table/cells/StateButton) : un oui / non modifié dans une cellule ou une ligne est un bouton d’état, ni un interrupteur ni une case à cocher (interrupteurs : formulaires, réglages, activation d’un élément).',

@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { ShoppingCartIcon } from '@phosphor-icons/react';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
+import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
+import { FEEDBACK_COLORS } from '../../../components/feedback/feedback-colors';
 import { BADGE_COLUMN, multiValues, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { itemChoices } from '../../../components/items/item-look';
@@ -26,6 +28,12 @@ export const MISSING_STATES: YesNoStates = {
   icons: { yes: { icon: ShoppingCartIcon, tone: 'info', badge: true }, no: 'empty' },
   toggleLabels: { yes: 'Marquer comme manquant (sur la prochaine liste générée)', no: 'Marquer comme pourvu' },
 };
+
+/** States of a shopping list: open blue (under way), closed gray. */
+const LIST_STATES: ColumnState<'OPEN' | 'CLOSED'>[] = [
+  { id: 'OPEN', label: 'En cours', color: FEEDBACK_COLORS.info },
+  { id: 'CLOSED', label: 'Clôturée', color: 'gray' },
+];
 
 /** States of « Acheté » of an item of a list, on its state buttons. */
 export const BOUGHT_STATES: YesNoStates = {
@@ -102,23 +110,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
         options: context ? context.projectOptions(context.projects) : [],
       },
     },
-    {
-      id: 'state',
-      required: true,
-      label: 'État',
-      size: 110,
-      hiddenByDefault: true,
-      sortValue: (list) => (listState(list) === 'CLOSED' ? 1 : 0),
-      text: (list) => (listState(list) === 'CLOSED' ? 'Clôturée' : 'En cours'),
-      filter: {
-        kind: 'choice',
-        value: listState,
-        options: [
-          { value: 'OPEN', label: 'En cours' },
-          { value: 'CLOSED', label: 'Clôturée' },
-        ],
-      },
-    },
+    stateColumn({ id: 'state', required: true, label: 'État', size: 110, hiddenByDefault: true, states: LIST_STATES, value: listState }),
     {
       id: 'progress',
       label: 'Achats',

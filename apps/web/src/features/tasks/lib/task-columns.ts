@@ -17,6 +17,7 @@ import {
   type FilterGroupOf,
   type TableViewConfig,
   type TaskStatusCategory,
+  type TaskCloseReason,
   lineageOf,
   relativeSprintIds,
   sprintFilterValues,
@@ -24,6 +25,8 @@ import {
 import { BADGE_COLUMN, DURATION_COLUMN, LATE_GROUP_LABELS, WARNING_YES_ICONS, type ColumnChoice, type ColumnFilter, type DataColumn, type YesNoIcons, type YesNoLabels } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
+import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
+import { FEEDBACK_COLORS } from '../../../components/feedback/feedback-colors';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import { type TaskContext, taskNumber } from '../hooks/use-task-context';
@@ -71,9 +74,17 @@ interface TaskColumnExtras {
   eventComments?: ReadonlyMap<string, number>;
 }
 
-/** Categories of the statuses, in their order. */
-const STATUS_CATEGORY_ORDER = TASK_STATUS_CATEGORIES;
-const STATUS_CATEGORY_LABELS = TASK_STATUS_CATEGORY_LABELS.status;
+/**
+ * Colours of the categories of the statuses, those of the statuses an empty workspace is given: to do gray, in progress
+ * blue, done green; cancelled gray, as a cancelled task is dimmed.
+ */
+const STATUS_CATEGORY_COLORS: Record<TaskStatusCategory, string> = { TODO: 'gray', IN_PROGRESS: FEEDBACK_COLORS.info, DONE: FEEDBACK_COLORS.success, CANCELLED: 'gray' };
+
+/** Categories of the statuses, in their order, with their badges. */
+const STATUS_CATEGORY_BADGES: ColumnState<TaskStatusCategory>[] = TASK_STATUS_CATEGORIES.map((id) => ({ id, label: TASK_STATUS_CATEGORY_LABELS.status[id], color: STATUS_CATEGORY_COLORS[id] }));
+
+/** How a task is closed, with its badge: done green, cancelled gray (a cancelled task is dimmed). */
+const CLOSE_REASON_BADGES: ColumnState<TaskCloseReason>[] = TASK_CLOSE_REASONS.map((id) => ({ id, label: TASK_CLOSE_REASON_LABELS[id], color: id === 'COMPLETED' ? FEEDBACK_COLORS.success : 'gray' }));
 
 /**
  * Rows of the task table made of tasks, in their manual order (then by number), as the table lists them.
@@ -373,27 +384,15 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     // eslint-disable-next-line no-restricted-syntax -- a group name, not a count.
     flag('hasAlarms', 'A des alarmes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0, { yes: 'Avec alarme(s)', no: 'Sans alarme' }),
     flag('hasComments', 'A des commentaires', (task) => commentTotal(task.commentCount, task.description) > 0, { yes: 'Commentée', no: 'Non commentée' }),
-    {
+    stateColumn({
       id: 'statusCategory',
       label: 'Catégorie de statut',
       size: 140,
       hiddenByDefault: true,
-      sortValue: (row) => (row.kind === 'task' ? STATUS_CATEGORY_ORDER.indexOf(categoryOf(row.task) ?? 'TODO') : null),
-      text: (row) => {
-        const category = row.kind === 'task' ? categoryOf(row.task) : null;
-        return category ? STATUS_CATEGORY_LABELS[category] : '';
-      },
-      filter: { kind: 'choice', value: (row) => (row.kind === 'task' ? categoryOf(row.task) : null), options: STATUS_CATEGORY_ORDER.map((value) => ({ value, label: STATUS_CATEGORY_LABELS[value] })) },
-    },
+      states: STATUS_CATEGORY_BADGES,
+      value: (row) => (row.kind === 'task' ? categoryOf(row.task) : null),
+    }),
     // How a closed task was closed: done or cancelled (empty while open).
-    {
-      id: 'closeReason',
-      label: 'Fermeture',
-      size: 120,
-      hiddenByDefault: true,
-      sortValue: (row) => (row.kind === 'task' && row.task.closeReason ? TASK_CLOSE_REASONS.indexOf(row.task.closeReason) : null),
-      text: (row) => (row.kind === 'task' && row.task.closeReason ? TASK_CLOSE_REASON_LABELS[row.task.closeReason] : ''),
-      filter: { kind: 'choice', value: (row) => (row.kind === 'task' ? row.task.closeReason : null), options: TASK_CLOSE_REASONS.map((value) => ({ value, label: TASK_CLOSE_REASON_LABELS[value] })) },
-    },
+    stateColumn({ id: 'closeReason', label: 'Fermeture', size: 120, hiddenByDefault: true, states: CLOSE_REASON_BADGES, value: (row) => (row.kind === 'task' ? row.task.closeReason : null) }),
   ];
 }
