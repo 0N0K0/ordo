@@ -1,9 +1,10 @@
 import { IconAction } from '../../actions/IconAction';
-import { Anchor, Checkbox, Popover, Group, NumberInput, Text, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
+import { Anchor, Popover, Group, NumberInput, Text, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
 import { TimePicker } from '@mantine/dates';
 import { DateField } from '../../inputs/DateField';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
+import classes from './EditableCells.module.css';
 import { markdownSchema } from '@ordo/shared';
 import { MarkdownEditor, type MarkdownSuggestions } from '../../markdown/MarkdownEditor';
 import { NO_SUGGESTIONS } from '../../markdown/remark-references';
@@ -12,7 +13,7 @@ import { StackedMultiCell, type StackedItem } from './StackedMultiCell';
 import { StackedLines } from './StackedValues';
 import { AmountInput } from '../../inputs/AmountInput';
 import { currencySymbol } from '../../../lib/format';
-import { accepted, checked, stopClick, stoppedCellCombobox, stoppedCellField, useCellDraft, type CellSchema } from './cell-field';
+import { accepted, cellTextAlign, checked, stopClick, stoppedCellCombobox, stoppedCellField, useCellDraft, type CellSchema } from './cell-field';
 import { FRENCH_NUMBER_FORMAT } from '../../inputs/number-format';
 import { EXTERNAL_LINK } from '../../actions/link-props';
 import { CreatableSelect } from '../../inputs/CreatableSelect';
@@ -179,7 +180,8 @@ export function EditableNumber({
       onChange={setDraft}
       onBlur={save}
       onKeyDown={onKeyDown}
-      styles={{ input: { textAlign: 'right' } }}
+      // At the end, unless its column is aligned otherwise (a duration: centred).
+      styles={{ input: cellTextAlign('right') }}
     />
   );
 }
@@ -200,7 +202,7 @@ interface EditableTimeProps {
  * @returns {JSX.Element} Cell.
  */
 export function EditableTime({ value, label, clearable = false, readOnly = false, onSave }: EditableTimeProps) {
-  return <TimePicker {...stoppedCellField} aria-label={label} readOnly={readOnly} clearable={clearable} value={value} onChange={(next) => next !== value && onSave(next)} />;
+  return <TimePicker {...stoppedCellField} classNames={{ ...stoppedCellField.classNames, fieldsRoot: classes.timeFields }} aria-label={label} readOnly={readOnly} clearable={clearable} value={value} onChange={(next) => next !== value && onSave(next)} />;
 }
 
 interface EditableDateProps {
@@ -346,15 +348,6 @@ export function EditableMultiSelect({ items, readOnly = false, ...select }: Edit
   );
 }
 
-/**
- * Yes / no cell: ticked in place, saved at once.
- * @param {{ value: boolean, label: string, readOnly?: boolean, onSave: (value: boolean) => void }} props Component props.
- * @returns {JSX.Element} Cell.
- */
-export function EditableCheck({ value, label, readOnly = false, onSave }: { value: boolean; label: string; readOnly?: boolean; onSave: (value: boolean) => void }) {
-  return <Checkbox size="xs" aria-label={label} checked={value} disabled={readOnly} onChange={(event) => onSave(event.currentTarget.checked)} onClick={stopClick} />;
-}
-
 interface EditablePopoverCellProps {
   /** What the cell shows (« — » when empty; with `lines`, shown without any line). */
   target: ReactNode;
@@ -410,7 +403,8 @@ export function EditablePopoverCell({ target, lines, empty = false, label, width
               stopClick(event);
               if (onOpenedChange) onOpenedChange(!opened);
             }}
-            style={{ textAlign: 'left', maxWidth: '100%' }}
+            // Aligned as the cells of its column.
+            style={{ ...cellTextAlign('left'), maxWidth: '100%' }}
             truncate={truncate}
           >
             {content}

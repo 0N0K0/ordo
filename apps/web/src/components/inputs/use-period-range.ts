@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { localToday } from '../../lib/dates';
+import { parisToday } from '../../lib/dates';
 import { presetRange, type PeriodPreset } from '../../lib/periods';
 
 /** Period chosen in an export form: its preset, the dates typed for « Dates choisies », and the resulting days. */
@@ -25,7 +25,7 @@ export interface PeriodRange<P extends string> {
  * @returns {PeriodRange<P>} Period.
  */
 export function usePeriodRange<P extends string = PeriodPreset>(initial: P, resolve?: (preset: P, today: string) => [string, string] | null): PeriodRange<P> {
-  const today = localToday();
+  const today = parisToday();
   const [preset, setPreset] = useState<P>(initial);
   const [custom, setCustom] = useState<[string | null, string | null]>(() => presetRange('lastMonth', today));
   const [from, to] = preset === 'custom' ? custom : (resolve?.(preset, today) ?? presetRange(preset as Exclude<PeriodPreset, 'custom'>, today));

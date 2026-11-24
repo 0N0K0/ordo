@@ -1,4 +1,4 @@
-import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import { withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { categoryOptions, categoryPaths, categoryTree, type TreeCategory } from '../../../components/tree/category-tree';
 import * as fmt from '../../../lib/format';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
@@ -60,13 +60,19 @@ export function categoryColumn<T extends { categoryId?: string | null }>(categor
   };
 }
 
+/** States of « Consommable », in its column and on its state buttons. */
+export const CONSUMABLE_STATES: YesNoStates = {
+  labels: { yes: 'Consommable', no: 'Permanent' },
+  toggleLabels: { yes: 'Marquer comme consommable', no: 'Marquer comme permanent' },
+};
+
 /**
  * « Consommable » column of products: used up (stock), and so put back on the shopping lists.
  * @param {ColumnOptions<T>} [options] What the table changes. Optional.
  * @returns {DataColumn<T>} Column.
  */
 export function consumableColumn<T extends { consumable: boolean }>(options: ColumnOptions<T> = {}): DataColumn<T> {
-  return booleanColumn<T>({ id: 'consumable', label: 'Consommable', size: 120, bulk: true, groupable: true, groupLabels: { yes: 'Consommable', no: 'Permanent' }, ...options, value: (item) => item.consumable });
+  return booleanColumn<T>({ id: 'consumable', label: 'Consommable', size: 120, bulk: true, groupable: true, states: CONSUMABLE_STATES, ...options, value: (item) => item.consumable });
 }
 
 /**

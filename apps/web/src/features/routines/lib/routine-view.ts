@@ -4,6 +4,8 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import type { Routine, RoutineCategory, RoutineOccurrence } from '../api';
 import { ruleOf } from './routine-format';
 import * as fmt from '../../../lib/format';
+import { FEEDBACK_COLORS, LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import type { ColumnState } from '../../../components/data-table/table/state-column';
 
 /**
  * « Ouverture » of the rule of a routine in words (« Le 15 du mois »); null without one.
@@ -22,18 +24,27 @@ export function opensWords(routine: Routine): string | null {
  * it follows (that of its case, else of its rule; inherited ones included, the routine being read as the screens read
  * it) and its first day as the API computes it; null without « Ouverture ».
  * @param {Routine} routine Routine.
- * @param {Pick<RoutineOccurrence, 'date' | 'startDate' | 'movedFrom'>} occurrence Occurrence: its due day, its first day, the day of its rule it was moved from.
+ * @param {Pick<RoutineOccurrence, 'date' | 'dueDate' | 'startDate' | 'movedFrom'>} occurrence Occurrence: the day that identifies it, its due day, its first day, the day of its rule it was moved from.
  * @returns {string | null} Line.
  */
-export function occurrenceOpensWords(routine: Routine, occurrence: Pick<RoutineOccurrence, 'date' | 'startDate' | 'movedFrom'>): string | null {
+export function occurrenceOpensWords(routine: Routine, occurrence: Pick<RoutineOccurrence, 'date' | 'dueDate' | 'startDate' | 'movedFrom'>): string | null {
   const cases = (routine.cases as RoutineCase[] | null) ?? [];
   const item = cases.length ? routineCaseOn(cases, routine.startDate, occurrence.movedFrom ?? occurrence.date) : null;
   const opens = readOpens(cases.length ? item?.opens : routine.opensOn);
   const frequency = cases.length ? item?.recurrence.frequency : ruleOf(routine)?.frequency;
-  return (opens && frequency && occurrenceOpensText(opens, frequency, occurrence.startDate, occurrence.date)) || null;
+  return (opens && frequency && occurrenceOpensText(opens, frequency, occurrence.startDate, occurrence.dueDate)) || null;
 }
 
-export const ROUTINE_STATE_LABELS: Record<(typeof ROUTINE_STATES)[number], string> = { late: 'En retard', due: 'À faire', upcoming: 'À venir', done: 'Faite' };
+const ROUTINE_STATE_LOOKS: Record<(typeof ROUTINE_STATES)[number], { label: string; color: string }> = {
+  late: { label: 'En retard', color: LATE_COLOR },
+  // Blue, as the badge of a routine due today.
+  due: { label: 'À faire', color: FEEDBACK_COLORS.info },
+  upcoming: { label: 'À venir', color: 'gray' },
+  done: { label: 'Faite', color: FEEDBACK_COLORS.success },
+};
+
+/** States of a routine today, in their order, with their badges (« En retard », « À faire », « À venir », « Faite »). */
+export const ROUTINE_STATE_BADGES: ColumnState<(typeof ROUTINE_STATES)[number]>[] = ROUTINE_STATES.map((id) => ({ id, ...ROUTINE_STATE_LOOKS[id] }));
 
 export const REPETITION_LABELS: Record<(typeof ROUTINE_REPETITIONS)[number], string> = {
   DAILY: 'Chaque jour',

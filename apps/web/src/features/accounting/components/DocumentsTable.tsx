@@ -13,7 +13,7 @@ import { bulkCellLabels, bulkSaver } from '../../../components/data-table/select
 import { useTrackingMutations } from '../api/tracking';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView, type FirstTableView, withinFilter } from '../../../components/data-table/views/use-data-view';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from '../api/documents';
 import { openImportForm } from '../lib/imported-form';
@@ -109,7 +109,7 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
         !document.archived &&
           rowMenuEntry(
             duplicateRowsAction([document], {
-              duplicate: (source) => duplicate.mutateAsync({ id: source.id, issueDate: localToday() }),
+              duplicate: (source) => duplicate.mutateAsync({ id: source.id, issueDate: parisToday() }),
               done: 'Document dupliqué en brouillon.',
               open: onDuplicated,
               loading: duplicate.isPending,
@@ -348,7 +348,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
             clear,
           }),
           duplicateRowsAction(copied, {
-            duplicate: (document) => documentMutations.duplicate.mutateAsync({ id: document.id, issueDate: localToday() }),
+            duplicate: (document) => documentMutations.duplicate.mutateAsync({ id: document.id, issueDate: parisToday() }),
             done: `${countOf(copied.length, 'document')} ${plural(copied.length, 'dupliqué')} en brouillon.`,
             open: (id) => void navigate(documentPath(id)),
             disabled: copied.length === 0,
@@ -376,7 +376,6 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
             <DocumentAttachmentsCell kind="imported" document={row.document} onAdd={(files) => bulkFiles(row, files)} />
           ),
         client: row.document.clientName,
-        origin: row.kind === 'imported' ? 'Importé' : 'Ordo',
         net: fmt.money(row.document.totalNet, row.document.currency),
         balance: row.document.balance ? fmt.money(row.document.balance, row.document.currency) : null,
         ...(row.kind === 'ordo' ? ordoCells(row.document) : importedCells(row.document)),

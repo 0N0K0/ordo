@@ -1,8 +1,6 @@
-import { Stack, Text } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, CheckIcon, ProhibitIcon, TrashIcon } from '@phosphor-icons/react';
-import { ActionButton } from '../../../components/actions/ActionButton';
 import type { CalendarEventScope } from '../api';
-import { FormActions } from '../../../components/dialogs/FormActions';
+import { ChoiceList } from '../../../components/dialogs/ChoiceList';
 
 export interface ScopeQuestion {
   /**
@@ -28,63 +26,37 @@ export interface ScopeQuestion {
  * @returns {JSX.Element} Choices.
  */
 export function ScopeChoices({ action, allowThis = true, allowFollowing = true, allowAll = true, note, onAnswer }: ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }) {
-  const mixed = action === 'cancelOrDelete';
+  if (action === 'cancelOrDelete') {
+    return (
+      <ChoiceList
+        question={`Annuler cette occurrence (elle reste dans l’agenda, barrée, et pourra être rétablie), ou supprimer celle-ci et les suivantes (définitif) ?${note ? ` ${note}` : ''}`}
+        choices={[
+          ...(allowThis ? [{ value: 'THIS' as const, label: 'Annuler cette occurrence', icon: <ProhibitIcon aria-hidden /> }] : []),
+          ...(allowFollowing ? [{ value: 'FOLLOWING' as const, label: 'Supprimer celle-ci et les suivantes', icon: <TrashIcon aria-hidden />, danger: true }] : []),
+        ]}
+        onAnswer={onAnswer}
+      />
+    );
+  }
   const remove = action === 'delete';
   // Each answer applies the change: filled, red for a deletion.
   const icon = remove ? <TrashIcon aria-hidden /> : action === 'cancel' ? <ProhibitIcon aria-hidden /> : action === 'restore' ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckIcon aria-hidden />;
-  if (mixed) {
-    return (
-      <Stack gap="md">
-        <Text size="sm">
-          Annuler cette occurrence (elle reste dans l’agenda, barrée, et pourra être rétablie), ou supprimer celle-ci et les suivantes (définitif) ?{note && ` ${note}`}
-        </Text>
-        <Stack gap="xs">
-          {allowThis && (
-            <ActionButton icon={<ProhibitIcon aria-hidden />} onClick={() => onAnswer('THIS')}>
-              Annuler cette occurrence
-            </ActionButton>
-          )}
-          {allowFollowing && (
-            <ActionButton danger icon={<TrashIcon aria-hidden />} onClick={() => onAnswer('FOLLOWING')}>
-              Supprimer celle-ci et les suivantes
-            </ActionButton>
-          )}
-        </Stack>
-        <FormActions onCancel={() => onAnswer(null)} submitLabel={null} />
-      </Stack>
-    );
-  }
+  const question = remove
+    ? 'Quelles occurrences supprimer ? La suppression est définitive.'
+    : action === 'cancel'
+      ? 'Quelles occurrences annuler ? Elles restent dans l’agenda, barrées, et pourront être rétablies.'
+      : action === 'restore'
+        ? 'Quelles occurrences rétablir ?'
+        : 'À quelles occurrences appliquer la modification ?';
   return (
-    <Stack gap="md">
-      <Text size="sm">
-        {remove
-          ? 'Quelles occurrences supprimer ? La suppression est définitive.'
-          : action === 'cancel'
-            ? 'Quelles occurrences annuler ? Elles restent dans l’agenda, barrées, et pourront être rétablies.'
-            : action === 'restore'
-              ? 'Quelles occurrences rétablir ?'
-              : 'À quelles occurrences appliquer la modification ?'}
-        {!allowThis && ' La répétition a changé : elle ne peut pas s’appliquer à une seule occurrence.'}
-        {note && ` ${note}`}
-      </Text>
-      <Stack gap="xs">
-        {allowThis && (
-          <ActionButton danger={remove} icon={icon} onClick={() => onAnswer('THIS')}>
-            Cette occurrence
-          </ActionButton>
-        )}
-        {allowFollowing && (
-          <ActionButton danger={remove} icon={icon} onClick={() => onAnswer('FOLLOWING')}>
-            Celle-ci et les suivantes
-          </ActionButton>
-        )}
-        {allowAll && (
-          <ActionButton danger={remove} icon={icon} onClick={() => onAnswer('ALL')}>
-            Toutes les occurrences
-          </ActionButton>
-        )}
-      </Stack>
-      <FormActions onCancel={() => onAnswer(null)} submitLabel={null} />
-    </Stack>
+    <ChoiceList
+      question={`${question}${allowThis ? '' : ' La répétition a changé : elle ne peut pas s’appliquer à une seule occurrence.'}${note ? ` ${note}` : ''}`}
+      choices={[
+        ...(allowThis ? [{ value: 'THIS' as const, label: 'Cette occurrence', icon, danger: remove }] : []),
+        ...(allowFollowing ? [{ value: 'FOLLOWING' as const, label: 'Celle-ci et les suivantes', icon, danger: remove }] : []),
+        ...(allowAll ? [{ value: 'ALL' as const, label: 'Toutes les occurrences', icon, danger: remove }] : []),
+      ]}
+      onAnswer={onAnswer}
+    />
   );
 }

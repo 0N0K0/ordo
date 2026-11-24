@@ -40,9 +40,21 @@ export const INHERITANCE_RULES = [
   },
 ];
 
+/** Days and times read in Paris, whatever the zone of the browser or of the server: for the shared code, the API and the web. */
+export const PARIS_TIME_RULES = [
+  {
+    // The parts of a Date, and a Date built from parts or read without zone, are those of the zone of the machine.
+    selector:
+      "CallExpression[callee.property.name=/^(get|set)(FullYear|Month|Date|Day|Hours|Minutes|Seconds)$/], CallExpression[callee.property.name=/^(getTimezoneOffset|toDateString|toTimeString)$/], NewExpression[callee.name='Date'][arguments.length>1], CallExpression[callee.name='dayjs'][arguments.length=0]",
+    message:
+      'Lire un jour ou une heure à l’heure de Paris : dayIn / timeIn / parisParts / parisInstant (@ordo/shared ; dans le web parisDay / parisToday / parisParts / parisInstant de lib/dates), dateStyle / fmt.* ; jamais les parties d’une Date dans le fuseau de la machine.',
+  },
+];
+
 export const SHARED_SYNTAX_RULES = [
   ...TEXT_SIZE_RULES,
   ...INHERITANCE_RULES,
+  ...PARIS_TIME_RULES,
   // Dates, numbers and amounts: one format per role.
   {
     selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(DateTimeFormat|NumberFormat|RelativeTimeFormat)$/][arguments.length>0]",

@@ -6,6 +6,11 @@ import { planReferencesConfig, SHARED_SYNTAX_RULES } from '../../packages/shared
 
 // Patterns of the bricks of the API (services/core, graphql, routes/http).
 const API_SYNTAX_RULES = [
+  // A module loaded on the fly hides an import cycle: the shared part goes to a module both sides import.
+  {
+    selector: 'ImportExpression',
+    message: 'Pas d’import dynamique : déplacer ce qui est partagé dans un module importé des deux côtés (ex. services/routines/routine-occurrences).',
+  },
   // Trees of tasks and routines.
   {
     selector: "CallExpression[callee.name='cascadeArchive'][arguments.0.value=/^(task|routine)$/]",

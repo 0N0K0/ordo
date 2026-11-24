@@ -3,7 +3,7 @@ import { FileZipIcon } from '@phosphor-icons/react';
 import { fetchDownload, fileName } from '../../../lib/download';
 import { ACCOUNTING_DOCUMENT_TYPES, type AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
-import { localToday, yearOfDay } from '../../../lib/dates';
+import { parisToday, yearOfDay } from '../../../lib/dates';
 import { PERIOD_PRESETS, type PeriodPreset } from '../../../lib/periods';
 import { useAsyncAction } from '../../../lib/use-async-action';
 import { PeriodRangeFields } from '../../../components/inputs/PeriodRangeFields';
@@ -29,7 +29,7 @@ const ZIP_PERIODS: { value: ZipPeriod; label: string }[] = [
  * @returns {JSX.Element} Form.
  */
 export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] }: { onDone?: () => void; year?: string | null; years?: string[] }) {
-  const [year, setYear] = useState(initialYear ?? String(yearOfDay(localToday())));
+  const [year, setYear] = useState(initialYear ?? String(yearOfDay(parisToday())));
   const range = usePeriodRange<ZipPeriod>(initialYear ? 'calendarYear' : 'lastMonth', (period) => (period === 'calendarYear' ? [`${year}-01-01`, `${year}-12-31`] : null));
   const { today, preset, setPreset, from, to } = range;
   const yearOptions = [...new Set([...years, String(yearOfDay(today)), year])].sort().reverse();

@@ -165,7 +165,7 @@ export function RoutineOccurrenceForm({
   onClose: () => void;
 }) {
   const { changeOccurrence } = useRoutineMutations();
-  // Its day now: a save that moves it moves the occurrence the next one changes.
+  // The day that identifies it now: a save that moves it moves the occurrence the next one changes.
   const day = useRef(occurrence.date);
   // Its day in the rule: the occurrence of the cache is the one of that day, wherever it is now.
   const ruleDay = movedFrom ?? occurrence.date;
@@ -181,7 +181,7 @@ export function RoutineOccurrenceForm({
   const cachedRoutine = routines?.routines.find((routine) => routine.id === occurrence.routine.id);
   const archived = occurrence.archived || Boolean(cachedRoutine?.archived);
   const base = useAppForm<OccurrenceValues>({
-    initialValues: { date: occurrence.date, fromTime: occurrence.slot.fromTime, dueTime: occurrence.slot.dueTime, optional: false },
+    initialValues: { date: occurrence.dueDate, fromTime: occurrence.slot.fromTime, dueTime: occurrence.slot.dueTime, optional: false },
     schema: routineSlotSchema,
   });
   const reading = scope === null;
@@ -190,7 +190,7 @@ export function RoutineOccurrenceForm({
       occurrence.cancelled || archived || scope === null
         ? null
         : async (_changes, values) => {
-            await changeOccurrence.mutateAsync({
+            day.current = await changeOccurrence.mutateAsync({
               id: occurrence.routine.id,
               date: day.current,
               scope,
@@ -199,10 +199,9 @@ export function RoutineOccurrenceForm({
               fromTime: values.fromTime,
               dueTime: values.dueTime,
             });
-            day.current = values.date;
           },
     schema: routineSlotSchema,
-    saved: current && currentSlot ? { date: current.date, fromTime: currentSlot.fromTime, dueTime: currentSlot.dueTime, optional: false } : undefined,
+    saved: current && currentSlot ? { date: current.dueDate, fromTime: currentSlot.fromTime, dueTime: currentSlot.dueTime, optional: false } : undefined,
   });
   // Moved elsewhere (another tab, the calendar): the next saves change it where it is now.
   useEffect(() => {

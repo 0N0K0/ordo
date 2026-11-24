@@ -1,18 +1,18 @@
 import { sumOf } from '@ordo/shared';
 import { IconAction } from '../../../components/actions/IconAction';
-import { StateSwitch } from '../../../components/inputs/StateSwitch';
+import { StateButton } from '../../../components/data-table/cells/StateButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { countOf, plural } from '../../../lib/text';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { Group, Text } from '@mantine/core';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
-import { CheckIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
+import { EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailFolders, useMailLabels } from '../api';
 import type { MailGroup } from '../lib/mail-groups';
 import { unarchived } from '../../../lib/archive';
-import { movedMailsMessage } from '../lib/mail-format';
+import { MAIL_DONE_STATES, movedMailsMessage } from '../lib/mail-format';
 
 interface MailOrganizeActionsProps {
   /** Mails, by account and folder (a search may gather several). */
@@ -30,7 +30,7 @@ interface MailOrganizeActionsProps {
 }
 
 /**
- * Organizing actions on one or several mails, possibly from several folders and accounts: done / to do, flags,
+ * Organizing actions on one or several mails, possibly from several folders and accounts: done / to do (a state button), flags,
  * spam (or not spam when they are all in the junk folder), move to another folder (mails of one account, unless
  * noMove).
  * @param {MailOrganizeActionsProps} props Component props.
@@ -58,12 +58,10 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
 
   return (
     <Group gap={4} wrap="nowrap">
-      <StateSwitch
-        label="Traité"
-        hint={done ? 'Marquer comme à traiter' : 'Marquer comme traité'}
-        checked={done}
-        color="green"
-        icon={<CheckIcon weight="bold" aria-hidden />}
+      <StateButton
+        {...MAIL_DONE_STATES}
+        value={done}
+        size="md"
         onChange={(checked) => void each((group) => mark.mutateAsync({ ...group, done: checked })).catch(onMutationError)}
       />
       <ActionsMenu

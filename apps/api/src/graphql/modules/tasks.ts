@@ -1,7 +1,7 @@
 import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
 import { peopleSettler } from '../../services/routines/routines';
 import { done } from '../errors';
-import { taskDoability, type TaskDoability } from '../../services/calendar/slot-conditions';
+import { taskDoability, type TaskDoability } from '../../services/tasks/task-doability';
 import { prisma } from '../../db';
 import { storeAttachment, attachmentUrl } from '../../services/core/attachments';
 import * as contributors from '../../services/projects/contributors';
@@ -17,7 +17,7 @@ import { FieldOriginRef, InheritSourceEnum, TaskInheritableFieldEnum } from '../
 import type { Context } from '../context';
 import * as workspaces from '../../services/workspaces/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
-import { RemovedLinksResult, removedLinks } from '../removed-links';
+import { TaskTransferResult, transferResult } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { labelMutations, labelObject } from '../label-inputs';
 import { relationIds } from '../relation-fields';
@@ -430,6 +430,14 @@ const taskFields = (t: InputFields) => ({
   deadTimes: t.field({ type: [DeadTimeInput], description: '« Temps morts », 20 at most; null: none.' }),
 });
 
+const TaskProjectMoveInput = builder.inputType('TaskProjectMoveInput', {
+  description: 'Tasks put back in a project by the undo of a transfer.',
+  fields: (t) => ({
+    ids: t.idList({ required: true }),
+    projectId: t.id({ description: 'Project (null: out of any project).' }),
+  }),
+});
+
 const TaskInput = builder.inputType('TaskInput', {
   fields: (t) => ({
     label: t.string({ required: true }),
@@ -558,9 +566,10 @@ builder.queryFields((t) => ({
   }),
   doableTasks: t.field({
     type: [TaskDoabilityRef],
-    description: 'Open tasks and whether they can be done now: opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.',
-    args: { utcOffset: t.arg.int({ required: true }) },
-    resolve: async (_root, { utcOffset }, ctx) => taskDoability(utcOffset, ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null),
+    description: 'Open tasks and whether they can be done now (Paris time): opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.',
+    // Still accepted so that an app installed before Paris time was read on the server keeps working until it updates.
+    args: { utcOffset: t.arg.int({ required: false, deprecationReason: 'Ignored: doability is read in Paris time.' }) },
+    resolve: async (_root, _args, ctx) => taskDoability(ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null),
   }),
   taskViews: t.prismaField({
     type: ['TaskView'],
@@ -614,8 +623,12 @@ builder.mutationFields((t) => ({
   }),
   updateTask: t.prismaField({
     type: 'Task',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: TaskUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) => reloaded(prisma.task, query, tasks.updateTask(id, input)),
+    args: {
+      id: t.arg.id({ required: true }),
+      input: t.arg({ type: TaskUpdateInput, required: true }),
+      restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }),
+    },
+    resolve: async (query, _root, { id, input, restoring }) => reloaded(prisma.task, query, tasks.updateTask(id, input, restoring ?? false)),
   }),
   duplicateTask: t.prismaField({
     type: 'Task',
@@ -630,8 +643,13 @@ builder.mutationFields((t) => ({
   }),
   setTasksClosed: t.boolean({
     description: 'Closes tasks as done (reason omitted) or as cancelled (NOT_PLANNED), or reopens them; a closed task no longer blocks other tasks. A task already closed keeps its closing date and takes the new reason.',
-    args: { ids: t.arg.idList({ required: true }), closed: t.arg.boolean({ required: true }), reason: t.arg({ type: TaskCloseReasonEnum }) },
-    resolve: (_root, { ids, closed, reason }) => done(tasks.setTasksClosed(ids, closed, false, reason ?? 'COMPLETED')),
+    args: {
+      ids: t.arg.idList({ required: true }),
+      closed: t.arg.boolean({ required: true }),
+      reason: t.arg({ type: TaskCloseReasonEnum }),
+      restoring: t.arg.boolean({ description: 'Undo: tasks archived since are accepted (only that check is skipped).' }),
+    },
+    resolve: (_root, { ids, closed, reason, restoring }) => done(tasks.setTasksClosed(ids, closed, restoring ?? false, reason ?? 'COMPLETED')),
   }),
   bulkUpdateTasks: t.boolean({
     args: {
@@ -642,10 +660,16 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, changes, restoring }) => done(tasks.bulkUpdateTasks(ids, changes, restoring ?? false)),
   }),
   bulkTransferTasks: t.field({
-    type: RemovedLinksResult,
+    type: TaskTransferResult,
     description: 'Moves the tasks and their sub-tasks to another project, or out of any (projectId null).',
     args: { ids: t.arg.idList({ required: true }), projectId: t.arg.id() },
-    resolve: (_root, { ids, projectId }) => removedLinks(tasks.bulkTransferTasks(ids, projectId ?? null)),
+    resolve: (_root, { ids, projectId }) => transferResult(tasks.bulkTransferTasks(ids, projectId ?? null)),
+  }),
+  undoTaskTransfer: t.boolean({
+    description:
+      'Undo of a transfer, in one transaction (all or nothing): the tasks go back to their project group after group (archived tasks and projects accepted), then the links it removed (its lost result) come back. Archived values are accepted; tasks deleted since are passed over.',
+    args: { moves: t.arg({ type: [TaskProjectMoveInput], required: true }), links: t.arg({ type: 'JSON', required: true }) },
+    resolve: (_root, { moves, links }) => done(tasks.undoTaskTransfer(moves.map((move) => ({ ids: move.ids, projectId: move.projectId ?? null })), links)),
   }),
   bulkSetTasksArchived: t.boolean({
     description: 'Archiving cascades to sub-tasks; restoring restores them and the archived parents.',

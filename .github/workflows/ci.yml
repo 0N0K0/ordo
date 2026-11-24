@@ -55,6 +55,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Unit tests
+        run: npm test
+
       - name: Migrations on PostgreSQL 9.6
         working-directory: apps/api
         run: |

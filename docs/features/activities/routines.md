@@ -34,7 +34,7 @@ Le regroupement par catégories suit l'arbre des catégories (une sous-catégori
 | ----------------------------- | ----------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `label`                       | « Libellé »                         | visible, verrouillée | Interrupteur(s) « faite », libellé (un clic ouvre le formulaire, un double-clic renomme sur place), répétition en clair dessous, sablier si elle attend d'autres routines. |
 | `currentDate`                 | « Échéance »                        | visible              | État du jour (badge) ; un clic ouvre la fenêtre « Répétition et moments ». Filtre par date.                                                                                |
-| `state`                       | « État »                            | masquée              | « En retard », « À faire », « À venir », « Faite ». Filtre par choix.                                                                                                      |
+| `state`                       | « État »                            | masquée              | Pastille centrée « En retard » (couleur de retard), « À faire » (bleu), « À venir » (gris), « Faite » (vert). Filtre par choix.                                                                                                    |
 | `firstDate`                   | « Première échéance »               | visible              | Première occurrence calculée.                                                                                                                                              |
 | `nextDate`                    | « Échéance suivante »               | masquée              | Première occurrence après aujourd'hui.                                                                                                                                     |
 | `startDate`                   | « Première fois »                   | masquée              | Jour de départ de la règle.                                                                                                                                                |
@@ -62,7 +62,7 @@ Le regroupement par catégories suit l'arbre des catégories (une sous-catégori
 | `project`                     | « Projet »                          | visible              | Projet où va le temps chronométré.                                                                                                                                         |
 | `description`                 | « Description »                     | masquée              | Texte.                                                                                                                                                                     |
 | `documents`                   | « Documents »                       | masquée              | Nombre de documents liés (choisis et ouverts dans le panneau).                                                                                                             |
-| `done`                        | « Faite »                           | masquée              | Oui / non (coche verte, croix rouge) : l'occurrence en cours est faite ; « Faites » / « À faire ».                                                                                                    |
+| `done`                        | « Faite »                           | masquée              | Oui / non (carré vert coché « Faite », carré gris vide « À faire », comme son bouton d’état) : l'occurrence en cours est faite ; « Faites » / « À faire ».                                                                                                    |
 | `waiting`                     | « En attente »                      | masquée              | Oui / non : une routine requise n'est pas encore faite ; « En attente » (triangle orange) / « Libre » (coche verte).                                                                                                                    |
 | `doableNow`                   | « Faisable maintenant »             | masquée              | Oui / non : aucun évènement n'occupe ses assignés maintenant et aucun créneau « Indisponible » ne tient le moment (sa condition de créneaux garde déjà ses moments aux heures permises) ; groupée en « Maintenant » / « Plus tard ». |
 | commentaires                  | (colonne commune)                   |                      | Nombre de commentaires (la description compte pour un).                                                                                                                    |
@@ -72,7 +72,7 @@ Recherche : « Rechercher (libellé, description, lieu) ».
 ### États affichés dans « Échéance »
 
 - « Fait » (vert) : occurrence en cours cochée (tous ses moments obligatoires).
-- À faire aujourd'hui : badge « Aujourd'hui 8:20–8:30 » (gris avant l'heure de début) ; « Partir maintenant » (orange plein) dès l'heure de départ calculée avec le trajet ; « Après 8:30 » (couleur de retard) une fois l'heure limite passée. Rafraîchi chaque minute.
+- À faire (occurrence due aujourd'hui, ou ouverte pendant son « Ouverture » et due plus tard) : due aujourd'hui, badge « Aujourd'hui 8:20–8:30 » (gris avant l'heure de début) ; « Partir maintenant » (orange plein) dès l'heure de départ calculée avec le trajet ; « Après 8:30 » (couleur de retard) une fois l'heure limite passée ; due plus tard, pendant son « Ouverture » : badge gris « D'ici jeudi 8:20–8:30 ». Heures et jour d'aujourd'hui pris à l'heure de Paris, quel que soit le fuseau du navigateur. Rafraîchi chaque minute.
 - « Depuis lun. 10 nov. » (orange) : en retard depuis cette date.
 - À venir : la date de la prochaine fois en gris (ou « — »).
 - Une flèche indique une occurrence reportée ou avancée ; l'infobulle donne « Prochaine fois : … » (ou « Plus d'occurrence à venir ») et le jour prévu à l'origine.
@@ -82,8 +82,8 @@ Les lignes faites et archivées sont estompées ; le libellé d'une routine fait
 
 ### Cocher
 
-- Un interrupteur vert « faite » à gauche du libellé coche l'occurrence en cours. Infobulle « Marquer comme faite (lun. 10 nov.) », puis « Marquer comme à faire ».
-- Une routine à plusieurs moments a un petit interrupteur par moment (« 7:00–9:00 », « fois 2 »…), chacun coché à part ; les moments facultatifs ont une piste en pointillés.
+- Un bouton d’état à gauche du libellé (rond gris vide « À faire », rond vert coché « Faite ») coche l'occurrence en cours. Infobulle « Marquer comme faite (lun. 10 nov.) », puis « Marquer comme à faire ».
+- Une routine à plusieurs moments a un petit bouton d’état par moment (infobulle « Marquer comme faite (7:00–9:00) », « (fois 2) »…), chacun coché à part ; les moments facultatifs ont un contour en pointillés (« …, facultatif »).
 - Désactivé (« Pas encore commencée ») avant la première occurrence, et pour une routine archivée ou en cours de création.
 
 ### Modifier sur place et en masse
@@ -198,7 +198,7 @@ Avec des cas, chaque carte se résume en une ligne : « Tous les jours · avant 
 
 ## Reporter, changer l'horaire ou annuler une occurrence
 
-- « Reporter au lendemain » : déplace l'occurrence en cours (ou la suivante si un moment de l'occurrence en cours est déjà coché) au jour suivant. Toast « « … » reportée au … » avec « Annuler ».
+- « Reporter au lendemain » : déplace l'occurrence en cours (ou la suivante si un moment de l'occurrence en cours est déjà coché) au jour suivant. Toast « « … » reportée au … » avec « Annuler ». Un jour qui a déjà sa propre occurrence (une routine quotidienne) : question « Deux occurrences le même jour » (« Le … a déjà son occurrence. Garder les deux occurrences ce jour-là, chacune avec ses coches et ses commentaires, ou les fusionner en une seule, avec les coches et les commentaires des deux ? », boutons « Garder les deux », « Fusionner », puis « Annuler » en bas à droite) ; « Annuler », rien ne bouge. Gardées toutes les deux, la routine a deux occurrences ce jour-là : deux dans l'agenda et l'historique du jour, « Faite » coche d'abord celle reportée puis celle du jour, et la routine reste à faire tant que les deux ne le sont pas ; le formulaire « Reporter… » les distingue (« déplacée du … ») et ses exceptions disent « à part de celle du jour ». « Annuler » du toast remet l'occurrence à son jour d'avant (gardée à part si elle l'était). De même pour un déplacement depuis le formulaire « Reporter… » ou l'agenda (« Cette occurrence »).
 - « Reporter, changer l'horaire ou annuler… » ouvre le panneau « Reporter ou annuler « … » » :
   - « Occurrence » : parmi celles non cochées de 30 jours avant à 68 jours après aujourd'hui, marquées « (aujourd'hui) », « (en retard) », avec leurs horaires ; par défaut celle qui peut être déplacée. Description : « Ne change que celle-ci : c'est une exception, la règle ne change pas. » ou « Déjà déplacée depuis le … ». Dessous, quand elle ouvre (« Ouverte 3 jours avant (le 5 nov.) »…, voir plus haut).
   - « Nouvelle date » (requise, pas avant la première fois) : plus tard pour reporter, plus tôt pour avancer, le même jour pour ne changer que l'horaire.

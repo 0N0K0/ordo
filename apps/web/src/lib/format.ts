@@ -3,7 +3,8 @@
  * (« 13/11/2026 ») only in the exports (CSV, PDF tables).
  *
  * Dates take a calendar day (YYYY-MM-DD, shown as it is, whatever the time zone) or an instant (Date, ISO string with
- * a time, timestamp), shown in the user's time zone.
+ * a time, timestamp), shown in Paris time,
+ * whatever the zone of the browser.
  */
 
 import {

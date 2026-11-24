@@ -1,5 +1,6 @@
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { BADGE_COLUMN, type DataColumn } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
@@ -7,11 +8,17 @@ import { commentColumn } from '../../comments/lib/comment-column';
 import { useProjectTree } from '../../projects/api';
 import { projectFullPath, projectOptions } from '../../projects/lib/tree';
 import type { AccountingDocumentSummary, ImportedDocument } from '../api/documents';
-import { DOCUMENT_TYPE_LABELS, documentName, DRAFT_NAME } from '../lib/labels';
+import { DOCUMENT_TYPE_LABELS, documentName, DRAFT_NAME, IMPORTED_LOOK } from '../lib/labels';
 
 /** Row of a table of accounting documents: one of Ordo, or one issued before Ordo (imported). */
 export type DocumentRow = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 type Row = DocumentRow;
+
+/** Origins of a document, with their badge: made in Ordo (blue), issued before Ordo and imported (`IMPORTED_LOOK`). */
+const DOCUMENT_ORIGINS: ColumnState<DocumentRow['kind']>[] = [
+  { id: 'ordo', label: 'Ordo', color: 'blue' },
+  { id: 'imported', ...IMPORTED_LOOK },
+];
 
 /**
  * Tracking status of a document, as a text.
@@ -87,29 +94,13 @@ function documentColumns({ rows, projectLabels, projects }: { rows: readonly Row
       bulk: true,
       label: 'Statut',
       size: 200,
+      ...BADGE_COLUMN,
       sortValue: trackingText,
       text: trackingText,
       filter: { kind: 'choice', value: (row) => trackingText(row) || null, options: [...statuses].map(([value, label]) => ({ value, label })) },
       groupable: true,
     },
-    {
-      id: 'origin',
-      required: true,
-      label: 'Origine',
-      size: 110,
-      hiddenByDefault: true,
-      sortValue: (row) => row.kind,
-      text: (row) => (row.kind === 'imported' ? 'Importé' : 'Ordo'),
-      filter: {
-        kind: 'choice',
-        value: (row) => row.kind,
-        options: [
-          { value: 'ordo', label: 'Ordo' },
-          { value: 'imported', label: 'Importé' },
-        ],
-      },
-      groupable: true,
-    },
+    stateColumn({ id: 'origin', required: true, label: 'Origine', size: 110, hiddenByDefault: true, states: DOCUMENT_ORIGINS, value: (row) => row.kind, groupable: true }),
     {
       id: 'net',
       required: true,

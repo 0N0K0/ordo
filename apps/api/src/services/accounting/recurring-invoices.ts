@@ -1,11 +1,10 @@
-import { addDays, daysBetween, formatDay, formatOptionalDay, occurrenceDates, parseDay, parseOptionalDay, type Recurrence, recurringInvoiceSchema as settingsSchema } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, formatOptionalDay, occurrenceDates, parseDay, parseOptionalDay, type Recurrence, recurringInvoiceSchema as settingsSchema, storedRecurrence } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
 import type { RecurringInvoice } from '../../generated/prisma/client';
 import { clientError, parseInput } from '../../graphql/errors';
 import { createDocument, editableFields, finalizeDocument, findDocument } from './accounting-documents';
-import { storedRecurrence } from '../calendar/calendar-events';
 import { schedulePerWorkspace } from '../workspaces/workspaces';
 import { requirePro } from '../workspaces/workspaces';
 import { assertActive, refuseArchived } from '../core/archive';

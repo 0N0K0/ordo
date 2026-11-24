@@ -5,6 +5,7 @@ import { clientError, fieldError, orNotFound, parseField } from '../../graphql/e
 import { assertNotArchived, type ArchivableKind, type ArchiveTargets } from '../core/archive';
 import { isMember } from './members';
 import { NO_PEOPLE_SETTLER, peopleChanges, personChange, type PeopleChange, type PeopleChangeSettler } from '../calendar/birthdays';
+import { NOTHING_AFTER } from '../core/occurrence-rows';
 
 /** Details of a person as they are read from its row. */
 const DETAILS_SELECT = { birthDate: true, birthdayReminders: true, emails: true, phones: true } as const;
@@ -132,6 +133,7 @@ export async function contributorLink(
     }
   }
   const member = link.kind === 'MEMBER';
+  let after = NOTHING_AFTER;
   if (contributor && current) {
     // The birthday that applies to it: its own as a member, its relation's.
     const changes: PeopleChange[] = [];
@@ -140,7 +142,7 @@ export async function contributorLink(
       if (current.relationId) changes.push(personChange('relation', current.relationId, { contributorId: null }));
       if (relationId) changes.push(personChange('relation', relationId, { contributorId: contributor.id }));
     }
-    if (changes.length) await settle(peopleChanges(changes));
+    if (changes.length) after = await settle(peopleChanges(changes));
   }
   return async (contributorId) => {
     await prisma.$transaction([
@@ -148,6 +150,8 @@ export async function contributorLink(
       ...(relationId ? [prisma.treasuryRelation.update({ where: { id: relationId }, data: { contributorId } })] : []),
       prisma.contributor.update({ where: { id: contributorId }, data: { teamMember: member, contactId } }),
     ]);
+    // Once saved: the comments of the occurrences it made disappear.
+    await after();
   };
 }
 

@@ -1,5 +1,6 @@
 import { Group, Text } from '@mantine/core';
 import { ChatCircleIcon } from '@phosphor-icons/react';
+import { CELL_JUSTIFY } from '../../../components/data-table/cells/cell-field';
 
 /**
  * Number of comments of a row of a table (its description counting as one), with its icon, the same in every table
@@ -10,7 +11,7 @@ import { ChatCircleIcon } from '@phosphor-icons/react';
 export function CommentCount({ count }: { count: number }) {
   if (count === 0) return null;
   return (
-    <Group gap={4} wrap="nowrap" c="dimmed">
+    <Group gap={4} wrap="nowrap" justify={CELL_JUSTIFY} c="dimmed">
       <ChatCircleIcon aria-hidden />
       <Text size="sm">{count}</Text>
     </Group>

@@ -1,13 +1,14 @@
 # Dates : jours, périodes, semaines, fuseaux, répétitions
 
-Comment l'application compte les jours et les heures : jour de calendrier sans fuseau, « aujourd'hui » de l'API, semaine de l'espace, périodes relatives, règle début / fin, répétitions et leurs exceptions. Sources : `packages/shared/src/dates/**`, `packages/shared/src/tables/filters.ts`, `apps/api/src/today.ts`, `apps/api/src/graphql/builder.ts`, `apps/api/src/services/core/date-range.ts`.
+Comment l'application compte les jours et les heures : jour de calendrier sans fuseau, « aujourd'hui » de l'API, semaine de l'espace, périodes relatives, règle début / fin, répétitions et leurs exceptions. Sources : `packages/shared/src/dates/**`, `packages/shared/src/tables/filters.ts`, `apps/api/src/today.ts`, `apps/web/src/lib/dates.ts`, `apps/api/src/graphql/builder.ts`, `apps/api/src/services/core/date-range.ts`.
 
 Voir aussi : [dates](../../shared/cross-cutting/dates.md), [calendar](../../shared/activities/calendar.md), [routines](../../shared/activities/routines.md), [Calendrier](../activities/calendar.md), [Routines](../activities/routines.md), [Tâches](../activities/tasks.md).
 
 ## Jours et instants
 
 - Un **jour** est une chaîne `YYYY-MM-DD` (scalaire GraphQL `Date`, qui refuse un jour inexistant comme le 31 février). Il est stocké et calculé à minuit UTC, sans fuseau : il s'affiche tel quel partout (le 13 mai reste le 13 mai quel que soit le fuseau).
-- Un **instant** est une date-heure ISO 8601 (scalaire `DateTime`) : il s'affiche dans le fuseau de l'environnement (celui de l'utilisateur dans le web).
+- Un **instant** est une date-heure ISO 8601 (scalaire `DateTime`).
+- Toute heure et tout jour sont lus à l'heure de **Paris** (`Europe/Paris`, `PARIS_ZONE`), côté web comme côté API, quel que soit le fuseau du navigateur ou du serveur : un instant s'affiche à l'heure de Paris, son jour est son jour à Paris, une heure saisie (temps passé, envoi programmé d'un mail, coche d'une routine après coup…) est une heure de Paris, « maintenant » se compare aux horaires et créneaux à l'heure de Paris, l'agenda et l'agenda du jour des routines sont réglés sur Paris, le jour mis en avant dans les sélecteurs de dates est aujourd'hui à Paris. Un jour `YYYY-MM-DD` n'a pas de fuseau.
 - Formats d'affichage communs (`fr-FR`) : « ven. 13 nov. » (`weekdayText`), « novembre 2026 » (`monthText`), « 13 novembre 2026 » / « 1er juin 2026 » (`longDayText`), « 13/11/2026 » dans les documents et mails (`printedDay`), « T4 2026 » pour un trimestre.
 - Ordinaux : « 1er », « 2e »… « dernier », partout.
 
@@ -15,7 +16,7 @@ Voir aussi : [dates](../../shared/cross-cutting/dates.md), [calendar](../../shar
 
 - Côté API, « aujourd'hui » est le jour à **Paris** (`parisToday()`, `Europe/Paris`), quel que soit le fuseau du serveur : factures en retard, routines dues, émission des factures récurrentes, budgets, date d'acceptation d'un devis…
 - Les dates d'export des PDF sont imprimées à l'heure de Paris.
-- Côté web, « aujourd'hui » est le jour local de l'utilisateur ; certaines requêtes envoient le décalage horaire (`utcOffset`, ex. tâches faisables maintenant).
+- Côté web aussi, « aujourd'hui » est le jour à Paris (`parisToday()`, `useToday()`) : le web et l'API comptent le même jour. Aucune requête n'envoie le fuseau du navigateur (les tâches faisables maintenant le sont à l'heure de Paris, `doableTasks`).
 - Une occurrence de routine à venir ne peut pas être cochée : « Une occurrence à venir ne peut pas être cochée. » (`apps/api/src/services/routines/routines.ts`).
 
 ## Début et fin
@@ -71,7 +72,7 @@ Les créneaux et les routines peuvent combiner plusieurs **cas** (1 à 20), chac
 ### Fuseaux
 
 - Les heures d'un évènement sont des heures de **Paris** (un évènement n'a pas de fuseau propre) ; l'instant réel est calculé par `zonedInstant(…, 'Europe/Paris')` (deux passes pour les changements d'heure). L'export iCalendar écrit toujours `Europe/Paris`. Les rappels des tâches, routines et évènements sonnent aussi en heure de Paris (`parisInstant`). Il n'y a pas d'import iCalendar.
-- Les alarmes sonnent à l'heure de Paris, dans l'app comme sur le serveur (`previousOccurrence`, `nextOccurrence`, recherche sur 2 jours en arrière et 800 jours en avant), jamais à l'heure locale de l'appareil.
+- Les alarmes sonnent à l'heure de Paris, dans l'app comme sur le serveur (`previousOccurrence`, `nextOccurrence`, recherche sur 2 jours en arrière et 800 jours en avant), jamais à l'heure de l'appareil.
 
 ## Durées
 

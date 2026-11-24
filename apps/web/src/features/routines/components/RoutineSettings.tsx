@@ -6,7 +6,7 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { PriorityTypeSettings } from '../../tasks/components/PriorityTypeSettings';
 import { useRoutineMutations, useRoutinesData } from '../api';
 import { ColumnDefaults } from '../../../components/data-table/views/ColumnDefaults';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useRoutineColumns } from '../hooks/use-routine-columns';
 
 /**
@@ -22,7 +22,7 @@ export function RoutineSettings() {
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const usage = countBy(routines, (routine) => routine.categoryIds);
-  const { columns } = useRoutineColumns(routines, categories, localToday());
+  const { columns } = useRoutineColumns(routines, categories, parisToday());
   return (
     <Stack gap="md">
       <SettingsList

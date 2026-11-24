@@ -7,7 +7,7 @@ import type { ColumnLayout, TableSort } from '@ordo/shared';
 import { useRef, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 
 import { ColumnHeaderMenu, type ColumnMenuExtras, type ColumnMove } from '../toolbar/ColumnHeaderMenu';
-import { clampWidth, columnOrder, toggleSort, withOrder, withVisibility, type DataColumn, type ShownColumn } from './data-table';
+import { alignAttribute, clampWidth, columnAlign, columnOrder, toggleSort, withOrder, withVisibility, type DataColumn, type ShownColumn } from './data-table';
 import classes from './DataTable.module.css';
 import { useDragSensors } from '../../dnd/drag';
 
@@ -59,7 +59,7 @@ function HeaderCell<R>({ column, index, sort, sortCount, sortIndex, shown, onSor
       className={classes.header}
       data-reveal-host
       data-dragging={isDragging || undefined}
-      data-numeric={column.numeric || undefined}
+      {...alignAttribute(columnAlign(column))}
       aria-sort={sort ? (sort.desc ? 'descending' : 'ascending') : undefined}
       title="Glisser pour déplacer la colonne"
       {...listeners}

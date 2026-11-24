@@ -103,13 +103,14 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
       framed
       selectionLabel={(count) => selectedLabel(count, ['temps', 'temps'], false)}
       selectionActions={(rows, clear) => {
-        // A billed time stays: its invoice counts it.
-        const deletable = rows.filter((entry) => !entry.documentNumber);
+        // A billed time stays: its invoice counts it. A running chrono too: it is abandoned from the chrono.
+        const deletable = rows.filter((entry) => !entry.documentNumber && entry.endedAt !== null);
+        const kept = [rows.some((entry) => entry.documentNumber) && 'les temps facturés', rows.some((entry) => entry.endedAt === null) && 'les chronos en cours'].filter(Boolean);
         return [
           {
             ...deleteRowsAction(deletable, {
               title: 'Supprimer les temps',
-              risks: `${deletable.length} temps ${plural(deletable.length, 'sera', 'seront')} ${plural(deletable.length, 'supprimé')} définitivement et ${plural(deletable.length, 'retiré')} du temps passé de ${plural(deletable.length, 'ses', 'leurs')} tâches${deletable.length < rows.length ? ' (les temps facturés sont gardés)' : ''}.`,
+              risks: `${deletable.length} temps ${plural(deletable.length, 'sera', 'seront')} ${plural(deletable.length, 'supprimé')} définitivement et ${plural(deletable.length, 'retiré')} du temps passé de ${plural(deletable.length, 'ses', 'leurs')} tâches${kept.length ? ` (${kept.join(' et ')} sont gardés)` : ''}.`,
               remove: (entry) => remove.mutateAsync(entry.id),
               done: `${deletable.length} temps ${plural(deletable.length, 'supprimé')}.`,
               clear,

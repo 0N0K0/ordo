@@ -34,6 +34,8 @@ export async function withLossConfirmation<T, L = LostOnDelete>(run: (confirm: b
   } catch (error) {
     if (!(error instanceof GraphQLRequestError) || error.code !== 'CONFIRMATION_REQUIRED') throw error;
     const { lost } = error.extensions;
+    // An occurrence moved onto a day that has its own: asked by `withSameDayChoice`.
+    if ((lost as { merge?: string } | undefined)?.merge) throw error;
     await confirmedDestructive(dialog ? dialog((lost ?? {}) as L) : occurrencesLost((lost ?? { times: 0, comments: 0 }) as LostOnDelete));
     return run(true);
   }

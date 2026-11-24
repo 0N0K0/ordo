@@ -67,7 +67,7 @@ const filterPeriodSchema = z.string().refine((value) => (DATE_PERIODS as readonl
 /**
  * Day of a day token (`YYYY-MM-DD`, `today`, `today+3`, `today-7`).
  * @param {string} token Day token.
- * @param {string} today User's current day (YYYY-MM-DD).
+ * @param {string} today Today in Paris (YYYY-MM-DD).
  * @returns {string} YYYY-MM-DD.
  */
 export function filterDay(token: string, today: string): string {
@@ -81,7 +81,7 @@ export function filterDay(token: string, today: string): string {
  * is exclusive (the filters compare `day < end`); `addDays(end, -1)` gives the last day.
  * Weeks are those of the workspace (Monday to Sunday by default).
  * @param {string} token Period token.
- * @param {string} today User's current day (YYYY-MM-DD).
+ * @param {string} today Today in Paris (YYYY-MM-DD).
  * @param {WeekSpan} [week] Week of the workspace. Optional. Default = Monday to Sunday.
  * @returns {[string, string]} [first day, day after the last one], YYYY-MM-DD.
  */

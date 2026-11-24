@@ -12,7 +12,7 @@ Avatar d'un élément (élément de liste de réglages, projet, client) dans une
 
 ### `ItemBadge`
 
-Badge d'un élément de liste de réglages, le même partout : dans sa couleur (léger, `radius="sm"`), son image avant le nom s'il en a une (sinon `leftSection` donné). Sans élément : `empty` ou rien. Props : `item` (`{ label, color?, iconUrl? }`), `empty`, `onClick`, et les props de `Badge`. Utilisé par les projets, les tâches, les mails, l'accueil, la facturation.
+Badge d'un élément de liste de réglages, le même partout : dans sa couleur (léger, `radius="sm"`), son image avant le nom s'il en a une (sinon `leftSection` donné). Sans élément : `empty` ou rien. Props : `item` (`{ label, color?, iconUrl? }`), `empty`, `onClick`, et les props de `Badge`. Utilisé par les projets, les tâches, les mails, l'accueil, la facturation, et les colonnes d'état des tableaux (`stateColumn`).
 
 ## `FileBadge.tsx`
 

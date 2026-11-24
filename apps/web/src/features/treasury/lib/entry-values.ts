@@ -1,4 +1,4 @@
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import type { Recurrence, TreasuryAllocationInput } from '@ordo/shared';
 import { useQueryClient } from '@tanstack/react-query';
@@ -50,8 +50,8 @@ export function entryValues(entry: TreasuryEntry | ForecastEntry | undefined, de
   return {
     accountId: entry?.accountId ?? defaults.accountId,
     status: entry?.status ?? defaults.status,
-    date: entry ? entry.date : localToday(),
-    valueDate: entry ? entry.valueDate : localToday(),
+    date: entry ? entry.date : parisToday(),
+    valueDate: entry ? entry.valueDate : parisToday(),
     label: entry?.label ?? '',
     direction: entry ? directionOf(entry.amount) : 'IN',
     amount: Math.abs(entry?.amount ?? 0),

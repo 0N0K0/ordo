@@ -131,8 +131,9 @@ export async function updateContributor(
 export const deleteContributor = automated(async function deleteContributor(id: string, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<void> {
   const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id }, include: { user: { select: { id: true } } } }), 'Contributeur');
   if (contributor.user) throw clientError('BAD_USER_INPUT', 'Votre propre profil ne peut pas être supprimé.');
-  await settle(personChange('contributor', id, null));
+  const after = await settle(personChange('contributor', id, null));
   await prisma.contributor.delete({ where: { id } });
+  await after();
   await deleteOrphanIcons([contributor.iconId]);
 });
 

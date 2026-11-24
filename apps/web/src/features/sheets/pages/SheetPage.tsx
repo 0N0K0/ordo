@@ -1,3 +1,4 @@
+import { StateButton } from '../../../components/data-table/cells/StateButton';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { formCallbacks, useAppForm, useFieldSave } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
@@ -13,7 +14,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { EditableCheck, EditableNumber, EditableSelect, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
+import { EditableNumber, EditableSelect, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -34,6 +35,8 @@ import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import type { RowGroup } from '../../../components/data-table/table/table-engine';
 import { SheetsPageSettings } from '../components/SheetsSettings';
 import { useSheetItemColumns } from '../hooks/use-sheet-columns';
+import { CONSUMABLE_STATES } from '../../shopping/lib/product-columns';
+import { OPTIONAL_STATES } from '../../shopping/lib/shopping-columns';
 import { deleteRowsAction, duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { CategoryCell, ConservationCell, PeopleCell, StoreCell, UnitCell } from '../../shopping/components/shopping-cells';
@@ -335,7 +338,7 @@ export function SheetPage() {
           ),
           unit: <UnitCell value={item.unit ?? null} readOnly={locked} label={cellLabelOf('unit', item, 'Unité')} onSave={(unit) => bulk('unit')(item, { unit })} />,
           consumable: (
-            <EditableCheck value={item.consumable} readOnly={locked} label={cellLabelOf('consumable', item, 'Consommable')} onSave={(consumable) => bulk('consumable')(item, { consumable })} />
+            <StateButton {...CONSUMABLE_STATES} value={item.consumable} readOnly={locked} label={cellLabelOf('consumable', item, 'Consommable')} onChange={(consumable) => bulk('consumable')(item, { consumable })} />
           ),
           store: (
             <StoreCell
@@ -381,7 +384,7 @@ export function SheetPage() {
               onSave={(url) => bulk('url')(item, { url })}
             />
           ),
-          optional: <EditableCheck value={item.optional} readOnly={locked} label={cellLabelOf('optional', item, 'Facultatif')} onSave={(optional) => bulk('optional')(item, { optional })} />,
+          optional: <StateButton {...OPTIONAL_STATES} value={item.optional} readOnly={locked} label={cellLabelOf('optional', item, 'Facultatif')} onChange={(optional) => bulk('optional')(item, { optional })} />,
           note: <EditableMarkdown value={item.note ?? null} readOnly={locked} label={cellLabelOf('note', item, 'Description')} onSave={(note) => bulk('note')(item, { note })} />,
         })}
         actions={(item) => (

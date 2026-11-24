@@ -1,4 +1,4 @@
-import { clientRootProject, localAt, relativeDay } from './factories';
+import { clientRootProject, parisAt, relativeDay } from './factories';
 import { fakerFR as faker } from '@faker-js/faker';
 import { EMPTY_MAIL_SEARCH, twoDigits } from '@ordo/shared';
 import { ImapFlow } from 'imapflow';
@@ -338,7 +338,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   const inbox = new Map<string, number>();
   const ordered = [...mails].sort((x, y) => `${x.date}${twoDigits(x.hour)}`.localeCompare(`${y.date}${twoDigits(y.hour)}`));
   for (const mail of ordered) {
-    const date = localAt(mail.date, mail.hour, faker.number.int({ min: 0, max: 59 }));
+    const date = parisAt(mail.date, mail.hour, faker.number.int({ min: 0, max: 59 }));
     const messageId = `<${faker.string.alphanumeric(16)}@${mail.from.address.split('@')[1]}>`;
     if (mail.key) ids.set(mail.key, messageId);
     const parent = mail.replyTo ? ids.get(mail.replyTo) : undefined;
@@ -387,7 +387,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   }
 
   // --- A mail scheduled for tomorrow morning ------------------------------------------------------------
-  const sendAt = localAt(day(1), 8, 30);
+  const sendAt = parisAt(day(1), 8, 30);
   await scheduleMail(
     {
       accountId: account.id,

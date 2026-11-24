@@ -10,7 +10,7 @@ Ce que l’utilisateur peut faire avec les alarmes : la page `/alarms` (« Alarm
 | `NOT_TRACKING`      | « Si pas de chrono »       | « Sonne aux dates et heures prévues, seulement si aucun chrono ne tourne (ex. « Lance ton chrono » à 9 h). » |
 | `TRACKING_DURATION` | « Pendant le chrono »      | « Sonne après chaque durée de chrono (ex. une pause toutes les 50 minutes). »                                |
 
-Les alarmes ne sonnent que tant qu’Ordo est ouvert dans un onglet du navigateur.
+Les alarmes sonnent dans Ordo ouvert dans un onglet du navigateur ; app fermée, elles arrivent en notification sur les appareils ajoutés avec « Sonner hors de l’app » (voir [Hors de l’app](#hors-de-lapp-notifications-push)).
 
 ## Page « Alarmes » (`/alarms`)
 
@@ -104,7 +104,7 @@ Avec « Sonner hors de l’app » et un appareil ajouté, ce qui sonne quand l�
 
 ### Alarmes
 
-- Planifiées (`REMINDER`, `NOT_TRACKING`) : à leur heure ; une occurrence manquée (application fermée) sonne à l’ouverture si elle date de moins de 6 heures. Une occurrence n’est sonnée qu’une fois ; `NOT_TRACKING` ne sonne pas si un chrono au moins tourne (l’occurrence est quand même comptée comme passée).
+- Planifiées (`REMINDER`, `NOT_TRACKING`) : à leur heure ; une occurrence manquée (application fermée) sonne à l’ouverture si elle date de moins de 6 heures. Une occurrence n’est sonnée qu’une fois ; `NOT_TRACKING` ne sonne pas si un chrono au moins tourne dans l’espace de l’alarme (ceux des autres espaces ne comptent pas ; l’occurrence est quand même comptée comme passée) ; tant que la liste des chronos n’est pas chargée (réseau coupé à l’ouverture), elle attend : ni sonnée, ni comptée comme passée.
 - `TRACKING_DURATION` : à chaque multiple de la durée de chacun des chronos en cours (hors pause ; plusieurs chronos à la fois) qui portent sur la tâche de l’alarme, sinon sur son projet ou l’un de ses sous-projets ; une alarme sans tâche ni projet compte tous les chronos. Les paliers déjà franchis à la première vérification ne sonnent pas.
 - Toast : icône d’alarme, libellé, note, lien vers la tâche (« Projet #12 Libellé ») ou le projet.
 

@@ -19,7 +19,12 @@ interface RoutineSlotTimes {
 /** Occurrence of a routine shown in the calendar: its day now, and one of its times of the day. */
 export interface RoutineOccurrenceRef {
   routine: Routine;
+  /** Day that identifies it (its ticks, comments, changes): its due day, or the day of its rule when moved and kept apart. */
   date: string;
+  /** Its due day (the day it shows on once past). */
+  dueDate: string;
+  /** Day it shows on (its due day once past, today while it runs, its first day before): a drag moves it from there. Optional. Default = its due day. */
+  shownDate?: string;
   slot: RoutineSlotTimes;
   /** Cancelled (shown struck through): only given back. Optional. Default = false. */
   cancelled?: boolean;
@@ -103,7 +108,7 @@ export function useCalendarEdits() {
    * @returns {Promise<void>}
    */
   const removeRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
-    const { routine, date } = occurrence;
+    const { routine, date, dueDate } = occurrence;
     const [THIS, FOLLOWING] = await Promise.all((['THIS', 'FOLLOWING'] as const).map((scope) => fetchLostOnDelete({ routineOccurrence: { id: routine.id, date, scope } })));
     // This one is cancelled (it stays, struck through), it and the following ones really disappear.
     const scope = await askScope({
@@ -120,9 +125,9 @@ export function useCalendarEdits() {
         onError: onMutationError,
         onSuccess: ({ archived, comments }) => {
           if (archived) notifySuccess(`Plus aucune occurrence : « ${routine.label} » est archivée.`);
-          // « Annuler » gives the occurrence back (it kept its comments).
-          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} annulée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments }, ON_ERROR));
-          else notifySuccess(`« ${routine.label} » s’arrête avant le ${fmt.dayLong(date)}.`);
+          // « Annuler » gives the occurrence back as it was before (its day, kept apart, its times), with its comments.
+          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(dueDate)} annulée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments, undo: true }, ON_ERROR));
+          else notifySuccess(`« ${routine.label} » s’arrête avant le ${fmt.dayLong(dueDate)}.`);
         },
       },
     );
@@ -169,7 +174,7 @@ export function useCalendarEdits() {
       occurrence.cancelled || occurrence.archived
         ? 'THIS'
         : await askScope({ action: 'update', title: 'Modifier une routine', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
-    openFormPanel(`« ${occurrence.routine.label} » du ${fmt.dayLong(occurrence.date)}`, (close) => (
+    openFormPanel(`« ${occurrence.routine.label} » du ${fmt.dayLong(occurrence.dueDate)}`, (close) => (
       <RoutineOccurrenceForm
         occurrence={occurrence}
         movedFrom={movedFrom}
@@ -181,7 +186,8 @@ export function useCalendarEdits() {
         }}
         onRestore={() => {
           close();
-          removeMove.mutate({ id: occurrence.routine.id, from: occurrence.date }, toastCallbacks(`Occurrence du ${fmt.dayLong(occurrence.date)} rétablie.`));
+          // As before its cancel (its day, kept apart, its times), as « Annuler » of the cancel does.
+          removeMove.mutate({ id: occurrence.routine.id, from: occurrence.date, undo: true }, toastCallbacks(`Occurrence du ${fmt.dayLong(occurrence.date)} rétablie.`));
         }}
       />
     ));

@@ -2,15 +2,15 @@ import { groupBy, sumOf } from '../core/collections';
 import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema, UserError } from '../core/rules';
-import { addDays, daysBetween, isoWeek, monthOfDay, monthOfYear, weekdayOfDate, yearOfDay } from '../dates/days';
-import { DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from '../dates/recurrence';
+import { addDays, daysBetween, monthOfDay, weekdayOfDate, yearOfDay } from '../dates/days';
+import { DEFAULT_RECURRENCE, movedWeekdays, ONE_DAY, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
-import { dayOfMonthOf, daysInMonth, monthIndex, shiftMonth } from '../dates/months';
+import { monthIndex, shiftMonth } from '../dates/months';
 import { startRemindersSchema } from '../dates/reminders';
 
-/** Hours of a day of a case, in local time. */
+/** Hours of a day of a case, in Paris time. */
 const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine(...endAfter('start', 'end', true));
 type TimeRange = z.infer<typeof timeRangeSchema>;
 
@@ -738,19 +738,6 @@ const daySlots = (schedule: WorkScheduleRule, date: string): ScheduleSlotTime[] 
 const sameHours = (a: ScheduleSlotTime, b: ScheduleSlotTime) => a.allDay === b.allDay && (a.allDay || (a.start === b.start && a.end === b.end));
 
 /**
- * Rule whose monthly and yearly values are those of a new day (its day of the month, weekday, position, month, week).
- * @param {Recurrence} rule Rule.
- * @param {string} to New day.
- * @returns {Recurrence} Rule.
- */
-function ruleMovedTo(rule: Recurrence, to: string): Recurrence {
-  const day = dayOfMonthOf(to);
-  const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
-  const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
-  return { ...rule, monthDay: day, weekday: weekdayOf(to), position, month: monthOfYear(to), week: isoWeek(to) };
-}
-
-/**
  * Case of a slot moved from a day to another (or its hours changed), keeping the rhythm of its case: weekly on the
  * new weekday, monthly and yearly on the new day of the month, every n days and weeks counted from the new day.
  * @param {ScheduleCase} item Case of the slot.
@@ -769,40 +756,47 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
   const base = item.anchor ?? item.since ?? periodStart;
   const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
   const anchor = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
-  if (rule.frequency === 'WEEKLY') return { ...result, anchor, rule: { ...rule, weekdays: [weekdayOf(to)] } };
+  if (rule.frequency === 'WEEKLY') {
+    // Moved into another week: its weeks go with it (even or odd weeks swapped, every n weeks from its week moved).
+    const moved = movedWeekdays(rule, base, [weekdayOf(date)], daysBetween(date, to));
+    return { ...result, anchor: moved.anchor, rule: moved.rule };
+  }
   if (rule.frequency === 'DAILY') return { ...result, anchor };
   return { ...result, anchor, rule: ruleMovedTo(rule, to) };
 }
 
 /**
  * Case moved with its whole period by a number of days: its bounds and anchor, the end, skipped days and pauses of
- * its rule, its weekdays, and its monthly and yearly values (those of its first day, moved).
+ * its rule, its weekdays, and its monthly and yearly values (those of its first day, moved). Weekly with its weeks
+ * counted (every n weeks, even or odd weeks), its weekdays changing week and those that do not become two cases, each
+ * on its own weeks (`shiftedRulePieces`).
  * @param {ScheduleCase} item Case.
  * @param {string} periodStart First day of its period (before the move).
  * @param {string | null} periodEnd Last day of its period (before the move), none: open.
  * @param {number} days Days moved (negative: earlier).
- * @returns {ScheduleCase} Case.
+ * @returns {ScheduleCase[]} Case, or its pieces.
  */
-function shiftedCase(item: ScheduleCase, periodStart: string, periodEnd: string | null, days: number): ScheduleCase {
+function shiftedCases(item: ScheduleCase, periodStart: string, periodEnd: string | null, days: number): ScheduleCase[] {
   const shift = (day: string | null) => day && addDays(day, days);
-  const rule = item.rule && {
-    ...item.rule,
-    until: shift(item.rule.until),
-    exceptions: item.rule.exceptions.map((day) => addDays(day, days)),
-    pauses: item.rule.pauses.map((pause) => ({ from: addDays(pause.from, days), to: addDays(pause.to, days) })),
-  };
-  const result: ScheduleCase = { ...item, since: shift(item.since), until: shift(item.until), anchor: shift(item.anchor), rule };
-  if (!rule || rule.frequency === 'DAILY') return result;
-  if (rule.frequency === 'WEEKLY') {
-    return { ...result, rule: { ...rule, weekdays: rule.weekdays.map((weekday) => ((((weekday - 1 + days) % 7) + 7) % 7) + 1).sort((a, b) => a - b) } };
-  }
-  // Its first day, within a year of its start.
+  const result: ScheduleCase = { ...item, since: shift(item.since), until: shift(item.until), anchor: shift(item.anchor) };
+  if (!item.rule) return [result];
+  const needsFirst = item.rule.frequency === 'MONTHLY' || item.rule.frequency === 'YEARLY' || (item.rule.frequency === 'WEEKLY' && !item.rule.weekdays.length);
+  const pieces = shiftedRulePieces(item.rule, needsFirst ? caseFirstDay(item, periodStart, periodEnd) : null, days, item.anchor ?? item.since ?? periodStart);
+  return pieces.map((piece) => ({ ...result, rule: piece.rule, anchor: piece.anchor ?? result.anchor }));
+}
+
+/**
+ * First day of a case, within a year of its start.
+ * @param {ScheduleCase} item Case.
+ * @param {string} periodStart First day of its period.
+ * @param {string | null} periodEnd Last day of its period, none: open.
+ * @returns {string | null} Day, none within a year.
+ */
+function caseFirstDay(item: ScheduleCase, periodStart: string, periodEnd: string | null): string | null {
   const start = item.since && item.since > periodStart ? item.since : periodStart;
   const last = [item.until, periodEnd].reduce<string>((earliest, day) => (day && day < earliest ? day : earliest), addDays(start, 366));
-  for (let day = start; day <= last; day = addDays(day, 1)) {
-    if (caseOn(item, periodStart, day)) return { ...result, rule: ruleMovedTo(rule, addDays(day, days)) };
-  }
-  return result;
+  for (let day = start; day <= last; day = addDays(day, 1)) if (caseOn(item, periodStart, day)) return day;
+  return null;
 }
 
 /**
@@ -815,12 +809,12 @@ function shiftedSchedule(schedule: WorkScheduleRule, days: number): ChangedSched
   return {
     startDate: addDays(schedule.startDate, days),
     endDate: schedule.endDate && addDays(schedule.endDate, days),
-    cases: schedule.cases.map((item) => shiftedCase(item, schedule.startDate, schedule.endDate, days)),
+    cases: schedule.cases.flatMap((item) => shiftedCases(item, schedule.startDate, schedule.endDate, days)),
     exceptions: schedule.exceptions.map((exception) => ({
       ...exception,
       from: addDays(exception.from, days),
       to: addDays(exception.to, days),
-      cases: exception.cases.map((item) => shiftedCase(item, exception.from, exception.to, days)),
+      cases: exception.cases.flatMap((item) => shiftedCases(item, exception.from, exception.to, days)),
     })),
   };
 }

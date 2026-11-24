@@ -1,12 +1,13 @@
 import { useActiveWorkspace } from '../../workspaces/api';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey, ME_KEY } from '../../../components/people/people-keys';
 import { unarchived } from '../../../lib/archive';
-import { Checkbox, Group, Text } from '@mantine/core';
+import { Group, Text } from '@mantine/core';
 import { TrashIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { itemSelectProps } from '../../../components/items/item-look';
 import { splitAmounts, type TreasuryLineMode, fromCents, directionOf } from '@ordo/shared';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
+import { StateButton } from '../../../components/data-table/cells/StateButton';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
@@ -27,7 +28,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { createInPanel } from '../../../components/settings/create-settings-item';
 import { useCategoryCreators } from '../hooks/use-settings-items';
 import { ContextForm, RelationForm } from './TeamPanel';
-import { lineColumns, whomKey, type LineRow } from '../lib/treasury-columns';
+import { LOAN_STATES, lineColumns, whomKey, type LineRow } from '../lib/treasury-columns';
 
 /** Line of a split entry, with its place and signed amount. */
 const lineKey = (row: LineRow) => row.line.id ?? String(row.index);
@@ -174,8 +175,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
         />
       )}
       cells={(row) => {
-        const { line, index } = row;
-        const name = line.label ? `« ${line.label} »` : `la ligne ${index + 1}`;
+        const { line } = row;
         return {
           label: <EditableText value={line.label} label={cellLabelOf('label', row, 'Libellé')} nullable onSave={(label) => saveLine('label', row, { label })} />,
           whom: (
@@ -250,14 +250,13 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
           ),
           amount: <SignedAmount value={row.amount} />,
           loan: (
-            <Checkbox
-              size="xs"
-              aria-label={`Prêt (${name})`}
-              disabled={!line.relationId}
-              title={line.relationId ? undefined : 'Un prêt se fait avec une relation : choisissez-la comme bénéficiaire.'}
-              checked={line.loan}
-              onChange={(event) => {
-                const loan = event.currentTarget.checked;
+            <StateButton
+              {...LOAN_STATES}
+              value={line.loan}
+              label={cellLabelOf('loan', row, 'Prêt')}
+              readOnly={!line.relationId}
+              hint={line.relationId ? undefined : 'Un prêt se fait avec une relation : choisissez-la comme bénéficiaire.'}
+              onChange={(loan) => {
                 // A loan is with a relation only.
                 saveLine('loan', row, (target) => (target.line.relationId ? { loan } : {}));
               }}

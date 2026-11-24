@@ -8,12 +8,14 @@ import { readLinks } from '../core/links';
 import { LINKED_DOCUMENTS_SELECT } from '../projects/linked-documents';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { forgetGithubItems } from '../github/links';
+import { TASK_PEOPLE_LINKS } from '../tasks/tasks';
 import { effectiveTasks } from '../tasks/task-inheritance';
 import { effectiveRoutineOf, loadRoutineInheritance } from './routine-inheritance';
 import { parisToday } from '../../today';
 import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
 import { automated } from '../tasks/task-automation-engine';
-import { firstOccurrence, loadScheduleContext, occurrenceSpansBetween, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf, storedCondition, type RoutineTiming } from './routines';
+import { firstOccurrence, occurrenceOn, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf } from './routines';
+import { LATEST_CHECKS, loadScheduleContext, storedCondition, type RoutineTiming } from './routine-occurrences';
 
 /** Largest « Ouverture » of a routine before its due day, in days (`routineOpensSchema`, mode BEFORE). */
 const MAX_OPENS_BEFORE = 366;
@@ -68,11 +70,7 @@ export const convertTaskToRoutine = automated(async function convertTaskToRoutin
   const stored = await prisma.task.findUniqueOrThrow({
     where: { id },
     include: {
-      sprints: { select: { id: true } },
-      assignees: { select: { id: true } },
-      beneficiaries: { select: { id: true } },
-      beneficiaryRelations: { select: { id: true } },
-      tags: { select: { id: true } },
+      ...TASK_PEOPLE_LINKS,
       blocking: { select: { blockedId: true } },
       blockedBy: { select: { blockerId: true } },
       relationsA: { select: { taskBId: true } },
@@ -220,6 +218,8 @@ export const convertRoutineToTask = automated(async function convertRoutineToTas
       checklists: { select: { id: true, occurrenceDate: true } },
       eventLinks: { select: { eventId: true, date: true } },
       timeEntries: { select: { id: true } },
+      // Its latest ticks, as its panel reads them: of two occurrences due the same day, the same one is current.
+      checks: LATEST_CHECKS,
       _count: { select: { checks: true } },
     },
   });
@@ -239,7 +239,7 @@ export const convertRoutineToTask = automated(async function convertRoutineToTas
   const schedules = await loadScheduleContext();
   const { current, next } = occurrencesOf(routine, undefined, schedules);
   const occurrence = current ?? next ?? firstOccurrence(routine, schedules);
-  const span = occurrence ? occurrenceSpansBetween(routine, occurrence, occurrence, schedules).find((item) => item.end === occurrence) : undefined;
+  const span = occurrence ? occurrenceOn(routine, occurrence, schedules) : undefined;
   const opening = span && span.start < span.end ? span.start : null;
   const onOccurrence = (date: Date | null) => occurrence !== null && formatOptionalDay(date) === occurrence;
   const comments = routine.comments.filter((comment) => onOccurrence(comment.occurrenceDate));
@@ -279,7 +279,7 @@ export const convertRoutineToTask = automated(async function convertRoutineToTas
         deadTimes: toJson(readDeadTimes(routine.deadTimes)),
         savedCountdowns: await linkedSavedCountdowns('ROUTINE', id, tx),
         minDate: parseOptionalDay(opening),
-        deadline: parseOptionalDay(occurrence),
+        deadline: parseOptionalDay(span?.end ?? occurrence),
         location: routine.location,
         locationLat: routine.locationLat,
         locationLon: routine.locationLon,

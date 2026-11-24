@@ -1,4 +1,6 @@
-import { FolderPlusIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
+import { FolderPlusIcon, PencilSimpleIcon } from '@phosphor-icons/react';
+import { YesNoIcon } from '../../../components/data-table/cells/YesNoIcon';
+import { FAVORITE_STATES, nextStateLabel } from '../../../components/data-table/table/data-table';
 import { useProjectTree } from '../api';
 import { canHaveChildren } from '../lib/tree';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
@@ -50,8 +52,8 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
           onClick: () => (entity.type === 'client' ? actions.openClientForm(entity.item) : actions.openProjectForm(entity.item)),
         },
         !item.archived && {
-          label: item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
-          icon: <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />,
+          label: nextStateLabel(FAVORITE_STATES, item.favorite),
+          icon: <YesNoIcon value={item.favorite} icons={FAVORITE_STATES.icons} decorative />,
           onClick: () => actions.setFavorite(entity, !item.favorite),
         },
         ...actions.lifecycleEntries(entity),

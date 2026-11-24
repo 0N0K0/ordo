@@ -1,8 +1,9 @@
 import { Box, Checkbox, Group, Text, Tooltip } from '@mantine/core';
-import { CheckCircleIcon, FlagIcon, PaperclipIcon } from '@phosphor-icons/react';
+import { FlagIcon, PaperclipIcon } from '@phosphor-icons/react';
+import { YesNoIcon } from '../../../components/data-table/cells/YesNoIcon';
 import { useDraggable } from '@dnd-kit/core';
 import type { ReactNode } from 'react';
-import { correspondent, listDate, type Address } from '../lib/mail-format';
+import { correspondent, listDate, MAIL_DONE_STATES, type Address } from '../lib/mail-format';
 import classes from '../pages/MailPage.module.css';
 
 /** What a row of a mail list shows of a mail. */
@@ -72,7 +73,7 @@ export function MailListItem({ message, labels, ownAddresses, active, ticked, on
         <Box style={{ flex: 1, minWidth: 0 }}>
           <Group justify="space-between" wrap="nowrap" gap="xs">
             <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
-              {message.done && <CheckCircleIcon weight="fill" color="var(--mantine-color-green-6)" aria-label="Traité" style={{ flex: 'none' }} />}
+              {message.done && <YesNoIcon value labels={MAIL_DONE_STATES.labels} size={16} />}
               <Text size="sm" truncate className={classes.sender}>
                 {correspondent(message, ownAddresses)}
               </Text>

@@ -577,6 +577,21 @@ export async function setSheetLinks(owner: OwnerIds, links: SheetLinkInput[]): P
   ]);
 }
 
+/**
+ * Sheets of an event, as a new event made of it keeps them (the series a change of the event splits it into): same
+ * sheets, multipliers and order; the checklists made stay with their occurrences.
+ * @param {string} eventId Event.
+ * @param {Pick<typeof prisma, 'sheetLink'> | Prisma.TransactionClient} [client] Client or transaction. Optional. Default = the scoped client.
+ * @returns {Promise<{ create: { sheetId: string, multiplier: Prisma.Decimal, position: number }[] }>} Relation of the new event.
+ */
+export async function copiedEventSheetLinks(
+  eventId: string,
+  client: Pick<typeof prisma, 'sheetLink'> | Prisma.TransactionClient = prisma,
+): Promise<{ create: { sheetId: string; multiplier: Prisma.Decimal; position: number }[] }> {
+  const links = await client.sheetLink.findMany({ where: { eventId }, orderBy: BY_POSITION_ONLY, select: { sheetId: true, multiplier: true, position: true } });
+  return { create: links };
+}
+
 // Checklists -----------------------------------------------------------------------------------------------------
 
 /**

@@ -29,9 +29,10 @@
       padding-inline-start: calc(var(--mantine-spacing-xs) * 2.25);
     }
 
-    /* Typographie */
+    /* Typographie: aligned as the cells of its column (DataTable.module.css). */
     font-size: var(--mantine-font-size-sm);
     color: inherit;
+    text-align: var(--cell-text-align, start);
 
     &:hover,
     &:focus,
@@ -64,9 +65,10 @@
 
   /* Chip cells (status, priority, type): the chip is the value, the whole cell opens the list. */
   .chipTrigger {
-    /* Agencement */
+    /* Agencement: the chip aligned as the cells of its column (DataTable.module.css). */
     display: flex;
     align-items: center;
+    justify-content: var(--cell-justify, flex-start);
 
     /* Dimension */
     width: 100%;
@@ -75,6 +77,12 @@
     &:focus-visible {
       outline-color: var(--mantine-color-default-border);
     }
+  }
+
+  /* Hours and minutes of a time cell, aligned as the cells of its column (DataTable.module.css). */
+  .timeFields {
+    /* Agencement */
+    justify-content: var(--cell-justify, flex-start);
   }
 
   .placeholder {

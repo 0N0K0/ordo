@@ -1,7 +1,10 @@
-import { COUNTDOWN_MAX_SECONDS, countdownExtensionSchema, countdownInputSchema, countdownRemaining, parseOptionalDay, RING_KEPT_MS, type CountdownInput } from '@ordo/shared';
+import { COUNTDOWN_MAX_SECONDS, countdownExtensionSchema, countdownInputSchema, countdownRemaining, parseOptionalDay, RING_KEPT_MS, RING_LATE_MS, type CountdownInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Countdown } from '../../generated/prisma/client';
 import { orNotFound, parseInput } from '../../graphql/errors';
+
+/** Clock gap allowed between the device that rings a timer and the server, in milliseconds. */
+const RING_CLOCK_GAP_MS = 5000;
 
 /**
  * Timers (« minuteurs ») of a user, shared by the workspaces as the rings (`AlarmRing`): several run at
@@ -17,6 +20,21 @@ import { orNotFound, parseInput } from '../../graphql/errors';
  */
 export function activeCountdowns(userId: string) {
   return { where: { userId, rungAt: null }, orderBy: [{ endsAt: { sort: 'asc' as const, nulls: 'last' as const } }, { createdAt: 'asc' as const }] };
+}
+
+/**
+ * Before the timers of a user are read: one ended more than 6 hours ago without ringing (app closed, no push) is
+ * no longer rung, as an alarm missed that long ago (recorded as rung: it no longer shows, removed 6 hours later); one
+ * paused once ended (no time left) ends now, so that it rings.
+ * @param {string} userId User.
+ * @returns {Promise<void>} Done.
+ */
+export async function settleStaleCountdowns(userId: string): Promise<void> {
+  const now = Date.now();
+  await prisma.$transaction([
+    prisma.countdown.updateMany({ where: { userId, rungAt: null, endsAt: { lt: new Date(now - RING_LATE_MS) } }, data: { rungAt: new Date(now) } }),
+    prisma.countdown.updateMany({ where: { userId, rungAt: null, endsAt: null, remainingSeconds: { lte: 0 } }, data: { endsAt: new Date(now), remainingSeconds: null } }),
+  ]);
 }
 
 /**
@@ -60,8 +78,8 @@ export async function startCountdown(userId: string, input: CountdownInput): Pro
 }
 
 /**
- * Pauses (the seconds left kept) or resumes (it ends after them) a timer not rung; asking the state it is in does
- * nothing.
+ * Pauses (the seconds left kept) or resumes (it ends after them) a timer not rung; asking the state it is in, or
+ * pausing one already ended, does nothing.
  * @param {string} userId User.
  * @param {string} id Timer.
  * @param {boolean} paused Target state.
@@ -71,6 +89,8 @@ export async function setCountdownPaused(userId: string, id: string, paused: boo
   const countdown = await findCountdown(userId, id);
   if (countdown.rungAt || paused === (countdown.endsAt === null)) return countdown;
   const left = countdownRemaining(countdown);
+  // Ended (its ring due): nothing to pause, it rings.
+  if (paused && left <= 0) return countdown;
   const data = paused ? { endsAt: null, remainingSeconds: left } : { endsAt: new Date(Date.now() + left * 1000), remainingSeconds: null };
   return prisma.countdown.update({ where: { id }, data });
 }
@@ -93,14 +113,16 @@ export async function extendCountdown(userId: string, id: string, minutes: numbe
 }
 
 /**
- * Records that the end of a timer rang (its ring goes on as an `AlarmRing`): it no longer shows. Already rung or
- * cancelled: nothing.
+ * Records that the end of a timer rang (its ring goes on as an `AlarmRing`): it no longer shows. Only a timer that
+ * runs and has ended is recorded (a few seconds of clock gap between the device and the server allowed): one paused
+ * or given more minutes elsewhere meanwhile, already rung or cancelled: nothing.
  * @param {string} userId User.
  * @param {string} id Timer.
  * @returns {Promise<void>} Done.
  */
 export async function ringCountdown(userId: string, id: string): Promise<void> {
-  await prisma.countdown.updateMany({ where: { id, userId, rungAt: null }, data: { rungAt: new Date() } });
+  const now = Date.now();
+  await prisma.countdown.updateMany({ where: { id, userId, rungAt: null, endsAt: { lte: new Date(now + RING_CLOCK_GAP_MS) } }, data: { rungAt: new Date(now) } });
 }
 
 /**

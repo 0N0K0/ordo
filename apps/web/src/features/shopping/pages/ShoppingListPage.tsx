@@ -24,7 +24,6 @@ import {
   ShoppingCartIcon,
   TrashIcon,
   TruckIcon,
-  CheckIcon,
   EyeIcon,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -49,7 +48,7 @@ import { ShoppingTable } from '../components/ShoppingTable';
 import { StoreMode } from '../components/StoreMode';
 import { OrderPanel } from '../components/OrderPanel';
 import { deliveryInput, deliveryLabel } from '../lib/delivery-format';
-import { listSheets, useShoppingItemColumns } from '../hooks/use-shopping-columns';
+import { BOUGHT_STATES, listSheets, useShoppingItemColumns } from '../hooks/use-shopping-columns';
 import { StockPurchaseForm } from '../../stock/components/StockPurchaseForm';
 import { useStockProposal } from '../../stock/hooks/use-stock-proposal';
 import { useProductStock, useStockMutations } from '../../stock/api';
@@ -278,10 +277,7 @@ export function ShoppingListPage() {
             id: 'bought',
             name: 'Acheté',
             value: (item) => Boolean(item.purchasedAt),
-            label: (item) => `${item.label} acheté`,
-            hint: (item) => (item.purchasedAt ? 'Acheté (cliquer : pas encore acheté)' : 'À acheter (cliquer : acheté)'),
-            icon: <CheckIcon aria-hidden />,
-            color: 'green',
+            states: BOUGHT_STATES,
             // Bought: the references followed in stock are proposed for the stock (unless they go there by themselves).
             onChange: (items, purchased) => {
               const changed = items.filter((item) => Boolean(item.purchasedAt) !== purchased);

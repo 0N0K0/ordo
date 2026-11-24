@@ -100,7 +100,7 @@ En-tête de la liste :
 
 Chaque ligne :
 
-- Case à cocher ; coche verte « Traité » si le mail est traité ; correspondant ; drapeaux (icône drapeau à la couleur du drapeau, info-bulle libellé) ; trombone si pièces jointes ; date ; objet (« (sans objet) » si vide).
+- Case à cocher ; carré vert coché « Traité » si le mail est traité ; correspondant ; drapeaux (icône drapeau à la couleur du drapeau, info-bulle libellé) ; trombone si pièces jointes ; date ; objet (« (sans objet) » si vide).
 - Correspondant : l’expéditeur, ou « À : destinataire » quand le mail vient d’une des adresses de l’utilisateur (quel que soit le dossier).
 - Date : heure si aujourd’hui, jour court si cette année, date complète sinon.
 - En gras tant que non lu ; atténué une fois traité ; surligné quand ouvert ou coché.
@@ -119,7 +119,7 @@ Chaque ligne :
 Barre affichée dès qu’un mail est coché (dans un dossier comme dans une recherche) :
 
 - « N sélectionné(s) ».
-- Interrupteur « Traité » (info-bulle « Marquer comme traité » / « Marquer comme à traiter ») : coché si tous les mails cochés sont traités.
+- Bouton d’état « Traité » (rond vert coché si tous les mails cochés sont traités, sinon rond gris vide « À traiter » ; un clic bascule ; info-bulle « Marquer comme traité » / « Marquer comme à traiter »).
 - Menu « Drapeaux » (reste ouvert) : chaque drapeau non archivé, coché s’il est sur tous les mails cochés ; cliquer l’ajoute ou le retire ; « Gérer les drapeaux… » ouvre les paramètres. Un drapeau archivé déjà posé reste listé pour pouvoir être retiré.
 - « Signaler comme spam » (orange) : déplace dans le dossier des indésirables ; toast « Mail signalé comme spam. » / « Mails signalés comme spam. ». Quand tous les mails sont déjà dans les indésirables, le bouton devient « Pas un spam » (retour en réception), toast « Mail remis en réception. » / « Mails remis en réception. ».
 - « Déplacer vers… » : menu des dossiers de la boîte (indentés) ; seulement si tous les mails sont d’une même boîte, et pas dans l’onglet mails d’un projet.
@@ -216,7 +216,7 @@ Le focus va sur « À » s’il est vide, sinon au début du corps.
 
 « Programmer » (mêmes conditions que « Envoyer ») ouvre « Envoyer plus tard » :
 
-- « Cet après-midi » (14 h, proposé seulement avant 13 h), « Demain matin » (8 h), « \<Premier jour de la semaine\> matin » (8 h, le prochain premier jour de semaine de l’espace, ex. « Lundi matin ») ; l’heure exacte est affichée à droite.
+- Heures de Paris, quel que soit le fuseau du navigateur : « Cet après-midi » (14 h, proposé seulement avant 13 h), « Demain matin » (8 h), « \<Premier jour de la semaine\> matin » (8 h, le prochain premier jour de semaine de l’espace, ex. « Lundi matin ») ; l’heure exacte est affichée à droite.
 - « Date et heure » libres (à partir d’aujourd’hui, le jour et l’heure dans un seul sélecteur), puis « Programmer l’envoi ».
 
 Toast « Envoi programmé le \<date courte et heure\>. ». Le mail est construit tout de suite (fichiers compris) et son brouillon est supprimé.

@@ -1,6 +1,6 @@
 import type { TableFilterGroup } from '@ordo/shared';
 import { tableFilterFields } from '../../../components/data-table/table/table-engine';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { filterUses } from '../lib/task-columns';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import type { TaskContext } from '../hooks/use-task-context';
@@ -13,6 +13,6 @@ import { FieldsFilterBuilder } from '../../../components/filters/FilterBuilder';
  * @returns {JSX.Element} Builder.
  */
 export function TaskFilterBuilder({ filter, context, onChange }: { filter: TableFilterGroup; context: TaskContext; onChange: (filter: TableFilterGroup) => void }) {
-  const columns = useTaskColumns(context, localToday(), { doable: filterUses(filter, 'doableNow') });
+  const columns = useTaskColumns(context, parisToday(), { doable: filterUses(filter, 'doableNow') });
   return <FieldsFilterBuilder filter={filter} fields={tableFilterFields(columns)} onChange={onChange} />;
 }

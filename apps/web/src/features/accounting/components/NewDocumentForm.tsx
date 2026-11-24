@@ -3,7 +3,7 @@ import { ClientSelect } from '../../projects/components/ClientSelect';
 import { agreed, type AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAsyncAction } from '../../../lib/use-async-action';
 import { useProjectTree } from '../../projects/api';
 import { fetchNewDocumentDefaults, useDocumentMutations } from '../api/documents';
@@ -37,7 +37,7 @@ export function NewDocumentForm({
   const { run: submit, loading } = useAsyncAction(
     async () => {
       if (!clientId) throw new Error('Choisissez un client.');
-      const defaults = await fetchNewDocumentDefaults({ type, clientId, issueDate: localToday() });
+      const defaults = await fetchNewDocumentDefaults({ type, clientId, issueDate: parisToday() });
       return create.mutateAsync({ type, input: { ...defaults, projectId } });
     },
     {

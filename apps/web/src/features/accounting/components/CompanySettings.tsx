@@ -10,6 +10,7 @@ import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from '../api';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
+import { parisToday, yearOfDay } from '../../../lib/dates';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
@@ -213,7 +214,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
  * @returns {JSX.Element} Section.
  */
 function NumberingSettings() {
-  const currentYear = new Date().getFullYear();
+  const currentYear = yearOfDay(parisToday());
   const [year, setYear] = useState(currentYear);
   const { data: sequences, isPending } = useDocumentSequences(year);
   const { setSequence } = useCompanyMutations();

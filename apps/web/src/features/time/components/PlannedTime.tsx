@@ -1,12 +1,12 @@
 import { Group, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
-import { addDays, daysBetween, entrySeconds, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
+import { addDays, daysBetween, entrySecondsWithin, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
 import { useMemo } from 'react';
-import { localMidnight, localParts, localToday } from '../../../lib/dates';
+import { parisMidnight } from '../../../lib/dates';
 import { useWorkingHours } from '../../calendar/api';
 import { schedulesTitle } from '../../calendar/lib/schedule-text';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useTimeEntriesSince } from '../api';
-import { useNow } from '../../../lib/use-now';
+import { useNow, useToday } from '../../../lib/use-now';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
@@ -40,13 +40,14 @@ function Gauge({ label, tracked, planned }: { label: string; tracked: number; pl
  */
 export function PlannedTime() {
   const { perso } = useActiveWorkspace();
-  const today = localToday();
+  // Changes at midnight on its own.
+  const today = useToday();
   // The week of the workspace (it may start another day than Monday, or last 8 days).
   const [monday, after] = weekRange(today, currentWeek());
   const sunday = addDays(after, -1);
   const length = daysBetween(monday, after);
   const { data: rules } = useWorkingHours();
-  const entries = useTimeEntriesSince(localMidnight(monday));
+  const entries = useTimeEntriesSince(parisMidnight(monday));
   const running = (entries.data ?? []).some((entry) => entry.endedAt === null && entry.pausedAt === null);
   const now = useNow(running);
 
@@ -55,9 +56,13 @@ export function PlannedTime() {
     // The créneaux counted only: an éphéméride is no planned work, nor an archived créneau.
     const slots = plannedSlots(rules, monday, sunday);
     const trackedByDay = new Map<string, number>();
+    // Each day its part of the times (a timer running past midnight counts on both days).
     for (const entry of entries.data ?? []) {
-      const day = localParts(entry.startedAt).date;
-      trackedByDay.set(day, (trackedByDay.get(day) ?? 0) + entrySeconds(entry, now));
+      for (let index = 0; index < length; index += 1) {
+        const day = addDays(monday, index);
+        const seconds = entrySecondsWithin(entry, Date.parse(parisMidnight(day)), Date.parse(parisMidnight(addDays(day, 1))), now);
+        if (seconds) trackedByDay.set(day, (trackedByDay.get(day) ?? 0) + seconds);
+      }
     }
     return Array.from({ length }, (_, index) => {
       const date = addDays(monday, index);

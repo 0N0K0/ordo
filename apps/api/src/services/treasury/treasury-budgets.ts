@@ -12,6 +12,7 @@ import {
   splitAmounts,
   type TreasuryBudgetInput,
   treasuryBudgetSchema,
+  storedRecurrence,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { invoiceCategories } from '../accounting/company';
@@ -20,7 +21,6 @@ import type { TreasuryBudget } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { assertContextsActive } from './treasury-contexts';
 import { contextEphemerides } from './treasury-team';
-import { storedRecurrence } from '../calendar/calendar-events';
 import { treasuryProjection } from './treasury';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertActive, findActive } from '../core/archive';

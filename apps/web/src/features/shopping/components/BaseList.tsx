@@ -1,3 +1,4 @@
+import { StateButton } from '../../../components/data-table/cells/StateButton';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -5,7 +6,7 @@ import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Group, Stack, Text } from '@mantine/core';
 
-import { ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartSimpleIcon, TrashIcon, SquareIcon } from '@phosphor-icons/react';
+import { ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, TrashIcon, SquareIcon } from '@phosphor-icons/react';
 
 import { archiveEntry, unarchived, unarchivedOffered, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
@@ -20,10 +21,11 @@ import { openNewList } from '../lib/open-new-list';
 import { openShoppingForm } from '../lib/open-shopping-form';
 import { blankInput, categoriesForBaseList } from '../lib/shopping-format';
 import { ShoppingTable, type ShoppingToggle } from './ShoppingTable';
-import { useBaseListColumns } from '../hooks/use-shopping-columns';
+import { AUTO_STOCK_STATES, MISSING_STATES, STOCK_TRACKED_STATES, useBaseListColumns } from '../hooks/use-shopping-columns';
+import { CONSUMABLE_STATES } from '../lib/product-columns';
 import * as fmt from '../../../lib/format';
 import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { EditableCheck, EditableSelect } from '../../../components/data-table/cells/EditableCells';
+import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import type { ProductStockInput } from '@ordo/shared';
 import { useStockLocations, useStockMutations } from '../../stock/api';
@@ -55,7 +57,7 @@ function confirmDelete(product: ShoppingProduct, onConfirm: () => void): void {
 }
 
 /**
- * « Manque » toggle of the references: a cart, orange when the product is missing (on the next list made).
+ * « Manque » toggle of the references: an orange triangle when the product is missing (on the next list made).
  * @param {(ids: string[], missing: boolean) => void} save Marks products missing or not.
  * @returns {ShoppingToggle<ShoppingProduct>} Toggle.
  */
@@ -63,10 +65,7 @@ const MISSING_TOGGLE = (save: (ids: string[], missing: boolean) => void): Shoppi
   id: 'missing',
   name: 'Manque',
   value: (product) => product.missing,
-  label: (product) => `${product.label} manque`,
-  hint: (product) => (product.missing ? 'Manque : sera sur la prochaine liste générée (cliquer : ne manque plus)' : 'Ne manque pas (cliquer : manque)'),
-  icon: <ShoppingCartSimpleIcon aria-hidden />,
-  color: 'orange',
+  states: MISSING_STATES,
   onChange: (products, missing) =>
     save(
       products.map((product) => product.id),
@@ -193,27 +192,30 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
           }}
           extraCells={(product) => ({
             stockTracked: (
-              <EditableCheck
+              <StateButton
+                {...STOCK_TRACKED_STATES}
                 value={product.stockTracked}
                 label={cellLabelOf('stockTracked', product, 'Suivie en stock')}
                 readOnly={locked || product.archived}
-                onSave={(stockTracked) => stockBulk('stockTracked')(product, { stockTracked })}
+                onChange={(stockTracked) => stockBulk('stockTracked')(product, { stockTracked })}
               />
             ),
             consumable: (
-              <EditableCheck
+              <StateButton
+                {...CONSUMABLE_STATES}
                 value={product.consumable}
                 label={cellLabelOf('consumable', product, 'Consommable')}
                 readOnly={locked || product.archived}
-                onSave={(consumable) => stockBulk('consumable')(product, { consumable })}
+                onChange={(consumable) => stockBulk('consumable')(product, { consumable })}
               />
             ),
             autoStock: (
-              <EditableCheck
+              <StateButton
+                {...AUTO_STOCK_STATES}
                 value={product.autoStock}
                 label={cellLabelOf('autoStock', product, 'Ajoutée au stock une fois achetée')}
                 readOnly={locked || product.archived || !product.stockTracked}
-                onSave={(autoStock) => stockBulk('autoStock')(product, (target) => (target.stockTracked ? { autoStock } : {}))}
+                onChange={(autoStock) => stockBulk('autoStock')(product, (target) => (target.stockTracked ? { autoStock } : {}))}
               />
             ),
             stockLocation: (

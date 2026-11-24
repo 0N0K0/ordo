@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
-import { INHERITANCE_RULES, planReferencesConfig, TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
+import { INHERITANCE_RULES, PARIS_TIME_RULES, planReferencesConfig, TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
 
 // Detail panels saved field by field (useFieldSave): every one of the app.
 const D22_PANELS =
@@ -44,8 +44,8 @@ const RESTRICTED_PATHS = [
   },
   {
     name: '@ordo/shared',
-    importNames: ['dayIn', 'localInstant'],
-    message: 'Utiliser localDay / localInstant de lib/dates (le jour de l’utilisateur) : un seul chemin.',
+    importNames: ['dayIn', 'timeIn', 'zonedInstant', 'parisInstant', 'parisParts'],
+    message: 'Utiliser parisDay / parisToday / parisParts / parisInstant de lib/dates : tout jour et toute heure se lisent à l’heure de Paris, un seul chemin.',
   },
   {
     name: '@mantine/dates',
@@ -129,6 +129,17 @@ const RESTRICTED_SYNTAX = [
   {
     selector: "CallExpression[callee.property.name='find'][callee.object.property.name='inheritance']",
     message: 'Utiliser originOf(item, field) (components/inheritance/inheritance) et InheritedField pour montrer un champ hérité.',
+  },
+  // A question waited for in a modal: one brick (answerInModal, askChoice), not a promise around openModal by hand.
+  {
+    selector: "NewExpression[callee.name='Promise'] CallExpression[callee.name='openModal']",
+    message: 'Utiliser answerInModal ou askChoice (components/dialogs/ask-choice) pour attendre une réponse dans une modale.',
+  },
+  // The alignment of a column comes from the kind of its data, declared once per kind (data-table.ts): never per table.
+  {
+    selector: "Property[key.name='align'][value.type='Literal']",
+    message:
+      'Alignement d’une colonne : par son type (columnAlign, components/data-table/table/data-table) — `...BADGE_COLUMN`, `...TIME_COLUMN`, `...DURATION_COLUMN`, `...STACKED_COLUMN`, booleanColumn, monthColumn ; jamais écrit table par table.',
   },
   // The view a table opens by default, and its rows: one rule, wherever they are shown.
   {
@@ -275,6 +286,12 @@ const RESTRICTED_SYNTAX = [
     selector: 'CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/]',
     message: 'Utiliser lib/format (fmt.day, fmt.time, fmt.number…) : un format par rôle.',
   },
+  // Days and times: read in Paris, whatever the zone of the browser.
+  ...PARIS_TIME_RULES,
+  {
+    selector: "ImportSpecifier[imported.name='localDay']",
+    message: 'Utiliser parisDay (lib/dates) : localDay n’est gardé que pour la bibliothèque de documents, à réécrire.',
+  },
   // Rows set back: the states of DataTable, not an opacity of their own.
   {
     selector: "JSXAttribute[name.name='rowProps'] Property[key.name='opacity']",
@@ -396,12 +413,12 @@ const RESTRICTED_SYNTAX = [
   // Days: a DateTime cut gives the UTC day; the Date scalar is already a day.
   {
     selector: "CallExpression[callee.property.name='slice'][arguments.length=2][arguments.0.value=0]:matches([arguments.1.value=7], [arguments.1.value=10])",
-    message: 'Pas de .slice(0, 10) / .slice(0, 7) : localDay(instant) (lib/dates) pour un instant, le scalaire Date tel quel pour un jour, monthColumn pour un mois.',
+    message: 'Pas de .slice(0, 10) / .slice(0, 7) : parisDay(instant) (lib/dates) pour un instant, le scalaire Date tel quel pour un jour, monthColumn pour un mois.',
   },
   {
     selector:
       "CallExpression[callee.property.name='substring'][arguments.length=2][arguments.0.value=0]:matches([arguments.1.value=7], [arguments.1.value=10]), MemberExpression[computed=true][property.value=0] > CallExpression.object[callee.property.name='split'][arguments.0.value='T']",
-    message: "Pas de .substring(0, 10) / .split('T')[0] : localDay(instant) (lib/dates) pour un instant, le scalaire Date tel quel pour un jour.",
+    message: "Pas de .substring(0, 10) / .split('T')[0] : parisDay(instant) (lib/dates) pour un instant, le scalaire Date tel quel pour un jour.",
   },
   {
     selector: "NewExpression[callee.name='Date'] TemplateElement[value.raw=/^T00:00/]",
@@ -465,6 +482,12 @@ const RESTRICTED_SYNTAX = [
     selector: "CallExpression[callee.property.name='map'][callee.object.property.name='links']:has(JSXIdentifier[name='Anchor']), CallExpression[callee.property.name='map'] > ArrowFunctionExpression > ObjectExpression.body:has(> Property[key.name='url']):has(> Property[key.name='label'])",
     message: 'Utiliser ItemLinks (components/items/ItemLinks) pour les afficher, linkInputs(links) (lib/links) pour les renvoyer.',
   },
+  // Change of an event occurrence: its series' fields for « Toutes » / « Celle-ci et les suivantes », its routine links
+  // moved with its days (scopedInput, withDays).
+  {
+    selector: "ObjectExpression > SpreadElement > CallExpression[callee.name='occurrenceInput']",
+    message: 'Utiliser scopedInput(occurrence, scope, change) ou withDays(input, start, end) (features/calendar/lib/event-input) : champs de la série et liens de routines déplacés avec les jours.',
+  },
   // Tab of a page: unknown tabs fall back (usePageTab).
   {
     selector: "CallExpression[callee.property.name='get'][arguments.0.value='tab']",
@@ -490,6 +513,11 @@ const RESTRICTED_SYNTAX = [
     selector:
       "JSXElement[openingElement.name.name='Tooltip'] > JSXElement[openingElement.name.name=/^(ActionButton|IconAction)$/], JSXElement[openingElement.name.name='Tooltip'] JSXOpeningElement[name.name=/^(Button|ActionButton|IconAction|ActionIcon|UnstyledButton)$/]:has(> JSXAttribute[name.name='disabled']), JSXElement[openingElement.name.name='Tooltip'] > JSXExpressionContainer > Identifier[name=/[bB]utton$/]",
     message: 'Utiliser la prop hint d’ActionButton ou d’IconAction (components/actions) : l’infobulle s’affiche aussi quand le bouton est désactivé.',
+  },
+  // Tasks change project in one way, undone from its toast.
+  {
+    selector: "VariableDeclarator[init.callee.name='useBulkTaskMutations'] > ObjectPattern > Property[key.name='transfer']",
+    message: 'Utiliser useTransferTasks (features/tasks/hooks/use-transfer-tasks) : le transfert de tâches et son « Annuler ».',
   },
   // Relations in a personal workspace: « Proche », with its agreement.
   {
@@ -978,9 +1006,17 @@ const RESTRICTED_SYNTAX = [
       'Utiliser ActionButton (components/actions/ActionButton) : primary (plein) pour ajouter, valider ou envoyer, secondary (clair) pour le reste, tertiary (discret, xs, danger en rouge) ; after pour un compte ou un caret ; AddItemButton pour ajouter une ligne.',
   },
   {
-    // A toggle is not a button.
+    // A yes / no of a cell or a row is a state button; a setting or a mode, a switch.
     selector: "JSXAttribute[name.name='aria-pressed'], JSXOpeningElement[name.name='Switch']:has(> JSXAttribute[name.name='aria-label']):not(:has(> JSXAttribute[name.name='label']))",
-    message: 'Utiliser StateSwitch (components/inputs/StateSwitch) : une bascule est un interrupteur (Switch), un choix de mode un SegmentedControl.',
+    message:
+      'Utiliser StateButton (components/data-table/cells/StateButton) pour un oui / non d’une cellule ou d’une ligne de liste, StateSwitch (components/inputs/StateSwitch) pour un réglage ou un mode, un SegmentedControl pour un choix de mode.',
+  },
+  {
+    // A favourite is a star (empty / filled yellow) toggled by one click, never a switch nor a check box: one set of states.
+    selector:
+      "JSXOpeningElement[name.name=/^(Switch|StateSwitch|Checkbox)$/]:has(Literal[value=/[Ff]avori/]), Literal[value=/^(Ajouter aux|Retirer des) favoris$/], ImportSpecifier[imported.name='StarIcon']",
+    message:
+      'Utiliser FAVORITE_STATES (components/data-table/table/data-table) : <StateButton {...FAVORITE_STATES} /> (étoile vide, jaune pleine si favori), nextStateLabel(FAVORITE_STATES, favori) et <YesNoIcon icons={FAVORITE_STATES.icons} decorative /> dans un menu ; jamais un interrupteur ni une case.',
   },
   {
     selector: 'Literal[value=/^(Réduire|Développer)\\b/], TemplateElement[value.raw=/^(Réduire|Développer)\\b/], JSXText[value=/^\\s*(Réduire|Développer)\\b/]',
@@ -1202,6 +1238,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser slotSchedules (@ordo/shared) : les créneaux, sans les éphémérides.',
   },
   {
+    // Rows of the tables of the schedules, also filtered in the calendar.
+    selector: "Property[key.name='state'][value.callee.name='scheduleState']",
+    message: 'Utiliser scheduleRows (features/calendar/hooks/use-schedule-columns) : les lignes des tableaux des créneaux et des éphémérides.',
+  },
+  {
     // The working hours count neither the éphémérides nor the archived créneaux (as the conditions).
     selector: "CallExpression[callee.name='scheduleRules'] > CallExpression.arguments[callee.name='slotSchedules']",
     message: 'Utiliser useWorkingHours (features/calendar/api) : les heures de travail, sans éphémérides ni créneaux archivés.',
@@ -1305,7 +1346,8 @@ export default defineConfig([
   },
   {
     // Several values of a cell are shown one under the other (StackedValues, StackedLines, the `values` of a column),
-    // never joined on one line; the `text` of a column (export, search) may join them.
+    // never joined on one line; the `text` of a column (export, search) may join them. A yes / no changed in a cell is a
+    // state button, never a switch nor a check box (the row selection is RowCheck, in components/data-table/table).
     files: ['src/features/**/*{columns,cells,Cell,Cells,Table}*.{ts,tsx}', 'src/components/data-table/cells/**/*.{ts,tsx}', 'src/components/data-table/table/*column*.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': [
@@ -1316,6 +1358,21 @@ export default defineConfig([
             ":matches(JSXElement, JSXFragment) > JSXExpressionContainer CallExpression[callee.property.name='join'], JSXAttribute[name.name=/^(target|label)$/] CallExpression[callee.property.name='join'], Property[key.name=/^(cell|values)$/] CallExpression[callee.property.name='join']",
           message:
             'Valeurs d’une cellule l’une sous l’autre : StackedLines / StackedValues (components/data-table/cells/StackedValues), ou `...multiValues(row => noms)` dans la colonne ; jamais jointes sur une ligne (seul le `text` d’une colonne les joint).',
+        },
+        {
+          selector: "JSXAttribute[name.name=/^(ta|textAlign)$/], Property[key.name='textAlign']",
+          message:
+            'Une cellule s’aligne comme sa colonne (data-align posé par DataTable selon columnAlign) : pas d’alignement écrit dans une cellule ; une rangée d’éléments prend `justify={CELL_JUSTIFY}` (components/data-table/cells/cell-field).',
+        },
+        {
+          selector: "ObjectExpression:has(> Property[key.name='id'][value.value=/^(state|statusCategory|closeReason|kind|origin)$/]):has(> Property[key.name='text'])",
+          message:
+            'Utiliser stateColumn({ id, label, size, states, value }) (components/data-table/table/state-column) : l’état d’une ligne dans sa pastille colorée, centrée ; son nom à l’export, ses choix au filtre.',
+        },
+        {
+          selector: "JSXOpeningElement[name.name=/^(Switch|StateSwitch|Checkbox)$/], JSXOpeningElement[name.object.name='Checkbox']",
+          message:
+            'Utiliser StateButton (components/data-table/cells/StateButton) : un oui / non modifié dans une cellule ou une ligne est un bouton d’état, ni un interrupteur ni une case à cocher (interrupteurs : formulaires, réglages, activation d’un élément).',
         },
       ],
     },

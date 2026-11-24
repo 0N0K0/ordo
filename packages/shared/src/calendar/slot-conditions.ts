@@ -90,7 +90,8 @@ export const conditionCitesBirthdays = (node: SlotCondition | SlotConditionItem 
 export function conditionConstrains(node: SlotCondition | SlotConditionItem | null | undefined): boolean {
   if (!node) return false;
   if (node.type === 'condition') return node.field === 'freeTime' || conditionReferences(node).length > 0;
-  return node.children.some(conditionConstrains);
+  // A group « ou » limits them only when each of its choices does (an empty group allows anywhere).
+  return node.combinator === 'or' ? node.children.length > 0 && node.children.every(conditionConstrains) : node.children.some(conditionConstrains);
 }
 
 /** A window of the day: from a time (null: the start of the day) to a time (null: its end). */
@@ -226,7 +227,7 @@ function intersect(a: readonly Interval[], b: readonly Interval[]): Interval[] {
 const unite = (a: readonly Interval[], b: readonly Interval[]): Interval[] => merged([...a, ...b].map((part) => ({ date: '', scheduleId: '', allDay: false, ...part })));
 
 /**
- * Intervals of the day a condition allows (null: anywhere).
+ * Intervals of the day a condition allows (null: anywhere; an empty group, or a group « ou » with one, too).
  * @param {SlotCondition | SlotConditionItem | null | undefined} node Group or condition.
  * @param {SlotsOf} slotsOf Slots of some schedules on the day.
  * @returns {Interval[] | null} Intervals.
@@ -244,7 +245,10 @@ function conditionIntervals(node: SlotCondition | SlotConditionItem | null | und
     if (node.operator === 'notIn') return windowsOutside({ fromTime: null, dueTime: null }, slots).map(intervalOf);
     return merged(slots);
   }
-  const parts = node.children.map((child) => conditionIntervals(child, slotsOf)).filter((part): part is Interval[] => part !== null);
+  // A child without constraint (an empty group) allows anywhere: in a group « ou », the whole group does.
+  const all = node.children.map((child) => conditionIntervals(child, slotsOf));
+  if (node.combinator === 'or' && all.includes(null)) return null;
+  const parts = all.filter((part): part is Interval[] => part !== null);
   if (!parts.length) return null;
   return node.combinator === 'and' ? parts.reduce((all, part) => intersect(all, part), WHOLE_DAY) : parts.reduce((all, part) => unite(all, part), [] as Interval[]);
 }

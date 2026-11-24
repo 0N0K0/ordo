@@ -20,7 +20,7 @@ import { hasAvatar, itemRenderOption } from '../../items/item-look';
 import type { FilterFields } from '../../filters/FilterBuilder';
 import { NO_LABEL, sortRows, YES_LABEL, type ColumnChoice, type ColumnFilter, type DataColumn } from './data-table';
 import { currentWeek } from '../../../lib/week';
-import { dayOf, monthOfDay, yearOfDay } from '../../../lib/dates';
+import { parisDay, monthOfDay, yearOfDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName } from '../../../lib/periods';
 import { treeSelectProps } from '../../tree/tree-select';
@@ -129,7 +129,7 @@ export function tableFilterFields<R>(columns: readonly DataColumn<R>[]): FilterF
  * @param {R} row Row.
  * @param {Map<string, { column: DataColumn<R>, filter: ColumnFilter<R> }>} fields Filterable columns, by id.
  * @param {(condition: FilterConditionOf<string>) => boolean} complete Whether a condition is complete.
- * @param {string} today User's day (YYYY-MM-DD).
+ * @param {string} today Today in Paris (YYYY-MM-DD).
  * @returns {boolean} Met.
  */
 function meets<R>(
@@ -144,7 +144,7 @@ function meets<R>(
   const { column, filter } = field;
   const value = filter.kind === 'text' ? (filter.value ? filter.value(row) : (column.text?.(row) ?? null)) : filter.value(row);
   // A date is compared by its day (an instant: its day here).
-  const read = filter.kind === 'date' && typeof value === 'string' ? dayOf(value) : value;
+  const read = filter.kind === 'date' && typeof value === 'string' ? parisDay(value) : value;
   return meetsCondition(condition, { kind: filter.kind, value: read, none: filter.kind === 'choice' ? filter.none : undefined }, today, currentWeek());
 }
 
@@ -153,7 +153,7 @@ function meets<R>(
  * @param {readonly R[]} rows Rows.
  * @param {readonly DataColumn<R>[]} columns Columns.
  * @param {{ search: string, filter: FilterGroupOf<string> }} view Search and filter.
- * @param {string} today User's day (YYYY-MM-DD).
+ * @param {string} today Today in Paris (YYYY-MM-DD).
  * @returns {R[]} Rows kept.
  */
 export function filterRows<R>(rows: readonly R[], columns: readonly DataColumn<R>[], { search, filter }: { search: string; filter: FilterGroupOf<string> }, today: string): R[] {
@@ -241,7 +241,7 @@ function groupsOf<R>(row: R, column: DataColumn<R>, period: GroupPeriod): { key:
   if (filter?.kind === 'date') {
     const date = filter.value(row);
     if (!date) return none;
-    const group = periodGroup(dayOf(date), period);
+    const group = periodGroup(parisDay(date), period);
     return [{ ...group, order: group.key }];
   }
   if (filter?.kind === 'choices') {
@@ -320,7 +320,7 @@ export interface ViewRows<R> {
  * @param {readonly R[]} rows Rows, in their default order (the archived ones already left out or not).
  * @param {readonly DataColumn<R>[]} columns Columns.
  * @param {TableViewConfig} config Configuration of the view.
- * @param {string} today User's day (YYYY-MM-DD).
+ * @param {string} today Today in Paris (YYYY-MM-DD).
  * @param {(row: R) => boolean} [alwaysKept] Rows kept whatever the search and the filter. Optional. Default = none.
  * @returns {ViewRows<R>} Rows, groups and the column grouped by.
  */

@@ -8,6 +8,14 @@ Référence de l’application : ce qu’elle permet de faire, les règles qu’
 
 Chaque page dit la règle telle qu’elle est : ni lettre de décision, ni lot, ni date, ni historique. `npm run lint` (à la racine) le vérifie par `scripts/check-docs.mjs`, qui refuse aussi un lien relatif ou une ancre qui ne mène nulle part ; la règle des références au plan est celle du code (`PLAN_REFERENCE` de `packages/shared/eslint-rules.js`).
 
+## Tests
+
+Les règles métier calculées par le code partagé (`packages/shared`) ont des tests unitaires (Vitest), dans `packages/shared/test/` (rangés comme `src/` : `dates`, `calendar`, `routines`, `tasks`, `people`, `core`), hors du paquet publié : répétitions (fréquences, semaines paires / impaires et semaine 53, « le 15 », « 2e mardi », fin, dates exclues, pauses, durées, décalages et décalages mixtes, coupures), créneaux (cas, décalages, déplacements, 20 cas au plus), conditions de créneaux (« et », « ou », groupes vides, indisponibles), exceptions des routines (gardées à part, fusionnées, `previous`, liens d’évènements), heure de Paris (changements d’heure, minuit), durées des temps (1 minute à 24 heures), rappels, minuteurs, anniversaires, occupation par les évènements, noms et arbres. Chaque test nomme la règle qu’il garde ; un test marqué `it.fails` décrit un écart entre le code et la règle, relevé dans [Écarts relevés](discrepancies.md).
+
+- `npm test` (à la racine, ou dans `packages/shared`) : lance les tests deux fois, dans le fuseau `America/New_York` puis `Asia/Tokyo` (`packages/shared/vitest.config.ts`), pour qu’un jour ou une heure lu dans le fuseau de la machine au lieu de Paris échoue.
+- `npm run typecheck` vérifie aussi les tests (`packages/shared/tsconfig.test.json`), `npm run lint` les lit (`eslint src test`).
+- La CI (`.github/workflows/ci.yml`) lance `npm test` après le lint, avant les migrations et le build (voir [Déploiement](deployment.md#ci--githubworkflowsciyml)).
+
 ## Fonctionnalités
 
 Ce que l’utilisateur peut faire, écran par écran : pages, tableaux, formulaires, actions, différences PRO / PERSO.

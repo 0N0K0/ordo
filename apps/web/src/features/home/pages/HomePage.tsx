@@ -20,7 +20,7 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTreasuryProjection } from '../../treasury/api';
 import { useEntityActions } from '../../projects/hooks/use-entity-actions';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { localToday } from '../../../lib/dates';
+import { useToday } from '../../../lib/use-now';
 import * as fmt from '../../../lib/format';
 import { OVERDUE_INVOICES_PATH, PAGES } from '../../../app/pages';
 import { unarchived } from '../../../lib/archive';
@@ -41,7 +41,8 @@ const PRO_CARDS = new Set<CardId>(['billing', 'quotes']);
  */
 export function HomePage() {
   const { data: user } = useMe();
-  const today = localToday();
+  // Changes at midnight on its own.
+  const today = useToday();
   const { context } = useTaskContext();
   const myTasks = useMyTodayTasks(context, today);
   const time = useWeekTime(today);

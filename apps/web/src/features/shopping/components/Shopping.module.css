@@ -35,7 +35,7 @@
     white-space: nowrap;
   }
 
-  /* Store mode: one big row per item, easy to tick with a thumb; its headings as tall (and FoldHeading radius="md": the same radius whichever rule wins). */
+  /* Store mode: one big row per item, bought with a thumb (its large state button or a tap on the row); its headings as tall (and FoldHeading radius="md": the same radius whichever rule wins). */
   .storeRow,
   .storeHeading {
     /* Dimension */
@@ -50,7 +50,8 @@
 
     /* Espacement */
     gap: var(--mantine-spacing-md);
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    /* Its state button (xl, 44px) and these paddings: 2 vertical steps. */
+    padding: calc((2 * var(--onoko-vertical-step) - 44px) / 2) var(--mantine-spacing-md) calc((2 * var(--onoko-vertical-step) - 44px) / 2) var(--mantine-spacing-xs);
 
     /* Arrière-Plan */
     background-color: var(--mantine-color-default);

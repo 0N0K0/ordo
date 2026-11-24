@@ -1,4 +1,4 @@
-import { durationSchema, formatOptionalDay, parseDay, parseOptionalDay, subtreeOf, TIME_SUBJECT_REQUIRED, timeDescriptionSchema } from '@ordo/shared';
+import { dayIn, DURATION_MAX_SECONDS, durationSchema, formatDay, formatOptionalDay, parseDay, parseOptionalDay, subtreeOf, TIME_SUBJECT_REQUIRED, timeDescriptionSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, TimeEntry } from '../../generated/prisma/client';
@@ -7,6 +7,8 @@ import { assertNoneArchived, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { modelDelegate } from '../core/delegate';
 import { automated } from './task-automation-engine';
+import { PARIS } from '../../today';
+import { schedulePerWorkspace } from '../workspaces/workspaces';
 
 /** Calendar event (and occurrence of a recurring one) a time is spent on. */
 export interface TimeEventLink {
@@ -51,11 +53,12 @@ async function eventLinksData(links: readonly TimeEventLink[]): Promise<StoredEv
  * project, a task, a routine or an event.
  * @param {string | null | undefined} projectId Project given.
  * @param {TimeSubjects} subjects Tasks, routines and events of the time (after the change).
+ * @param {boolean} [fromRoutines=true] Without project, take that of a routine (false: the project stays as given). Optional.
  * @returns {Promise<string | null>} Project.
  */
-async function placeOf(projectId: string | null | undefined, subjects: TimeSubjects): Promise<string | null> {
+async function placeOf(projectId: string | null | undefined, subjects: TimeSubjects, fromRoutines = true): Promise<string | null> {
   if (!projectId && !subjects.taskIds.length && !subjects.routineIds.length && !subjects.events.length) throw fieldError('projectId', TIME_SUBJECT_REQUIRED);
-  if (projectId || !subjects.routineIds.length) return projectId ?? null;
+  if (projectId || !subjects.routineIds.length || !fromRoutines) return projectId ?? null;
   const routines = await prisma.routine.findMany({ where: { id: { in: [...subjects.routineIds] } }, select: { id: true, projectId: true } });
   if (routines.length !== new Set(subjects.routineIds).size) throw notFound('Routine', 'routineIds');
   const byId = new Map(routines.map((routine) => [routine.id, routine.projectId]));
@@ -89,13 +92,16 @@ async function assertInProjectTree(model: 'task' | 'routine', ids: readonly stri
 }
 
 /**
- * Checks the project of a time entry and that its tasks and routines belong to the project or its sub-projects.
+ * Checks the project of a time entry and that its tasks and routines belong to the project or its sub-projects. While
+ * its project stays, the tasks and routines it already had stay valid (one moved to another project since is kept),
+ * only those added are checked.
  * @param {string | null} projectId Project (none: only tasks and routines of no project).
  * @param {TimeSubjects} subjects Tasks and routines of the time.
- * @param {string | null} [keptProjectId] Project the time already had: accepted even if archived. Optional.
+ * @param {{ projectId: string | null, subjects: TimeSubjects }} [kept] Project (accepted even if archived) and items the time already had. Optional.
  * @returns {Promise<void>}
  */
-async function assertProjectTree(projectId: string | null, subjects: TimeSubjects, keptProjectId?: string | null): Promise<void> {
+async function assertProjectTree(projectId: string | null, subjects: TimeSubjects, kept?: { projectId: string | null; subjects: TimeSubjects }): Promise<void> {
+  const keptProjectId = kept?.projectId;
   let subtree: Set<string> | null = null;
   if (projectId) {
     const projects = await prisma.project.findMany({ select: { id: true, parentId: true, archivedAt: true } });
@@ -104,8 +110,10 @@ async function assertProjectTree(projectId: string | null, subjects: TimeSubject
     if (projectId !== keptProjectId) refuseArchived(project, 'projectId');
     subtree = subtreeOf(projects, projectId);
   }
-  await assertInProjectTree('task', subjects.taskIds, subtree);
-  await assertInProjectTree('routine', subjects.routineIds, subtree);
+  const same = kept !== undefined && kept.projectId === projectId;
+  const added = (ids: readonly string[], had: readonly string[]) => (same ? ids.filter((id) => !had.includes(id)) : ids);
+  await assertInProjectTree('task', added(subjects.taskIds, kept?.subjects.taskIds ?? []), subtree);
+  await assertInProjectTree('routine', added(subjects.routineIds, kept?.subjects.routineIds ?? []), subtree);
 }
 
 /**
@@ -126,16 +134,16 @@ async function assertActiveLinks(chosen: TimeSubjects, kept?: TimeSubjects): Pro
  * Checks what a time is spent on (project tree, archived items, events) and gives its project and stored event links.
  * @param {string | null | undefined} projectId Project given.
  * @param {TimeSubjects} subjects Tasks, routines and events (after the change).
- * @param {{ projectId: string | null, subjects: TimeSubjects }} [kept] What the time already had. Optional.
+ * @param {{ projectId: string | null, subjects: TimeSubjects, keepProject?: boolean }} [kept] What the time already had; `keepProject`: neither its project nor its routines change, its project stays (none: none, not that of a routine). Optional.
  * @returns {Promise<{ projectId: string | null, events: StoredEventLink[] }>} Project and event links.
  */
 async function checkedSubjects(
   projectId: string | null | undefined,
   subjects: TimeSubjects,
-  kept?: { projectId: string | null; subjects: TimeSubjects },
+  kept?: { projectId: string | null; subjects: TimeSubjects; keepProject?: boolean },
 ): Promise<{ projectId: string | null; events: StoredEventLink[] }> {
-  const place = await placeOf(projectId, subjects);
-  await assertProjectTree(place, subjects, kept?.projectId);
+  const place = await placeOf(projectId, subjects, !kept?.keepProject);
+  await assertProjectTree(place, subjects, kept);
   await assertActiveLinks(subjects, kept?.subjects);
   return { projectId: place, events: await eventLinksData(subjects.events) };
 }
@@ -184,14 +192,58 @@ function runningEntry(id: string): Promise<TimeEntry | null> {
 }
 
 /**
- * Stops a running entry (a paused timer ends when its pause started).
- * @param {TimeEntry} entry Running entry.
- * @returns {Promise<TimeEntry>} Stopped entry.
+ * End and duration of a running entry stopped at a moment: a paused timer ends when its pause started; one that has
+ * run 24 hours or more (pauses left out, the longest time) ends once its 24 hours were reached, its duration 24 hours.
+ * @param {TimeEntry} entry Running entry, as read.
+ * @param {number} now Moment of the stop (ms).
+ * @returns {{ endedAt: Date, duration: number }} End and duration.
  */
-function stopEntry(entry: TimeEntry): Promise<TimeEntry> {
-  const endedAt = entry.pausedAt ?? new Date();
-  const duration = Math.max(0, Math.floor((endedAt.getTime() - entry.startedAt.getTime()) / 1000) - entry.pausedSeconds);
-  return prisma.timeEntry.update({ where: { id: entry.id }, data: { endedAt, pausedAt: null, duration } });
+function stoppedAt(entry: TimeEntry, now: number): { endedAt: Date; duration: number } {
+  const end = entry.pausedAt?.getTime() ?? now;
+  const duration = Math.max(0, Math.floor((end - entry.startedAt.getTime()) / 1000) - entry.pausedSeconds);
+  if (duration < DURATION_MAX_SECONDS) return { endedAt: new Date(end), duration };
+  return { endedAt: new Date(entry.startedAt.getTime() + (entry.pausedSeconds + DURATION_MAX_SECONDS) * 1000), duration: DURATION_MAX_SECONDS };
+}
+
+/**
+ * Condition of a write on a running entry: only while it still runs as read (stopped, paused, resumed or discarded
+ * meanwhile, elsewhere or after 24 hours: nothing is written on stale values).
+ * @param {TimeEntry} entry Running entry, as read.
+ * @returns {Prisma.TimeEntryWhereInput} Prisma `where`.
+ */
+const stillAsRead = (entry: TimeEntry): Prisma.TimeEntryWhereInput => ({ id: entry.id, endedAt: null, pausedAt: entry.pausedAt, pausedSeconds: entry.pausedSeconds });
+
+/**
+ * Stops a running entry (`stoppedAt`: at most 24 hours), unless it was stopped, paused, resumed or discarded meanwhile
+ * (elsewhere, or after 24 hours).
+ * @param {TimeEntry} entry Running entry, as read.
+ * @returns {Promise<TimeEntry | null>} Stopped entry, null when it no longer ran as read.
+ */
+async function stopEntry(entry: TimeEntry): Promise<TimeEntry | null> {
+  const { endedAt, duration } = stoppedAt(entry, Date.now());
+  const { count } = await prisma.timeEntry.updateMany({ where: stillAsRead(entry), data: { endedAt, pausedAt: null, duration } });
+  return count ? { ...entry, endedAt, pausedAt: null, duration } : null;
+}
+
+/**
+ * Stops the timers of the workspace that have run 24 hours (pauses left out, the longest time): each ends once its 24
+ * hours are reached, its duration 24 hours, even when the app is closed (`scheduleTimerCap`). Each is written only
+ * while it still runs as read: one stopped, paused or discarded meanwhile is left as it is.
+ * @returns {Promise<number>} Timers stopped.
+ */
+export async function capRunningTimers(): Promise<number> {
+  const now = Date.now();
+  const running = await prisma.timeEntry.findMany({ where: { endedAt: null } });
+  const over = running.filter((entry) => stoppedAt(entry, now).duration >= DURATION_MAX_SECONDS);
+  return (await Promise.all(over.map(stopEntry))).filter((entry) => entry !== null).length;
+}
+
+/**
+ * Stops, in every workspace, the timers that have run 24 hours (`capRunningTimers`), every 5 minutes.
+ * @returns {void}
+ */
+export function scheduleTimerCap(): void {
+  schedulePerWorkspace('Chronos de plus de 24 heures', capRunningTimers, { delay: 25_000, interval: 5 * 60_000 });
 }
 
 /**
@@ -206,11 +258,11 @@ export async function stopTimer(id: string): Promise<TimeEntry | null> {
 
 /**
  * « Arrêter tout »: stops every running timer of the workspace.
- * @returns {Promise<TimeEntry[]>} Stopped entries.
+ * @returns {Promise<TimeEntry[]>} Entries this call stopped (not those stopped elsewhere meanwhile).
  */
 export async function stopAllTimers(): Promise<TimeEntry[]> {
   const running = await prisma.timeEntry.findMany({ where: { endedAt: null } });
-  return Promise.all(running.map(stopEntry));
+  return (await Promise.all(running.map(stopEntry))).filter((entry): entry is TimeEntry => entry !== null);
 }
 
 /**
@@ -247,7 +299,8 @@ export const startTimer = automated(async function startTimer(input: Omit<TimeEn
 }, (input) => input.taskIds ?? []);
 
 /**
- * Pauses or resumes a running timer.
+ * Pauses or resumes a running timer, only while it still runs as read (changed meanwhile: read again; stopped
+ * meanwhile: « Ce chrono ne tourne plus. », a finished time never keeps a pause).
  * @param {string} id Time entry id.
  * @param {boolean} paused Target state.
  * @returns {Promise<TimeEntry>} Running entry.
@@ -256,12 +309,11 @@ export async function setTimerPaused(id: string, paused: boolean): Promise<TimeE
   const entry = await runningEntry(id);
   if (!entry) throw clientError('BAD_USER_INPUT', 'Ce chrono ne tourne plus.');
   if (paused === (entry.pausedAt !== null)) return entry;
-  if (paused) return prisma.timeEntry.update({ where: { id: entry.id }, data: { pausedAt: new Date() } });
-  const pause = Math.floor((Date.now() - entry.pausedAt!.getTime()) / 1000);
-  return prisma.timeEntry.update({
-    where: { id: entry.id },
-    data: { pausedAt: null, pausedSeconds: entry.pausedSeconds + pause },
-  });
+  const data = paused ? { pausedAt: new Date() } : { pausedAt: null, pausedSeconds: entry.pausedSeconds + Math.floor((Date.now() - entry.pausedAt!.getTime()) / 1000) };
+  // Only while it still runs as read: a timer stopped meanwhile keeps no pause.
+  const { count } = await prisma.timeEntry.updateMany({ where: stillAsRead(entry), data });
+  if (!count) return setTimerPaused(id, paused);
+  return { ...entry, ...data };
 }
 
 export interface TimeEntryInput {
@@ -320,10 +372,19 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
   if (running && input.startedAt && input.startedAt.getTime() > Date.now()) {
     throw fieldError('startedAt', 'Le début ne peut pas être dans le futur.');
   }
+  // Paused: the time run before the pause (its former pauses left out) may not become negative.
+  if (running && input.startedAt && entry.pausedAt && input.startedAt.getTime() + entry.pausedSeconds * 1000 > entry.pausedAt.getTime()) {
+    throw fieldError('startedAt', 'Le début doit précéder la pause.');
+  }
   const kept = subjectsOf(entry);
+  // Moved to another day (its events not given): it leaves the events that are not on that day.
+  const otherDay = input.startedAt && input.events === undefined && dayIn(input.startedAt, PARIS) !== dayIn(entry.startedAt, PARIS);
+  const events = otherDay ? await eventsOnDay(kept.events, dayIn(input.startedAt!, PARIS)) : (input.events ?? kept.events);
   // Removing the last item of a time without project is refused (TIME_SUBJECT_REQUIRED): the time is not deleted.
-  const subjects: TimeSubjects = { taskIds: input.taskIds ?? kept.taskIds, routineIds: input.routineIds ?? kept.routineIds, events: input.events ?? kept.events };
-  const checked = await checkedSubjects(input.projectId === undefined ? entry.projectId : input.projectId, subjects, { projectId: entry.projectId, subjects: kept });
+  const subjects: TimeSubjects = { taskIds: input.taskIds ?? kept.taskIds, routineIds: input.routineIds ?? kept.routineIds, events };
+  // Project and routines unchanged: a time without project stays without (it does not take the project of a routine).
+  const keepProject = input.projectId === undefined && input.routineIds == null;
+  const checked = await checkedSubjects(input.projectId === undefined ? entry.projectId : input.projectId, subjects, { projectId: entry.projectId, subjects: kept, keepProject });
 
   const startedAt = input.startedAt ?? entry.startedAt;
   const seconds = duration ?? entry.duration;
@@ -336,8 +397,24 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
       ...(!running && seconds !== null && { duration: seconds, endedAt: new Date(startedAt.getTime() + seconds * 1000) }),
       tasks: { set: connectIds(subjects.taskIds) },
       routines: { set: connectIds(subjects.routineIds) },
-      ...(input.events && { events: { deleteMany: {}, create: checked.events } }),
+      ...((input.events || otherDay) && { events: { deleteMany: {}, create: checked.events } }),
     },
+  });
+}
+
+/**
+ * Event links of a time that are on a day: an occurrence of that day, or a one-off event that day is within.
+ * @param {readonly TimeEventLink[]} links Links.
+ * @param {string} day Day (YYYY-MM-DD, Paris).
+ * @returns {Promise<TimeEventLink[]>} Links kept.
+ */
+async function eventsOnDay(links: readonly TimeEventLink[], day: string): Promise<TimeEventLink[]> {
+  const oneOff = links.filter((link) => link.occurrenceDate === null).map((link) => link.eventId);
+  const events = new Map((await prisma.calendarEvent.findMany({ where: { id: { in: oneOff } }, select: { id: true, startDate: true, endDate: true } })).map((event) => [event.id, event]));
+  return links.filter((link) => {
+    if (link.occurrenceDate !== null) return link.occurrenceDate === day;
+    const event = events.get(link.eventId);
+    return Boolean(event && formatDay(event.startDate) <= day && formatDay(event.endDate) >= day);
   });
 }
 
@@ -428,11 +505,12 @@ export async function timeLeftEmpty(gone: GoneSubjects): Promise<string[]> {
  * Before items are deleted: deletes the times they leave with nothing attached (`timeLeftEmpty`), and the links of
  * the event occurrences deleted (the rows of a whole event go with it).
  * @param {GoneSubjects} gone Items about to be deleted.
+ * @param {Prisma.TransactionClient} [client] Client or transaction writing. Optional. Default = the client of the workspace.
  * @returns {Promise<void>}
  */
-export async function releaseSubjectTime(gone: GoneSubjects): Promise<void> {
+export async function releaseSubjectTime(gone: GoneSubjects, client: Prisma.TransactionClient = prisma): Promise<void> {
   const ids = await timeLeftEmpty(gone);
-  if (ids.length) await prisma.timeEntry.deleteMany({ where: { id: { in: ids } } });
+  if (ids.length) await client.timeEntry.deleteMany({ where: { id: { in: ids } } });
   const occurrences = (gone.events ?? []).filter((item) => item.on || item.from);
-  if (occurrences.length) await prisma.timeEntryEvent.deleteMany({ where: { OR: occurrences.map(goneLinkWhere) } });
+  if (occurrences.length) await client.timeEntryEvent.deleteMany({ where: { OR: occurrences.map(goneLinkWhere) } });
 }

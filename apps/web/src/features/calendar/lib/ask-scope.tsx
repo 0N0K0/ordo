@@ -1,5 +1,4 @@
-import { openModal } from '../../../components/panels/open-modal';
-
+import { answerInModal } from '../../../components/dialogs/ask-choice';
 import type { CalendarEventScope } from '../api';
 import { ScopeChoices, type ScopeQuestion } from '../components/ScopeChoices';
 import { scopeTitle } from './scope-title';
@@ -11,22 +10,5 @@ import { scopeTitle } from './scope-title';
  * @returns {Promise<CalendarEventScope | null>} Scope, or null when cancelled.
  */
 export function askScope(question: ScopeQuestion): Promise<CalendarEventScope | null> {
-  return new Promise((resolve) => {
-    let answered = false;
-    openModal(
-      question.title ?? scopeTitle(question.action),
-      (close) => (
-        <ScopeChoices
-          {...question}
-          onAnswer={(scope) => {
-            answered = true;
-            close();
-            resolve(scope);
-          }}
-        />
-      ),
-      { onClose: () => !answered && resolve(null) },
-    );
-  });
+  return answerInModal<CalendarEventScope>(question.title ?? scopeTitle(question.action), (answer) => <ScopeChoices {...question} onAnswer={answer} />);
 }
-

@@ -1,4 +1,4 @@
-import { localAt, rule } from './factories';
+import { parisAt, rule } from './factories';
 import { fakerFR as faker } from '@faker-js/faker';
 import { parisToday } from '../../src/today';
 import { addDays, parseDay, type Recurrence, type RoutineInput } from '@ordo/shared';
@@ -37,7 +37,7 @@ export async function tickRoutines(today: string): Promise<{ routineId: string; 
           routineId: routine.id,
           date: parseDay(date),
           slot,
-          doneAt: localAt(date, hour, faker.number.int({ min: 0, max: 59 })),
+          doneAt: parisAt(date, hour, faker.number.int({ min: 0, max: 59 })),
         });
       }
     }

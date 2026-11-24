@@ -1,5 +1,5 @@
 import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, mapById, round2, TASK_STATUS_CATEGORY_LABELS, sumOf } from '@ordo/shared';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { leafEffort } from '../../tasks/lib/task-effort';
@@ -19,9 +19,9 @@ const CATEGORY_LABELS: Record<string, string> = TASK_STATUS_CATEGORY_LABELS.task
 function taskDay(task: Task, dimension: ChartDimension): string | null {
   switch (dimension) {
     case 'createdAt':
-      return localDay(task.createdAt);
+      return parisDay(task.createdAt);
     case 'closedAt':
-      return task.closedAt ? localDay(task.closedAt) : null;
+      return task.closedAt ? parisDay(task.closedAt) : null;
     case 'startDate':
       return task.startDate || null;
     case 'endDate':
@@ -176,7 +176,7 @@ export interface SprintView {
  * @param {Task[]} tasks Matching tasks.
  * @param {ChartConfig} config Configuration.
  * @param {TaskContext} context Task context.
- * @param {string} today User's day.
+ * @param {string} today Today in Paris.
  * @returns {ChartData} Data.
  */
 function burndown(tasks: Task[], config: ChartConfig, context: TaskContext, today: string): ChartData {
@@ -201,7 +201,7 @@ function burndown(tasks: Task[], config: ChartConfig, context: TaskContext, toda
         ? null
         : round2(
             sumOf(
-              inSprint.filter((task) => !task.closedAt || localDay(task.closedAt) > day),
+              inSprint.filter((task) => !task.closedAt || parisDay(task.closedAt) > day),
               (task) => valueOf(task, measure, context),
             ),
           ),
@@ -227,7 +227,7 @@ function burndown(tasks: Task[], config: ChartConfig, context: TaskContext, toda
  * @param {Task[]} tasks Matching tasks.
  * @param {ChartConfig} config Configuration.
  * @param {TaskContext} context Task context.
- * @param {string} today User's day (YYYY-MM-DD).
+ * @param {string} today Today in Paris (YYYY-MM-DD).
  * @param {SprintView} [bySprint] Sprint view of the tasks (charts by sprint). Optional.
  * @returns {ChartData} Data.
  */

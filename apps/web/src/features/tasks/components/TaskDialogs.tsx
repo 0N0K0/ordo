@@ -4,10 +4,8 @@ import { Checkbox, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import type { TasksDialogProps } from '../lib/open-tasks-dialog';
 
-import { outermost } from '../../../components/data-table/selection/selection-actions';
 import { CascadeChoice, DestructiveActions, DestructiveRisks } from '../../../components/dialogs/DestructiveActions';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
 import { formCallbacks } from '../../../lib/form';
 import { plural, countWith } from '../../../lib/text';
 import { useBulkTaskMutations } from '../api';
@@ -15,9 +13,8 @@ import { countSubtasks, inProjectTree } from '../lib/task-links';
 import { ProjectSelect } from './task-ui';
 import { taskName, taskNumbered } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
-import { useBulkUndo } from '../lib/bulk-undo';
+import { useTransferTasks } from '../hooks/use-transfer-tasks';
 import { tasksLabel } from '../lib/bulk-label';
-import { removedLinksNote } from '../../../lib/text';
 import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
 
 /**
@@ -74,14 +71,13 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
 
 /**
  * Transfer of tasks with their sub-tasks to another project, or out of any (no number, milestone, sprint nor GitHub
- * item then); links leaving the project tree are removed, with a warning. Undone from its toast when no link was
- * removed.
+ * item then); links leaving the project tree are removed, with a warning. Undone from its toast (tasks and links put
+ * back, all or nothing).
  * @param {TasksDialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */
 export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
-  const { transfer } = useBulkTaskMutations();
-  const undo = useBulkUndo();
+  const transfer = useTransferTasks(context);
   const [projectId, setProjectId] = useState<string | null>(null);
   // Out of any project.
   const [none, setNone] = useState(false);
@@ -92,41 +88,14 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
   const leavesTree = chosen && tasks.some((task) => !inProjectTree(context, target)(task.projectId));
 
   /**
-   * Moved tasks (those no other one moved holds), then their sub-tasks level by level, as they are now.
-   * @returns {Task[][]} Levels.
-   */
-  const movedLevels = () => {
-    const levels = [
-      outermost(
-        tasks,
-        (task) => task.id,
-        (id) => context.taskById.get(id)?.parentId,
-      ),
-    ];
-    while (levels[levels.length - 1].length > 0) levels.push(levels[levels.length - 1].flatMap((task) => context.childrenOf(task.id)));
-    return levels.slice(0, -1);
-  };
-
-  /**
-   * Transfers the tasks.
+   * Transfers the tasks; « Annuler » of its toast puts them back with the links, milestones, sprints and documents
+   * removed.
    * @returns {void}
    */
   const handleConfirm = () => {
     if (!chosen) return;
-    const levels = movedLevels();
-    transfer.mutate(
-      { ids: tasks.map((task) => task.id), projectId: target },
-      {
-        onSuccess: ({ removedLinks }) => {
-          const message = single ? `Tâche ${taskName(single)} transférée.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'transférée')}.`;
-          // Removed links, milestones and sprints cannot come back: no undo then.
-          if (removedLinks > 0) notifySuccess(message + removedLinksNote(removedLinks));
-          else notifyWithUndo(message, undo.transfer(levels));
-          onDone(true);
-        },
-        onError: onMutationError,
-      },
-    );
+    const message = single ? `Tâche ${taskName(single)} transférée.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'transférée')}.`;
+    transfer.transfer(tasks, target, message, () => onDone(true));
   };
 
   return (

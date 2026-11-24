@@ -44,8 +44,8 @@ function findCalendar(id: string): Promise<Calendar> {
 }
 
 /**
- * Calendar an event goes into: the one asked for (of the workspace), or else the first one not archived, created
- * (named after the workspace) when there is none.
+ * Calendar an event goes into: the one asked for (of the workspace), or else the first one not archived, else the
+ * first one (all archived: the caller refuses it), created (named after the workspace) when the workspace has none.
  * @param {string | null | undefined} [id] Calendar asked for. Optional.
  * @returns {Promise<string>} Calendar id.
  */
