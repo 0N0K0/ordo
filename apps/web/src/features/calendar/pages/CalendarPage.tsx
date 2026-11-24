@@ -811,7 +811,10 @@ export function CalendarPage() {
   return (
     <Stack gap="md" className={fill ? classes.fill : undefined}>
       <PageHeader title={PAGES.calendar.label} />
-      <ViewTabs state={views} about={CALENDAR_VIEW_WORDS} />
+      {/* In a row, as in the tables: the tabs grow in width, not in the height the week and the day fill. */}
+      <Group wrap="nowrap">
+        <ViewTabs state={views} about={CALENDAR_VIEW_WORDS} />
+      </Group>
       {/* The view and the period on the left, the edition of the slots and « Ajouter » on the right. */}
       <Group justify="space-between" wrap="wrap" gap="sm">
         <Group gap="xs" wrap="wrap">
