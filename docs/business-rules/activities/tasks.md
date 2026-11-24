@@ -180,9 +180,9 @@ Source : `services/tasks/sprints.ts`, `assertSprints`, `sprintSchema` (`packages
 - Un sprint appartient à un projet actif ; libellé requis (250 caractères au plus, `sprintLabelSchema`), début et fin requis (« La date de début est requise. », « La date de fin est requise. »), la fin ne précède pas le début (« La fin doit suivre le début. »), objectif markdown facultatif.
 - Modification refusée si le sprint ou son projet est archivé.
 - Une tâche ne prend que des sprints de son arborescence : « Les sprints doivent appartenir au projet de la tâche ou à son arborescence. » ; sans projet : « Une tâche sans projet n’est dans aucun sprint. ». Sprint inconnu : « Sprint introuvable. ».
-- Supprimer un sprint : ses tâches le quittent simplement.
+- Supprimer un sprint : ses tâches le quittent simplement. Dans un projet lié à un tableau GitHub, son itération reste sur le tableau ; ses items perdent seulement cette valeur.
 - La requête `sprints` les renvoie par date de début puis date de création.
-- Un sprint peut refléter une itération d’un tableau GitHub (`githubIterationId`, voir [GitHub](../cross-cutting/github.md)).
+- Un sprint peut refléter une itération d’un tableau GitHub (`githubIterationId`, instantané `githubSnapshot`) : libellé, début et fin passent dans les deux sens à chaque synchronisation, archivé ou non ; un sprint qui chevauche un autre sprint de l’arborescence n’est pas envoyé (voir [GitHub](../cross-cutting/github.md#étapes)).
 - Archivage par la mutation générique (`SPRINT`).
 
 ### Statut des tâches en fin de sprint

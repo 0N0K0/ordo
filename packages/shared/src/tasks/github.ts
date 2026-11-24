@@ -26,6 +26,8 @@ export type GithubLinkInput = {
   repositoryName: string | null;
   pushExisting: boolean;
   enabled: boolean;
+  /** Sprints written as iterations on GitHub (off: iterations only read and paired). */
+  writeIterations: boolean;
 };
 
 /**

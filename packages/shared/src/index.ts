@@ -13,6 +13,7 @@ export * from './tasks/task-columns';
 export * from './tasks/time';
 export * from './tasks/github';
 export * from './tasks/github-merge';
+export * from './tasks/github-iterations';
 export * from './mail/mail';
 export * from './dates/days';
 export * from './dates/recurrence';

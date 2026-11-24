@@ -152,6 +152,10 @@ Fonctions pures de la synchronisation GitHub (`apps/api/src/services/github/sync
 | `SyncFields` | Valeurs des champs synchronisés d'une tâche ou d'un item, sous une forme commune aux deux côtés (champ absent : non synchronisé). |
 | `isUnmapped(value, side)` | La valeur n'a pas d'équivalent de l'autre côté (préfixe `ordo:` ou `gh:`). |
 | `mergeFields(local, remote, snapshot, localNewer)` | Fusion à trois voies, champ par champ, contre l'instantané de la dernière synchronisation : ce qu'il faut écrire dans la tâche (`pull`), dans l'item (`push`), et le nouvel instantané. |
+| `mergeValues(fields, local, remote, snapshot, localNewer, options?)`, `MergedValues`, `SyncValue` | La même fusion pour les champs donnés (celle de `mergeFields`, et celle d'un sprint et de son itération, `mergeIteration`) ; `unmapped: false` : les préfixes `ordo:` / `gh:` sont des valeurs comme les autres (textes). |
+| `changedAfter(local, remote)` | Le côté Ordo a changé après le côté GitHub, les dates comparées comme des instants (GitHub les donne sans millisecondes ; date GitHub inconnue : vrai). |
+| `itemIterationValue(iterationId, paired)` | Itération synchronisée d'un item : elle-même si un sprint lui est apparié, sinon `gh:<id>` (sans équivalent). |
+| `snapshotIterationValue(value, onBoard, paired)` | Itération de l'instantané d'une paire lue comme aujourd'hui : disparue du tableau, ignorée (`undefined`) ; sur le tableau sans sprint, `gh:<id>`. |
 | `taskParentValue(parentId, parentIssueId)` | Parent synchronisé d'une tâche : l'issue de sa tâche parente, archivée ou non, sinon `ordo:<id>` (sans équivalent). |
 | `upgradedSnapshot(snapshot)` | Instantané d'une synchronisation précédente lu comme un d'aujourd'hui (copie) : fermé sans raison = terminé (`COMPLETED`), sans état d'archivage = non archivé. |
 | `removedFromBoardComment(day)` | Commentaire ajouté à une tâche dont l'item a quitté le tableau GitHub, quand elle est archivée : « Retirée du tableau GitHub le JJ/MM/AAAA : tâche archivée. » (`printedDay`). |
@@ -165,3 +169,27 @@ Fonctions pures de la synchronisation GitHub (`apps/api/src/services/github/sync
 | `itemParentValue(parentIssueId, linked)` | Parent synchronisé d'une issue : son issue parente si elle est liée à une tâche, archivée ou non, sinon `gh:<id>` (hors du tableau). |
 
 Internes : `sameValue` (même valeur, listes sans ordre), `isEmpty` (valeur vide).
+
+## `github-iterations.ts` — reflet des sprints et des itérations GitHub
+
+Fonctions pures du reflet des sprints et des itérations d'un tableau (`apps/api/src/services/github/iterations.ts`), testées dans `test/tasks/github-iterations.test.ts`. Voir [GitHub](../../business-rules/cross-cutting/github.md#étapes).
+
+| Export | Rôle |
+| ------ | ---- |
+| `IterationValues`, `BoardIteration`, `SentIteration` | Titre, premier jour (AAAA-MM-JJ) et durée en jours ; une itération du champ (avec son id) ; une itération envoyée (avec son id si elle existe). |
+| `sprintIterationValues(sprint)` | Valeurs qu'un sprint donne à son itération : libellé, début, durée (les deux jours comptés). |
+| `iterationEndDate(iteration)` | Dernier jour d'une itération (début + durée - 1). |
+| `sameIterationValues(a, b)` | Mêmes titre, premier jour et durée. |
+| `REMOVED_ITERATION_SNAPSHOT`, `iterationRemoved(stored)` | Marque d'un sprint dont l'itération a été supprimée sur GitHub (plus envoyé) ; la lit dans un instantané enregistré. |
+| `iterationSnapshot(iteration)` | Instantané d'une itération telle que GitHub l'a : titre coupé à 250 caractères, comme le libellé du sprint. |
+| `iterationSnapshotOf(stored)` | Valeurs de la dernière synchronisation enregistrées sur un sprint, sinon `null`. |
+| `mergeIteration(local, remote, snapshot, localNewer)`, `IterationMerge` | Fusion à trois voies d'un sprint et de son itération (`mergeValues` sans valeurs sans équivalent, titre de l'itération comparé coupé ; la synchronisation la dit toujours plus récente côté Ordo) : valeurs reçues (`pull`, titre refusé par la règle des sprints laissé), envoyées (`push`), valeurs une fois fusionnées des deux côtés (`sprint`, `iteration`), instantané à écrire une fois l'envoi fait (`snapshot`) ou s'il ne l'est pas (`kept`). |
+| `overlappingSprints(sprints)` | Sprints qui partagent un jour avec un autre (les deux sont rendus). |
+| `planIterations(current, changes)`, `IterationChange`, `IterationPlan` | Liste entière à écrire (toutes les itérations avec leur id, les changements appliqués, par premier jour) ; un changement qui partagerait un jour avec une autre itération n'est pas envoyé (`skipped`). |
+| `iterationConfiguration(iterations, duration)` | Configuration écrite : itérations par premier jour, premier jour de la première comme début, durée du champ inchangée. |
+| `sameIterations(a, b)` | Deux lectures du champ montrent les mêmes itérations (ids et valeurs). |
+| `IterationReading`, `checkIterationWrite(sent, before, after)`, `IterationWriteCheck` | Compare le champ relu après l'écriture à l'envoi : écarts en mots (titre, début, durée, itération disparue, ajoutée, non créée telle quelle, plus terminée) et ids des nouvelles itérations. |
+| `iterationWriteError(problems)` | Message enregistré sur la liaison quand la synchronisation des itérations s'arrête (trois premiers écarts). |
+| `iterationRefusal(message)` | Message gardé sur la liaison quand GitHub refuse une écriture sans changer le champ. |
+
+Internes : `ITERATION_FIELDS` (champs fusionnés), `valuesOf`, `overlaps`, `byStart` (tri par premier jour puis titre).

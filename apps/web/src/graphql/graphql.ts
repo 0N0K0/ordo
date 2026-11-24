@@ -506,6 +506,8 @@ export type GithubLinkInput = {
   /** FIELD (typeFieldId), ISSUE_TYPE (issue types of the organization), or null. */
   typeSource?: string | null | undefined;
   url: string;
+  /** Sprints written as iterations on GitHub. Default = false. */
+  writeIterations?: boolean | null | undefined;
 };
 
 export type ImportedDocumentInput = {
@@ -2941,7 +2943,7 @@ export type GithubProjectLinkQueryVariables = Exact<{
 }>;
 
 
-export type GithubProjectLinkQuery = { githubProjectLink: { id: string, projectId: string, url: string, label: string, statusFieldId: string | null, priorityFieldId: string | null, iterationFieldId: string | null, startFieldId: string | null, endFieldId: string | null, effortFieldId: string | null, deadlineFieldId: string | null, timeSpentFieldId: string | null, typeSource: string | null, typeFieldId: string | null, statusOptions: unknown, priorityOptions: unknown, typeOptions: unknown, syncAssignees: boolean, syncLabels: boolean, repositoryName: string | null, pushExisting: boolean, enabled: boolean, lastSyncAt: string | null, lastSyncError: string | null, lastSyncSummary: unknown, linkedTaskCount: number } | null };
+export type GithubProjectLinkQuery = { githubProjectLink: { id: string, projectId: string, url: string, label: string, statusFieldId: string | null, priorityFieldId: string | null, iterationFieldId: string | null, startFieldId: string | null, endFieldId: string | null, effortFieldId: string | null, deadlineFieldId: string | null, timeSpentFieldId: string | null, typeSource: string | null, typeFieldId: string | null, statusOptions: unknown, priorityOptions: unknown, typeOptions: unknown, syncAssignees: boolean, syncLabels: boolean, repositoryName: string | null, pushExisting: boolean, writeIterations: boolean, iterationWriteRefusal: string | null, enabled: boolean, lastSyncAt: string | null, lastSyncError: string | null, lastSyncSummary: unknown, iterationWriteError: string | null, linkedTaskCount: number } | null };
 
 export type SetGithubTokenMutationVariables = Exact<{
   token: string;
@@ -2963,6 +2965,13 @@ export type SaveGithubLinkMutationVariables = Exact<{
 
 export type SaveGithubLinkMutation = { saveGithubLink: boolean };
 
+export type ResumeGithubIterationsMutationVariables = Exact<{
+  projectId: string | number;
+}>;
+
+
+export type ResumeGithubIterationsMutation = { resumeGithubIterations: boolean };
+
 export type UnlinkGithubProjectMutationVariables = Exact<{
   projectId: string | number;
 }>;
@@ -2975,7 +2984,7 @@ export type SyncGithubProjectMutationVariables = Exact<{
 }>;
 
 
-export type SyncGithubProjectMutation = { syncGithubProject: { pulledNew: number, pushedNew: number, pulled: number, pushed: number, unlinked: number, failed: number, sprints: number, sprintsSkipped: number, renumbered: number, comments: number } };
+export type SyncGithubProjectMutation = { syncGithubProject: { pulledNew: number, pushedNew: number, pulled: number, pushed: number, unlinked: number, failed: number, sprints: number, sprintsPushed: number, sprintsSkipped: number, sprintsBlocked: number, sprintsUnpaired: number, renumbered: number, comments: number } };
 
 export type SetContributorGithubLoginMutationVariables = Exact<{
   id: string | number;
@@ -8153,10 +8162,13 @@ export const GithubProjectLinkDocument = new TypedDocumentString(`
     syncLabels
     repositoryName
     pushExisting
+    writeIterations
+    iterationWriteRefusal
     enabled
     lastSyncAt
     lastSyncError
     lastSyncSummary
+    iterationWriteError
     linkedTaskCount
   }
 }
@@ -8176,6 +8188,11 @@ export const SaveGithubLinkDocument = new TypedDocumentString(`
   saveGithubLink(projectId: $projectId, input: $input)
 }
     `) as unknown as TypedDocumentString<SaveGithubLinkMutation, SaveGithubLinkMutationVariables>;
+export const ResumeGithubIterationsDocument = new TypedDocumentString(`
+    mutation ResumeGithubIterations($projectId: ID!) {
+  resumeGithubIterations(projectId: $projectId)
+}
+    `) as unknown as TypedDocumentString<ResumeGithubIterationsMutation, ResumeGithubIterationsMutationVariables>;
 export const UnlinkGithubProjectDocument = new TypedDocumentString(`
     mutation UnlinkGithubProject($projectId: ID!) {
   unlinkGithubProject(projectId: $projectId)
@@ -8191,7 +8208,10 @@ export const SyncGithubProjectDocument = new TypedDocumentString(`
     unlinked
     failed
     sprints
+    sprintsPushed
     sprintsSkipped
+    sprintsBlocked
+    sprintsUnpaired
     renumbered
     comments
   }

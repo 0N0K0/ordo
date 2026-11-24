@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   alreadyLinkedComment,
+  changedAfter,
+  itemIterationValue,
+  snapshotIterationValue,
+  mergeValues,
   commentToPublish,
   issueAddress,
   itemParentValue,
@@ -324,5 +328,50 @@ describe('comments published on an issue', () => {
 describe('issue already linked to another task', () => {
   it('the comment of the task gives the day, printed DD/MM/YYYY', () => {
     expect(alreadyLinkedComment('2026-11-24')).toBe('Déliée de GitHub le 24/11/2026 : son issue est déjà liée à une autre tâche.');
+  });
+});
+
+describe('values without counterpart in a generic merge', () => {
+  it('prefixed values are not applied by default, and are plain values when told so', () => {
+    expect(mergeValues(['status'], { status: 'ordo:x' }, { status: 'a' }, { status: 'a' }, true).push).toEqual({});
+    expect(mergeValues(['status'], { status: 'ordo:x' }, { status: 'a' }, { status: 'a' }, true, { unmapped: false }).push).toEqual({ status: 'ordo:x' });
+  });
+});
+
+describe('which side changed last', () => {
+  it('dates compared as instants: GitHub dates come without milliseconds', () => {
+    expect(changedAfter(new Date('2026-11-24T10:00:00.500Z'), '2026-11-24T10:00:00Z')).toBe(true);
+    expect(changedAfter(new Date('2026-11-24T10:00:00.000Z'), '2026-11-24T10:00:00Z')).toBe(false);
+    expect(changedAfter(new Date('2026-11-24T09:59:59.900Z'), '2026-11-24T10:00:00Z')).toBe(false);
+    expect(changedAfter(new Date('2026-11-24T10:00:00.000Z'), null)).toBe(true);
+  });
+});
+
+describe('iteration of an item', () => {
+  const paired = new Set(['i1']);
+  const onBoard = new Set(['i1', 'i2']);
+
+  it('paired with a sprint: itself; without sprint (deleted in Ordo): no counterpart', () => {
+    expect(itemIterationValue(null, paired)).toBeNull();
+    expect(itemIterationValue('i1', paired)).toBe('i1');
+    expect(itemIterationValue('i2', paired)).toBe('gh:i2');
+  });
+
+  it('the snapshot: gone from the board, dropped; on the board without sprint, as the item shows it', () => {
+    expect(snapshotIterationValue('i1', onBoard, paired)).toBe('i1');
+    expect(snapshotIterationValue('i2', onBoard, paired)).toBe('gh:i2');
+    expect(snapshotIterationValue('gh:i2', onBoard, paired)).toBe('gh:i2');
+    expect(snapshotIterationValue('gone', onBoard, paired)).toBeUndefined();
+    expect(snapshotIterationValue('ordo:s1', onBoard, paired)).toBeUndefined();
+    expect(snapshotIterationValue(null, onBoard, paired)).toBeNull();
+  });
+
+  it('sprint deleted in Ordo: the item loses the iteration; put there on GitHub since: kept', () => {
+    const base = snapshotIterationValue('i2', onBoard, paired) as string;
+    expect(mergeFields({ iteration: null }, { iteration: itemIterationValue('i2', paired) }, { iteration: base }, false).push).toEqual({ iteration: null });
+    const kept = mergeFields({ iteration: 'i1' }, { iteration: itemIterationValue('i2', paired) }, { iteration: 'i1' }, true);
+    expect(kept.push).toEqual({});
+    expect(kept.pull).toEqual({});
+    expect(kept.snapshot).toEqual({ iteration: 'i1' });
   });
 });

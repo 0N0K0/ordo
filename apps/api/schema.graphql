@@ -1488,6 +1488,9 @@ input GithubLinkInput {
   """
   typeSource: String
   url: String!
+
+  """Sprints written as iterations on GitHub. Default = false."""
+  writeIterations: Boolean
 }
 
 type GithubProjectLink {
@@ -1497,6 +1500,16 @@ type GithubProjectLink {
   endFieldId: String
   id: ID!
   iterationFieldId: String
+
+  """
+  Why the iterations are no longer synchronized (GitHub did not keep a write as sent), until resumed (resumeGithubIterations).
+  """
+  iterationWriteError: String
+
+  """
+  Why GitHub refused the last iteration write (tried again at each sync).
+  """
+  iterationWriteRefusal: String
   label: String!
   lastSyncAt: DateTime
   lastSyncError: String
@@ -1519,6 +1532,11 @@ type GithubProjectLink {
   """FIELD, ISSUE_TYPE, or null."""
   typeSource: String
   url: String!
+
+  """
+  Sprints written as iterations on GitHub (off: iterations only read and paired).
+  """
+  writeIterations: Boolean!
 }
 
 type GithubSyncSummary {
@@ -1536,9 +1554,22 @@ type GithubSyncSummary {
   sprints: Int!
 
   """
-  Ordo sprints without iteration: to be created on GitHub, where they are paired by name.
+  Sprints not sent: the iteration writes of the link are stopped (iterationWriteError) or refused by GitHub (iterationWriteRefusal).
+  """
+  sprintsBlocked: Int!
+
+  """Iterations created or updated on GitHub from the sprints."""
+  sprintsPushed: Int!
+
+  """
+  Sprints not sent: they share a day with another sprint of the project tree, or would with another iteration.
   """
   sprintsSkipped: Int!
+
+  """
+  Sprints without iteration while the iterations are not written (writeIterations off).
+  """
+  sprintsUnpaired: Int!
   unlinked: Int!
 }
 
@@ -2627,6 +2658,11 @@ type Mutation {
   """
   resetChecklist(id: ID!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
+
+  """
+  Resumes the iteration sync of a link stopped after a write GitHub did not keep as sent.
+  """
+  resumeGithubIterations(projectId: ID!): Boolean!
 
   """
   Records that an alarm or a reminder starts ringing (first ring or repetition); a stopped one is returned as it is.

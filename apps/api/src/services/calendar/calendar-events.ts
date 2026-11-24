@@ -1006,7 +1006,9 @@ async function carryExceptions(
  * @param {string} day Day.
  * @returns {boolean} An occurrence.
  */
-const occursOn = (rule: Recurrence, start: string, day: string): boolean => occurrenceDates(rule, start, day, day).includes(day);
+function occursOn(rule: Recurrence, start: string, day: string): boolean {
+  return occurrenceDates(rule, start, day, day).includes(day);
+}
 
 /**
  * Day of the occurrences of a series from a date once moved (a series moved, or split from that date): as many days

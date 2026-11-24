@@ -1,7 +1,7 @@
 import { countOf, plural } from '@ordo/shared';
 
 /** What a synchronisation with GitHub exchanged (a missing count: none). */
-export type SyncSummary = Partial<Record<'pulledNew' | 'pushedNew' | 'pulled' | 'pushed' | 'unlinked' | 'sprints' | 'sprintsSkipped' | 'renumbered' | 'comments' | 'failed', number>>;
+export type SyncSummary = Partial<Record<'pulledNew' | 'pushedNew' | 'pulled' | 'pushed' | 'unlinked' | 'sprints' | 'sprintsPushed' | 'sprintsSkipped' | 'sprintsBlocked' | 'sprintsUnpaired' | 'renumbered' | 'comments' | 'failed', number>>;
 
 /**
  * What a synchronisation with GitHub exchanged, in words, the same in its toast and under the link.
@@ -9,16 +9,19 @@ export type SyncSummary = Partial<Record<'pulledNew' | 'pushedNew' | 'pulled' | 
  * @returns {string} « 2 tâches créées depuis GitHub, 1 item créé sur GitHub, … 3 commentaires échangés ».
  */
 export function syncSummaryText(summary: SyncSummary): string {
-  const { pulledNew = 0, pushedNew = 0, pulled = 0, pushed = 0, unlinked = 0, sprints = 0, sprintsSkipped = 0, renumbered = 0, comments = 0, failed = 0 } = summary;
+  const { pulledNew = 0, pushedNew = 0, pulled = 0, pushed = 0, unlinked = 0, sprints = 0, sprintsPushed = 0, sprintsSkipped = 0, sprintsBlocked = 0, sprintsUnpaired = 0, renumbered = 0, comments = 0, failed = 0 } = summary;
   return [
     `${countOf(pulledNew, 'tâche')} ${plural(pulledNew, 'créée')} depuis GitHub`,
     `${countOf(pushedNew, 'item')} ${plural(pushedNew, 'créé')} sur GitHub`,
     `${countOf(pulled, 'tâche')} et ${countOf(pushed, 'item')} mis à jour`,
     `${countOf(unlinked, 'tâche')} ${plural(unlinked, 'retirée')} du tableau (${plural(unlinked, 'archivée')})`,
     `${countOf(sprints, 'sprint')} ${plural(sprints, 'créé')} ou mis à jour`,
+    ...(sprintsPushed ? [`${countOf(sprintsPushed, 'itération')} ${plural(sprintsPushed, 'créée')} ou ${plural(sprintsPushed, 'mise')} à jour sur GitHub`] : []),
     // eslint-disable-next-line no-restricted-syntax -- syncSummaryText itself.
     `${countOf(renumbered, 'tâche')} ${plural(renumbered, 'renumérotée')}`,
-    ...(sprintsSkipped ? [`${countOf(sprintsSkipped, 'sprint')} sans itération (à créer dans GitHub)`] : []),
+    ...(sprintsSkipped ? [`${countOf(sprintsSkipped, 'sprint')} non ${plural(sprintsSkipped, 'envoyé')} (${plural(sprintsSkipped, 'il chevauche', 'ils chevauchent')} un autre sprint)`] : []),
+    ...(sprintsBlocked ? [`${countOf(sprintsBlocked, 'sprint')} non ${plural(sprintsBlocked, 'envoyé')} (itérations non écrites, voir la section GitHub du projet)`] : []),
+    ...(sprintsUnpaired ? [`${countOf(sprintsUnpaired, 'sprint')} sans itération (à créer dans GitHub)`] : []),
     `${countOf(comments, 'commentaire')} ${plural(comments, 'échangé')}`,
     ...(failed ? [`${countOf(failed, 'tâche')} en échec (${plural(failed, 'réessayée')} à la prochaine synchronisation)`] : []),
   ].join(', ');

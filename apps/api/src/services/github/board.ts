@@ -1,4 +1,4 @@
-import { dayPart, issueAddress, REPOSITORY_FORMAT_ERROR, type TaskCloseReason } from '@ordo/shared';
+import { dayPart, issueAddress, REPOSITORY_FORMAT_ERROR, type BoardIteration, type IterationReading, type SentIteration, type TaskCloseReason } from '@ordo/shared';
 import { env } from '../../env';
 import { clientError, fieldError } from '../../graphql/errors';
 import { githubRequest, githubRestPost, isGoneOnGithub } from './client';
@@ -10,7 +10,13 @@ export interface BoardField {
   dataType: string;
   options: { id: string; name: string }[];
   /** Iterations (current and coming, then completed). */
-  iterations: { id: string; title: string; startDate: string; duration: number }[];
+  iterations: BoardIteration[];
+  /** Ids of the completed iterations (iteration fields only). */
+  completedIterationIds: string[];
+  /** Duration of the iteration field, in days (iteration fields only, otherwise null). */
+  iterationDuration: number | null;
+  /** Last change of the field (its iterations included). */
+  updatedAt: string | null;
   /**
    * Issue field of the organization the board shows, or null: its values belong to the issues (none on a draft),
    * its options are the issue field's, and it is written with updateIssueFieldValue.
@@ -78,19 +84,16 @@ export interface RemoteItem {
 const ISSUE_FIELD_SELECTION =
   'issueField { __typename ... on IssueFieldSingleSelect { id options { id name } } ... on IssueFieldDate { id } ... on IssueFieldNumber { id } ... on IssueFieldText { id } }';
 
+const ITERATION_CONFIGURATION = 'configuration { duration iterations { id title startDate duration } completedIterations { id title startDate duration } }';
+
 const FIELD_SELECTION = `
   fields(first: 50) {
     nodes {
       __typename
-      ... on ProjectV2FieldCommon { id name dataType isIssueField }
+      ... on ProjectV2FieldCommon { id name dataType isIssueField updatedAt }
       ... on ProjectV2Field { ${ISSUE_FIELD_SELECTION} }
       ... on ProjectV2SingleSelectField { options { id name } ${ISSUE_FIELD_SELECTION} }
-      ... on ProjectV2IterationField {
-        configuration {
-          iterations { id title startDate duration }
-          completedIterations { id title startDate duration }
-        }
-      }
+      ... on ProjectV2IterationField { ${ITERATION_CONFIGURATION} }
     }
   }
   owner { __typename ... on Organization { issueTypes(first: 50) { nodes { id name isEnabled } } } }`;
@@ -100,9 +103,26 @@ interface RawField {
   name?: string;
   dataType?: string;
   options?: { id: string; name: string }[];
-  configuration?: { iterations: BoardField['iterations']; completedIterations: BoardField['iterations'] };
+  configuration?: RawIterationConfiguration;
+  updatedAt?: string;
   isIssueField?: boolean;
   issueField?: { id?: string; options?: { id: string; name: string }[] } | null;
+}
+
+interface RawIterationConfiguration {
+  duration: number;
+  iterations: BoardIteration[];
+  completedIterations: BoardIteration[];
+}
+
+/**
+ * Iterations of a raw iteration configuration: current and coming, then completed (the ids of these apart).
+ * @param {RawIterationConfiguration | undefined} configuration Raw configuration.
+ * @returns {IterationReading} Iterations.
+ */
+function iterationsOf(configuration: RawIterationConfiguration | undefined): IterationReading {
+  const completed = configuration?.completedIterations ?? [];
+  return { iterations: [...(configuration?.iterations ?? []), ...completed], completedIds: completed.map((iteration) => iteration.id) };
 }
 
 interface RawBoard {
@@ -131,7 +151,10 @@ function toBoard(raw: RawBoard): Board {
         dataType: field.dataType ?? '',
         // The options of an issue field are the issue field's (its values are written with their ids).
         options: (field.isIssueField ? field.issueField?.options : undefined) ?? field.options ?? [],
-        iterations: [...(field.configuration?.iterations ?? []), ...(field.configuration?.completedIterations ?? [])],
+        iterations: iterationsOf(field.configuration).iterations,
+        completedIterationIds: iterationsOf(field.configuration).completedIds,
+        iterationDuration: field.configuration?.duration ?? null,
+        updatedAt: field.updatedAt ?? null,
         issueFieldId: (field.isIssueField && field.issueField?.id) || null,
       })),
     issueTypes: (raw.owner?.issueTypes?.nodes ?? []).filter((type) => type.isEnabled).map(({ id, name }) => ({ id, name })),
@@ -785,4 +808,44 @@ export async function setRelatesTo(token: string, issueId: string, relatedIssueI
     issueId,
     relatedIssueId,
   });
+}
+
+/** An iteration field as read alone: its iterations, its duration and its last change. */
+export interface IterationField extends IterationReading {
+  duration: number;
+  updatedAt: string | null;
+}
+
+/**
+ * Reads an iteration field again, alone (just before writing it, and after, to check the write).
+ * @param {string} token Token.
+ * @param {string} fieldId Iteration field.
+ * @returns {Promise<IterationField>} Iterations, duration and last change.
+ */
+export async function iterationField(token: string, fieldId: string): Promise<IterationField> {
+  const data = await githubRequest<{ node: { updatedAt?: string; configuration?: RawIterationConfiguration } | null }>(
+    token,
+    `query OrdoIterationField($id: ID!) { node(id: $id) { ... on ProjectV2IterationField { updatedAt ${ITERATION_CONFIGURATION} } } }`,
+    { id: fieldId },
+  );
+  if (!data.node?.configuration) throw clientError('BAD_USER_INPUT', 'Champ d’itération du tableau GitHub introuvable.');
+  return { ...iterationsOf(data.node.configuration), duration: data.node.configuration.duration, updatedAt: data.node.updatedAt ?? null };
+}
+
+/**
+ * Writes the whole configuration of an iteration field (the API replaces it: every iteration is sent, the existing ones
+ * with their id so that they keep their identity and the items their value).
+ * @param {string} token Token.
+ * @param {string} fieldId Iteration field.
+ * @param {{ startDate: string, duration: number, iterations: SentIteration[] }} configuration First day, duration of the field, iterations.
+ * @returns {Promise<void>}
+ */
+export async function setIterations(token: string, fieldId: string, configuration: { startDate: string; duration: number; iterations: SentIteration[] }): Promise<void> {
+  await githubRequest(
+    token,
+    `mutation OrdoSetIterations($fieldId: ID!, $configuration: ProjectV2IterationFieldConfigurationInput!) {
+      updateProjectV2Field(input: { fieldId: $fieldId, iterationConfiguration: $configuration }) { projectV2Field { ... on ProjectV2IterationField { id } } }
+    }`,
+    { fieldId, configuration },
+  );
 }

@@ -22,7 +22,8 @@ const SYNC_FIELDS = [
   'relatesTo',
 ] as const;
 type SyncField = (typeof SYNC_FIELDS)[number];
-type SyncValue = string | number | boolean | string[] | null;
+/** A synchronized value. */
+export type SyncValue = string | number | boolean | string[] | null;
 /** Values of the synchronized fields, in a shape common to both sides (absent: not synchronized). */
 export type SyncFields = Partial<Record<SyncField, SyncValue>>;
 
@@ -35,6 +36,19 @@ export type SyncFields = Partial<Record<SyncField, SyncValue>>;
  */
 export function isUnmapped(value: SyncValue | undefined, side: 'ordo' | 'gh'): boolean {
   return typeof value === 'string' && value.startsWith(`${side}:`);
+}
+
+/**
+ * Whether the Ordo side changed after the GitHub side, the dates compared as instants (GitHub gives them without
+ * milliseconds: compared as texts, a change made in the same second would look older).
+ * @param {Date} local Last change on the Ordo side.
+ * @param {string | null} remote Last change on the GitHub side (ISO), or null when unknown.
+ * @returns {boolean} Ordo changed later (true when the GitHub date is unknown).
+ */
+export function changedAfter(local: Date, remote: string | null): boolean {
+  if (!remote) return true;
+  const time = new Date(remote).getTime();
+  return Number.isNaN(time) || local.getTime() > time;
 }
 
 /**
@@ -73,6 +87,34 @@ export function upgradedSnapshot(snapshot: SyncFields | null): SyncFields | null
   if (upgraded.closed === true) upgraded.closed = 'COMPLETED';
   if (!('archived' in upgraded)) upgraded.archived = false;
   return upgraded;
+}
+
+/**
+ * Synchronized iteration of an item: the iteration itself when a sprint is paired with it, or no counterpart
+ * ("gh:<id>") when none is (its sprint deleted in Ordo): a GitHub user putting an item in it is not undone, and the task
+ * keeps its sprints.
+ * @param {string | null} iterationId Iteration of the item.
+ * @param {{ has: (id: string) => boolean }} paired Iterations paired with a sprint.
+ * @returns {string | null} Synchronized value.
+ */
+export function itemIterationValue(iterationId: string | null, paired: { has: (id: string) => boolean }): string | null {
+  return iterationId ? (paired.has(iterationId) ? iterationId : `gh:${iterationId}`) : null;
+}
+
+/**
+ * Iteration of the last snapshot of a pair read as today: gone from the board, it is no reference (undefined: dropped,
+ * the sprint of the task wins); still on the board without sprint, it is the value the item shows for it ("gh:<id>",
+ * `itemIterationValue`), so that the item of a sprint deleted in Ordo loses it.
+ * @param {SyncValue | undefined} value Iteration in the snapshot.
+ * @param {{ has: (id: string) => boolean }} onBoard Iterations of the field.
+ * @param {{ has: (id: string) => boolean }} paired Iterations paired with a sprint.
+ * @returns {SyncValue | undefined} Value to compare with, or undefined to drop it.
+ */
+export function snapshotIterationValue(value: SyncValue | undefined, onBoard: { has: (id: string) => boolean }, paired: { has: (id: string) => boolean }): SyncValue | undefined {
+  if (typeof value !== 'string') return value;
+  const id = value.startsWith('gh:') ? value.slice(3) : value;
+  if (!onBoard.has(id)) return undefined;
+  return itemIterationValue(id, paired);
 }
 
 /** Board fields a link synchronizes, by Ordo field (null: not synchronized), and where its type comes from. */
@@ -191,14 +233,8 @@ function sameValue(a: SyncValue | undefined, b: SyncValue | undefined): boolean 
   return (a ?? null) === (b ?? null);
 }
 
-interface MergeResult {
-  /** Values to write on the task. */
-  pull: SyncFields;
-  /** Values to write on the item. */
-  push: SyncFields;
-  /** Values of both sides once synchronized: the next snapshot. */
-  snapshot: SyncFields;
-}
+/** Changes of the merge of a task and its item: values to write on the task (`pull`), on the item (`push`), next snapshot. */
+type MergeResult = MergedValues<SyncField>;
 
 /**
  * Whether a value is empty (no value, empty list or text).
@@ -220,8 +256,43 @@ const isEmpty = (value: SyncValue) => value === null || value === '' || (Array.i
  * @returns {MergeResult} Changes on each side and new snapshot.
  */
 export function mergeFields(local: SyncFields, remote: SyncFields, snapshot: SyncFields | null, localNewer: boolean): MergeResult {
-  const result: MergeResult = { pull: {}, push: {}, snapshot: {} };
-  for (const field of SYNC_FIELDS) {
+  return mergeValues(SYNC_FIELDS, local, remote, snapshot, localNewer);
+}
+
+/** Changes of a three-way merge of some fields (`mergeValues`). */
+export interface MergedValues<K extends string> {
+  /** Values to write on the Ordo side. */
+  pull: Partial<Record<K, SyncValue>>;
+  /** Values to write on the GitHub side. */
+  push: Partial<Record<K, SyncValue>>;
+  /** Values of both sides once synchronized: the next snapshot. */
+  snapshot: Partial<Record<K, SyncValue>>;
+}
+
+/**
+ * Three-way merge of the given fields, as `mergeFields` does for the fields of a task (the same rules for any pair of
+ * records synchronized with GitHub, a sprint and its iteration among them).
+ * @param {readonly K[]} fields Fields compared (absent from one side: not synchronized).
+ * @param {Partial<Record<K, SyncValue>>} local Values of the Ordo side.
+ * @param {Partial<Record<K, SyncValue>>} remote Values of the GitHub side.
+ * @param {Partial<Record<K, SyncValue>> | null} snapshot Values at the last sync.
+ * @param {boolean} localNewer The Ordo side changed after the GitHub side.
+ * @param {{ unmapped?: boolean }} [options] Options. Optional.
+ * @param {boolean} [options.unmapped] Values prefixed `ordo:` / `gh:` have no counterpart (`isUnmapped`); false for
+ * plain texts (a title may start so). Optional. Default = true.
+ * @returns {MergedValues<K>} Changes on each side and new snapshot.
+ */
+export function mergeValues<K extends string>(
+  fields: readonly K[],
+  local: Partial<Record<K, SyncValue>>,
+  remote: Partial<Record<K, SyncValue>>,
+  snapshot: Partial<Record<K, SyncValue>> | null,
+  localNewer: boolean,
+  { unmapped = true }: { unmapped?: boolean } = {},
+): MergedValues<K> {
+  const noCounterpart = (value: SyncValue | undefined, side: 'ordo' | 'gh') => unmapped && isUnmapped(value, side);
+  const result: MergedValues<K> = { pull: {}, push: {}, snapshot: {} };
+  for (const field of fields) {
     if (!(field in local) || !(field in remote)) continue;
     const mine = local[field] ?? null;
     const theirs = remote[field] ?? null;
@@ -233,22 +304,22 @@ export function mergeFields(local: SyncFields, remote: SyncFields, snapshot: Syn
     if (base === undefined && Array.isArray(mine) && Array.isArray(theirs)) {
       // Nothing is dropped from either side: both get every value (one not applicable is not sent).
       const joined = [...new Set([...mine, ...theirs])].sort();
-      const pulled = joined.filter((value) => !isUnmapped(value, 'gh'));
-      const pushed = joined.filter((value) => !isUnmapped(value, 'ordo'));
+      const pulled = joined.filter((value) => !noCounterpart(value, 'gh'));
+      const pushed = joined.filter((value) => !noCounterpart(value, 'ordo'));
       if (!sameValue(pulled, mine)) result.pull[field] = pulled;
       if (!sameValue(pushed, theirs)) result.push[field] = pushed;
-      result.snapshot[field] = joined.filter((value) => !isUnmapped(value, 'gh') && !isUnmapped(value, 'ordo'));
+      result.snapshot[field] = joined.filter((value) => !noCounterpart(value, 'gh') && !noCounterpart(value, 'ordo'));
       continue;
     }
     const pull = base !== undefined ? sameValue(mine, base) || (!sameValue(theirs, base) && !localNewer) : isEmpty(mine) !== isEmpty(theirs) ? isEmpty(mine) : !localNewer;
     if (pull) {
-      if (isUnmapped(theirs, 'gh')) {
+      if (noCounterpart(theirs, 'gh')) {
         result.snapshot[field] = mine;
       } else {
         result.pull[field] = theirs;
         result.snapshot[field] = theirs;
       }
-    } else if (isUnmapped(mine, 'ordo')) {
+    } else if (noCounterpart(mine, 'ordo')) {
       result.snapshot[field] = theirs;
     } else {
       result.push[field] = mine;

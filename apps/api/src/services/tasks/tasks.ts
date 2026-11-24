@@ -370,6 +370,15 @@ export const updateTask = automated(async function updateTask(id: string, input:
   return savedTask(found, input, restoring);
 });
 
+/** Ids of the people, tags and sprints of a task, as its writes check and copy them. */
+export const TASK_PEOPLE_LINKS = {
+  assignees: { select: { id: true } },
+  beneficiaries: { select: { id: true } },
+  beneficiaryRelations: { select: { id: true } },
+  tags: { select: { id: true } },
+  sprints: { select: { id: true } },
+} as const;
+
 /**
  * Checks and saves the changes of a task (`updateTask`).
  * @param {Task} task Task as it is (made top-level: its inheritance already made its own).
@@ -575,15 +584,6 @@ export async function releaseProjectTasks(projectIds: string[]): Promise<void> {
   const tasks = await prisma.task.findMany({ where: { projectId: { in: projectIds } }, select: { id: true } });
   await moveTaskTrees(tasks.map((task) => task.id), null, false);
 }
-
-/** Ids of the people, tags and sprints of a task, as its writes check and copy them. */
-export const TASK_PEOPLE_LINKS = {
-  assignees: { select: { id: true } },
-  beneficiaries: { select: { id: true } },
-  beneficiaryRelations: { select: { id: true } },
-  tags: { select: { id: true } },
-  sprints: { select: { id: true } },
-} as const;
 
 /** People, tags and sprints a cloned task (and each cloned sub-task) keeps. */
 const CLONED_LINKS = {

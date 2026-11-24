@@ -108,6 +108,15 @@ const EventSeriesFields = builder.objectRef<events.EventSeriesFields>('CalendarE
   fields: (t) => ownFields(t),
 });
 
+const EventRoutineLinkRef = builder.objectRef<{ routineId: string; date: string; shownDate: string }>('EventRoutineLink').implement({
+  description: 'Occurrence of a routine (its day) an event is about.',
+  fields: (t) => ({
+    routineId: t.exposeID('routineId'),
+    date: t.exposeString('date', { description: 'Day that identifies the occurrence (YYYY-MM-DD): its due day, or the day of its rule when moved onto a day that has its own and kept apart.' }),
+    shownDate: t.exposeString('shownDate', { description: 'Day the occurrence shows on (a day of the event; YYYY-MM-DD).' }),
+  }),
+});
+
 const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEventOccurrence').implement({
   description: 'One occurrence of an event in a period.',
   fields: (t) => ({
@@ -235,15 +244,6 @@ const BirthdayLookInput = builder.inputType('BirthdayLookInput', {
 const ScheduleSubscriptionLookInput = builder.inputType('ScheduleSubscriptionLookInput', {
   description: 'Color and display of a kind of schedules subscribed to, in this workspace; null: those of the kind.',
   fields: (t) => ({ color: t.string(), dayDisplay: t.string(), dayBar: t.boolean(), monthDisplay: t.string() }),
-});
-
-const EventRoutineLinkRef = builder.objectRef<{ routineId: string; date: string; shownDate: string }>('EventRoutineLink').implement({
-  description: 'Occurrence of a routine (its day) an event is about.',
-  fields: (t) => ({
-    routineId: t.exposeID('routineId'),
-    date: t.exposeString('date', { description: 'Day that identifies the occurrence (YYYY-MM-DD): its due day, or the day of its rule when moved onto a day that has its own and kept apart.' }),
-    shownDate: t.exposeString('shownDate', { description: 'Day the occurrence shows on (a day of the event; YYYY-MM-DD).' }),
-  }),
 });
 
 const EventRoutineLinkInput = builder.inputType('EventRoutineLinkInput', {
