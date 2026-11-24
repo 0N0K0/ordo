@@ -35,6 +35,29 @@ export function isUnmapped(value: SyncValue | undefined, side: 'ordo' | 'gh'): b
 }
 
 /**
+ * Synchronized parent of a task: the issue of its parent task on the board, archived or not (an archived parent is
+ * merged like any other, so that both sides always show the same parent), or no counterpart ("ordo:<id>") when its
+ * parent has no issue.
+ * @param {string | null} parentId Parent task.
+ * @param {string | null} parentIssueId Issue of the parent task on the board (archived or not), or null.
+ * @returns {string | null} Synchronized value.
+ */
+export function taskParentValue(parentId: string | null, parentIssueId: string | null): string | null {
+  return parentId ? (parentIssueId ?? `ordo:${parentId}`) : null;
+}
+
+/**
+ * Synchronized parent of an issue: its parent issue when it is linked to a task, archived or not, or no counterpart
+ * ("gh:<id>") when it is not (outside the board).
+ * @param {string | null} parentIssueId Parent issue on GitHub.
+ * @param {boolean} linked The parent issue is linked to a task (archived or not).
+ * @returns {string | null} Synchronized value.
+ */
+export function itemParentValue(parentIssueId: string | null, linked: boolean): string | null {
+  return parentIssueId ? (linked ? parentIssueId : `gh:${parentIssueId}`) : null;
+}
+
+/**
  * Whether two values are the same (lists regardless of order).
  * @param {SyncValue | undefined} a Value.
  * @param {SyncValue | undefined} b Value.

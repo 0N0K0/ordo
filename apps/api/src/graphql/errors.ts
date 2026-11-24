@@ -47,6 +47,28 @@ export function rethrowUnique(error: unknown, message: string, field = 'label'):
 }
 
 /**
+ * Whether an error is the end of a transaction that ran out of time (`inTransaction`: its timeout passed, or it could
+ * not start in time): Prisma's P2028 about an expired transaction or one not started in the given time (its other
+ * P2028 errors, a transaction not found or already closed, are not about time), everything rolled back.
+ * @param {unknown} error Caught error.
+ * @returns {boolean} A P2028 timeout error.
+ */
+export function isTransactionTimeout(error: unknown): boolean {
+  return error instanceof Error && (error as { code?: unknown }).code === 'P2028' && /expired transaction|in the given time/.test(error.message);
+}
+
+/**
+ * Rethrows a caught error, a transaction that ran out of time turned into a client error with this message.
+ * @param {unknown} error Caught error.
+ * @param {string} message Message (« L’annulation a pris trop de temps : rien n’a été changé. … »).
+ * @returns {never}
+ */
+export function rethrowTimeout(error: unknown, message: string): never {
+  if (isTransactionTimeout(error)) throw clientError('BAD_USER_INPUT', message);
+  throw error;
+}
+
+/**
  * Record a query found, or NOT_FOUND when there is none (the error of a form field when one is given).
  * @param {PromiseLike<T | null>} query Query (a `findUnique`, a `findFirst`…).
  * @param {string} what Human-readable name of the record ("Client", "Projet"…).

@@ -12,6 +12,7 @@ export * from './tables/filter-match';
 export * from './tasks/task-columns';
 export * from './tasks/time';
 export * from './tasks/github';
+export * from './tasks/github-merge';
 export * from './mail/mail';
 export * from './dates/days';
 export * from './dates/recurrence';

@@ -139,3 +139,17 @@ Internes : `AlarmSchedule`, `ringsOnDay` (l'alarme sonne ce jour-là, jour de Pa
 | `GithubLinkInput` | Réglages du lien d'un projet avec un tableau GitHub Projects : `url` ; ids des champs synchronisés (`statusFieldId`, `priorityFieldId`, `iterationFieldId`, `startFieldId`, `endFieldId`, `effortFieldId`, `deadlineFieldId`, `timeSpentFieldId`) ; `typeSource` (`FIELD`, `ISSUE_TYPE` de l'organisation, ou `null`) et `typeFieldId` ; correspondances `statusOptions`, `priorityOptions`, `typeOptions` (id Ordo → option GitHub) ; `syncAssignees`, `syncLabels` ; `repositoryName` (« owner/name », `null` pour des brouillons) ; `pushExisting` ; `enabled`. Un type (pas une interface) : les valeurs d'un formulaire. Voir [GitHub](../../business-rules/cross-cutting/github.md). |
 | `REPOSITORY_FORMAT_ERROR` | « Forme attendue : compte/dépôt. » (sous le dépôt d'un lien ; aussi l'erreur de champ de l'API). |
 | `githubLinkFormSchema` | Réglages d'un lien dans son formulaire : `repositoryName` vide ou « compte/dépôt » (`REPOSITORY_FORMAT_ERROR`) ; le reste se choisit dans le tableau. |
+
+## `github-merge.ts` — fusion d'une tâche et de son item GitHub
+
+Fonctions pures de la synchronisation GitHub (`apps/api/src/services/github/sync.ts`), testées dans `test/tasks/github-merge.test.ts`. Voir [GitHub](../../business-rules/cross-cutting/github.md#fusion-à-trois-voies-mergefields).
+
+| Export | Rôle |
+| ------ | ---- |
+| `SyncFields` | Valeurs des champs synchronisés d'une tâche ou d'un item, sous une forme commune aux deux côtés (champ absent : non synchronisé). |
+| `isUnmapped(value, side)` | La valeur n'a pas d'équivalent de l'autre côté (préfixe `ordo:` ou `gh:`). |
+| `mergeFields(local, remote, snapshot, localNewer)` | Fusion à trois voies, champ par champ, contre l'instantané de la dernière synchronisation : ce qu'il faut écrire dans la tâche (`pull`), dans l'item (`push`), et le nouvel instantané. |
+| `taskParentValue(parentId, parentIssueId)` | Parent synchronisé d'une tâche : l'issue de sa tâche parente, archivée ou non, sinon `ordo:<id>` (sans équivalent). |
+| `itemParentValue(parentIssueId, linked)` | Parent synchronisé d'une issue : son issue parente si elle est liée à une tâche, archivée ou non, sinon `gh:<id>` (hors du tableau). |
+
+Internes : `sameValue` (même valeur, listes sans ordre), `isEmpty` (valeur vide).

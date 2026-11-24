@@ -4,7 +4,7 @@ import { inTransaction, prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
 import { BY_POSITION, moveBefore, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
-import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput, rethrowTimeout } from '../../graphql/errors';
 import { assertProjectContributors, attachAssignees } from '../projects/contributors';
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
 import { releaseSubjectTime } from './time-entries';
@@ -1161,6 +1161,9 @@ async function linksOfStayedSubtasks(lost: TaskLinksLost, stayed: readonly strin
   };
 }
 
+/** Undo of a transfer whose transaction ran out of time (rolled back). */
+const UNDO_TIMEOUT_ERROR = 'L’annulation a pris trop de temps : rien n’a été changé. Réessayez avec moins de tâches.';
+
 /**
  * Undo of a transfer (« Annuler » of a transfer, or of a rule that changed the project of one or several tasks), in
  * one transaction: all of it or nothing. The tasks go back to their project in the order given (the moved ones with
@@ -1168,7 +1171,8 @@ async function linksOfStayedSubtasks(lost: TaskLinksLost, stayed: readonly strin
  * level by level), each in its own project (those already there are left; one whose project was deleted since stays
  * with its parent, its project inherited again, without the milestone, sprints and documents of that project), archived ones and archived projects accepted, as an undo; then the links the transfer removed come
  * back (`restoreTaskLinks`), with those the groups lost between them while going back one after the other (blocks,
- * relations, parents of tasks back in the same tree). The tasks deleted since are passed over.
+ * relations, parents of tasks back in the same tree). The tasks deleted since are passed over. A transaction that runs
+ * out of time changes nothing and tells so.
  * @param {readonly TaskProjectMove[]} moves Tasks and the project each group goes back to, in order.
  * @param {unknown} links Links removed, as the transfer told them.
  * @returns {Promise<void>}
@@ -1192,7 +1196,7 @@ export const undoTaskTransfer = automated(async function undoTaskTransfer(moves:
       if (off.length) between.push(await moveTaskTrees(await topmostIds('task', off.map((task) => task.id)), projectId));
     }
     await restoreTaskLinks(mergeTaskLinksLost([await linksOfStayedSubtasks(lost, stayed), await linksBackInOneTree(mergeTaskLinksLost(between))]));
-  });
+  }).catch((error: unknown) => rethrowTimeout(error, UNDO_TIMEOUT_ERROR));
 });
 
 /**
