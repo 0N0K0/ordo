@@ -14,7 +14,12 @@ import {
   nameKey,
   parseDay,
   parseOptionalDay,
+  readdedItemSnapshot,
+  remoteChangeDate,
   removedFromBoardComment,
+  wasReadded,
+  alreadyLinkedComment,
+  commentToPublish,
   round2,
   sameName,
   sumOf,
@@ -33,7 +38,9 @@ import { clientError, errorMessage, orNotFound } from '../../graphql/errors';
 import { addTaskBlock, addTaskRelation, assertParent, createTask, followParentProjects, removeTaskBlock, removeTaskRelation, setTaskArchived } from '../tasks/tasks';
 import {
   addIssueComment,
+  addIssueToBoard,
   boardById,
+  issueGone,
   boardItems,
   createItem,
   createLabel,
@@ -55,7 +62,7 @@ import {
   type FieldValue,
   type RemoteItem,
 } from './board';
-import { currentGithubConnection, githubToken } from './client';
+import { currentGithubConnection, githubToken, isGoneOnGithub, stopsSync } from './client';
 import { schedulePerWorkspace } from '../workspaces/workspaces';
 import { subtreeIds, topmostIds } from '../core/trees';
 import { connectIds } from '../core/relations';
@@ -641,6 +648,8 @@ async function syncComments(token: string, taskId: string, item: RemoteItem, log
   let changes = 0;
   for (const comment of local) {
     if (!comment.githubCommentId) {
+      // A comment of someone else whose issue was forgotten stays in Ordo only.
+      if (!commentToPublish(comment)) continue;
       const id = await addIssueComment(token, item.contentId, comment.body);
       await prisma.taskComment.update({ where: { id: comment.id }, data: { githubCommentId: id, githubBody: comment.body } });
       changes += 1;
@@ -781,8 +790,24 @@ async function pushTrackedTime(token: string, link: GithubProjectLink, item: Rem
 const running = new Set<string>();
 
 /**
+ * Forgets the issue of a task that cannot get it back on the board: its GitHub content and the links of its comments
+ * are cleared (what is given marks what follows: no content left, sent again as a new task; or off the board). The
+ * comments of others keep their author: they stay in Ordo only, never published under the account connected.
+ * @param {string} taskId Task.
+ * @param {Prisma.TaskUpdateInput} mark Content id and type to write.
+ * @returns {Promise<void>}
+ */
+async function forgetIssue(taskId: string, mark: Prisma.TaskUpdateInput): Promise<void> {
+  await prisma.$transaction([
+    prisma.task.update({ where: { id: taskId }, data: { ...mark, githubUrl: null, githubNumber: null, githubSnapshot: Prisma.DbNull } }),
+    prisma.taskComment.updateMany({ where: { taskId }, data: { githubCommentId: null, githubBody: null } }),
+  ]);
+}
+
+/**
  * Synchronizes one pair, or sends one new task: a failure (a write GitHub refuses…) is logged and counted, and the
- * other tasks go on. What it did not record (the snapshot last) is tried again at the next sync.
+ * other tasks go on. What it did not record (the snapshot last) is tried again at the next sync. A failure that would
+ * be the same for every task (GitHub out of reach, token refused, rate limit, missing rights) stops the whole sync.
  * @param {SyncSummary} summary Summary of the sync (its failures counted).
  * @param {() => Promise<void>} work Sync of the task.
  * @returns {Promise<void>}
@@ -791,6 +816,7 @@ async function isolated(summary: SyncSummary, work: () => Promise<void>): Promis
   try {
     await work();
   } catch (error) {
+    if (stopsSync(error)) throw error;
     summary.failed += 1;
     console.warn('Synchronisation GitHub : tâche non synchronisée.', error);
   }
@@ -819,6 +845,46 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
     const iterations = await syncIterations(board, link, tree);
     summary.sprints = iterations.changed;
     summary.sprintsSkipped = iterations.unpaired;
+    // Tasks back in the tree whose issue left the board with them (a transfer out of the tree, then its undo or a
+    // transfer back), archived or not, whenever they were created (they were on a board already): the same issue is
+    // added to the board again and linked, before the items are read, so that it is merged below as a pair, Ordo
+    // giving the values the new item carries. A draft, deleted with its item, is sent again as a new task (below).
+    const issueFieldIds = new Set(board.fields.filter((field) => field.issueFieldId).map((field) => field.id));
+    const back = await prisma.task.findMany({
+      where: { projectId: { in: tree }, githubItemId: null, githubContentType: 'ISSUE', githubContentId: { not: null } },
+      select: { id: true, githubContentId: true, githubUrl: true, githubSnapshot: true, updatedAt: true },
+    });
+    const readded = new Set<string>();
+    for (const task of back) {
+      await isolated(summary, async () => {
+        let itemId: string;
+        try {
+          itemId = await addIssueToBoard(token, link.githubProjectId, task.githubContentId!);
+        } catch (error) {
+          // Not found: only an issue surely gone (its repository readable, without it) is forgotten, the task sent again
+          // as a new one (below); an issue out of reach (repository private, token narrowed) is tried again.
+          if (!isGoneOnGithub(error) || !(await issueGone(token, task.githubUrl))) throw error;
+          await forgetIssue(task.id, { githubContentId: null });
+          return;
+        }
+        // The issue still had its item, now linked to another task (taken in by a former sync): that pair stays; this
+        // task is no longer linked, marked as off the board (not sent again, as a task whose item left the board).
+        const holder = await prisma.task.findUnique({ where: { githubItemId: itemId }, select: { id: true } });
+        if (holder) {
+          console.warn('Synchronisation GitHub : issue déjà liée à une autre tâche.', { taskId: task.id, holderId: holder.id });
+          await forgetIssue(task.id, { githubContentId: null, githubContentType: REMOVED });
+          await prisma.taskComment.create({ data: { taskId: task.id, body: alreadyLinkedComment(parisToday()) } });
+          return;
+        }
+        // Its own last change kept: linking it again is not a change of the task (the merge compares the dates).
+        await prisma.task.update({
+          where: { id: task.id },
+          data: { githubItemId: itemId, githubSnapshot: toJson(readdedItemSnapshot(task.githubSnapshot as SyncFields | null, link, issueFieldIds)), updatedAt: task.updatedAt },
+        });
+        readded.add(task.id);
+        summary.pushedNew += 1;
+      });
+    }
     const items = await boardItems(token, board);
     const itemIds = items.map((item) => item.itemId);
 
@@ -826,7 +892,8 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
     // there): archived (with their active sub-tasks, as any archive; the topmost first, so
     // that the cascade does not depend on their order), then unlinked, marked so that they are not sent back, with a
     // comment saying so. Archived first: a failure leaves them gone, archived again (no change) at the next sync.
-    const gone = await prisma.task.findMany({ where: { projectId: { in: tree }, githubItemId: { not: null, notIn: itemIds } }, select: { id: true } });
+    // An issue added again just now may not be read yet: it is not gone.
+    const gone = await prisma.task.findMany({ where: { projectId: { in: tree }, githubItemId: { not: null, notIn: itemIds }, id: { notIn: [...readded] } }, select: { id: true } });
     if (gone.length) {
       const goneIds = gone.map((task) => task.id);
       // The topmost first (their sub-tasks archived along), then the others: one under a parent already archived too.
@@ -932,12 +999,18 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
         task.archivedAt = (await prisma.task.findUnique({ where: { id: task.id }, select: { archivedAt: true } }))?.archivedAt ?? null;
         const local = localFields(task, link, maps, item.type, link.iterationFieldId ? ((fieldValue(item.fields[link.iterationFieldId]) as string | null) ?? null) : null);
         const remote = remoteFields(item, link, maps);
-        // A snapshot of a former sync: closed without its reason, without archived state.
-        const snapshot = upgradedSnapshot(task.githubSnapshot as SyncFields | null);
+        // A snapshot of a former sync: closed without its reason, without archived state. Its issue just added to the
+        // board again: what the new item carries (empty, or a default of the board) is no change made on GitHub, the
+        // values of the task win.
+        // Marked in its snapshot until a whole merge: a sync that failed before still takes it as one.
+        const readdedPair = readded.has(task.id) || wasReadded(task.githubSnapshot);
+        const stored = upgradedSnapshot(task.githubSnapshot as SyncFields | null);
+        const snapshot = readdedPair ? readdedItemSnapshot(stored, link, issueFieldIds, remote) : stored;
         // An iteration of the last sync that is gone from the board (new ids given by GitHub) is no reference: the
         // item lost it, the sprint of the task wins.
         if (snapshot && typeof snapshot.iteration === 'string' && !iterationIds.has(snapshot.iteration)) delete snapshot.iteration;
-        const result = mergeFields(local, remote, snapshot, task.updatedAt.toISOString() > item.updatedAt);
+        // Back on the board: compared with the last change of the issue, not with the addition of its new item.
+        const result = mergeFields(local, remote, snapshot, task.updatedAt.toISOString() > remoteChangeDate(item, readdedPair));
         if (Object.keys(result.push).length) {
           await pushValues(token, link, item, result.push, pushContext(task, (remote.assignees as string[]) ?? []));
           summary.pushed += 1;
@@ -967,9 +1040,18 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
     }
 
     // New in the project tree: items of the board (an archived task never sent is not sent; one archived once linked
-    // stays synchronized above).
+    // stays synchronized above). A task whose draft was deleted when it left the tree, or whose issue no longer exists,
+    // back in it, is sent again, archived or not, whenever it was created (it was on a board already).
     const fresh = await prisma.task.findMany({
-      where: { projectId: { in: tree }, githubItemId: null, githubContentType: null, archivedAt: null, ...(!link.pushExisting && { createdAt: { gte: link.createdAt } }) },
+      where: {
+        projectId: { in: tree },
+        githubItemId: null,
+        OR: [
+          { githubContentType: null, archivedAt: null, ...(!link.pushExisting && { createdAt: { gte: link.createdAt } }) },
+          { githubContentType: 'DRAFT_ISSUE' },
+          { githubContentType: 'ISSUE', githubContentId: null },
+        ],
+      },
       include,
       orderBy: { number: 'asc' },
     });
@@ -1011,6 +1093,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
           relatesTo: [],
           comments: [],
           updatedAt: new Date().toISOString(),
+          contentUpdatedAt: new Date().toISOString(),
           fields: {},
         };
         const { title: _title, body: _body, assignees: _assignees, ...fields } = local;

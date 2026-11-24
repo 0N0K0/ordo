@@ -28,6 +28,41 @@ export type GithubLinkInput = {
   enabled: boolean;
 };
 
+/**
+ * A failed call to GitHub: no answer (network, time out), or its HTTP status (with, for a 403, whether GitHub says the
+ * rate limit is reached) and the types of its GraphQL errors.
+ */
+export interface GithubFailure {
+  network?: boolean;
+  status?: number;
+  rateLimited?: boolean;
+  graphqlTypes?: readonly string[];
+}
+
+/**
+ * Whether a failed call to GitHub stops the whole synchronization (every other call would fail the same way) rather
+ * than only the task being synchronized: GitHub out of reach, the token refused (401), the rate limit reached (429, a
+ * 403 saying so, or a GraphQL `RATE_LIMITED` error), the token without the scopes needed (`INSUFFICIENT_SCOPES`). Any
+ * other failure concerns one task: a value refused, an issue gone, a right missing on one repository or issue
+ * (`FORBIDDEN`, another 403).
+ * @param {GithubFailure} failure Failure.
+ * @returns {boolean} The synchronization stops.
+ */
+export function stopsGithubSync({ network = false, status, rateLimited = false, graphqlTypes = [] }: GithubFailure): boolean {
+  if (network || status === 401 || status === 429 || (status === 403 && rateLimited)) return true;
+  return graphqlTypes.some((type) => type === 'INSUFFICIENT_SCOPES' || type === 'RATE_LIMITED');
+}
+
+/**
+ * Whether a failed call to GitHub says that what it names no longer exists (an issue deleted, or moved where the token
+ * cannot see it): a GraphQL `NOT_FOUND` error.
+ * @param {GithubFailure} failure Failure.
+ * @returns {boolean} Gone on GitHub.
+ */
+export function goneOnGithub({ graphqlTypes = [] }: GithubFailure): boolean {
+  return graphqlTypes.includes('NOT_FOUND');
+}
+
 /** Error under the repository of a link not written « compte/dépôt ». */
 export const REPOSITORY_FORMAT_ERROR = 'Forme attendue : compte/dépôt.';
 

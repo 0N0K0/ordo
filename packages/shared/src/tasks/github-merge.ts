@@ -75,6 +75,102 @@ export function upgradedSnapshot(snapshot: SyncFields | null): SyncFields | null
   return upgraded;
 }
 
+/** Board fields a link synchronizes, by Ordo field (null: not synchronized), and where its type comes from. */
+export interface GithubLinkFields {
+  statusFieldId: string | null;
+  priorityFieldId: string | null;
+  iterationFieldId: string | null;
+  startFieldId: string | null;
+  endFieldId: string | null;
+  deadlineFieldId: string | null;
+  effortFieldId: string | null;
+  typeSource: string | null;
+  typeFieldId: string | null;
+}
+
+/**
+ * Snapshot of a task whose issue is added to the board again (it had left it with its task, the task is back): the
+ * values the item itself carries (its archive; the board fields, an issue field of the organization aside) are those
+ * of the new item, so that a value of the task that differs is sent (the new item has none of its own: what it shows,
+ * a default set by the board, does not win); the values of the issue (title, body, state, labels, parent, issue
+ * fields…) keep the last snapshot, the issue being the same. Marked `readded` (`wasReadded`): stored when the issue is
+ * linked again, the pair is merged so until a whole merge has written a new snapshot (without the mark).
+ * @param {SyncFields | null} snapshot Last snapshot of the task, if any.
+ * @param {GithubLinkFields} link Fields the link synchronizes.
+ * @param {ReadonlySet<string>} issueFieldIds Board fields that are issue fields of the organization (held by the issue).
+ * @param {SyncFields} [onItem] Values of the new item, once read. Optional. Default = not read yet: empty, not archived.
+ * @returns {ReaddedSnapshot} Snapshot to merge the new item with (a copy), marked.
+ */
+export function readdedItemSnapshot(snapshot: SyncFields | null, link: GithubLinkFields, issueFieldIds: ReadonlySet<string>, onItem: SyncFields = {}): ReaddedSnapshot {
+  const onBoard = (fieldId: string | null) => Boolean(fieldId) && !issueFieldIds.has(fieldId!);
+  const held: [SyncField, boolean][] = [
+    ['status', onBoard(link.statusFieldId)],
+    ['priority', onBoard(link.priorityFieldId)],
+    ['type', link.typeSource === 'FIELD' && onBoard(link.typeFieldId)],
+    ['iteration', onBoard(link.iterationFieldId)],
+    ['start', onBoard(link.startFieldId)],
+    ['end', onBoard(link.endFieldId)],
+    ['deadline', onBoard(link.deadlineFieldId)],
+    ['effort', onBoard(link.effortFieldId)],
+  ];
+  return { ...snapshot, archived: onItem.archived ?? false, ...Object.fromEntries(held.filter(([, carried]) => carried).map(([field]) => [field, onItem[field] ?? null])), readded: true };
+}
+
+/** Snapshot of a pair whose issue was added to the board again, not merged in full since (`readdedItemSnapshot`). */
+export type ReaddedSnapshot = SyncFields & { readded?: boolean };
+
+/**
+ * Whether a stored snapshot is the one of an issue added to the board again, its pair not merged in full since.
+ * @param {unknown} snapshot Stored snapshot.
+ * @returns {boolean} Marked `readded`.
+ */
+export function wasReadded(snapshot: unknown): boolean {
+  return typeof snapshot === 'object' && snapshot !== null && (snapshot as ReaddedSnapshot).readded === true;
+}
+
+/**
+ * Date of the last change of an item that the merge compares with the task: the item's or its content's, whichever is
+ * later; for an issue just added to the board again, the issue's own (the new item's date is that of the addition,
+ * no change made on GitHub).
+ * @param {{ updatedAt: string, contentUpdatedAt: string }} item Dates of the item (latest of the item and its content) and of its content.
+ * @param {boolean} readded The issue was just added to the board again.
+ * @returns {string} Date (ISO).
+ */
+export function remoteChangeDate(item: { updatedAt: string; contentUpdatedAt: string }, readded: boolean): string {
+  return readded ? item.contentUpdatedAt : item.updatedAt;
+}
+
+/**
+ * Owner, repository and number of an issue from its address (https://github.com/<owner>/<repository>/issues/<n>, any host).
+ * @param {string | null} url Address of the issue.
+ * @returns {{ owner: string, name: string, number: number } | null} Parts, or null for another address.
+ */
+export function issueAddress(url: string | null): { owner: string; name: string; number: number } | null {
+  const match = url ? /^https?:\/\/[^/]+\/([^/]+)\/([^/]+)\/issues\/(\d+)\/?$/.exec(url) : null;
+  return match ? { owner: match[1], name: match[2], number: Number(match[3]) } : null;
+}
+
+/**
+ * Whether an Ordo comment is to be published on its issue: never sent, and written in Ordo (a comment pulled from
+ * GitHub whose issue was forgotten keeps its author and stays in Ordo only, never published again under the account
+ * connected).
+ * @param {{ githubCommentId: string | null, githubAuthor: string | null }} comment Comment.
+ * @returns {boolean} To publish.
+ */
+export function commentToPublish(comment: { githubCommentId: string | null; githubAuthor: string | null }): boolean {
+  return !comment.githubCommentId && !comment.githubAuthor;
+}
+
+/**
+ * Comment added to a task back in the tree of a board whose issue is linked to another task meanwhile: the task is no
+ * longer linked to GitHub (not archived).
+ * @param {string} day Day of the sync (YYYY-MM-DD, Paris).
+ * @returns {string} Comment body, « Déliée de GitHub le JJ/MM/AAAA : son issue est déjà liée à une autre tâche. ».
+ */
+export function alreadyLinkedComment(day: string): string {
+  return `Déliée de GitHub le ${printedDay(day)} : son issue est déjà liée à une autre tâche.`;
+}
+
 /**
  * Comment added to a task whose item was removed from the GitHub board, when it is archived in Ordo.
  * @param {string} day Day of the sync (YYYY-MM-DD, Paris).

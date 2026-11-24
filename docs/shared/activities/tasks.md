@@ -139,6 +139,9 @@ Internes : `AlarmSchedule`, `ringsOnDay` (l'alarme sonne ce jour-là, jour de Pa
 | `GithubLinkInput` | Réglages du lien d'un projet avec un tableau GitHub Projects : `url` ; ids des champs synchronisés (`statusFieldId`, `priorityFieldId`, `iterationFieldId`, `startFieldId`, `endFieldId`, `effortFieldId`, `deadlineFieldId`, `timeSpentFieldId`) ; `typeSource` (`FIELD`, `ISSUE_TYPE` de l'organisation, ou `null`) et `typeFieldId` ; correspondances `statusOptions`, `priorityOptions`, `typeOptions` (id Ordo → option GitHub) ; `syncAssignees`, `syncLabels` ; `repositoryName` (« owner/name », `null` pour des brouillons) ; `pushExisting` ; `enabled`. Un type (pas une interface) : les valeurs d'un formulaire. Voir [GitHub](../../business-rules/cross-cutting/github.md). |
 | `REPOSITORY_FORMAT_ERROR` | « Forme attendue : compte/dépôt. » (sous le dépôt d'un lien ; aussi l'erreur de champ de l'API). |
 | `githubLinkFormSchema` | Réglages d'un lien dans son formulaire : `repositoryName` vide ou « compte/dépôt » (`REPOSITORY_FORMAT_ERROR`) ; le reste se choisit dans le tableau. |
+| `GithubFailure` | Appel à GitHub en échec : sans réponse (`network`), ou son statut HTTP (`status`, avec `rateLimited` quand GitHub dit un 403 dû à la limite) et les types de ses erreurs GraphQL (`graphqlTypes`). |
+| `goneOnGithub(failure)` | L'échec dit que ce qu'il nomme n'existe plus (erreur GraphQL `NOT_FOUND`) : une issue revenue qui n'existe plus est envoyée comme une tâche nouvelle. Testé dans `test/tasks/github.test.ts`. |
+| `stopsGithubSync(failure)` | L'échec arrête toute la synchronisation (chaque appel suivant échouerait de même) plutôt que la seule tâche synchronisée : GitHub injoignable, jeton refusé (401), limite de requêtes (429, 403 `rateLimited`, `RATE_LIMITED`), jeton sans les droits nécessaires (`INSUFFICIENT_SCOPES`) ; un `FORBIDDEN` ou un autre 403 ne concerne qu'une tâche. Utilisé par `services/github/client.ts` ; testé dans `test/tasks/github.test.ts`. Voir [GitHub](../../business-rules/cross-cutting/github.md#erreurs-dappel-github). |
 
 ## `github-merge.ts` — fusion d'une tâche et de son item GitHub
 
@@ -152,6 +155,13 @@ Fonctions pures de la synchronisation GitHub (`apps/api/src/services/github/sync
 | `taskParentValue(parentId, parentIssueId)` | Parent synchronisé d'une tâche : l'issue de sa tâche parente, archivée ou non, sinon `ordo:<id>` (sans équivalent). |
 | `upgradedSnapshot(snapshot)` | Instantané d'une synchronisation précédente lu comme un d'aujourd'hui (copie) : fermé sans raison = terminé (`COMPLETED`), sans état d'archivage = non archivé. |
 | `removedFromBoardComment(day)` | Commentaire ajouté à une tâche dont l'item a quitté le tableau GitHub, quand elle est archivée : « Retirée du tableau GitHub le JJ/MM/AAAA : tâche archivée. » (`printedDay`). |
+| `GithubLinkFields` | Champs du tableau qu'un lien synchronise, par champ Ordo (`null` : non synchronisé), et `typeSource` / `typeFieldId`. |
+| `readdedItemSnapshot(snapshot, link, issueFieldIds, onItem?)` | Instantané d'une tâche dont l'issue est remise au tableau (copie) : ce que porte l'item lui-même (archivage ; champs du tableau, hors champs d'issue de l'organisation) prend les valeurs du nouvel item (`onItem`, une fois lu ; sinon vides, non archivé), pour qu'une valeur différente de la tâche soit envoyée (une valeur posée par le tableau ne l'emporte pas) ; ce que porte l'issue garde la dernière synchronisation ; marqué `readded`. |
+| `ReaddedSnapshot`, `wasReadded(snapshot)` | Instantané d'une paire dont l'issue a été remise au tableau, marqué `readded` jusqu'à une fusion complète ; `wasReadded` lit la marque d'un instantané enregistré. |
+| `remoteChangeDate(item, readded)` | Date du dernier changement d'un item comparée à la tâche : celle de l'item ou de son contenu ; pour une issue tout juste remise au tableau, celle de l'issue seule (`contentUpdatedAt`). |
+| `issueAddress(url)` | Compte, dépôt et numéro d'une issue d'après son adresse (`…/<compte>/<dépôt>/issues/<n>`), sinon `null`. |
+| `commentToPublish(comment)` | Un commentaire Ordo est à publier sur son issue : jamais envoyé et écrit dans Ordo (pas celui d'un autre auteur venu de GitHub, `githubAuthor`, dont l'issue a été oubliée). |
+| `alreadyLinkedComment(day)` | Commentaire ajouté à une tâche revenue dont l'issue est déjà liée à une autre tâche : « Déliée de GitHub le JJ/MM/AAAA : son issue est déjà liée à une autre tâche. » (`printedDay`). |
 | `itemParentValue(parentIssueId, linked)` | Parent synchronisé d'une issue : son issue parente si elle est liée à une tâche, archivée ou non, sinon `gh:<id>` (hors du tableau). |
 
 Internes : `sameValue` (même valeur, listes sans ordre), `isEmpty` (valeur vide).

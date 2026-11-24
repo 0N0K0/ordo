@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { itemParentValue, mergeFields, removedFromBoardComment, taskParentValue, upgradedSnapshot, type SyncFields } from '../../src/tasks/github-merge';
+import {
+  alreadyLinkedComment,
+  commentToPublish,
+  issueAddress,
+  itemParentValue,
+  mergeFields,
+  readdedItemSnapshot,
+  remoteChangeDate,
+  removedFromBoardComment,
+  taskParentValue,
+  upgradedSnapshot,
+  wasReadded,
+  type GithubLinkFields,
+  type SyncFields,
+} from '../../src/tasks/github-merge';
 
 /**
  * Merge of the parent alone.
@@ -199,5 +213,116 @@ describe('snapshot of a former sync', () => {
     const stored: SyncFields = { closed: true };
     upgradedSnapshot(stored);
     expect(stored).toEqual({ closed: true });
+  });
+});
+
+describe('snapshot of an issue added to the board again', () => {
+  const none: GithubLinkFields = { statusFieldId: null, priorityFieldId: null, iterationFieldId: null, startFieldId: null, endFieldId: null, deadlineFieldId: null, effortFieldId: null, typeSource: null, typeFieldId: null };
+  const all: GithubLinkFields = { statusFieldId: 's', priorityFieldId: 'p', iterationFieldId: 'i', startFieldId: 'a', endFieldId: 'b', deadlineFieldId: 'd', effortFieldId: 'e', typeSource: 'FIELD', typeFieldId: 't' };
+  const last: SyncFields = { title: 'T', body: 'B', closed: 'COMPLETED', archived: true, labels: ['x'], parent: 'issue-p', status: 'opt', priority: 'p1', type: 't1', iteration: 'it', start: '2026-11-01', end: '2026-11-02', deadline: '2026-11-03', effort: 3 };
+
+  it('the new item is not archived; the values of the issue keep the last snapshot', () => {
+    expect(readdedItemSnapshot(last, none, new Set())).toEqual({ ...last, archived: false, readded: true });
+  });
+
+  it('the board fields synchronized start empty on the new item', () => {
+    expect(readdedItemSnapshot(last, all, new Set())).toEqual({ title: 'T', body: 'B', closed: 'COMPLETED', archived: false, labels: ['x'], parent: 'issue-p', status: null, priority: null, type: null, iteration: null, start: null, end: null, deadline: null, effort: null, readded: true });
+  });
+
+  it('an issue field of the organization is held by the issue: kept', () => {
+    const snapshot = readdedItemSnapshot(last, all, new Set(['s', 'd']));
+    expect(snapshot.status).toBe('opt');
+    expect(snapshot.deadline).toBe('2026-11-03');
+    expect(snapshot.priority).toBeNull();
+  });
+
+  it('a type from the issue types of the organization is held by the issue: kept', () => {
+    expect(readdedItemSnapshot(last, { ...all, typeSource: 'ISSUE_TYPE', typeFieldId: null }, new Set()).type).toBe('t1');
+  });
+
+  it('without last snapshot: only what the new item has (first sync for the rest)', () => {
+    expect(readdedItemSnapshot(null, { ...none, statusFieldId: 's' }, new Set())).toEqual({ archived: false, status: null, readded: true });
+  });
+
+  it('merged with it, the values of the task are sent and those GitHub changed meanwhile are pulled', () => {
+    const snapshot = readdedItemSnapshot({ title: 'T', archived: false, status: 'opt' }, { ...none, statusFieldId: 's' }, new Set());
+    const result = mergeFields({ title: 'T', archived: true, status: 'opt' }, { title: 'T2', archived: false, status: null }, snapshot, false);
+    expect(result.push).toEqual({ archived: true, status: 'opt' });
+    expect(result.pull).toEqual({ title: 'T2' });
+  });
+
+  it('once the new item is read: what it carries is the reference, so a default of the board does not win', () => {
+    const remote: SyncFields = { title: 'T2', archived: false, status: 'todo', priority: null };
+    const snapshot = readdedItemSnapshot({ title: 'T', archived: true, status: 'opt' }, { ...none, statusFieldId: 's', priorityFieldId: 'p' }, new Set(), remote);
+    expect(snapshot).toEqual({ title: 'T', archived: false, status: 'todo', priority: null, readded: true });
+    // The task is newer or not: its values go, the issue change made meanwhile is pulled.
+    const result = mergeFields({ title: 'T', archived: false, status: 'doing', priority: null }, remote, snapshot, false);
+    expect(result.push).toEqual({ status: 'doing' });
+    expect(result.pull).toEqual({ title: 'T2' });
+    // A task without value clears the default.
+    expect(mergeFields({ status: null }, { status: 'todo' }, snapshot, false).push).toEqual({ status: null });
+  });
+
+  it('the stored snapshot is not changed', () => {
+    const stored: SyncFields = { archived: true, status: 'opt' };
+    readdedItemSnapshot(stored, all, new Set());
+    expect(stored).toEqual({ archived: true, status: 'opt' });
+  });
+});
+
+describe('pair whose issue was added to the board again', () => {
+  const link: GithubLinkFields = { statusFieldId: 's', priorityFieldId: null, iterationFieldId: null, startFieldId: null, endFieldId: null, deadlineFieldId: null, effortFieldId: null, typeSource: null, typeFieldId: null };
+
+  it('its stored snapshot is marked until a whole merge writes a new one', () => {
+    const stored = readdedItemSnapshot({ title: 'T', status: 'opt' }, link, new Set());
+    expect(wasReadded(stored)).toBe(true);
+    // The merge writes only the synchronized fields: the mark goes.
+    const result = mergeFields({ title: 'T', archived: false, status: 'doing' }, { title: 'T', archived: false, status: 'todo' }, readdedItemSnapshot(stored, link, new Set(), { archived: false, status: 'todo' }), false);
+    expect(result.push).toEqual({ status: 'doing' });
+    expect(wasReadded(result.snapshot)).toBe(false);
+  });
+
+  it('any other snapshot is not marked', () => {
+    expect(wasReadded(null)).toBe(false);
+    expect(wasReadded({ title: 'T' })).toBe(false);
+    expect(wasReadded({ readded: false })).toBe(false);
+    expect(wasReadded('readded')).toBe(false);
+  });
+
+  it('compared with the last change of the issue, not with the addition of its item', () => {
+    const item = { updatedAt: '2026-11-24T10:00:00Z', contentUpdatedAt: '2026-11-20T08:00:00Z' };
+    expect(remoteChangeDate(item, true)).toBe('2026-11-20T08:00:00Z');
+    expect(remoteChangeDate(item, false)).toBe('2026-11-24T10:00:00Z');
+  });
+});
+
+describe('address of an issue', () => {
+  it('owner, repository and number', () => {
+    expect(issueAddress('https://github.com/acme/app/issues/12')).toEqual({ owner: 'acme', name: 'app', number: 12 });
+    expect(issueAddress('https://github.com/acme/app/issues/12/')).toEqual({ owner: 'acme', name: 'app', number: 12 });
+  });
+
+  it('none for another address', () => {
+    expect(issueAddress(null)).toBeNull();
+    expect(issueAddress('')).toBeNull();
+    expect(issueAddress('https://github.com/acme/app/pull/12')).toBeNull();
+    expect(issueAddress('https://github.com/acme/app')).toBeNull();
+  });
+});
+
+describe('comments published on an issue', () => {
+  it('a comment written in Ordo, never sent', () => {
+    expect(commentToPublish({ githubCommentId: null, githubAuthor: null })).toBe(true);
+  });
+
+  it('not a comment already sent, nor one of someone else whose issue was forgotten', () => {
+    expect(commentToPublish({ githubCommentId: 'c1', githubAuthor: null })).toBe(false);
+    expect(commentToPublish({ githubCommentId: null, githubAuthor: 'octo' })).toBe(false);
+  });
+});
+
+describe('issue already linked to another task', () => {
+  it('the comment of the task gives the day, printed DD/MM/YYYY', () => {
+    expect(alreadyLinkedComment('2026-11-24')).toBe('Déliée de GitHub le 24/11/2026 : son issue est déjà liée à une autre tâche.');
   });
 });

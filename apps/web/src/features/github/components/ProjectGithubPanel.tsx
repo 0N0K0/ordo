@@ -360,7 +360,8 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
   const confirmUnlink = () => {
     confirmDestructive({
       title: 'Délier le tableau GitHub',
-      risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.',
+      risks:
+        'La synchronisation s’arrête et Ordo oublie quel item, quelle itération et quel commentaire du tableau correspond à chaque tâche, sprint et commentaire. Rien n’est supprimé : les tâches, sprints et commentaires restent dans Ordo, les items restent sur le tableau (les issues dans leur dépôt), sans plus changer ensemble. Lier ce tableau à nouveau ne les rapparie pas : chaque item non archivé du tableau deviendrait une nouvelle tâche à côté de l’ancienne et, avec « Envoyer aussi les tâches qui existaient avant la liaison », chaque tâche active un nouvel item à côté de l’ancien (une nouvelle issue dans le dépôt, ou un brouillon) ; seuls les sprints retrouvent leur itération par leur nom.',
       confirmLabel: 'Délier',
       confirmIcon: <LinkBreakIcon aria-hidden />,
       run: () => unlink.mutateAsync(projectId),

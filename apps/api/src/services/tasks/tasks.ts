@@ -6,7 +6,7 @@ import { BY_POSITION, moveBefore, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput, rethrowTimeout } from '../../graphql/errors';
 import { assertProjectContributors, attachAssignees } from '../projects/contributors';
-import { forgetGithubComment, forgetGithubItems } from '../github/links';
+import { forgetGithubComment, forgetGithubItems, githubItemsLeaving } from '../github/links';
 import { releaseSubjectTime } from './time-entries';
 import { assertAllExist, assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
 import { assertNoneArchived, type ArchivableModel, assertActive, refuseArchived, archiveTree, findActive } from '../core/archive';
@@ -450,7 +450,8 @@ export const setTaskArchived = automated(async function setTaskArchived(id: stri
 
 /**
  * Moves tasks with their sub-tasks to a project, where they take the next numbers (given by the database), or out of
- * any project (they lose their numbers, milestones, sprints and GitHub items). Links leaving the new tree are removed:
+ * any project (they lose their numbers, milestones and sprints). Leaving their GitHub board (out of any project, or to
+ * a tree with another board or none), they lose their items. Links leaving the new tree are removed:
  * blocks and relations with the tasks left behind, the parent left behind (and, without the sub-tasks, the sub-tasks
  * left behind lose their moved parent), milestones and sprints of another tree. The assignees follow into the target
  * project. No archive check: the callers make theirs.
@@ -509,8 +510,9 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     .map((item) => ({ id: item.id, resources: outOfTree(rootOf, projectId, item.projectResources).map((id) => ({ id })) }))
     .filter((item) => item.resources.length > 0);
 
-  // Out of any project: their GitHub items go (the link is through the project).
-  if (!projectId) await forgetGithubItems(moved);
+  // Out of their board (out of any project, or into a tree with another board or none): their GitHub items go (the
+  // link is through the project), once the move is written; a later sync of a board they come back to adds them again.
+  const leavingBoard = await githubItemsLeaving(moved, projectId);
   const blocksWhere = {
     OR: [
       { blockerId: { in: moved }, blockedId: { in: outsideIds } },
@@ -531,12 +533,14 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     prisma.taskBlock.deleteMany({ where: blocksWhere }),
     prisma.taskRelation.deleteMany({ where: relationsWhere }),
     // With the sub-tasks, a sub-task of a moved task is moved too; without them, those of another tree lose their parent.
-    prisma.task.updateMany({ where: { id: { in: moved } }, data: projectId ? { projectId } : { projectId: null, githubItemId: null } }),
+    prisma.task.updateMany({ where: { id: { in: moved } }, data: { projectId } }),
+    prisma.task.updateMany({ where: { id: { in: leavingBoard.ids } }, data: { githubItemId: null } }),
     prisma.task.updateMany({ where: { id: { in: parentOutside } }, data: { parentId: null } }),
     prisma.task.updateMany({ where: { id: { in: losingMilestone } }, data: { milestoneId: null } }),
     ...losingSprints.map((item) => prisma.task.update({ where: { id: item.id }, data: { sprints: { disconnect: item.sprints } } })),
     ...losingResources.map((item) => prisma.task.update({ where: { id: item.id }, data: { projectResources: { disconnect: item.resources } } })),
   ]);
+  leavingBoard.remove();
   // The assignees follow their tasks into the target project.
   const assignees = await prisma.contributor.findMany({ where: { tasks: { some: { id: { in: moved } } } }, select: { id: true } });
   if (projectId) await attachAssignees([{ projectId, contributorIds: assignees.map((assignee) => assignee.id) }]);

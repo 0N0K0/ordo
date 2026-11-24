@@ -1,7 +1,7 @@
-import { dayPart, REPOSITORY_FORMAT_ERROR, type TaskCloseReason } from '@ordo/shared';
+import { dayPart, issueAddress, REPOSITORY_FORMAT_ERROR, type TaskCloseReason } from '@ordo/shared';
 import { env } from '../../env';
 import { clientError, fieldError } from '../../graphql/errors';
-import { githubRequest, githubRestPost } from './client';
+import { githubRequest, githubRestPost, isGoneOnGithub } from './client';
 
 export interface BoardField {
   id: string;
@@ -70,6 +70,8 @@ export interface RemoteItem {
   comments: RemoteComment[];
   /** Latest change of the item or its content. */
   updatedAt: string;
+  /** Latest change of its content (the issue or draft) alone. */
+  contentUpdatedAt: string;
   fields: Record<string, FieldValue>;
 }
 
@@ -311,6 +313,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
         relatesTo: (content.relatesTo?.nodes ?? []).map((issue) => issue.id),
         comments: (content.comments?.nodes ?? []).map((comment) => ({ ...comment, author: comment.author?.login ?? null })),
         updatedAt: updates[updates.length - 1],
+        contentUpdatedAt: content.updatedAt ?? item.updatedAt,
         fields,
       });
     }
@@ -496,14 +499,53 @@ export async function createItem(
       { repositoryId: input.repositoryId, title: input.title, body: input.body, assigneeIds },
     )
   ).createIssue.issue;
-  const item = (
-    await githubRequest<{ addProjectV2ItemById: { item: { id: string } } }>(
-      token,
-      'mutation OrdoAddItem($projectId: ID!, $contentId: ID!) { addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) { item { id } } }',
-      { projectId: input.projectId, contentId: issue.id },
-    )
-  ).addProjectV2ItemById.item;
-  return { itemId: item.id, contentId: issue.id, type: 'ISSUE', number: issue.number, url: issue.url };
+  return { itemId: await addIssueToBoard(token, input.projectId, issue.id), contentId: issue.id, type: 'ISSUE', number: issue.number, url: issue.url };
+}
+
+/**
+ * Adds an existing issue to a board (an issue already there keeps its item).
+ * @param {string} token Token.
+ * @param {string} projectId Board node id.
+ * @param {string} issueId Issue node id.
+ * @returns {Promise<string>} Item node id.
+ */
+export async function addIssueToBoard(token: string, projectId: string, issueId: string): Promise<string> {
+  const data = await githubRequest<{ addProjectV2ItemById: { item: { id: string } } }>(
+    token,
+    'mutation OrdoAddItem($projectId: ID!, $contentId: ID!) { addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) { item { id } } }',
+    { projectId, contentId: issueId },
+  );
+  return data.addProjectV2ItemById.item.id;
+}
+
+/**
+ * Whether an issue is surely gone: its repository can be read with the token, and has no issue of that number
+ * (deleted, or moved to another repository). A repository out of reach (deleted, made private, or the token narrowed)
+ * cannot tell: not gone. Errors other than « not found » are thrown.
+ * @param {string} token Token.
+ * @param {string | null} url Address of the issue.
+ * @returns {Promise<boolean>} Gone for sure.
+ */
+export async function issueGone(token: string, url: string | null): Promise<boolean> {
+  const address = issueAddress(url);
+  if (!address) return false;
+  const variables = { owner: address.owner, name: address.name };
+  try {
+    await githubRequest(token, 'query OrdoRepositoryReachable($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }', variables);
+  } catch (error) {
+    if (isGoneOnGithub(error)) return false;
+    throw error;
+  }
+  try {
+    await githubRequest(token, 'query OrdoIssueThere($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { issue(number: $number) { id } } }', {
+      ...variables,
+      number: address.number,
+    });
+    return false;
+  } catch (error) {
+    if (isGoneOnGithub(error)) return true;
+    throw error;
+  }
 }
 
 /**
