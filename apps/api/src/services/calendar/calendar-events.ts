@@ -31,6 +31,8 @@ import {
   shiftedSeries,
   storedRecurrence,
   shiftedRoutineLink,
+  linkedEventOccurrence,
+  occurrencesShowing,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { PARIS } from '../../today';
@@ -257,16 +259,30 @@ async function routineLinksOn(eventId: string, days: { from: string; to?: string
  * @returns {Promise<Prisma.CalendarEventRoutineWhereInput>} Where of those links.
  */
 async function goneRoutineLinks(event: EventWithRelations, gone: { on: string } | { from: string }): Promise<Prisma.CalendarEventRoutineWhereInput> {
-  const held = (await heldRoutineLinks(event.id)).map((link) => ({ id: link.id, day: linkShownDay(link) }));
-  const days = held.map((link) => link.day).sort();
-  const occurrences = days.length ? seriesOccurrences(event, days[0], days.at(-1)!) : [];
+  const { held, occurrences } = await shownRoutineLinks(event);
   const goes = (occurrence: EventOccurrence) => occurrence.occurrenceDate !== null && ('on' in gone ? occurrence.occurrenceDate === gone.on : occurrence.occurrenceDate >= gone.from);
   const within = held.filter(({ day }) => {
-    const shown = occurrences.filter((occurrence) => occurrence.startDate <= day && day <= occurrence.endDate);
+    const shown = occurrencesShowing(occurrences, day);
     if (!shown.length) return 'from' in gone && day >= gone.from;
     return shown.some(goes) && shown.every(goes);
   });
   return { eventId: event.id, id: { in: within.map((link) => link.id) } };
+}
+
+/**
+ * Routine links of an event, each with the day it shows on (`linkShownDay`), and the occurrences of the event shown
+ * on those days (as the event is loaded: its exceptions before a change).
+ * @param {EventWithRelations} event Event.
+ * @param {Prisma.TransactionClient} [client] Client or transaction. Optional. Default = the client of the workspace.
+ * @returns {Promise<{ held: (RoutineLinkRow & { id: string, day: string })[], occurrences: EventOccurrence[] }>} Links and occurrences.
+ */
+async function shownRoutineLinks(
+  event: EventWithRelations,
+  client: Prisma.TransactionClient = prisma,
+): Promise<{ held: (RoutineLinkRow & { id: string; day: string })[]; occurrences: EventOccurrence[] }> {
+  const held = (await heldRoutineLinks(event.id, client)).map((link) => ({ ...link, day: linkShownDay(link) }));
+  const days = held.map((link) => link.day).sort();
+  return { held, occurrences: days.length ? seriesOccurrences(event, days[0], days.at(-1)!) : [] };
 }
 
 /**
@@ -293,27 +309,37 @@ async function saveRoutineLinks(eventId: string, given: readonly { routineId: st
 }
 
 /**
- * Moves the routine links of the occurrences of a series from a day, with them: by as many days as they are moved
- * (from the day each occurrence shows on: the occurrence of that routine shown on the new day is linked, none there:
- * the link is dropped, `resolveRoutineLinks`), and / or to another event (a series split, or split into several).
+ * Moves the routine links of the occurrences of a series from an occurrence, with them: each follows its occurrence
+ * (`linkedEventOccurrence`: the one shown on its day, by the day that identifies it, as comments and times do; none or
+ * several shown there: by its day), by as many days as it is moved (from the day each occurrence of a routine shows
+ * on: the occurrence of that routine shown on the new day is linked, none there: the link is dropped,
+ * `resolveRoutineLinks`), and / or to another event (a series split, or split into several).
  * @param {Prisma.TransactionClient} tx Transaction.
- * @param {string} eventId Event.
- * @param {string | null} from First day moved (the day the occurrences show on); null: every link.
+ * @param {EventWithRelations} event Event, as it was before the change (its exceptions tell the days of its occurrences).
+ * @param {string | null} from First occurrence moved (the day that identifies it); null: every link.
  * @param {number} shift Days moved.
- * @param {string | ((day: string) => string)} [to] Event they go to, or the event of each new day they show on. Optional. Default = the same.
+ * @param {string | ((day: string, occurrence: string | null) => string)} [to] Event they go to, or the event of each
+ * one by the new day it shows on and the day that identifies its occurrence once moved (null: none followed). Optional. Default = the same.
  * @returns {Promise<void>}
  */
-async function moveRoutineLinks(tx: Prisma.TransactionClient, eventId: string, from: string | null, shift: number, to: string | ((day: string) => string) = eventId): Promise<void> {
-  if (shift === 0 && to === eventId) return;
+async function moveRoutineLinks(
+  tx: Prisma.TransactionClient,
+  event: EventWithRelations,
+  from: string | null,
+  shift: number,
+  to: string | ((day: string, occurrence: string | null) => string) = event.id,
+): Promise<void> {
+  if (shift === 0 && to === event.id) return;
   const targetOf = typeof to === 'string' ? () => to : to;
-  const held = await heldRoutineLinks(eventId, tx);
+  const { held, occurrences } = await shownRoutineLinks(event, tx);
   const moving = held.flatMap((link) => {
-    const shown = linkShownDay(link);
-    return !from || shown >= from ? [{ id: link.id, ...shiftedRoutineLink({ routineId: link.routineId, date: formatDay(link.date) }, shown, shift) }] : [];
+    const occurrence = linkedEventOccurrence(occurrences, link.day);
+    if (from && (occurrence ?? link.day) < from) return [];
+    return [{ id: link.id, occurrence: occurrence && addDays(occurrence, shift), ...shiftedRoutineLink({ routineId: link.routineId, date: formatDay(link.date) }, link.day, shift) }];
   });
   if (!moving.length) return;
   await tx.calendarEventRoutine.deleteMany({ where: { id: { in: moving.map((link) => link.id) } } });
-  for (const [target, group] of groupBy(moving, (link) => targetOf(link.shownDate))) {
+  for (const [target, group] of groupBy(moving, (link) => targetOf(link.shownDate, link.occurrence))) {
     const links = shift === 0 ? group.map(({ routineId, date }) => ({ routineId, date })) : await resolveRoutineLinks(group);
     await tx.calendarEventRoutine.createMany({
       data: links.map((link) => ({ eventId: target, routineId: link.routineId, date: parseDay(link.date) })),
@@ -685,9 +711,10 @@ async function updateEventFields(
     return { event: updated, linkDays: null };
   }
   const seriesStart = formatDay(event.startDate);
+  // As it is before the change: the days of its occurrences tell those their routine links follow.
+  const loaded = await findEventWithRelations(id);
 
   if (scope === 'THIS') {
-    const loaded = await findEventWithRelations(id);
     assertSeriesFieldsKept({ ...fields, calendarId: input.calendarId ?? null }, seriesInput(loaded, occurrence.date));
     // Its days as they were: their routine links are its own, moved with it (those of its new days stay).
     const shown = shownOccurrence(loaded, occurrence.date);
@@ -749,7 +776,7 @@ async function updateEventFields(
         const others = series.filter((item) => item !== own);
         const created = await createSeries(tx, event, fields, others, span);
         const targets = [{ ...own, to: id }, ...others.map((item, index) => ({ ...item, to: created[index].id }))];
-        await followSeries(tx, event, fields, { from: seriesStart, shift, targets, span });
+        await followSeries(tx, loaded, fields, { from: seriesStart, shift, targets, span });
       } else {
         // A one-off event now: no occurrence of its own.
         await tx.calendarEventException.deleteMany({ where: { eventId: id } });
@@ -789,7 +816,7 @@ async function updateEventFields(
       const [split] = await createSeries(tx, event, fields, [{ rule: null, start: fields.startDate }], span);
       await endSeriesBefore(event, occurrence.rule, occurrence.date, tx);
       await remapOccurrenceRows('eventId', id, movedOccurrence(occurrence.date, shift, false), { to: split.id, client: tx });
-      await moveRoutineLinks(tx, id, occurrence.date, shift, split.id);
+      await moveRoutineLinks(tx, loaded, occurrence.date, shift, split.id);
       return split;
     }
     // Its following occurrences edited alone, comments, times and routine links go to the new series of their
@@ -797,7 +824,7 @@ async function updateEventFields(
     const created = await createSeries(tx, event, fields, series, span);
     const targets = series.map((item, index) => ({ ...item, to: created[index].id }));
     const ownTarget = targets[series.indexOf(own)];
-    await followSeries(tx, event, fields, { from: occurrence.date, shift, targets: [ownTarget, ...targets.filter((target) => target !== ownTarget)], span });
+    await followSeries(tx, loaded, fields, { from: occurrence.date, shift, targets: [ownTarget, ...targets.filter((target) => target !== ownTarget)], span });
     await endSeriesBefore(event, occurrence.rule, occurrence.date, tx);
     return created[series.indexOf(own)];
   });
@@ -865,10 +892,10 @@ function targetOn(targets: readonly SeriesTarget[], day: string, span = 0): Seri
 /**
  * Everything kept per occurrence of a series follows its occurrence from a day into the series it goes to, moved by as
  * many days: the occurrences edited alone (`carryExceptions`), their comments and times (`remapOccurrenceRows`), the
- * routine links by the day they show on (`moveRoutineLinks`); what fits none goes to the series of the occurrence
- * edited.
+ * routine links with the occurrence shown on their day (`moveRoutineLinks`, by their day when none or several show
+ * it); what fits none goes to the series of the occurrence edited.
  * @param {Prisma.TransactionClient} tx Transaction.
- * @param {CalendarEvent} event Series before the change.
+ * @param {EventWithRelations} event Series before the change (its exceptions as they were).
  * @param {Awaited<ReturnType<typeof parseEvent>>} fields Its fields once changed.
  * @param {{ from: string, shift: number, targets: SeriesTarget[], span: number }} change First occurrence moved, days
  * moved, series they go to (the first: that of the occurrence edited) and days an occurrence lasts after its first.
@@ -876,7 +903,7 @@ function targetOn(targets: readonly SeriesTarget[], day: string, span = 0): Seri
  */
 async function followSeries(
   tx: Prisma.TransactionClient,
-  event: CalendarEvent,
+  event: EventWithRelations,
   fields: Awaited<ReturnType<typeof parseEvent>>,
   change: { from: string; shift: number; targets: SeriesTarget[]; span: number },
 ): Promise<void> {
@@ -896,22 +923,28 @@ async function followSeries(
       { to: target.to, client: tx },
     );
   }
-  await moveRoutineLinks(tx, event.id, from, shift, (day) => targetOn(targets, day, change.span).to);
+  // A link of an occurrence goes to the series of that occurrence, as its comments; one of no occurrence, by its day.
+  await moveRoutineLinks(tx, event, from, shift, (day, occurrence) => (occurrence ? targetOn(targets, occurrence) : targetOn(targets, day, change.span)).to);
 }
 
 /**
  * Days an occurrence edited with its series shows on once saved: those of its series (`newDays`), or, changed alone
- * (an exception carried with the series), its own; and the days from the former to the latter.
+ * (an exception carried with the series), its own (as many as its series has, from its first: those it has more keep
+ * their links); and the days from the former to the latter.
  * @param {string} eventId Event it now belongs to.
  * @param {string} date Day that identifies it now.
  * @param {OccurrenceDays} newDays Its days in the series, as given.
- * @returns {Promise<{ linkDays: OccurrenceDays, linkShift: number }>} Its days, and the days its routine links move by.
+ * @returns {Promise<{ linkDays: OccurrenceDays, linkShift: number }>} Its days whose routine links are replaced, and the days its routine links move by.
  */
 async function editedOccurrenceDays(eventId: string, date: string, newDays: OccurrenceDays): Promise<{ linkDays: OccurrenceDays; linkShift: number }> {
   const exception = await prisma.calendarEventException.findUnique({ where: { eventId_date: { eventId, date: parseDay(date) } }, select: { startDate: true, endDate: true } });
   if (!exception?.startDate || !exception.endDate) return { linkDays: newDays, linkShift: 0 };
   const from = formatDay(exception.startDate);
-  return { linkDays: { from, to: formatDay(exception.endDate) }, linkShift: daysBetween(newDays.from, from) };
+  const to = formatDay(exception.endDate);
+  // The links given are those of its days in the series, moved onto its own: longer than its series, the links of its
+  // days past those are not given, and stay.
+  const given = addDays(from, daysBetween(newDays.from, newDays.to));
+  return { linkDays: { from, to: given < to ? given : to }, linkShift: daysBetween(newDays.from, from) };
 }
 
 /** Fields of an occurrence edited alone that a change of its series gives it too, when the series' value changes. */

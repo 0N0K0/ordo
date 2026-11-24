@@ -15,6 +15,8 @@ Voir aussi : [Règles : calendrier](../../business-rules/activities/calendar.md)
 | `CALENDAR_PDF_KINDS` / `CalendarPdfKind`                    | Aspects des éléments d'une vue de l'agenda imprimée en PDF, la même liste pour l'application qui les envoie et l'API qui les dessine : `event`, `task`, `time`, `travel`, `slot`, `background` (voir [Règles : export PDF](../../business-rules/activities/calendar.md#export-pdf)). |
 | `occurrenceKey(id, date?)`                                  | Clé d'une occurrence d'un élément répété (événement, routine) un jour : « id\|date » (date vide si aucune). Identique API / web.              |
 | `readOccurrenceKey(key)`                                    | Inverse : `{ id, date \| null }`.                                                                                                             |
+| `ShownEventOccurrence` / `occurrencesShowing(occurrences, day)` | Occurrence d'un évènement telle qu'affichée (`occurrenceDate`, le jour qui l'identifie, `null` pour un évènement unique ; `startDate`, `endDate`) ; celles affichées un jour (premier et dernier jours compris). Dans l'API (`goneRoutineLinks`, `moveRoutineLinks`). |
+| `linkedEventOccurrence(occurrences, day)`                   | Occurrence qu'un lien de routine suit quand sa série est décalée ou coupée : la seule affichée le jour où le lien s'affiche, par le jour qui l'identifie (déplacée seule : ses propres jours) ; aucune ou plusieurs ce jour-là : `null` (le lien suit alors son jour). Dans l'API (`moveRoutineLinks`). |
 
 Champs de `calendarEventInputSchema` :
 

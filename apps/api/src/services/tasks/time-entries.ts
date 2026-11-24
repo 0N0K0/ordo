@@ -355,13 +355,16 @@ export async function createTimeEntry(input: TimeEntryInput & { startedAt: Date;
 }
 
 /**
- * Updates a time entry. A running one keeps running (its duration is not editable).
+ * Updates a time entry. A running one keeps running (its duration is not editable), written only while it still runs
+ * as read (`stillAsRead`): paused or resumed meanwhile, it is read again; stopped meanwhile, « Ce chrono ne tourne plus. ».
  * @param {string} id Entry id.
  * @param {TimeEntryInput} input Changes; undefined (or null for a list) leaves a field unchanged.
+ * @param {boolean} [wasRunning=false] Read again after a change of a running timer: stopped by now, refused. Optional. Default = false.
  * @returns {Promise<TimeEntry>} Updated entry.
  */
-export async function updateTimeEntry(id: string, input: TimeEntryInput): Promise<TimeEntry> {
+export async function updateTimeEntry(id: string, input: TimeEntryInput, wasRunning = false): Promise<TimeEntry> {
   const entry = await findEntry(id);
+  if (wasRunning && entry.endedAt !== null) throw clientError('BAD_USER_INPUT', 'Ce chrono ne tourne plus.');
   assertNotInvoiced(entry);
   const running = entry.endedAt === null;
   const { description, duration } = parseInput(z.object({ description: timeDescriptionSchema.optional(), duration: durationSchema.optional() }), {
@@ -388,18 +391,26 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
 
   const startedAt = input.startedAt ?? entry.startedAt;
   const seconds = duration ?? entry.duration;
-  return prisma.timeEntry.update({
-    where: { id },
-    data: {
-      projectId: checked.projectId,
-      description,
-      startedAt,
-      ...(!running && seconds !== null && { duration: seconds, endedAt: new Date(startedAt.getTime() + seconds * 1000) }),
-      tasks: { set: connectIds(subjects.taskIds) },
-      routines: { set: connectIds(subjects.routineIds) },
-      ...((input.events || otherDay) && { events: { deleteMany: {}, create: checked.events } }),
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    // Running: written only while it still runs as read (stopped meanwhile, its end and duration were counted from the
+    // former start; paused or resumed, its pause rule is checked again).
+    if (running && !(await tx.timeEntry.updateMany({ where: stillAsRead(entry), data: { startedAt } })).count) return null;
+    return tx.timeEntry.update({
+      where: { id },
+      data: {
+        projectId: checked.projectId,
+        description,
+        startedAt,
+        ...(!running && seconds !== null && { duration: seconds, endedAt: new Date(startedAt.getTime() + seconds * 1000) }),
+        tasks: { set: connectIds(subjects.taskIds) },
+        routines: { set: connectIds(subjects.routineIds) },
+        ...((input.events || otherDay) && { events: { deleteMany: {}, create: checked.events } }),
+      },
+    });
   });
+  if (updated) return updated;
+  // Changed meanwhile: read again; stopped (or discarded) meanwhile, nothing is written.
+  return updateTimeEntry(id, input, true);
 }
 
 /**

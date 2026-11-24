@@ -418,18 +418,30 @@ export interface MovedSeries {
 }
 
 /**
+ * Whether a series has a day of its rule at all: one without end always has; one with an end date, a day of its rule
+ * from its first day to that date. Its excluded dates and pauses do not count: they can be given back later.
+ * @param {MovedSeries} series Series.
+ * @returns {boolean} It has one.
+ */
+const hasOccurrence = (series: MovedSeries): boolean =>
+  series.rule.until === null || occurrenceDates({ ...series.rule, exceptions: [], pauses: [] }, series.start, series.start, series.rule.until).length > 0;
+
+/**
  * Series of events a series becomes once moved (`shiftedRulePieces`): one (from its first day, moved), or, weekly with its weeks counted and only
- * some of its weekdays changing week, one per group of weekdays, each from its own first day.
+ * some of its weekdays changing week, one per group of weekdays, each from its own first day; a group left with no
+ * occurrence (its first day after the end of the series) makes none.
  * @param {Recurrence} rule Rule.
  * @param {string} start Day its rhythm counts from before the move (an occurrence).
  * @param {string | null} first First occurrence before the move (see `shiftedRecurrence`).
  * @param {number} days Days moved (negative: earlier).
- * @returns {MovedSeries[]} Series, in order of their first day.
+ * @returns {MovedSeries[]} Series, in order of their first day (one at least).
  */
 function movedSeries(rule: Recurrence, start: string, first: string | null, days: number): MovedSeries[] {
   const pieces = shiftedRulePieces(rule, first, days, start);
   if (pieces.length === 1) return [{ rule: pieces[0].rule, start: addDays(start, days) }];
-  return pieces.map((piece) => ({ rule: piece.rule, start: piece.anchor ?? addDays(start, days) })).sort((a, b) => (a.start < b.start ? -1 : 1));
+  const series = pieces.map((piece) => ({ rule: piece.rule, start: piece.anchor ?? addDays(start, days) })).sort((a, b) => (a.start < b.start ? -1 : 1));
+  const kept = series.filter(hasOccurrence);
+  return kept.length ? kept : series.slice(0, 1);
 }
 
 /**

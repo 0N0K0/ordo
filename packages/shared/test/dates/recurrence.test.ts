@@ -385,12 +385,29 @@ describe('shiftedSeries', () => {
     expect(datesOf(shiftedSeries(until, '2026-11-02', 3))).toEqual(MON_FRI_2W_DATES.map((date) => addDays(date, 3)));
   });
 
-  it('a piece that would start after the end of the series has no occurrence', () => {
+  it('a piece that would start after the end of the series makes no series', () => {
     // One occurrence (Monday 11-02): its Fridays, moved to Mondays, would start on 11-09, after the new end (11-05).
     const series = shiftedSeries(rule({ weekdays: [1, 5], interval: 2, count: 1 }), '2026-11-02', 3);
-    expect(series.map((item) => item.start)).toEqual(['2026-11-05', '2026-11-09']);
-    expect(series[1].rule.until).toBe('2026-11-05');
+    expect(series.map((item) => item.start)).toEqual(['2026-11-05']);
+    expect(series[0].rule.weekdays).toEqual([4]);
     expect(datesOf(series)).toEqual(['2026-11-05']);
+  });
+
+  it('a piece whose days are all excluded or paused is kept: they can be given back', () => {
+    // Mon + Fri every 2 weeks until Mon 11-16: +3 days, the Fridays (11-06) become Mondays 11-09, excluded.
+    const excluded = rule({ weekdays: [1, 5], interval: 2, until: '2026-11-16', exceptions: ['2026-11-06'] });
+    const series = shiftedSeries(excluded, '2026-11-02', 3);
+    expect(series.map((item) => item.rule.weekdays)).toEqual([[4], [1]]);
+    expect(datesOf(series)).toEqual(['2026-11-05', '2026-11-19']);
+    const paused = rule({ weekdays: [1, 5], interval: 2, until: '2026-11-16', pauses: [{ from: '2026-11-06', to: '2026-11-06' }] });
+    expect(shiftedSeries(paused, '2026-11-02', 3)).toHaveLength(2);
+  });
+
+  it('every piece of a mixed shift with occurrences is kept, whatever its end', () => {
+    const until = rule({ weekdays: [1, 5], interval: 2, until: '2026-12-04' });
+    expect(shiftedSeries(until, '2026-11-02', 3)).toHaveLength(2);
+    expect(shiftedSeries(MON_FRI_2W, '2026-11-02', 3)).toHaveLength(2);
+    expect(shiftedSeries(rule({ weekdays: [1, 5], interval: 2 }), '2026-11-02', 3)).toHaveLength(2);
   });
 
   it('monthly « le 15 » moved by 3 days: « le 18 »', () => {
@@ -432,6 +449,22 @@ describe('cutSeries (« Celle-ci et les suivantes »)', () => {
     const series = cutSeries(MON_FRI_2W, MON_FRI_2W, '2026-11-02', '2026-11-16', 3);
     expect(series.map((item) => item.start)).toEqual(['2026-11-19', '2026-11-23']);
     expect(datesOf(series)).toEqual(MON_FRI_2W_DATES.slice(2).map((date) => addDays(date, 3)));
+  });
+
+  it('mixed shift with an occurrence in each group: both series kept', () => {
+    // Cut at Monday 11-30, 2 occurrences left, +4 days: Mondays → Fridays of the same week, Fridays → Tuesdays.
+    const series = cutSeries(MON_FRI_2W, MON_FRI_2W, '2026-11-02', '2026-11-30', 4);
+    expect(series).toHaveLength(2);
+    expect(datesOf(series)).toEqual(['2026-12-04', '2026-12-08']);
+  });
+
+  it('mixed shift at the last occurrence: the group with no occurrence left makes no series', () => {
+    // Cut at Friday 12-04, the last one, +3 days: it becomes Monday 12-07; the Mondays (→ Thursdays) would start on
+    // 12-17, after the end.
+    const last = cutSeries(MON_FRI_2W, MON_FRI_2W, '2026-11-02', '2026-12-04', 3);
+    expect(last).toHaveLength(1);
+    expect(last[0].rule.weekdays).toEqual([1]);
+    expect(datesOf(last)).toEqual(['2026-12-07']);
   });
 });
 

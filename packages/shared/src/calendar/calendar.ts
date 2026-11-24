@@ -107,3 +107,32 @@ export function readOccurrenceKey(key: string): { id: string; date: string | nul
   const [id, date] = key.split('|');
   return { id, date: date || null };
 }
+
+/** An occurrence of an event as shown: the day that identifies it in its series (null: a one-off event) and its days. */
+export interface ShownEventOccurrence {
+  occurrenceDate: string | null;
+  startDate: string;
+  endDate: string;
+}
+
+/**
+ * Occurrences of an event shown on a day (between their first and last days, included).
+ * @param {readonly T[]} occurrences Occurrences, as shown (moved alone: on their own days).
+ * @param {string} day Day (YYYY-MM-DD).
+ * @returns {T[]} Those shown that day.
+ */
+export const occurrencesShowing = <T extends ShownEventOccurrence>(occurrences: readonly T[], day: string): T[] =>
+  occurrences.filter((occurrence) => occurrence.startDate <= day && day <= occurrence.endDate);
+
+/**
+ * Occurrence of an event a routine link follows when its series moves or is cut: the single occurrence shown on the
+ * day the link shows on, by the day that identifies it (moved alone: its own days, not those of its rule); none or
+ * several shown that day: null (the link then goes by its day).
+ * @param {readonly ShownEventOccurrence[]} occurrences Occurrences of the event, as shown.
+ * @param {string} day Day the link shows on.
+ * @returns {string | null} Day that identifies the occurrence, or null.
+ */
+export function linkedEventOccurrence(occurrences: readonly ShownEventOccurrence[], day: string): string | null {
+  const shown = occurrencesShowing(occurrences, day);
+  return shown.length === 1 ? shown[0].occurrenceDate : null;
+}
