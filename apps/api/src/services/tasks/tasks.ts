@@ -38,7 +38,7 @@ async function assertProject(projectId: string): Promise<void> {
  * @param {string} parentId Parent candidate.
  * @param {string | null} projectId Project of the child (none: the parent has none either).
  * @param {string | null} childId Child task, or null for a new task.
- * @param {boolean} [restoring=false] Undo giving back the parent the task had: an archived one accepted. Optional.
+ * @param {boolean} [restoring=false] Undo giving back the parent the task had, or the GitHub sync writing the parent of the issue: an archived one accepted. Optional.
  * @returns {Promise<void>}
  */
 export async function assertParent(parentId: string, projectId: string | null, childId: string | null, restoring = false): Promise<void> {
@@ -723,7 +723,7 @@ async function blocksPath(from: string, to: string): Promise<boolean> {
  * Records that a task blocks another one (cycles refused).
  * @param {string} blockerId Blocking task.
  * @param {string} blockedId Blocked task.
- * @param {boolean} [restoring=false] Undo giving back the link: archived tasks accepted. Optional.
+ * @param {boolean} [restoring=false] Undo giving back the link, or the GitHub sync writing the link of the issue: archived tasks accepted. Optional.
  * @returns {Promise<void>}
  */
 export async function addTaskBlock(blockerId: string, blockedId: string, restoring = false): Promise<void> {
@@ -739,13 +739,14 @@ export async function addTaskBlock(blockerId: string, blockedId: string, restori
 }
 
 /**
- * Removes a "blocks" link (neither task archived).
+ * Removes a "blocks" link (neither task archived, except for the GitHub sync).
  * @param {string} blockerId Blocking task.
  * @param {string} blockedId Blocked task.
+ * @param {boolean} [restoring=false] The GitHub sync writing the links of the issue: archived tasks accepted. Optional.
  * @returns {Promise<void>}
  */
-export async function removeTaskBlock(blockerId: string, blockedId: string): Promise<void> {
-  await assertNoneArchived('task', [blockerId, blockedId]);
+export async function removeTaskBlock(blockerId: string, blockedId: string, restoring = false): Promise<void> {
+  if (!restoring) await assertNoneArchived('task', [blockerId, blockedId]);
   await prisma.taskBlock.deleteMany({ where: { blockerId, blockedId } });
 }
 
@@ -764,7 +765,7 @@ function relationPair(a: string, b: string) {
  * Records that two tasks are related.
  * @param {string} taskId First task.
  * @param {string} otherId Second task.
- * @param {boolean} [restoring=false] Undo giving back the link: archived tasks accepted. Optional.
+ * @param {boolean} [restoring=false] Undo giving back the link, or the GitHub sync writing the link of the issue: archived tasks accepted. Optional.
  * @returns {Promise<void>}
  */
 export async function addTaskRelation(taskId: string, otherId: string, restoring = false): Promise<void> {
@@ -774,13 +775,14 @@ export async function addTaskRelation(taskId: string, otherId: string, restoring
 }
 
 /**
- * Removes a "related to" link (neither task archived).
+ * Removes a "related to" link (neither task archived, except for the GitHub sync).
  * @param {string} taskId First task.
  * @param {string} otherId Second task.
+ * @param {boolean} [restoring=false] The GitHub sync writing the links of the issue: archived tasks accepted. Optional.
  * @returns {Promise<void>}
  */
-export async function removeTaskRelation(taskId: string, otherId: string): Promise<void> {
-  await assertNoneArchived('task', [taskId, otherId]);
+export async function removeTaskRelation(taskId: string, otherId: string, restoring = false): Promise<void> {
+  if (!restoring) await assertNoneArchived('task', [taskId, otherId]);
   await prisma.taskRelation.deleteMany({ where: relationPair(taskId, otherId) });
 }
 

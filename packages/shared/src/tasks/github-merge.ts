@@ -1,8 +1,11 @@
+import { printedDay } from '../dates/days';
+
 /** Fields synchronized between a task and an item of a GitHub board. */
 const SYNC_FIELDS = [
   'title',
   'body',
   'closed',
+  'archived',
   'status',
   'priority',
   'type',
@@ -55,6 +58,30 @@ export function taskParentValue(parentId: string | null, parentIssueId: string |
  */
 export function itemParentValue(parentIssueId: string | null, linked: boolean): string | null {
   return parentIssueId ? (linked ? parentIssueId : `gh:${parentIssueId}`) : null;
+}
+
+/**
+ * Snapshot of a former sync read as one of today: a state closed without its reason counts as closed as done; a
+ * snapshot without archived state was written while the archive was not synchronized (an item archived on the board
+ * was then seen as removed): the item was not archived.
+ * @param {SyncFields | null} snapshot Snapshot as stored.
+ * @returns {SyncFields | null} Snapshot to compare with (a copy).
+ */
+export function upgradedSnapshot(snapshot: SyncFields | null): SyncFields | null {
+  if (!snapshot) return null;
+  const upgraded = { ...snapshot };
+  if (upgraded.closed === true) upgraded.closed = 'COMPLETED';
+  if (!('archived' in upgraded)) upgraded.archived = false;
+  return upgraded;
+}
+
+/**
+ * Comment added to a task whose item was removed from the GitHub board, when it is archived in Ordo.
+ * @param {string} day Day of the sync (YYYY-MM-DD, Paris).
+ * @returns {string} Comment body, « Retirée du tableau GitHub le JJ/MM/AAAA : tâche archivée. ».
+ */
+export function removedFromBoardComment(day: string): string {
+  return `Retirée du tableau GitHub le ${printedDay(day)} : tâche archivée.`;
 }
 
 /**

@@ -157,6 +157,7 @@ Source : `addTaskBlock`, `removeTaskBlock`, `addTaskRelation`, `removeTaskRelati
 - Les deux tâches : différentes (« Une tâche ne peut pas être liée à elle-même. »), existantes, non archivées, de la même arborescence de projets (ou toutes deux sans projet) : « Les deux tâches doivent appartenir au même projet ou à ses sous-projets (ou être toutes deux sans projet). ».
 - Pas de blocage circulaire (chemin de blocages entre les deux, dans l’autre sens) : « Ce lien créerait un blocage circulaire. ».
 - Ajouter un lien existant ne fait rien (`upsert`). Retirer un lien est refusé si l’une des tâches est archivée.
+- La synchronisation GitHub ajoute et retire les liens d’une tâche archivée comme ceux des autres (`restoring`), pour qu’ils soient les mêmes que ceux de l’issue (voir [GitHub](../cross-cutting/github.md#étapes)).
 - Une tâche **bloquée** (calcul de l’interface, `isBlocked`) est une tâche ouverte qui dépend d’au moins une tâche ouverte et non archivée.
 
 ## Jalons
@@ -280,7 +281,9 @@ Source : `setTaskArchived`, `bulkSetTasksArchived`, `archiveTree` et `cascadeArc
 
 - Archiver une tâche archive aussi ses sous-tâches actives (marquées `archivedByCascade`).
 - Restaurer une tâche restaure les sous-tâches archivées avec elle, et ses ancêtres archivés (seuls : leurs autres sous-tâches archivées avec eux restent archivées, pour leur propre compte).
-- Une tâche archivée est en lecture seule : ni modification, ni déplacement, ni lien, ni commentaire, ni fermeture, ni transfert.
+- Une tâche archivée est en lecture seule : ni modification, ni déplacement, ni lien, ni commentaire, ni fermeture, ni transfert. Liée à un item GitHub, elle reste synchronisée : ce que GitHub change y est écrit (voir [GitHub](../cross-cutting/github.md#étapes)).
+- Liée à un item GitHub, une tâche archivée ou restaurée archive ou sort de l’archive son item du tableau, et inversement (avec les cascades habituelles).
+- Une tâche dont l’item GitHub quitte le tableau est archivée par la synchronisation, avec ses sous-tâches actives, et reçoit un commentaire qui le dit.
 - En masse, seules les tâches du haut de la sélection sont traitées (une sous-tâche sélectionnée suit son ancêtre sélectionné).
 - La requête `tasks` renvoie toutes les tâches, archivées comprises.
 

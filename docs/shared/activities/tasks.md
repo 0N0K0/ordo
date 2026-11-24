@@ -150,6 +150,8 @@ Fonctions pures de la synchronisation GitHub (`apps/api/src/services/github/sync
 | `isUnmapped(value, side)` | La valeur n'a pas d'équivalent de l'autre côté (préfixe `ordo:` ou `gh:`). |
 | `mergeFields(local, remote, snapshot, localNewer)` | Fusion à trois voies, champ par champ, contre l'instantané de la dernière synchronisation : ce qu'il faut écrire dans la tâche (`pull`), dans l'item (`push`), et le nouvel instantané. |
 | `taskParentValue(parentId, parentIssueId)` | Parent synchronisé d'une tâche : l'issue de sa tâche parente, archivée ou non, sinon `ordo:<id>` (sans équivalent). |
+| `upgradedSnapshot(snapshot)` | Instantané d'une synchronisation précédente lu comme un d'aujourd'hui (copie) : fermé sans raison = terminé (`COMPLETED`), sans état d'archivage = non archivé. |
+| `removedFromBoardComment(day)` | Commentaire ajouté à une tâche dont l'item a quitté le tableau GitHub, quand elle est archivée : « Retirée du tableau GitHub le JJ/MM/AAAA : tâche archivée. » (`printedDay`). |
 | `itemParentValue(parentIssueId, linked)` | Parent synchronisé d'une issue : son issue parente si elle est liée à une tâche, archivée ou non, sinon `gh:<id>` (hors du tableau). |
 
 Internes : `sameValue` (même valeur, listes sans ordre), `isEmpty` (valeur vide).

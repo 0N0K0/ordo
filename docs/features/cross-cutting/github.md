@@ -59,11 +59,11 @@ Section « GitHub » du panneau des paramètres d’un projet. Composant `Projec
 - « Réglages » : rouvre le formulaire (le tableau est rechargé).
 - « Délier » : confirmation « Délier le tableau GitHub » — « La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait. ». Toast « Tableau GitHub délié. ».
 - Dernier échec : « Dernière synchronisation en échec » avec le message. Sinon : « Dernier échange : <résumé>. ».
-- Rappel : « Un champ modifié d’un seul côté passe de l’autre ; modifié des deux côtés, la modification la plus récente gagne. Une tâche supprimée dans Ordo est retirée du tableau (une issue reste dans son dépôt) ; un item retiré du tableau laisse sa tâche dans Ordo, déliée. ».
+- Rappel : « Un champ modifié d’un seul côté passe de l’autre ; modifié des deux côtés, la modification la plus récente gagne. Une tâche supprimée dans Ordo est retirée du tableau (une issue reste dans son dépôt) ; archiver ou restaurer une tâche archive ou sort de l’archive son item, et inversement ; un item retiré du tableau laisse sa tâche dans Ordo, déliée et archivée, avec un commentaire. ».
 
 ### Résumé d’une synchronisation
 
-« N tâches créées depuis GitHub, N items créés sur GitHub, N tâches et N items mis à jour, N tâches déliées, N sprints créés ou mis à jour, N tâches renumérotées, [N sprints sans itération (à créer dans GitHub), ]N commentaires échangés ».
+« N tâches créées depuis GitHub, N items créés sur GitHub, N tâches et N items mis à jour, N tâches retirées du tableau (archivées), N sprints créés ou mis à jour, N tâches renumérotées, [N sprints sans itération (à créer dans GitHub), ]N commentaires échangés[, N tâches en échec (réessayées à la prochaine synchronisation)] ».
 
 ## Tâche de fond
 

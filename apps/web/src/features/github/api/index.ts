@@ -109,6 +109,7 @@ const Sync = graphql(`
       pulled
       pushed
       unlinked
+      failed
       sprints
       sprintsSkipped
       renumbered

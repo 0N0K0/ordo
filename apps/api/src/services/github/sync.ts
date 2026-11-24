@@ -14,6 +14,7 @@ import {
   nameKey,
   parseDay,
   parseOptionalDay,
+  removedFromBoardComment,
   round2,
   sameName,
   sumOf,
@@ -23,12 +24,13 @@ import {
   type SyncFields,
   type TaskInheritableField,
   type TaskInheritanceContext,
+  upgradedSnapshot,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, errorMessage, orNotFound } from '../../graphql/errors';
-import { addTaskBlock, addTaskRelation, assertParent, createTask, followParentProjects, removeTaskBlock, removeTaskRelation } from '../tasks/tasks';
+import { addTaskBlock, addTaskRelation, assertParent, createTask, followParentProjects, removeTaskBlock, removeTaskRelation, setTaskArchived } from '../tasks/tasks';
 import {
   addIssueComment,
   boardById,
@@ -44,6 +46,7 @@ import {
   setIssueFieldValue,
   setIssueParent,
   setIssueType,
+  setItemArchived,
   setItemField,
   setRelatesTo,
   updateContent,
@@ -54,9 +57,10 @@ import {
 } from './board';
 import { currentGithubConnection, githubToken } from './client';
 import { schedulePerWorkspace } from '../workspaces/workspaces';
-import { subtreeIds } from '../core/trees';
+import { subtreeIds, topmostIds } from '../core/trees';
 import { connectIds } from '../core/relations';
 import { toJson } from '../core/json';
+import { parisToday } from '../../today';
 import { adoptedTaskFields, effectiveTaskOf, freezeTaskInheritance, loadTaskInheritance } from '../tasks/task-inheritance';
 import { automated } from '../tasks/task-automation-engine';
 
@@ -67,7 +71,7 @@ interface SyncSummary {
   /** Tasks and items updated. */
   pulled: number;
   pushed: number;
-  /** Tasks whose item left the board (kept, unlinked). */
+  /** Tasks whose item left the board (kept, unlinked and archived). */
   unlinked: number;
   /** Sprints created or updated from the iterations. */
   sprints: number;
@@ -77,9 +81,11 @@ interface SyncSummary {
   renumbered: number;
   /** Comments created, changed or deleted, on either side. */
   comments: number;
+  /** Tasks whose sync failed (GitHub refused a write…): left as they were, tried again at the next sync. */
+  failed: number;
 }
 
-const linkedTask = { select: { id: true, githubContentId: true, githubContentType: true, archivedAt: true } } as const;
+const linkedTask = { select: { id: true, githubContentId: true, githubContentType: true } } as const;
 const include = {
   assignees: { select: { id: true, githubLogin: true } },
   tags: { select: { id: true, label: true } },
@@ -94,7 +100,6 @@ interface LinkedTask {
   id: string;
   githubContentId: string | null;
   githubContentType: string | null;
-  archivedAt: Date | null;
 }
 type SyncedTask = Task & {
   assignees: { id: string; githubLogin: string | null }[];
@@ -127,8 +132,6 @@ interface Maps {
   inheritance: TaskInheritanceContext;
   /** Task id by GitHub issue or draft id. */
   taskByContent: Map<string, string>;
-  /** Issues and drafts of archived tasks (read only: left alone on both sides). */
-  archivedContent: Set<string>;
   /** Issue field of each board field showing one (issues only: drafts have none). */
   issueFields: Map<string, string>;
 }
@@ -153,15 +156,14 @@ function fieldValue(value: FieldValue | undefined): string | number | null {
 const labelKeys = (names: string[]) => [...new Set(names.map(nameKey))].sort();
 
 /**
- * Linked tasks whose links are synchronized: with an issue, not archived (an archived task is read only: its links are
- * left alone on both sides).
+ * Linked tasks whose links are synchronized: with an issue, archived or not (both sides always show the same links).
  * @param {LinkedTask[]} tasks Tasks.
  * @returns {LinkedTask[]} Tasks kept.
  */
-const syncedLinks = (tasks: LinkedTask[]) => tasks.filter((task) => task.githubContentType === 'ISSUE' && task.githubContentId && !task.archivedAt);
+const syncedLinks = (tasks: LinkedTask[]) => tasks.filter((task) => task.githubContentType === 'ISSUE' && task.githubContentId);
 
 /**
- * Issues of linked tasks (tasks without issue, or archived, are left alone on both sides).
+ * Issues of linked tasks, archived or not (tasks without issue are left alone on both sides).
  * @param {LinkedTask[]} tasks Tasks.
  * @returns {string[]} Issue node ids, sorted.
  */
@@ -251,7 +253,8 @@ const assigneeLogins = (task: SyncedTask, maps: Maps) => inheritedValues(task, m
  * @returns {SyncFields} Values.
  */
 function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type: RemoteItem['type'], currentIteration: string | null = null): SyncFields {
-  const fields: SyncFields = { title: task.label, body: task.description ?? '' };
+  // Archived in Ordo ↔ archived on the board (issues and drafts).
+  const fields: SyncFields = { title: task.label, body: task.description ?? '', archived: task.archivedAt !== null };
   const inherited = inheritedValues(task, maps);
   if (link.syncAssignees) fields.assignees = assigneeLogins(task, maps);
   if (type === 'ISSUE') {
@@ -293,9 +296,9 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
     const value = fieldValue(item.fields[fieldId]);
     return value === null ? null : reverse.has(String(value)) ? String(value) : `gh:${value}`;
   };
-  // Issues without task (outside the board) or of an archived task are left alone on both sides.
-  const known = (ids: string[]) => [...new Set(ids.filter((id) => maps.taskByContent.has(id) && !maps.archivedContent.has(id)))].sort();
-  const fields: SyncFields = { title: item.title, body: item.body };
+  // Issues without task (outside the board) are left alone on both sides; those of archived tasks are synchronized.
+  const known = (ids: string[]) => [...new Set(ids.filter((id) => maps.taskByContent.has(id)))].sort();
+  const fields: SyncFields = { title: item.title, body: item.body, archived: item.archived };
   // Logins without contributor are left alone on both sides.
   if (link.syncAssignees) fields.assignees = item.assignees.filter((login) => maps.contributorByLogin.has(login));
   if (item.type === 'ISSUE') {
@@ -319,45 +322,6 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
   if (usable(link.deadlineFieldId, maps, item.type)) fields.deadline = dayPart(fieldValue(item.fields[link.deadlineFieldId]) as string | null);
   if (usable(link.effortFieldId, maps, item.type)) fields.effort = (fieldValue(item.fields[link.effortFieldId]) as number | null) ?? null;
   return fields;
-}
-
-/** Synchronized links of a task with other issues, that may point to an archived task. */
-const LINK_FIELDS = ['blockedBy', 'relatesTo'] as const;
-
-/**
- * « Bloquée par » and « relative à » links with archived tasks are left alone on both sides, so that the side that
- * changed wins as for any other value: they are taken out of the last snapshot the values are compared with (neither
- * side shows them). The parent is merged like any other value, archived or not.
- * @param {SyncFields | null} last Last snapshot.
- * @param {Set<string>} archived Issues of archived tasks.
- * @returns {SyncFields | null} Snapshot to compare with.
- */
-function setArchivedLinksAside(last: SyncFields | null, archived: Set<string>): SyncFields | null {
-  if (!last) return null;
-  const base = { ...last };
-  for (const field of LINK_FIELDS) {
-    const before = base[field];
-    if (Array.isArray(before)) base[field] = before.filter((id) => !archived.has(String(id)));
-  }
-  return base;
-}
-
-/**
- * « Bloquée par » and « relative à » links with archived tasks are left alone on both sides: the new snapshot keeps
- * them as the last one had them, so that once the task is restored, what GitHub changed meanwhile (a link removed or
- * added) wins over Ordo's state.
- * @param {SyncFields} next New snapshot (changed in place).
- * @param {SyncFields | null} last Last snapshot.
- * @param {Set<string>} archived Issues of archived tasks.
- * @returns {void}
- */
-function keepArchivedLinks(next: SyncFields, last: SyncFields | null, archived: Set<string>): void {
-  for (const field of LINK_FIELDS) {
-    const before = last?.[field];
-    const after = next[field];
-    if (!Array.isArray(before) || !Array.isArray(after)) continue;
-    next[field] = [...new Set([...after, ...before.filter((id) => archived.has(String(id)))])].sort() as SyncFields[typeof field];
-  }
 }
 
 /**
@@ -409,15 +373,16 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   if ('blockedBy' in values) {
     const wanted = new Set((values.blockedBy as string[]).map((id) => maps.taskByContent.get(id)).filter((id): id is string => Boolean(id)));
     const current = syncedLinks(task.blockedBy.map((block) => block.blocker));
-    for (const blocker of current) if (!wanted.has(blocker.id)) await removeTaskBlock(blocker.id, task.id);
+    // Archived tasks accepted: both sides always show the same links.
+    for (const blocker of current) if (!wanted.has(blocker.id)) await removeTaskBlock(blocker.id, task.id, true);
     // A dependency Ordo refuses (circular, other project tree) is left out.
-    for (const id of wanted) if (!current.some((blocker) => blocker.id === id)) await addTaskBlock(id, task.id).catch(() => undefined);
+    for (const id of wanted) if (!current.some((blocker) => blocker.id === id)) await addTaskBlock(id, task.id, true).catch(() => undefined);
   }
   if ('relatesTo' in values) {
     const wanted = new Set((values.relatesTo as string[]).map((id) => maps.taskByContent.get(id)).filter((id): id is string => Boolean(id)));
     const current = syncedLinks(relatedOf(task));
-    for (const other of current) if (!wanted.has(other.id)) await removeTaskRelation(task.id, other.id);
-    for (const id of wanted) if (!current.some((other) => other.id === id)) await addTaskRelation(task.id, id).catch(() => undefined);
+    for (const other of current) if (!wanted.has(other.id)) await removeTaskRelation(task.id, other.id, true);
+    for (const id of wanted) if (!current.some((other) => other.id === id)) await addTaskRelation(task.id, id, true).catch(() => undefined);
   }
   if ('iteration' in values) {
     // The sprint of the iteration is added: a task may be in several sprints, none is taken away from GitHub.
@@ -452,10 +417,12 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   let inherited: readonly string[] = task.inheritedFields;
   if ('parent' in values) {
     const parentId = values.parent ? maps.taskByContent.get(String(values.parent)) : null;
-    // The parent obeys the rule of Ordo (same project tree, not archived, not under itself or one of its sub-tasks):
-    // otherwise the task keeps its own.
-    if (!parentId || (await assertParent(parentId, task.projectId, task.id).then(() => true, () => false))) {
+    // The parent obeys the rule of Ordo (same project tree, not under itself or one of its sub-tasks; archived or not,
+    // as on GitHub): otherwise the task keeps its own.
+    if (!parentId || (await assertParent(parentId, task.projectId, task.id, true).then(() => true, () => false))) {
       data.parent = parentId ? { connect: { id: parentId } } : { disconnect: true };
+      // An archived task given another parent is archived on its own: restoring its former parent leaves it archived.
+      if (task.archivedAt) data.archivedByCascade = false;
       if (!parentId && task.parentId) {
         await freezeTaskInheritance([task.id]);
         inherited = [];
@@ -533,8 +500,7 @@ type SentRelations = Set<string>;
  * @param {LabelCache} context.labels Labels of the repositories.
  * @param {MilestoneCache} context.milestones Milestones of the repositories.
  * @param {SentRelations} context.sent Relationships already sent in this sync.
- * @param {Map<string, string>} context.taskByContent Tasks by issue: other issues are left alone.
- * @param {Set<string>} context.archivedContent Issues of archived tasks: left alone too.
+ * @param {Map<string, string>} context.taskByContent Tasks by issue (archived or not): other issues are left alone.
  * @param {Map<string, string>} context.issueFields Issue field of the board fields showing one.
  * @returns {Promise<void>}
  */
@@ -550,7 +516,6 @@ async function pushValues(
     milestones,
     sent,
     taskByContent,
-    archivedContent,
     issueFields,
   }: {
     knownBefore: string[];
@@ -559,10 +524,11 @@ async function pushValues(
     milestones: MilestoneCache;
     sent: SentRelations;
     taskByContent: Map<string, string>;
-    archivedContent: Set<string>;
     issueFields: Map<string, string>;
   },
 ): Promise<void> {
+  // Taken out of the archive first, archived last: the item takes the other values as an active one.
+  if (values.archived === false) await setItemArchived(token, link.githubProjectId, item.itemId, false);
   const assignees = values.assignees as string[] | undefined;
   await updateContent(token, item.type, item.contentId, {
     title: 'title' in values ? String(values.title) : undefined,
@@ -631,7 +597,7 @@ async function pushValues(
     const wanted = values[field] as string[];
     const changes = [
       ...wanted.filter((id) => !before.includes(id)).map((id) => [id, true] as const),
-      ...before.filter((id) => taskByContent.has(id) && !archivedContent.has(id) && !wanted.includes(id)).map((id) => [id, false] as const),
+      ...before.filter((id) => taskByContent.has(id) && !wanted.includes(id)).map((id) => [id, false] as const),
     ];
     for (const [other, add] of changes) {
       // A relation is symmetric: sent once for its pair.
@@ -656,6 +622,7 @@ async function pushValues(
     const value = values[field];
     await writeField(token, link, item, fieldId, value === null || value === undefined ? null : toValue(value), issueFields);
   }
+  if (values.archived === true) await setItemArchived(token, link.githubProjectId, item.itemId, true);
 }
 
 /**
@@ -814,11 +781,28 @@ async function pushTrackedTime(token: string, link: GithubProjectLink, item: Rem
 const running = new Set<string>();
 
 /**
+ * Synchronizes one pair, or sends one new task: a failure (a write GitHub refuses…) is logged and counted, and the
+ * other tasks go on. What it did not record (the snapshot last) is tried again at the next sync.
+ * @param {SyncSummary} summary Summary of the sync (its failures counted).
+ * @param {() => Promise<void>} work Sync of the task.
+ * @returns {Promise<void>}
+ */
+async function isolated(summary: SyncSummary, work: () => Promise<void>): Promise<void> {
+  try {
+    await work();
+  } catch (error) {
+    summary.failed += 1;
+    console.warn('Synchronisation GitHub : tâche non synchronisée.', error);
+  }
+}
+
+/**
  * Synchronizes a project with its GitHub board, both ways: iterations become sprints; items new on the board
  * become tasks of the project, tasks new in the project tree become items (draft issues, or issues of the
  * chosen repository); linked pairs are merged field by field against the last sync (labels with tags,
- * sub-issues with sub-tasks), then the comments of issues. A task whose item left the board is kept,
- * unlinked, and not sent again.
+ * sub-issues with sub-tasks, the archive of a task with the archive of its item), then the comments of issues;
+ * archived tasks too. A task whose item left the board is kept, unlinked, not sent again, and archived with a
+ * comment saying so.
  * @param {string} projectId Linked project.
  * @returns {Promise<SyncSummary>} What changed.
  */
@@ -826,7 +810,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
   const link = await orNotFound(prisma.githubProjectLink.findUnique({ where: { projectId } }), 'Lien GitHub');
   if (running.has(link.id)) throw clientError('BAD_USER_INPUT', 'Une synchronisation de ce projet est déjà en cours.');
   running.add(link.id);
-  const summary: SyncSummary = { pulledNew: 0, pushedNew: 0, pulled: 0, pushed: 0, unlinked: 0, sprints: 0, sprintsSkipped: 0, renumbered: 0, comments: 0 };
+  const summary: SyncSummary = { pulledNew: 0, pushedNew: 0, pulled: 0, pushed: 0, unlinked: 0, sprints: 0, sprintsSkipped: 0, renumbered: 0, comments: 0, failed: 0 };
   try {
     const token = await githubToken();
     const login = (await currentGithubConnection())?.login ?? '';
@@ -838,20 +822,32 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
     const items = await boardItems(token, board);
     const itemIds = items.map((item) => item.itemId);
 
-    // Tasks of the tree whose item is gone: unlinked, and marked so that they are not sent back.
+    // Tasks of the tree whose item is gone (removed from the board, or deleted; an item archived on the board is still
+    // there): archived (with their active sub-tasks, as any archive; the topmost first, so
+    // that the cascade does not depend on their order), then unlinked, marked so that they are not sent back, with a
+    // comment saying so. Archived first: a failure leaves them gone, archived again (no change) at the next sync.
     const gone = await prisma.task.findMany({ where: { projectId: { in: tree }, githubItemId: { not: null, notIn: itemIds } }, select: { id: true } });
     if (gone.length) {
-      await prisma.task.updateMany({
-        where: { id: { in: gone.map((task) => task.id) } },
-        data: { githubItemId: null, githubContentId: null, githubContentType: REMOVED, githubUrl: null, githubNumber: null, githubSnapshot: Prisma.DbNull },
-      });
-      await prisma.taskComment.updateMany({ where: { taskId: { in: gone.map((task) => task.id) } }, data: { githubCommentId: null, githubBody: null } });
+      const goneIds = gone.map((task) => task.id);
+      // The topmost first (their sub-tasks archived along), then the others: one under a parent already archived too.
+      const roots = await topmostIds('task', goneIds);
+      for (const id of [...roots, ...goneIds.filter((id) => !roots.includes(id))]) await setTaskArchived(id, true);
+      const body = removedFromBoardComment(parisToday());
+      await prisma.$transaction([
+        prisma.task.updateMany({
+          where: { id: { in: goneIds } },
+          data: { githubItemId: null, githubContentId: null, githubContentType: REMOVED, githubUrl: null, githubNumber: null, githubSnapshot: Prisma.DbNull },
+        }),
+        prisma.taskComment.updateMany({ where: { taskId: { in: goneIds } }, data: { githubCommentId: null, githubBody: null } }),
+        prisma.taskComment.createMany({ data: goneIds.map((taskId) => ({ taskId, body })) }),
+      ]);
       summary.unlinked = gone.length;
     }
 
     // Items new on the board: tasks of the project (their fields come with the merge below).
     const known = new Set((await prisma.task.findMany({ where: { githubItemId: { in: itemIds } }, select: { githubItemId: true } })).map((task) => task.githubItemId));
-    const created = new Set(items.filter((entry) => !known.has(entry.itemId)).map((entry) => entry.itemId));
+    // An item archived on the board that no task knows is left alone (as an archived task never sent is not sent).
+    const created = new Set(items.filter((entry) => !known.has(entry.itemId) && !entry.archived).map((entry) => entry.itemId));
     for (const item of items.filter((entry) => created.has(entry.itemId))) {
       const task = await createTask({ label: clipText(item.title) || `Item GitHub ${item.number ?? ''}`.trim(), projectId });
       // Empty snapshot except the title: every GitHub value is new, so it is pulled.
@@ -863,7 +859,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
           githubContentType: item.type,
           githubUrl: item.url,
           githubNumber: item.number,
-          githubSnapshot: { title: task.label, body: '', assignees: [], labels: [], parent: null, closed: false, status: null, priority: null, iteration: null, start: null, end: null, effort: null },
+          githubSnapshot: { title: task.label, body: '', archived: false, assignees: [], labels: [], parent: null, closed: false, status: null, priority: null, iteration: null, start: null, end: null, effort: null },
         },
       });
       summary.pulledNew += 1;
@@ -902,7 +898,6 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       milestoneLabel: new Map(milestoneRows.map((milestone) => [milestone.id, milestone.label])),
       inheritance: await loadTaskInheritance(),
       taskByContent: new Map(linked.map((task) => [task.githubContentId!, task.id])),
-      archivedContent: new Set(linked.filter((task) => task.archivedAt).map((task) => task.githubContentId!)),
       issueFields: new Map(board.fields.filter((field) => field.issueFieldId).map((field) => [field.id, field.issueFieldId!])),
     };
     const labels: LabelCache = new Map();
@@ -922,7 +917,6 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       milestones,
       sent,
       taskByContent: maps.taskByContent,
-      archivedContent: maps.archivedContent,
       issueFields: maps.issueFields,
     });
     const byItem = new Map(linked.map((task) => [task.githubItemId!, task]));
@@ -930,109 +924,107 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
 
     // Parents first: what a parent receives reaches the sub-tasks that inherit it in the same pass.
     const depth = (entry: RemoteItem) => lineageOf(maps.inheritance.tasks, byItem.get(entry.itemId)?.id).length;
-    for (const item of [...items].sort((a, b) => depth(a) - depth(b))) {
-      const task = byItem.get(item.itemId)!;
-      // An archived task is read only: neither it nor its item is written (its snapshot stays, the pair is merged
-      // again once it is restored).
-      if (task.archivedAt) continue;
-      const local = localFields(task, link, maps, item.type, link.iterationFieldId ? ((fieldValue(item.fields[link.iterationFieldId]) as string | null) ?? null) : null);
-      const remote = remoteFields(item, link, maps);
-      // An iteration of the last sync that is gone from the board (new ids given by GitHub) is no reference: the
-      // item lost it, the sprint of the task wins.
-      const snapshot = task.githubSnapshot ? { ...(task.githubSnapshot as SyncFields) } : null;
-      // A state of a former sync, closed without its reason: closed as done.
-      if (snapshot?.closed === true) snapshot.closed = 'COMPLETED';
-      if (snapshot && typeof snapshot.iteration === 'string' && !iterationIds.has(snapshot.iteration)) delete snapshot.iteration;
-      const base = setArchivedLinksAside(snapshot, maps.archivedContent);
-      const result = mergeFields(local, remote, base, task.updatedAt.toISOString() > item.updatedAt);
-      keepArchivedLinks(result.snapshot, snapshot, maps.archivedContent);
-      if (Object.keys(result.push).length) {
-        await pushValues(token, link, item, result.push, pushContext(task, (remote.assignees as string[]) ?? []));
-        summary.pushed += 1;
-      }
-      if (await pushTrackedTime(token, link, item, task, maps.issueFields)) summary.pushed += Object.keys(result.push).length ? 0 : 1;
-      const pulledData = await pullData(acceptedValues(result.pull, task), task, maps, item);
-      // A parent pulled but refused by Ordo is not written: nothing follows from it.
-      const parentPulled = 'parent' in pulledData;
-      await prisma.task.update({
-        where: { id: task.id },
-        data: {
-          ...pulledData,
-          githubContentId: item.contentId,
-          githubContentType: item.type,
-          githubUrl: item.url,
-          githubNumber: item.number,
-          githubSnapshot: toJson(result.snapshot),
-        },
+    for (const item of items.filter((entry) => byItem.has(entry.itemId)).sort((a, b) => depth(a) - depth(b))) {
+      await isolated(summary, async () => {
+        // An archived task is synchronized like any other: read only for the users, not for the sync.
+        const task = byItem.get(item.itemId)!;
+        // Read again: a cascade earlier in this pass (a parent archived or restored) may have changed it.
+        task.archivedAt = (await prisma.task.findUnique({ where: { id: task.id }, select: { archivedAt: true } }))?.archivedAt ?? null;
+        const local = localFields(task, link, maps, item.type, link.iterationFieldId ? ((fieldValue(item.fields[link.iterationFieldId]) as string | null) ?? null) : null);
+        const remote = remoteFields(item, link, maps);
+        // A snapshot of a former sync: closed without its reason, without archived state.
+        const snapshot = upgradedSnapshot(task.githubSnapshot as SyncFields | null);
+        // An iteration of the last sync that is gone from the board (new ids given by GitHub) is no reference: the
+        // item lost it, the sprint of the task wins.
+        if (snapshot && typeof snapshot.iteration === 'string' && !iterationIds.has(snapshot.iteration)) delete snapshot.iteration;
+        const result = mergeFields(local, remote, snapshot, task.updatedAt.toISOString() > item.updatedAt);
+        if (Object.keys(result.push).length) {
+          await pushValues(token, link, item, result.push, pushContext(task, (remote.assignees as string[]) ?? []));
+          summary.pushed += 1;
+        }
+        if (await pushTrackedTime(token, link, item, task, maps.issueFields)) summary.pushed += Object.keys(result.push).length ? 0 : 1;
+        const pulledData = await pullData(acceptedValues(result.pull, task), task, maps, item);
+        // A parent pulled but refused by Ordo is not written: nothing follows from it.
+        const parentPulled = 'parent' in pulledData;
+        await prisma.task.update({
+          where: { id: task.id },
+          data: { ...pulledData, githubContentId: item.contentId, githubContentType: item.type, githubUrl: item.url, githubNumber: item.number },
+        });
+        // Archived or restored on the board: archived or restored in Ordo, with the usual cascade, on the lineage the
+        // parent pulled just gave it (its sub-tasks follow in this pass, the ancestors it restores at the next sync).
+        // Before the snapshot is written: a failure leaves the last one, and the next sync takes the archive again.
+        if ('archived' in result.pull) await setTaskArchived(task.id, result.pull.archived === true);
+        await prisma.task.update({ where: { id: task.id }, data: { githubSnapshot: toJson(result.snapshot) } });
+        // Placed under a parent of another project of the tree: one inheriting its project follows it.
+        if (parentPulled) await followParentProjects([task.id]);
+        // A value its sub-tasks may inherit changed: they go by the new one when their turn comes.
+        if (parentPulled || Object.keys(PULLED_INHERITED).some((key) => key in result.pull)) maps.inheritance = await loadTaskInheritance();
+        if (Object.keys(result.pull).some((key) => key !== 'parent' || parentPulled) && !created.has(item.itemId)) summary.pulled += 1;
+        // The number of the task follows its issue.
+        if (item.type === 'ISSUE' && item.number !== null && (await matchIssueNumber(task.id, item.number))) summary.renumbered += 1;
+        if (item.type === 'ISSUE') summary.comments += await syncComments(token, task.id, item, login);
       });
-      // Placed under a parent of another project of the tree: one inheriting its project follows it.
-      if (parentPulled) await followParentProjects([task.id]);
-      // A value its sub-tasks may inherit changed: they go by the new one when their turn comes.
-      if (parentPulled || Object.keys(PULLED_INHERITED).some((key) => key in result.pull)) maps.inheritance = await loadTaskInheritance();
-      if (Object.keys(result.pull).some((key) => key !== 'parent' || parentPulled) && !created.has(item.itemId)) summary.pulled += 1;
-      // The number of the task follows its issue.
-      if (item.type === 'ISSUE' && item.number !== null && (await matchIssueNumber(task.id, item.number))) summary.renumbered += 1;
-      if (item.type === 'ISSUE') summary.comments += await syncComments(token, task.id, item, login);
     }
 
-    // New in the project tree: items of the board.
+    // New in the project tree: items of the board (an archived task never sent is not sent; one archived once linked
+    // stays synchronized above).
     const fresh = await prisma.task.findMany({
       where: { projectId: { in: tree }, githubItemId: null, githubContentType: null, archivedAt: null, ...(!link.pushExisting && { createdAt: { gte: link.createdAt } }) },
       include,
       orderBy: { number: 'asc' },
     });
     for (const task of fresh) {
-      const type: RemoteItem['type'] = link.repositoryId ? 'ISSUE' : 'DRAFT_ISSUE';
-      const created = await createItem(token, {
-        projectId: link.githubProjectId,
-        repositoryId: link.repositoryId,
-        title: task.label,
-        body: task.description ?? '',
-        assignees: link.syncAssignees ? assigneeLogins(task, maps) : [],
+      await isolated(summary, async () => {
+        const type: RemoteItem['type'] = link.repositoryId ? 'ISSUE' : 'DRAFT_ISSUE';
+        const created = await createItem(token, {
+          projectId: link.githubProjectId,
+          repositoryId: link.repositoryId,
+          title: task.label,
+          body: task.description ?? '',
+          assignees: link.syncAssignees ? assigneeLogins(task, maps) : [],
+        });
+        maps.taskByContent.set(created.contentId, task.id);
+        // Linked at once, with what the item has now: a failure of the pushes below leaves the pair to the next sync
+        // (merged as a first sync for the values not sent), never an item sent twice.
+        const onItem: SyncFields = { title: task.label, body: task.description ?? '', archived: false, ...(link.syncAssignees && { assignees: assigneeLogins(task, maps) }), ...(created.type === 'ISSUE' && { closed: false }) };
+        await prisma.task.update({
+          where: { id: task.id },
+          data: { githubItemId: created.itemId, githubContentId: created.contentId, githubContentType: created.type, githubUrl: created.url, githubNumber: created.number, githubSnapshot: toJson(onItem) },
+        });
+        // A parent sent in this same run is known now.
+        const parent = task.parentId ? await prisma.task.findUnique({ where: { id: task.parentId }, select: { githubContentId: true, githubContentType: true } }) : null;
+        const local = localFields({ ...task, parent }, link, maps, type);
+        const item: RemoteItem = {
+          ...created,
+          title: task.label,
+          body: task.description ?? '',
+          closed: type === 'ISSUE' ? false : null,
+          archived: false,
+          closeReason: null,
+          assignees: (local.assignees as string[]) ?? [],
+          labels: [],
+          repositoryId: link.repositoryId,
+          parentId: null,
+          issueTypeId: null,
+          milestone: null,
+          blockedBy: [],
+          relatesTo: [],
+          comments: [],
+          updatedAt: new Date().toISOString(),
+          fields: {},
+        };
+        const { title: _title, body: _body, assignees: _assignees, ...fields } = local;
+        // A new item is empty: only the values set in Ordo are sent.
+        const pushable = Object.fromEntries(Object.entries(fields).filter(([, value]) => !isUnmapped(value, 'ordo') && value !== null && value !== false && !(Array.isArray(value) && !value.length)));
+        await pushValues(token, link, item, pushable, pushContext(task, item.assignees));
+        await pushTrackedTime(token, link, item, task, maps.issueFields);
+        // Values that could not be sent are seen as GitHub's (empty), so they are not sent again.
+        const snapshot = Object.fromEntries(Object.entries(local).map(([key, value]) => [key, isUnmapped(value, 'ordo') ? null : value]));
+        await prisma.task.update({ where: { id: task.id }, data: { githubSnapshot: toJson(snapshot) } });
+        if (created.number !== null && (await matchIssueNumber(task.id, created.number))) summary.renumbered += 1;
+        if (type === 'ISSUE') summary.comments += await syncComments(token, task.id, item, login);
+        summary.pushedNew += 1;
       });
-      maps.taskByContent.set(created.contentId, task.id);
-      // A parent sent in this same run is known now.
-      const parent = task.parentId ? await prisma.task.findUnique({ where: { id: task.parentId }, select: { githubContentId: true, githubContentType: true } }) : null;
-      const local = localFields({ ...task, parent }, link, maps, type);
-      const item: RemoteItem = {
-        ...created,
-        title: task.label,
-        body: task.description ?? '',
-        closed: type === 'ISSUE' ? false : null,
-        closeReason: null,
-        assignees: (local.assignees as string[]) ?? [],
-        labels: [],
-        repositoryId: link.repositoryId,
-        parentId: null,
-        issueTypeId: null,
-        milestone: null,
-        blockedBy: [],
-        relatesTo: [],
-        comments: [],
-        updatedAt: new Date().toISOString(),
-        fields: {},
-      };
-      const { title: _title, body: _body, assignees: _assignees, ...fields } = local;
-      // A new item is empty: only the values set in Ordo are sent.
-      const pushable = Object.fromEntries(Object.entries(fields).filter(([, value]) => !isUnmapped(value, 'ordo') && value !== null && value !== false && !(Array.isArray(value) && !value.length)));
-      await pushValues(token, link, item, pushable, pushContext(task, item.assignees));
-      await pushTrackedTime(token, link, item, task, maps.issueFields);
-      // Values that could not be sent are seen as GitHub's (empty), so they are not sent again.
-      const snapshot = Object.fromEntries(Object.entries(local).map(([key, value]) => [key, isUnmapped(value, 'ordo') ? null : value]));
-      await prisma.task.update({
-        where: { id: task.id },
-        data: {
-          githubItemId: created.itemId,
-          githubContentId: created.contentId,
-          githubContentType: created.type,
-          githubUrl: created.url,
-          githubNumber: created.number,
-          githubSnapshot: toJson(snapshot),
-        },
-      });
-      if (created.number !== null && (await matchIssueNumber(task.id, created.number))) summary.renumbered += 1;
-      if (type === 'ISSUE') summary.comments += await syncComments(token, task.id, item, login);
-      summary.pushedNew += 1;
     }
 
     await prisma.githubProjectLink.update({

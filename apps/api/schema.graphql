@@ -1523,6 +1523,11 @@ type GithubProjectLink {
 
 type GithubSyncSummary {
   comments: Int!
+
+  """
+  Tasks whose sync failed: left as they were, tried again at the next sync.
+  """
+  failed: Int!
   pulled: Int!
   pulledNew: Int!
   pushed: Int!

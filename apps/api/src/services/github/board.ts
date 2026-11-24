@@ -53,6 +53,8 @@ export interface RemoteItem {
   body: string;
   /** Issues only (a draft has no state). */
   closed: boolean | null;
+  /** Archived on the board (issues and drafts). */
+  archived: boolean;
   /** How a closed issue was closed: done (COMPLETED), or not planned (NOT_PLANNED, a duplicate included); null while open. */
   closeReason: TaskCloseReason | null;
   assignees: string[];
@@ -205,7 +207,7 @@ interface RawItem {
 }
 
 /**
- * Issues and draft issues of a board (pull requests and archived items left out). The values of the issue fields
+ * Issues and draft issues of a board, archived ones included (pull requests left out). The values of the issue fields
  * the board shows are read on the issues and kept under the board field.
  * @param {string} token Token.
  * @param {Board} board Board, with its fields.
@@ -268,7 +270,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
     if (!data.node) throw clientError('BAD_USER_INPUT', 'Tableau GitHub introuvable, ou le jeton n’y a plus accès.');
     for (const item of data.node.items.nodes) {
       const content = item.content;
-      if (item.isArchived || !content || (content.__typename !== 'Issue' && content.__typename !== 'DraftIssue')) continue;
+      if (!content || (content.__typename !== 'Issue' && content.__typename !== 'DraftIssue')) continue;
       const fields: Record<string, FieldValue> = {};
       for (const value of item.fieldValues.nodes) {
         const fieldId = value.field?.id;
@@ -297,6 +299,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
         title: content.title ?? '',
         body: content.body ?? '',
         closed: content.__typename === 'Issue' ? content.state === 'CLOSED' : null,
+        archived: item.isArchived,
         closeReason: content.__typename === 'Issue' && content.state === 'CLOSED' ? (content.stateReason === 'NOT_PLANNED' || content.stateReason === 'DUPLICATE' ? 'NOT_PLANNED' : 'COMPLETED') : null,
         assignees: (content.assignees?.nodes ?? []).map((user) => user.login),
         labels: content.labels?.nodes ?? [],
@@ -515,6 +518,19 @@ export async function deleteItem(token: string, projectId: string, itemId: strin
     projectId,
     itemId,
   });
+}
+
+/**
+ * Archives an item of a board, or takes it out of the archive (the issue or draft is not changed).
+ * @param {string} token Token.
+ * @param {string} projectId Board node id.
+ * @param {string} itemId Item node id.
+ * @param {boolean} archived Target state.
+ * @returns {Promise<void>}
+ */
+export async function setItemArchived(token: string, projectId: string, itemId: string, archived: boolean): Promise<void> {
+  const mutation = archived ? 'archiveProjectV2Item' : 'unarchiveProjectV2Item';
+  await githubRequest(token, `mutation OrdoArchiveItem($projectId: ID!, $itemId: ID!) { ${mutation}(input: { projectId: $projectId, itemId: $itemId }) { item { id } } }`, { projectId, itemId });
 }
 
 /**

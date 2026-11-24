@@ -84,6 +84,7 @@ Source : `placeLegacyComments` (`services/core/comments.ts`), `placeLegacyRoutin
 
 - Un élément archivé est en lecture seule, ses commentaires aussi : ajouter, modifier ou supprimer un commentaire d’un élément archivé (ou d’un article d’une liste ou fiche archivée) est refusé : « Élément archivé : restaurez-le pour le modifier. ».
 - Même règle pour les tâches : pas de commentaire ajouté, modifié ou supprimé sur une tâche archivée (« Tâche introuvable. » si la tâche n’existe pas, « Commentaire introuvable. » si le commentaire n’existe pas).
+- La synchronisation GitHub n’y est pas soumise : les commentaires d’une tâche archivée liée à une issue restent synchronisés (ceux ajoutés, modifiés ou supprimés sur GitHub le sont dans Ordo), et une tâche dont l’item quitte le tableau reçoit le commentaire « Retirée du tableau GitHub le JJ/MM/AAAA : tâche archivée. » (voir [GitHub](github.md#étapes)).
 
 ## Lecture et comptage
 

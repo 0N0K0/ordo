@@ -469,7 +469,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
       )}
       <Text size="xs" c="dimmed">
         Un champ modifié d’un seul côté passe de l’autre ; modifié des deux côtés, la modification la plus récente gagne. Une tâche supprimée dans Ordo est retirée du tableau (une issue reste dans son
-        dépôt) ; un item retiré du tableau laisse sa tâche dans Ordo, déliée.
+        dépôt) ; archiver ou restaurer une tâche archive ou sort de l’archive son item, et inversement ; un item retiré du tableau laisse sa tâche dans Ordo, déliée et archivée, avec un commentaire.
       </Text>
     </Stack>
   );
