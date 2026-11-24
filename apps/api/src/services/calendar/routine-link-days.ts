@@ -1,18 +1,38 @@
-import { formatDay, marksInherited, occurrenceDueDay, relinkedOccurrence, routineMoveSchema } from '@ordo/shared';
-import { z } from 'zod';
+import { effectiveRoutineTiming, formatDay, occurrenceDueDay, relinkedOccurrence, type InheritingRoutine } from '@ordo/shared';
 import { prisma } from '../../db';
-import { loadScheduleContext, occurrenceSpansBetween } from '../routines/routine-occurrences';
+import type { Routine } from '../../generated/prisma/client';
+import { liveMoves, loadScheduleContext, occurrenceSpansBetween, type RoutineTiming, type ScheduleContext } from '../routines/routine-occurrences';
 
-/** Exceptions of a routine and whether it inherits them, up its parents (a sub-routine may go by its parent's). */
-interface MovesChain {
-  moves: unknown;
+/**
+ * A routine with what tells the exceptions it goes by, up its parents: its « quand » (a sub-routine may go by its
+ * parent's exceptions, which apply on the days of the rule it goes by).
+ */
+interface MovesChain extends RoutineTiming, Pick<Routine, 'scheduleId' | 'scheduleAnchor'> {
+  id: string;
   parentId: string | null;
   inheritedFields: string[];
   parent?: MovesChain | null;
 }
 
-/** One level of `MOVES_CHAIN`: its exceptions and whether it inherits them. */
-const LEVEL = { moves: true, parentId: true, inheritedFields: true } as const;
+/** One level of `MOVES_CHAIN`: its « quand » (exceptions included), its parent and whether it inherits them. */
+const LEVEL = {
+  id: true,
+  parentId: true,
+  inheritedFields: true,
+  startDate: true,
+  recurrence: true,
+  scheduleId: true,
+  scheduleAnchor: true,
+  cases: true,
+  moves: true,
+  moments: true,
+  fromTime: true,
+  dueTime: true,
+  opensOn: true,
+  slotCondition: true,
+  scheduleIds: true,
+  excludedScheduleIds: true,
+} as const;
 
 /** What tells the exceptions a routine goes by: its own, else those of its parents (four levels up). */
 const MOVES_CHAIN = { ...LEVEL, parent: { select: { ...LEVEL, parent: { select: { ...LEVEL, parent: { select: { ...LEVEL, parent: { select: LEVEL } } } } } } } } as const;
@@ -27,29 +47,40 @@ export interface RoutineLinkRow {
   routine?: MovesChain;
 }
 
-const movesSchema = z.array(routineMoveSchema);
-
 /**
  * Day an occurrence of a routine linked to an event shows on: its due day (the day it was moved to when moved onto a
- * day that has its own and kept apart), from the day that identifies it (the day stored in the link).
+ * day that has its own and kept apart), from the day that identifies it (the day stored in the link), by the
+ * exceptions that apply (`liveMoves`: one left by a change of its rule moves nothing), on the « quand » it goes by
+ * (its parents' when it inherits it).
  * @param {string} date Day that identifies the occurrence.
- * @param {MovesChain | undefined} routine Routine with its exceptions (and those of its parents).
+ * @param {MovesChain | undefined} routine Routine with its « quand » (and that of its parents).
+ * @param {ScheduleContext} memo Context its exceptions that apply are remembered in, by routine (`linkDayMemo`).
  * @returns {string} Day it shows on.
  */
-function shownDay(date: string, routine: MovesChain | undefined): string {
-  let current = routine;
-  // Its exceptions inherited: those of its parent.
-  while (current && marksInherited(current, 'MOVES') && current.parent) current = current.parent;
-  const parsed = movesSchema.safeParse(current?.moves);
-  return parsed.success ? occurrenceDueDay(parsed.data, date) : date;
+function shownDay(date: string, routine: MovesChain | undefined, memo: ScheduleContext): string {
+  if (!routine) return date;
+  const byId = new Map<string, MovesChain>();
+  for (let level: MovesChain | null | undefined = routine; level; level = level.parent) byId.set(level.id, level);
+  // Only the columns of its « quand » are read up the chain.
+  const timing = effectiveRoutineTiming(routine, byId as unknown as ReadonlyMap<string, InheritingRoutine>);
+  return occurrenceDueDay(liveMoves(timing, memo), date);
 }
 
 /**
- * Day a link of an event with a routine shows on (`shownDay`).
- * @param {RoutineLinkRow} link Link.
- * @returns {string} Day.
+ * Context the days links show on are computed in: no calendar schedule (only the days of the rules count), the
+ * exceptions that apply remembered by routine, for the links read together.
+ * @returns {ScheduleContext} Context.
  */
-export const linkShownDay = (link: RoutineLinkRow): string => shownDay(formatDay(link.date), link.routine);
+const linkDayMemo = (): ScheduleContext => ({ slotsOn: () => [], memo: new Map() });
+
+/**
+ * Days links of events with routines show on (`shownDay`), for links read together (each routine computed once).
+ * @returns {(link: RoutineLinkRow) => string} Day of a link.
+ */
+export function linkShownDays(): (link: RoutineLinkRow) => string {
+  const memo = linkDayMemo();
+  return (link) => shownDay(formatDay(link.date), link.routine, memo);
+}
 
 /**
  * Days links given to an event show on, the routines read once.
@@ -58,9 +89,10 @@ export const linkShownDay = (link: RoutineLinkRow): string => shownDay(formatDay
  */
 export async function loadLinkShownDays(links: readonly { routineId: string; date: string }[]): Promise<(link: { routineId: string; date: string }) => string> {
   const ids = [...new Set(links.map((link) => link.routineId))];
-  const routines = ids.length ? await prisma.routine.findMany({ where: { id: { in: ids } }, select: { id: true, ...MOVES_CHAIN } }) : [];
+  const routines = ids.length ? await prisma.routine.findMany({ where: { id: { in: ids } }, select: MOVES_CHAIN }) : [];
   const byId = new Map<string, MovesChain>(routines.map((routine) => [routine.id, routine]));
-  return (link) => shownDay(link.date, byId.get(link.routineId));
+  const memo = linkDayMemo();
+  return (link) => shownDay(link.date, byId.get(link.routineId), memo);
 }
 
 /**

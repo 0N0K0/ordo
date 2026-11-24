@@ -6,13 +6,14 @@ import { locatedFields } from '../core/geo';
 import { itemLinksSchema } from '../core/links';
 import { linkedDocumentsFields } from '../core/documents';
 import { addDays, daysBetween, weekdayOfDate, monthOfYear, yearOfDay } from '../dates/days';
-import { occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
+import { occurrenceDates, occurrencesBefore, recurrenceSchema, ruleMovedTo, type Recurrence, type Span } from '../dates/recurrence';
 import { caseSpans } from '../dates/repetition';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
 import { remindersSchema } from '../dates/reminders';
 import { deadTimesSchema } from '../dates/countdowns';
 import { conditionConstrains, slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { optionalColorSchema } from '../core/workspace';
+import { formatNumber } from '../core/numbers';
 import { ROUTINE_INHERITABLE_FIELDS, type RoutineInheritableField } from './routine-inheritance';
 
 /** Category of routines, in a tree. */
@@ -128,6 +129,12 @@ export const routineCaseSchema = z
 export type RoutineCase = z.infer<typeof routineCaseSchema>;
 export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
 
+/**
+ * Rows (comments, checklist, links with events) a merged occurrence notes at most (`mergedRows`): a merge that would
+ * bring more is refused.
+ */
+export const MAX_MERGED_ROWS = 1000;
+
 /** Times of the day of an occurrence changed by an exception (by index; null: those of its rule). */
 export const routineMoveTimesSchema = z
   .array(z.object({ fromTime: timeOfDay, dueTime: timeOfDay }).nullable())
@@ -152,7 +159,7 @@ export const routineMoveSchema = z
     times: routineMoveTimesSchema,
     apart: z.boolean().optional(),
     merged: z.boolean().optional(),
-    mergedRows: z.array(z.string()).max(1000).optional(),
+    mergedRows: z.array(z.string()).max(MAX_MERGED_ROWS).optional(),
     previous: z.object({ to: daySchema().nullable(), times: routineMoveTimesSchema, apart: z.boolean().optional() }).optional(),
   })
   .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour ou d’autres horaires.');
@@ -655,6 +662,94 @@ export function movedFrom(moves: readonly RoutineMove[], date: string): string {
 }
 
 /**
+ * What the exceptions of a routine tell of the occurrence a day designates (the day that identifies it, as a write
+ * gives it): true when an exception keeps it there (moved there, kept apart or cancelled from there, its times
+ * changed); false when its exception took it away (merged into another occurrence, moved to another day: the day is
+ * no longer its own, e.g. from a stale tab); null when no exception is about it (an occurrence when its rule has that
+ * day).
+ * @param {readonly RoutineMove[]} moves Exceptions that apply.
+ * @param {string} date Day given.
+ * @returns {boolean | null} Designated, gone, or up to the rule.
+ */
+export function occurrenceByMoves(moves: readonly RoutineMove[], date: string): boolean | null {
+  const from = movedFrom(moves, date);
+  const current = moves.find((move) => move.from === from);
+  if (!current) return null;
+  return !current.merged && moveKey(current) === date;
+}
+
+/**
+ * Whether a day given for a write on an occurrence (move, change, cancel) designates one: as its exceptions tell
+ * (`occurrenceByMoves`), else when it is a day of its rule (its doability aside).
+ * @param {readonly RoutineMove[]} moves Exceptions that apply.
+ * @param {string} date Day given.
+ * @param {(day: string) => boolean} ruleDay Whether a day is a day of its rule (asked only without an exception about it).
+ * @returns {boolean} Designated.
+ */
+export const designatesOccurrence = (moves: readonly RoutineMove[], date: string, ruleDay: (day: string) => boolean): boolean => occurrenceByMoves(moves, date) ?? ruleDay(date);
+
+/** What becomes of the occurrence of a sub-routine going by a routine whose occurrence moves: it follows it, it would disappear, or it stays as it is. */
+export type FollowedOccurrence = 'FOLLOWS' | 'STRANDED' | 'STAYS';
+
+/**
+ * What becomes of the occurrence of a sub-routine (not changed itself) when an occurrence of the routine it goes by is
+ * moved, cancelled or merged: it stays when it is not there, or still there after the change (cancelled: kept on the
+ * day of its rule); else it follows when it is identified by the new day after the change, and would disappear
+ * otherwise (merged into an occurrence of that day it does not have).
+ * @param {{ before: () => boolean, afterOnDay: () => boolean, afterOnNewDay: () => boolean }} held Whether the
+ * sub-routine has the occurrence identified by the day before the change, by that day after it, by the new day after it.
+ * @param {string | null} newDay New day (null: cancelled).
+ * @returns {FollowedOccurrence} What becomes of it.
+ */
+export function followedOccurrence(held: { before: () => boolean; afterOnDay: () => boolean; afterOnNewDay: () => boolean }, newDay: string | null): FollowedOccurrence {
+  if (newDay === null || !held.before() || held.afterOnDay()) return 'STAYS';
+  return held.afterOnNewDay() ? 'FOLLOWS' : 'STRANDED';
+}
+
+/**
+ * Why a merge of an occurrence into the occurrence of its new day is refused, if it is: a sub-routine taking its
+ * exceptions has no occurrence that day (it would lose its own and its rows), or it brings more rows than a merge
+ * notes (`MAX_MERGED_ROWS`).
+ * @param {number} stranded Sub-routines whose occurrence would disappear (`followedOccurrence`).
+ * @param {number} [rows] Rows it brings (its own and those of the sub-routines following it). Optional. Default = not counted yet.
+ * @returns {string | null} Message, null when accepted.
+ */
+export function mergeRefusal(stranded: number, rows = 0): string | null {
+  if (stranded > 0) return 'Une sous-routine qui suit ses exceptions n’a pas d’occurrence ce jour-là : gardez les deux.';
+  if (rows > MAX_MERGED_ROWS) return `Cette occurrence a trop de commentaires, listes et liens pour être fusionnée (${formatNumber(MAX_MERGED_ROWS)} au plus) : gardez les deux.`;
+  return null;
+}
+
+/**
+ * Whether a day is the day of the rule of an occurrence merged into another one: it keeps it until the merge is
+ * undone (rows of its own may have stayed there), no other occurrence takes it as its identity.
+ * @param {readonly RoutineMove[]} moves Exceptions that apply.
+ * @param {string} day Day.
+ * @returns {boolean} Merged away from it.
+ */
+export const mergedAway = (moves: readonly RoutineMove[], day: string): boolean => moves.some((move) => move.merged && move.from === day);
+
+/**
+ * What the exceptions of a routine tell of whether a day identifies another occurrence than the one coming from a day
+ * of its rule: true when another one is identified by it (moved there, kept apart or cancelled from it), or when it is
+ * the day of the rule of one merged into another occurrence (its checklist and links with events the day it went into
+ * already had stay there until the merge is undone: the day stays its own, `mergedAway`); false when it is that day of
+ * its rule, or the occurrence of the rule there moved elsewhere; null when no exception is about it (the occurrence of
+ * the rule there, if it has one).
+ * @param {readonly RoutineMove[]} moves Exceptions that apply.
+ * @param {string} from Day of the rule of the occurrence looked at.
+ * @param {string} day Day.
+ * @returns {boolean | null} Taken, free, or up to the rule.
+ */
+export function dayTakenByMoves(moves: readonly RoutineMove[], from: string, day: string): boolean | null {
+  if (moves.some((move) => move.from !== from && !move.merged && moveKey(move) === day)) return true;
+  if (day !== from && mergedAway(moves, day)) return true;
+  if (day === from || moves.some((move) => move.from === day)) return false;
+  return null;
+}
+
+
+/**
  * Exceptions once an occurrence is moved, deleted (no new day), merged into the occurrence of its new day or its times
  * changed: changing a moved one again changes its exception (back to its own day with its own times: no exception).
  * @param {readonly RoutineMove[]} moves Exceptions.
@@ -674,6 +769,28 @@ export function withMove(moves: readonly RoutineMove[], date: string, to: string
   if (from === to && !kept) return others;
   const keptApart = elsewhere && !merged && (join ? join === 'APART' : (current?.apart ?? false));
   return [...others, { from, to, times: kept, ...(keptApart && { apart: true }), ...(merged && { merged: true }) }].sort((a, b) => a.from.localeCompare(b.from));
+}
+
+/**
+ * Rule of a routine going on from an occurrence moved to another day (« Celle-ci et les suivantes », « Toutes »): weekly
+ * on the new weekday instead of the former one; monthly and yearly on the values of the new day (its day of the month,
+ * weekday and position, month, week: `ruleMovedTo`, as an event series), so that the occurrence moved is a day of the
+ * new rule; the occurrences left (when counted) and the dates left out after it.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First day it counts from.
+ * @param {string} date Occurrence (the day of its rule).
+ * @param {string} to New day.
+ * @param {boolean} split The rule goes on from the occurrence (the former one ends before it).
+ * @returns {Recurrence} Rule.
+ */
+export function shiftedRoutineRule(rule: Recurrence, start: string, date: string, to: string, split: boolean): Recurrence {
+  const moved = to !== date && (rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY') ? ruleMovedTo(rule, to) : rule;
+  const weekdays =
+    rule.frequency === 'WEEKLY' && rule.weekdays.length && to !== date
+      ? [...new Set(rule.weekdays.map((day) => (day === weekdayOfDate(date) ? weekdayOfDate(to) : day)))].sort()
+      : rule.weekdays;
+  const count = split && rule.count !== null ? Math.max(1, rule.count - occurrencesBefore(rule, start, date)) : rule.count;
+  return { ...moved, weekdays, count, exceptions: split ? rule.exceptions.filter((day) => day >= date) : rule.exceptions };
 }
 
 /** Same changes for several routines: values set (null: none, undefined: unchanged), or ids added to and removed from their lists. */

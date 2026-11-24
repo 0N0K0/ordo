@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dayTakenByMoves,
+  designatesOccurrence,
+  followedOccurrence,
+  mergedAway,
+  mergeRefusal,
+  shiftedRoutineRule,
+  MAX_MERGED_ROWS,
   MAX_ROUTINE_MOVES,
   moveKey,
   movedFrom,
   movedOccurrences,
+  occurrenceByMoves,
   occurrenceDueDay,
   opensFits,
   opensMisfits,
@@ -26,6 +34,7 @@ import {
   type RoutineCase,
   type RoutineMove,
 } from '../../src/routines/routines';
+import { occurrenceDates } from '../../src/dates/recurrence';
 import { rule } from '../rules';
 
 /**
@@ -65,7 +74,9 @@ describe('routineMoveSchema', () => {
   });
 
   it('1 000 merged rows at most, 10 changed times at most', () => {
-    expect(routineMoveSchema.safeParse({ from: '2026-11-23', to: '2026-11-25', merged: true, mergedRows: Array(1001).fill('r') }).success).toBe(false);
+    expect(MAX_MERGED_ROWS).toBe(1000);
+    expect(routineMoveSchema.safeParse({ from: '2026-11-23', to: '2026-11-25', merged: true, mergedRows: Array(MAX_MERGED_ROWS).fill('r') }).success).toBe(true);
+    expect(routineMoveSchema.safeParse({ from: '2026-11-23', to: '2026-11-25', merged: true, mergedRows: Array(MAX_MERGED_ROWS + 1).fill('r') }).success).toBe(false);
     expect(routineMoveSchema.safeParse({ from: '2026-11-23', to: '2026-11-23', times: Array(11).fill(null) }).success).toBe(false);
   });
 
@@ -121,6 +132,176 @@ describe('identity of a moved occurrence', () => {
     expect(movedFrom([move({ from: '2026-11-23', to: '2026-11-25' })], '2026-11-25')).toBe('2026-11-23');
     expect(movedFrom([move({ from: '2026-11-23', to: '2026-11-25', merged: true })], '2026-11-25')).toBe('2026-11-25');
     expect(movedFrom([move({ from: '2026-11-23', to: '2026-11-25', apart: true })], '2026-11-23')).toBe('2026-11-23');
+  });
+});
+
+describe('occurrenceByMoves: the occurrence a day designates, by the exceptions', () => {
+  const MON = '2026-11-23';
+  const TUE = '2026-11-24';
+  const WED = '2026-11-25';
+
+  it('no exception about it: up to the rule', () => {
+    expect(occurrenceByMoves([], MON)).toBeNull();
+    expect(occurrenceByMoves([move({ from: MON, to: WED })], TUE)).toBeNull();
+  });
+
+  it('moved there: designated by its new day, no longer by the day of its rule', () => {
+    const moves = [move({ from: MON, to: WED })];
+    expect(occurrenceByMoves(moves, WED)).toBe(true);
+    expect(occurrenceByMoves(moves, MON)).toBe(false);
+  });
+
+  it('kept apart, cancelled or its times changed: still designated by the day of its rule', () => {
+    expect(occurrenceByMoves([move({ from: MON, to: WED, apart: true })], MON)).toBe(true);
+    expect(occurrenceByMoves([move({ from: MON, to: null })], MON)).toBe(true);
+    expect(occurrenceByMoves([move({ from: MON, to: MON, times: [{ fromTime: '08:00', dueTime: null }] })], MON)).toBe(true);
+  });
+
+  it('merged into another occurrence: its day designates none (a stale tab), the one it went into stays up to the rule', () => {
+    const moves = [move({ from: MON, to: TUE, merged: true, mergedRows: ['r'] })];
+    expect(occurrenceByMoves(moves, MON)).toBe(false);
+    expect(occurrenceByMoves(moves, TUE)).toBeNull();
+  });
+
+  it('a day its own occurrence left but another one moved onto: that other one', () => {
+    expect(occurrenceByMoves([move({ from: MON, to: WED }), move({ from: TUE, to: MON })], MON)).toBe(true);
+    expect(occurrenceByMoves([move({ from: MON, to: TUE, merged: true }), move({ from: WED, to: MON })], MON)).toBe(true);
+  });
+});
+
+describe('designatesOccurrence: a day given for a write', () => {
+  const MON = '2026-11-23';
+  const WED = '2026-11-25';
+  const ruleDay = (day: string) => day === MON;
+
+  it('the exceptions decide when they are about it, else the rule', () => {
+    expect(designatesOccurrence([], MON, ruleDay)).toBe(true);
+    expect(designatesOccurrence([], WED, ruleDay)).toBe(false);
+    expect(designatesOccurrence([move({ from: MON, to: WED })], WED, ruleDay)).toBe(true);
+    expect(designatesOccurrence([move({ from: MON, to: WED })], MON, ruleDay)).toBe(false);
+    expect(designatesOccurrence([move({ from: MON, to: WED, merged: true })], MON, ruleDay)).toBe(false);
+    expect(designatesOccurrence([move({ from: MON, to: null })], MON, ruleDay)).toBe(true);
+  });
+
+  it('the rule is not asked when an exception is about the day', () => {
+    let asked = false;
+    designatesOccurrence([move({ from: MON, to: WED })], WED, () => (asked = true));
+    expect(asked).toBe(false);
+  });
+});
+
+describe('followedOccurrence: the occurrence of a sub-routine when the one of its parent moves', () => {
+  const held = (before: boolean, afterOnDay: boolean, afterOnNewDay: boolean) => ({ before: () => before, afterOnDay: () => afterOnDay, afterOnNewDay: () => afterOnNewDay });
+
+  it('moved or merged into an occurrence it has on the new day: follows', () => {
+    expect(followedOccurrence(held(true, false, true), '2026-11-25')).toBe('FOLLOWS');
+  });
+
+  it('merged into an occurrence it does not have that day: would disappear', () => {
+    expect(followedOccurrence(held(true, false, false), '2026-11-25')).toBe('STRANDED');
+  });
+
+  it('not there before, still there after (kept apart), or cancelled: stays', () => {
+    expect(followedOccurrence(held(false, false, false), '2026-11-25')).toBe('STAYS');
+    expect(followedOccurrence(held(true, true, false), '2026-11-25')).toBe('STAYS');
+    expect(followedOccurrence(held(true, false, false), null)).toBe('STAYS');
+  });
+});
+
+describe('mergeRefusal', () => {
+  it('a sub-routine that would lose its occurrence', () => {
+    expect(mergeRefusal(1)).toBe('Une sous-routine qui suit ses exceptions n’a pas d’occurrence ce jour-là : gardez les deux.');
+  });
+
+  it('more rows than a merge notes', () => {
+    expect(mergeRefusal(0, MAX_MERGED_ROWS)).toBeNull();
+    expect(mergeRefusal(0, MAX_MERGED_ROWS + 1)).toMatch(/^Cette occurrence a trop de commentaires, listes et liens pour être fusionnée \(1.000 au plus\) : gardez les deux\.$/);
+  });
+
+  it('accepted otherwise', () => {
+    expect(mergeRefusal(0)).toBeNull();
+  });
+});
+
+describe('shiftedRoutineRule: the rule going on from an occurrence changed', () => {
+  it('monthly on a day of the month: the day of the month of the new day', () => {
+    const shifted = shiftedRoutineRule(rule({ frequency: 'MONTHLY', monthDay: 10 }), '2026-01-10', '2026-11-10', '2026-11-12', true);
+    expect(shifted.monthDay).toBe(12);
+  });
+
+  it('monthly on a weekday of the month: the weekday and position of the new day', () => {
+    // 2nd Tuesday (2026-11-10) moved to the 3rd Thursday (2026-11-19).
+    const shifted = shiftedRoutineRule(rule({ frequency: 'MONTHLY', monthlyMode: 'WEEKDAY', weekday: 2, position: 2 }), '2026-01-13', '2026-11-10', '2026-11-19', false);
+    expect(shifted).toMatchObject({ weekday: 4, position: 3 });
+    expect(occurrenceDates(shifted, '2026-11-19', '2026-11-19', '2026-12-31')).toEqual(['2026-11-19', '2026-12-17']);
+  });
+
+  it('yearly: the month and day of the new day', () => {
+    expect(shiftedRoutineRule(rule({ frequency: 'YEARLY', month: 11, monthDay: 10 }), '2025-11-10', '2026-11-10', '2026-12-01', false)).toMatchObject({ month: 12, monthDay: 1 });
+  });
+
+  it('its times only changed: the rule as it was', () => {
+    const monthly = rule({ frequency: 'MONTHLY', monthDay: 10 });
+    expect(shiftedRoutineRule(monthly, '2026-01-10', '2026-11-10', '2026-11-10', false)).toEqual(monthly);
+  });
+
+  it('weekly on listed days: the new weekday instead of the former one; counted: the occurrences left', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [1, 3], count: 10 });
+    const shifted = shiftedRoutineRule(weekly, '2026-11-02', '2026-11-09', '2026-11-10', true);
+    expect(shifted.weekdays).toEqual([2, 3]);
+    expect(shifted.count).toBe(8);
+    expect(shifted.monthDay).toBe(weekly.monthDay);
+  });
+
+  it('daily: unchanged values', () => {
+    const daily = rule({ frequency: 'DAILY' });
+    expect(shiftedRoutineRule(daily, '2026-11-01', '2026-11-10', '2026-11-12', false)).toEqual(daily);
+  });
+});
+
+describe('dayTakenByMoves: whether a day identifies another occurrence, by the exceptions', () => {
+  const MON = '2026-11-23';
+  const TUE = '2026-11-24';
+  const WED = '2026-11-25';
+  const THU = '2026-11-26';
+
+  it('another one moved there, kept apart or cancelled from it: taken', () => {
+    expect(dayTakenByMoves([move({ from: TUE, to: MON })], WED, MON)).toBe(true);
+    expect(dayTakenByMoves([move({ from: MON, to: TUE, apart: true })], WED, MON)).toBe(true);
+    expect(dayTakenByMoves([move({ from: MON, to: null })], WED, MON)).toBe(true);
+  });
+
+  it('its own exception does not take its day', () => {
+    expect(dayTakenByMoves([move({ from: MON, to: TUE, apart: true })], MON, MON)).toBe(false);
+  });
+
+  it('the day of its own rule: free unless another one is identified by it', () => {
+    expect(dayTakenByMoves([], MON, MON)).toBe(false);
+    expect(dayTakenByMoves([move({ from: TUE, to: MON })], MON, MON)).toBe(true);
+  });
+
+  it('the occurrence of the rule there moved elsewhere: free', () => {
+    expect(dayTakenByMoves([move({ from: MON, to: THU })], WED, MON)).toBe(false);
+  });
+
+  it('the occurrence of the rule there merged into another one: taken until the merge is undone (rows of its own may have stayed there)', () => {
+    const moves = [move({ from: MON, to: TUE, merged: true, mergedRows: [] })];
+    expect(dayTakenByMoves(moves, WED, MON)).toBe(true);
+    expect(mergedAway(moves, MON)).toBe(true);
+    expect(mergedAway(moves, TUE)).toBe(false);
+  });
+
+  it('its own merge does not take the day of its rule (undoing it brings it back there)', () => {
+    expect(dayTakenByMoves([move({ from: MON, to: TUE, merged: true })], MON, MON)).toBe(false);
+  });
+
+  it('a merged one does not take the day it went into: up to the rule there', () => {
+    expect(dayTakenByMoves([move({ from: MON, to: TUE, merged: true })], WED, TUE)).toBeNull();
+  });
+
+  it('no exception about the day: up to the rule', () => {
+    expect(dayTakenByMoves([], WED, MON)).toBeNull();
+    expect(dayTakenByMoves([move({ from: THU, to: WED })], THU, MON)).toBeNull();
   });
 });
 
