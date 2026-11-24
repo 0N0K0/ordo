@@ -956,19 +956,25 @@ async function occurrenceChange(nexts: readonly Routine[], moved?: { from: strin
   const after: ScheduleContext = { ...before, memo: new Map(), routines: afterRoutines };
   const ids = [...new Set([...timingHeirs([...changed.keys()], stored), ...timingHeirs([...changed.keys()], afterRoutines)])].filter((id) => stored.has(id));
   const on = (routine: Routine, schedules: ScheduleContext, day: string) => hasOccurrence(routine, day, schedules);
+  // Identified by a day, cancelled or not (a cancelled occurrence keeps its rows on the day of its rule).
+  const held = (routine: Routine, schedules: ScheduleContext, day: string) => {
+    const due = occurrenceDueDayOf(routine, day, schedules);
+    return occurrenceSpansBetween(routine, due, due, schedules, true).some((span) => span.date === day);
+  };
   const following: string[] = [];
   const losses = await Promise.all(
     ids.map((id) => {
       // A routine changed is computed as active (its occurrences after an undo of its archiving); a sub-routine as it is.
       const now = changed.has(id) ? { ...stored.get(id)!, archivedAt: null } : stored.get(id)!;
       const then = changed.get(id) ?? afterRoutines.get(id)!;
-      const follows = moved !== undefined && (changed.has(id) || (on(now, before, moved.from) && moved.to !== null && on(then, after, moved.to) && !on(then, after, moved.from)));
+      const follows =
+        moved !== undefined && (changed.has(id) || (moved.to !== null && held(now, before, moved.from) && held(then, after, moved.to) && !held(then, after, moved.from)));
       if (follows && !changed.has(id)) following.push(id);
       return lostOccurrences('routineId', id, (day) => !(follows && day === moved!.from) && on(now, before, day) && !on(then, after, day));
     }),
   );
   if (moved && following.length && (await prisma.routineCheck.count({ where: { routineId: { in: following }, date: parseDay(moved.from) } }))) {
-    throw clientError('BAD_USER_INPUT', 'Une sous-routine a déjà coché cette occurrence : décochez-la pour la déplacer.');
+    throw clientError('BAD_USER_INPUT', 'Une sous-routine a déjà coché cette occurrence : décochez-la pour la déplacer, l’annuler ou la rétablir.');
   }
   return {
     losses,
@@ -1192,12 +1198,22 @@ export async function momentOf(id: string): Promise<RoutineSlot> {
  * @returns {Promise<number>} Links removed because they left its project tree.
  */
 export async function patchRoutine(id: string, changes: Partial<RoutineInput>, options: Pick<RoutineSaveOptions, 'confirmLoss'> & RoutineInheritanceChange = {}): Promise<number> {
-  const current = await inputOf(id);
+  return updateRoutine(id, patchedInput(await inputOf(id), changes, options), options);
+}
+
+/**
+ * Input of a routine with some fields changed (`patchRoutine`), its inheritance with them.
+ * @param {RoutineInput} current Its current form as an input (`inputOf`).
+ * @param {Partial<RoutineInput>} changes Changes.
+ * @param {RoutineInheritanceChange} [inheritance] Fields made inherited again or emptied on purpose. Optional.
+ * @returns {RoutineInput} Input.
+ */
+function patchedInput(current: RoutineInput, changes: Partial<RoutineInput>, { inherit, clear }: RoutineInheritanceChange = {}): RoutineInput {
   // A repetition of its own: it no longer follows cases (its own ones may be former values while it inherited them).
-  const patched = { ...current, ...(changes.recurrence !== undefined && changes.cases === undefined && { cases: [] }), ...changes, ...clearedRoutineInput(options.clear) };
+  const patched = { ...current, ...(changes.recurrence !== undefined && changes.cases === undefined && { cases: [] }), ...changes, ...clearedRoutineInput(clear) };
   // A field given a value or emptied is its own; those set to inherit again are inherited.
-  const inheritedFields = changedRoutineInheritance(current.inheritedFields ?? [], { inherit: options.inherit, clear: options.clear, input: changes, hasParent: Boolean(patched.parentId) });
-  return updateRoutine(id, { ...patched, inheritedFields }, options);
+  const inheritedFields = changedRoutineInheritance(current.inheritedFields ?? [], { inherit, clear, input: changes, hasParent: Boolean(patched.parentId) });
+  return { ...patched, inheritedFields };
 }
 
 /** Fields of routines made inherited again (« Rétablir l'héritage ») or emptied on purpose (« Vider »). */
@@ -1621,7 +1637,8 @@ async function saveMoves(routine: Routine, { before, moves, dead = [] }: { befor
   const key = move ? moveKey(move) : from;
   const moved = { from: date, to: key };
   const draft = withOwnMoves(routine, withDead(dead, moves));
-  const { follow, following } = await occurrenceChange([{ ...routine, ...draft, moves: draft.moves as Routine['moves'] }], { from: date, to: move?.to === null ? null : key });
+  // Cancelled too: the sub-routines taking its exceptions have their rows back on the day of its rule with it.
+  const { follow, following } = await occurrenceChange([{ ...routine, ...draft, moves: draft.moves as Routine['moves'] }], moved);
   // Merged into another occurrence: the rows it brings are noted, to give them back if the merge is undone.
   const prior = before.find((item) => item.from === from);
   const merging = move?.merged && !prior?.merged;
@@ -1973,16 +1990,45 @@ function followingGone(routine: RoutineTiming & { id: string }, schedules: Sched
 }
 
 /**
- * Occurrences of a routine whose comments « Supprimer celle-ci et les suivantes » from an occurrence deletes
- * (`followingGone`), to count them before.
+ * Repetition of a routine once « Supprimer celle-ci et les suivantes » ends it before an occurrence: its cases that
+ * have occurrences before it, each ending before it, or its rule ending before it; null when nothing comes before (the
+ * routine is archived instead).
+ * @param {RoutineTiming} routine Routine (its « quand » as it goes).
+ * @param {string} origin Day of the rule of the occurrence the deletion starts at.
+ * @returns {Partial<RoutineInput> | null} Changes of its repetition, or null.
+ */
+function followingCut(routine: RoutineTiming, origin: string): Partial<RoutineInput> | null {
+  const start = formatDay(routine.startDate);
+  const cases = storedCases(routine.cases);
+  if (cases.length) {
+    const kept = cases
+      .filter((item) => hasBefore(item.recurrence, caseStart(item, start), origin))
+      .map((item) => ({ ...item, recurrence: endedBefore(item.recurrence, caseStart(item, start), origin) }));
+    return kept.length ? { cases: kept } : null;
+  }
+  const rule = storedRule(routine);
+  return rule && hasBefore(rule, start, origin) ? { recurrence: endedBefore(rule, start, origin) } : null;
+}
+
+/**
+ * Occurrences of a routine whose comments « Supprimer celle-ci et les suivantes » from an occurrence deletes, to count
+ * them before: those of `followingGone`, and, when its repetition ends before it (not archived), those that disappear
+ * with that change, on it and on the sub-routines going by its « quand » (as `patchRoutine` deletes them: the days of
+ * its rule between the day it comes from and the day of an occurrence postponed past it, those of the sub-routines).
  * @param {string} id Routine id.
  * @param {string} date Occurrence the deletion starts at (the day that identifies it).
- * @returns {Promise<GoneCommentOccurrences[]>} Occurrences whose comments go.
+ * @returns {Promise<GoneCommentOccurrences[]>} Occurrences whose comments go (one may be named twice).
  */
 export async function followingOccurrencesGone(id: string, date: string): Promise<GoneCommentOccurrences[]> {
   const schedules = await loadScheduleContext();
-  const routine = occurrenceTiming(await findRoutine(id), schedules);
-  return followingGone(routine, schedules, writeMoves(routine, schedules).live, date);
+  const found = await findRoutine(id);
+  const routine = occurrenceTiming(found, schedules);
+  const moves = writeMoves(routine, schedules).live;
+  const gone = followingGone(routine, schedules, moves, date);
+  const cut = followingCut(routine, movedFrom(moves, date));
+  if (!cut) return gone;
+  const { losses } = await occurrenceChange([timingOf(found, patchedInput(await inputOf(id), cut))]);
+  return [...gone, ...losses.flatMap((loss) => loss.occurrences)];
 }
 
 /**
@@ -2014,16 +2060,10 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
   // occurrence that stays (one from before moved after the cut) keeps its own.
   await placeLegacyRoutineComments([id]);
   const dropComments = () => deleteGoneComments({ routines: followingGone(routine, schedules, moves, date) });
-  const start = formatDay(routine.startDate);
   const origin = movedFrom(moves, date);
-  const cases = storedCases(routine.cases);
-  const rule = storedRule(routine);
-  const kept = cases
-    .filter((item) => hasBefore(item.recurrence, caseStart(item, start), origin))
-    .map((item) => ({ ...item, recurrence: endedBefore(item.recurrence, caseStart(item, start), origin) }));
-  const nothingLeft = cases.length ? !kept.length : !rule || !hasBefore(rule, start, origin);
+  const cut = followingCut(routine, origin);
   const pastMoves = withDead(dead, moves.filter((move) => move.from < origin));
-  if (nothingLeft) {
+  if (!cut) {
     // Archived as by hand, its sub-routines with it; its past occurrences stay, archived.
     await prisma.routine.update({ where: { id }, data: withOwnMoves(found, pastMoves) });
     await archiveTree<Routine>('routine', id, true, 'Routine');
@@ -2031,7 +2071,7 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
     return { archived: true, comments: [] };
   }
   // The sub-routines going by its repetition lose those occurrences too, with their comments (the deletion is confirmed).
-  await patchRoutine(id, cases.length ? { cases: kept } : { recurrence: endedBefore(rule!, start, origin) }, { confirmLoss: true });
+  await patchRoutine(id, cut, { confirmLoss: true });
   await prisma.routine.update({ where: { id }, data: withOwnMoves(await findRoutine(id), pastMoves) });
   await dropComments();
   return { archived: false, comments: [] };

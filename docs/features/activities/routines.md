@@ -205,7 +205,7 @@ Avec des cas, chaque carte se résume en une ligne : « Tous les jours · avant 
   - « Horaires » : « dès » / « avant » de chaque moment.
   - Bouton « Reporter », « Avancer » ou « Changer l'horaire » selon la date.
   - « Annuler l'occurrence » (destructif) : confirmation « Annuler cette occurrence ? » (« L’occurrence du … n’aura pas lieu : elle reste affichée, barrée, avec ses commentaires ; c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions ou l’agenda. ») ; toast « Occurrence du … annulée. ». Une occurrence annulée reste dans l'agenda, barrée, mais n'est plus à faire (ni état, ni rappels, ni « Historique ») ; elle n'est plus proposée dans « Occurrence ».
-  - « Exceptions » : chaque occurrence déplacée (« reportée », « avancée », « autres horaires », « annulée ») avec « Remettre à son jour ».
+  - « Exceptions » : chaque occurrence déplacée (« reportée », « avancée », « autres horaires », « annulée ») avec « Remettre à son jour » ; celles qu'elle suit : pour une sous-routine qui hérite des exceptions, celles de la routine dont elle hérite (« Annuler » d'un déplacement ou d'une fusion part de même de celles-ci).
 - Depuis l'agenda, une occurrence se déplace aussi par glisser-déposer, pour « cette occurrence », « celle-ci et les suivantes » ou « toutes » (voir [Agenda](calendar.md)).
 
 Une occurrence déjà cochée ne se déplace pas : il faut d'abord la décocher.

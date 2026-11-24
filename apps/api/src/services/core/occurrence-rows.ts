@@ -3,7 +3,7 @@ import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
 import { releaseSubjectTime, timeLeftEmpty } from '../tasks/time-entries';
-import { commentsLostOnDelete, deleteGoneComments, type GoneComments } from './comments';
+import { commentsLostOnDelete, deleteGoneComments, type GoneCommentOccurrences, type GoneComments } from './comments';
 import { modelDelegate } from './delegate';
 
 /**
@@ -154,6 +154,8 @@ export interface LostOccurrences {
   times: number;
   /** Comments deleted with them. */
   comments: number;
+  /** Occurrences whose comments are deleted (one per day), to count them with others without counting one twice. */
+  occurrences: GoneCommentOccurrences[];
   /** Deletes those comments and times (the other times leave the occurrences), in the transaction given if any. */
   settle: (client?: Prisma.TransactionClient) => Promise<void>;
 }
@@ -169,13 +171,14 @@ export interface LostOccurrences {
  */
 export async function lostOccurrences(owner: OccurrenceOwner, id: string, gone: (day: string) => boolean): Promise<LostOccurrences> {
   const days = (await occurrenceRowDays(owner, id)).filter(gone);
-  if (!days.length) return { times: 0, comments: 0, settle: async () => {} };
+  if (!days.length) return { times: 0, comments: 0, occurrences: [], settle: async () => {} };
   const occurrences = days.map((on) => ({ id, on }));
   const comments: GoneComments = owner === 'eventId' ? { events: occurrences } : { routines: occurrences };
   const events = owner === 'eventId' ? days.map((on) => ({ eventId: id, on })) : [];
   return {
     times: events.length ? (await timeLeftEmpty({ events })).length : 0,
     comments: await commentsLostOnDelete(comments),
+    occurrences,
     settle: async (client = prisma) => {
       if (events.length) await releaseSubjectTime({ events }, client);
       await deleteGoneComments(comments, client);

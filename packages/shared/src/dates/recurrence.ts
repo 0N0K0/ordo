@@ -68,7 +68,8 @@ export function spanEnd(duration: Duration, start: string): string {
     case 'WEEKS':
       return addDays(start, 7 - weekdayOfDate(start) + 7 * (duration.count - 1));
     case 'MONTHS': {
-      const last = month - 1 + duration.count;
+      // 1 month: to the end of the first day's month (as 1 week: to the end of its week).
+      const last = month - 1 + duration.count - 1;
       return dayInMonth(year + Math.floor(last / 12), (last % 12) + 1, 31);
     }
     case 'TO_DAY': {

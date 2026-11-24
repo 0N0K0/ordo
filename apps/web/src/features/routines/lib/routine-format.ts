@@ -148,11 +148,14 @@ export function describeRoutineCase(item: RoutineCase, start: string): string {
 }
 
 /**
- * Exceptions of a routine: occurrences moved to another day.
- * @param {Routine} routine Routine.
+ * Exceptions of a routine: occurrences moved to another day; those it goes by (`effective`: of the routine it follows
+ * when it inherits them, none when emptied on purpose), as its occurrences are computed.
+ * @param {Pick<Routine, 'moves' | 'effective'>} routine Routine.
  * @returns {RoutineMove[]} Moves, by day of the rule.
  */
-export const movesOf = (routine: Routine): RoutineMove[] => (routine.moves as RoutineMove[] | null) ?? [];
+export const movesOf = (routine: Pick<Routine, 'moves' | 'effective'>): RoutineMove[] =>
+  // eslint-disable-next-line no-restricted-syntax -- the exceptions it goes by: not a field of the row (its own ones are given back by an undo).
+  ((routine.effective.moves ?? routine.moves) as RoutineMove[] | null) ?? [];
 
 /**
  * Occurrence of a routine open in its panel when none is chosen (its comments are those of it): the

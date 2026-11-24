@@ -58,7 +58,7 @@ Une seule forme de répétition (`recurrenceSchema`) pour les événements, les 
 - Fin : une date (incluse) **ou** un nombre d'occurrences (1 à 9999), pas les deux (« Choisissez une date de fin ou un nombre d’occurrences. »).
 - Exceptions (dates supprimées une à une, 5000 max) et pauses (périodes incluses, 100 max) : elles n'ont pas lieu et ne comptent pas dans le nombre d'occurrences.
 - La première date est toujours une occurrence (sauf exclue ou en pause).
-- Durée d'une occurrence : un jour par défaut ; N jours, N semaines (jusqu'à la fin de la dernière semaine), N mois (jusqu'à la fin du dernier mois), ou jusqu'à un jour / une semaine ISO / un mois donné (le suivant s'il tombe avant).
+- Durée d'une occurrence : un jour par défaut ; N jours, N semaines (jusqu'à la fin de la dernière semaine), N mois (jusqu'à la fin du dernier mois : 1 mois depuis le 15 novembre finit le 30 novembre), ou jusqu'à un jour / une semaine ISO / un mois donné (le suivant s'il tombe avant).
 - Couper une série à une date (« celle-ci et les suivantes ») : la partie avant garde le nombre d'occurrences déjà passées (`occurrencesBefore`).
 
 ### Portée d'une modification

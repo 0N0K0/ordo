@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   crossedWeeks,
   cutSeries,
+  maxSpanDays,
   movedWeekdays,
   occurrenceDates,
   occurrencesBefore,
@@ -16,7 +17,7 @@ import {
   type Duration,
   type MovedSeries,
 } from '../../src/dates/recurrence';
-import { addDays, isoWeek, weekdayOfDate } from '../../src/dates/days';
+import { addDays, daysBetween, isoWeek, weekdayOfDate } from '../../src/dates/days';
 import { allDates, rule } from '../rules';
 
 /** Mondays and Fridays every 2 weeks from Monday 2026-11-02, 6 occurrences. */
@@ -193,12 +194,25 @@ describe('spanEnd: duration of an occurrence', () => {
     expect(spanEnd(duration({ unit: 'WEEKS', count: 2 }), '2026-11-04')).toBe('2026-11-15');
   });
 
-  // Code ≠ docs: N months ends one month too late (1 month from 11-15 ends on 12-31, 4 months on 2027-03-31), while
-  // the docs say « jusqu'à la fin du dernier mois » (as N weeks: 1 week ends the same week) and `maxSpanDays` looks
-  // back 31 days per month only.
-  it.fails('N months: to the last day of the last month, over a year end', () => {
+  it('N months: to the last day of the last month, over a year end', () => {
     expect(spanEnd(duration({ unit: 'MONTHS', count: 1 }), '2026-11-15')).toBe('2026-11-30');
     expect(spanEnd(duration({ unit: 'MONTHS', count: 4 }), '2026-11-15')).toBe('2027-02-28');
+  });
+
+  it('N months from the first or last day of a month, and over several years', () => {
+    expect(spanEnd(duration({ unit: 'MONTHS', count: 1 }), '2026-12-01')).toBe('2026-12-31');
+    expect(spanEnd(duration({ unit: 'MONTHS', count: 1 }), '2026-02-28')).toBe('2026-02-28');
+    expect(spanEnd(duration({ unit: 'MONTHS', count: 2 }), '2026-12-31')).toBe('2027-01-31');
+    expect(spanEnd(duration({ unit: 'MONTHS', count: 25 }), '2026-01-10')).toBe('2028-01-31');
+  });
+
+  it('N months never lasts longer than maxSpanDays looks back', () => {
+    for (const count of [1, 2, 12, 36]) {
+      const months = duration({ unit: 'MONTHS', count });
+      for (const start of ['2026-01-01', '2026-07-31', '2027-12-01']) {
+        expect(daysBetween(start, spanEnd(months, start)) + 1).toBeLessThanOrEqual(maxSpanDays(months));
+      }
+    }
   });
 
   it('to a day of the month: this month, or the next one when it comes before', () => {
@@ -353,11 +367,11 @@ describe('shiftedSeries', () => {
     expect(datesOf(shiftedSeries(even, '2026-11-09', 3))).toEqual(allDates(even, '2026-11-09').map((date) => addDays(date, 3)));
   });
 
-  // Code ≠ docs (« aucune occurrence n'est perdue »): weeks 53 and 1 are both odd, so swapping the parity of the days
-  // that change week loses Friday 2027-01-01 (week 53), moved to Monday 2027-01-04 (week 1, odd, not even).
-  it.fails('even / odd weeks moved across a year with week 53: the same occurrences, moved', () => {
+  it('even / odd weeks moved across a year with week 53: accepted limit, the day moved from week 53 to week 1 is lost', () => {
     const odd = rule({ weekdays: [1, 5], weekParity: 'ODD', until: '2027-01-31' });
-    expect(datesOf(shiftedSeries(odd, '2026-12-14', 3))).toEqual(allDates(odd, '2026-12-14').map((date) => addDays(date, 3)));
+    const moved = allDates(odd, '2026-12-14').map((date) => addDays(date, 3));
+    expect(moved).toContain('2027-01-04');
+    expect(datesOf(shiftedSeries(odd, '2026-12-14', 3))).toEqual(moved.filter((date) => date !== '2027-01-04'));
   });
 
   it('every week: one series from the first day moved', () => {

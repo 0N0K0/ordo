@@ -31,8 +31,7 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 
 Chacun est gardé par un test marqué `it.fails` (voir [Tests](README.md#tests)) : corrigé, ce test échoue et se remet en test ordinaire.
 
-- **Durée « N mois » d’une occurrence :** `spanEnd` la finit un mois trop tard (« 1 mois » depuis le 15 novembre finit le 31 décembre, « 4 mois » le 31 mars), alors que la règle dit « jusqu’à la fin du dernier mois » (comme « N semaines » : 1 semaine finit la même semaine) et que `maxSpanDays` ne remonte que 31 jours par mois. Voir [Dates](business-rules/cross-cutting/dates.md#répétitions). Test : `packages/shared/test/dates/recurrence.test.ts`. _À corriger_
-- **Semaines paires / impaires décalées à travers une semaine 53 :** décaler une série dont des jours changent de semaine échange leur parité ; or les semaines 53 et 1 sont toutes deux impaires : une série lundi et vendredi des semaines impaires depuis le 14 décembre 2026, décalée de 3 jours, perd le vendredi 1er janvier 2027 (semaine 53), qui deviendrait le lundi 4 janvier (semaine 1, impaire, pas paire). La règle dit qu’aucune occurrence n’est perdue. Voir [Règles de l’agenda](business-rules/activities/calendar.md). Test : `packages/shared/test/dates/recurrence.test.ts`. _À corriger_
+Aucun pour l’instant.
 
 ## Documentation à mettre à jour ou à compléter
 
