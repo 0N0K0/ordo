@@ -77,6 +77,7 @@ Principe : un jour de calendrier est une chaîne `YYYY-MM-DD` (un mois `YYYY-MM`
 | `countdownInputSchema`, `CountdownInput` | Minuteur lancé : `label` (facultatif), `seconds` (`durationSchema` : 1 min à 24 h), `ringtone`, et l’élément d’un temps mort (`taskId`, `routineId`, `occurrenceDate`, `subject`, `workspaceId`, `path`, `linkLabel`). |
 | `countdownFormSchema`, `CountdownFormValues` | Formulaire « Nouveau minuteur » : `label`, `duration` (texte, `durationTextSchema`), `ringtone`. |
 | `CountdownTiming` (type), `countdownRemaining(countdown, now?)` | Secondes restantes : jusqu’à `endsAt` en marche, `remainingSeconds` en pause (0 une fois fini). |
+| `recordRingAgain(rang, current, now?)` | La sonnerie d’un minuteur que l’API n’a pas notée (horloge de l’appareil en avance) est à noter à nouveau : il est encore montré avec la fin à laquelle il a sonné (ni mis en pause, ni prolongé, ni sonné ou annulé ailleurs), fini depuis 6 heures au plus (`RING_LATE_MS`). |
 | `COUNTDOWN_DEFAULT_NAME`, `countdownName(countdown)` | « Minuteur » ; nom d’un minuteur, le sien sinon « Minuteur » (aussi pour le serveur ; le web les réexporte). |
 | `countdownRingText(countdown)` | Ce que montre la sonnerie de sa fin : son nom, son élément et « Minuteur de 1 h 30 terminé » (app et serveur). |
 

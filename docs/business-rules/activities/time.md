@@ -65,17 +65,18 @@ Source : `startTimer`.
 
 Source : `setTimerPaused(id, paused)`.
 
-- Le chrono est désigné par son temps ; s’il ne tourne pas (arrêté, inconnu) : « Ce chrono ne tourne plus. ».
+- Le chrono est désigné par son temps ; s’il ne tourne pas (arrêté, inconnu) : « Ce chrono ne tourne plus. ». Les chronos qui ont passé 24 heures sont d’abord arrêtés (`capRunningTimers`) : un chrono passé 24 heures, pas encore arrêté par la tâche de fond, n’est ni mis en pause ni repris (« Ce chrono ne tourne plus. »).
 - Demander l’état déjà en place ne fait rien.
 - Pause : `pausedAt` = maintenant. Reprise : la durée de la pause (en secondes entières) s’ajoute à `pausedSeconds`, `pausedAt` est vidé.
-- Écrit seulement si le chrono tourne encore tel qu’il a été lu : changé ailleurs entre-temps, il est relu ; arrêté entre-temps : « Ce chrono ne tourne plus. ». Un temps terminé ne garde jamais de pause.
+- Écrit seulement si le chrono tourne encore tel qu’il a été lu (même début, même pause) : changé ailleurs entre-temps (mis en pause, repris, son début modifié), il est relu ; arrêté entre-temps : « Ce chrono ne tourne plus. ». Un temps terminé ne garde jamais de pause.
 
 ### Arrêter
 
 Source : `stopTimer(id)`, `stopAllTimers` (« Arrêter tout »).
 
-- Le chrono est désigné par son temps ; s’il ne tourne plus, ou s’il est arrêté, mis en pause ou repris ailleurs pendant l’arrêt : ne fait rien (renvoie `null`). Les autres continuent.
-- « Arrêter tout » arrête chacun des chronos en cours de l’espace (mêmes règles) et ne renvoie que ceux qu’il a arrêtés.
+- Le chrono est désigné par son temps ; s’il ne tourne plus, ou s’il est arrêté ou abandonné ailleurs pendant l’arrêt : ne fait rien (renvoie `null`). Les autres continuent.
+- Écrit seulement s’il tourne encore tel qu’il a été lu (même début, même pause) : mis en pause, repris ou son début modifié ailleurs pendant l’arrêt, il est relu et arrêté d’après ses nouvelles valeurs (sa durée comptée depuis son début du moment) ; changé encore une fois pendant ce second essai : « Ce chrono vient d’être modifié : réessayez. » (il tourne toujours).
+- « Arrêter tout » arrête chacun des chronos en cours de l’espace (mêmes règles, un chrono changé deux fois de suite est laissé tel quel) et ne renvoie que ceux qu’il a arrêtés.
 - Un chrono en pause s’arrête **au début de sa pause**.
 - Durée = (fin − début) en secondes entières − `pausedSeconds`, jamais négative, **24 heures au plus** : un chrono arrêté après avoir passé 24 heures (avant le passage de l’arrêt automatique) finit au moment où il les a atteintes, sa durée vaut 24 heures.
 
@@ -85,8 +86,9 @@ Source : `capRunningTimers`, `scheduleTimerCap` (tâche de fond « Chronos de pl
 
 - Un chrono qui a tourné **24 heures** (pauses déduites, `DURATION_MAX_SECONDS`, la durée maximale d’un temps) est **arrêté tout seul** par l’API, même app fermée : sa fin est posée au moment où il atteint 24 heures (début + pauses + 24 h), sa durée vaut 24 heures. Un chrono en pause avant d’atteindre 24 heures n’est pas arrêté (sa durée n’avance plus).
 - Vérifié toutes les 5 minutes dans chaque espace, et à chaque lecture des temps (`timeEntries`, `runningTimeEntries` arrêtent d’abord ceux qui ont passé 24 heures) : sa durée reste 24 heures.
-- Chaque chrono n’est écrit que s’il tourne encore tel qu’il a été lu (comme « Arrêter ») : un chrono arrêté, mis en pause, repris ou abandonné au même moment est laissé tel quel, les autres sont arrêtés.
-- L’app le montre au moment où il atteint 24 heures, sans attendre le retour du focus : elle recharge alors les temps (pastille, accueil, « Prévu et réalisé », journal) et les tâches ; le chrono disparaît des chronos en cours (rechargés aussi chaque minute) avec la notification « Chrono arrêté après 24 heures » (ce sur quoi il portait, « Sa durée est de 24 heures, le maximum d’un temps. ») ; pas pour un chrono arrêté, abandonné ou supprimé à la main dans l’onglet (son propre toast le dit, même s’il avait déjà passé 24 heures).
+- Chaque chrono n’est écrit que s’il tourne encore tel qu’il a été lu (même début, même pause) : un chrono arrêté, mis en pause, repris, son début modifié ou abandonné au même moment est laissé tel quel (le passage suivant le revoit), les autres sont arrêtés.
+- Avant une pause ou une reprise (`setTimerPaused`) et avant les alarmes hors de l’app (« pas de chrono », « durée de chrono » : `dueAlarms`), ceux qui ont passé 24 heures sont aussi arrêtés d’abord : aucun n’est vu en cours au-delà de ses 24 heures.
+- L’app le montre au moment où il atteint 24 heures, sans attendre le retour du focus : elle recharge alors les temps (pastille, accueil, « Prévu et réalisé », journal) et les tâches ; le chrono disparaît des chronos en cours (rechargés aussi chaque minute) avec la notification « Chrono arrêté après 24 heures » (ce sur quoi il portait, « Sa durée est de 24 heures, le maximum d’un temps. ») ; pas pour un chrono arrêté, abandonné ou supprimé à la main dans l’onglet (son propre toast le dit, même s’il avait déjà passé 24 heures). « Arrêter » sur un chrono que l’API venait d’arrêter après 24 heures le dit de même (« Chrono arrêté après 24 heures », « Sa durée est de 24 heures, le maximum d’un temps. »), pas « Ce chrono était déjà arrêté. ». Un arrêt à la main qui échoue (réseau) n’est pas compté comme tel : l’arrêt après 24 heures de ce chrono reste annoncé.
 
 ### Abandonner
 
@@ -112,7 +114,7 @@ Source : `updateTimeEntry`.
 - Refusée si le temps est sur une **facture validée** (voir plus bas).
 - Champ omis (ou `null` pour `taskIds`, `routineIds`, `events`) = inchangé ; une liste vide les retire tous.
 - Les tâches, routines et évènements donnés remplacent ceux du temps.
-- Chrono en cours : sa durée ne se modifie pas (« La durée d’un chrono en cours ne se modifie pas. ») et son début ne peut pas être dans le futur (« Le début ne peut pas être dans le futur. ») ; en pause, son début doit précéder la pause, ses pauses passées déduites (« Le début doit précéder la pause. »). Il continue de tourner. Écrit seulement s’il tourne encore tel qu’il a été lu : mis en pause ou repris ailleurs entre-temps, il est relu (règles revérifiées) ; arrêté entre-temps : « Ce chrono ne tourne plus. », rien n’est écrit (sa fin et sa durée restent celles de son arrêt) ; abandonné entre-temps : « Temps introuvable. ».
+- Chrono en cours : sa durée ne se modifie pas (« La durée d’un chrono en cours ne se modifie pas. ») et son début ne peut pas être dans le futur (« Le début ne peut pas être dans le futur. ») ; en pause, son début doit précéder la pause, ses pauses passées déduites (« Le début doit précéder la pause. »). Il continue de tourner. Écrit seulement s’il tourne encore tel qu’il a été lu (même début, même pause) : mis en pause, repris ou son début modifié ailleurs entre-temps, il est relu (règles revérifiées) ; arrêté entre-temps : « Ce chrono ne tourne plus. », rien n’est écrit (sa fin et sa durée restent celles de son arrêt) ; abandonné entre-temps : « Temps introuvable. ».
 - Temps terminé : changer le début ou la durée recalcule la fin (début + durée).
 - Le jour d’un temps est celui de son début à l’heure de Paris, pour l’API comme pour l’app (les évènements et routines de son jour proposés, `parisDay`), quel que soit le fuseau du navigateur.
 - Début changé de jour (heure de Paris) sans que ses évènements soient donnés : le temps quitte les évènements qui ne sont pas ce jour-là (une occurrence d’un autre jour, un évènement unique qui ne couvre pas ce jour) ; ceux de ce jour restent. S’il n’a plus rien (sans projet, ni tâche, ni routine), le changement est refusé comme un retrait du dernier (« Choisissez un projet, une tâche, une routine ou un évènement. »).

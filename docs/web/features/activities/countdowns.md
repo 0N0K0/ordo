@@ -13,7 +13,7 @@ Fragments `DeadTimeFields` (`label`, `minutes`, `ringtone` : repris par les frag
 | `Countdown`, `DeadTimeOutput`, `CountdownInput` (types) | Un minuteur ; un temps mort tel que l’API le donne ; un minuteur lancé                              | ici, `features/tasks`, `features/routines`     |
 | `countdownsQueryKey`           | Clé `['countdowns']` (les minuteurs de l’utilisateur, les mêmes dans tous les espaces)                                       | ici                                            |
 | `useCountdowns()`              | Minuteurs pas encore sonnés, la fin la plus proche d’abord ; relus chaque minute et au retour du focus                        | `CountdownList`, `CountdownWidget`, `DeadTimesField`, `useCountdownRinger`, `useRingSources` (alarmes) |
-| `sendCountdownRung(id)`        | La fin d’un minuteur a sonné (`ringCountdown`)                                                                                 | `useCountdownRinger`                           |
+| `sendCountdownRung(id)`        | La fin d’un minuteur a sonné (`ringCountdown`) ; renvoie s’il a été noté sonné                                                 | `useCountdownRinger`                           |
 | `useCountdownMutations()`      | `{ start, setPaused({ id, paused }), extend({ id, minutes }), cancel(id) }`, qui relisent les minuteurs                        | `CountdownForm`, `CountdownControls`, `useStartSavedCountdown` |
 | `SavedCountdown`, `SavedCountdownTarget` (types) | Un minuteur enregistré ; l’élément qui en cite (`TASK`, `ROUTINE`, `EVENT`, `SHEET`)                         | ici, les éléments                              |
 | `savedCountdownsQueryKey`, `useSavedCountdowns()` | Clé `['savedCountdowns']` ; les minuteurs enregistrés de l’espace, dans leur ordre (archivés compris)        | `CountdownForm`, `CountdownList`, `SavedCountdownsField`, `SavedCountdownsSettings`, `useItemLaunchers` |
@@ -73,7 +73,8 @@ Interne : `useCountdownMutation`.
 ### `hooks/use-countdown-ringer.ts`
 
 - `useCountdownRinger()` : appelé par `AlarmCenter` ; une minuterie par minuteur en marche, à sa fin (un fini depuis 6 heures au plus, `RING_LATE_MS`, sonne tout de suite ; app fermée, le serveur l’envoie en push) ; replanifié quand les minuteurs changent.
-- Interne : `ringCountdownEnd(countdown, rung)` : réservé une fois (`claim`), sonne par `startRinging` (clé `countdownRingKey`, titre et lignes `countdownRingText` (partagé avec le serveur : nom, élément, « Minuteur de 10 min terminé »), lien `openRingTarget`, sa sonnerie), puis `sendCountdownRung`.
+- Interne : `ringCountdownEnd(countdown, queryClient)` : réservé une fois (`claim`), sonne par `startRinging` (clé `countdownRingKey`, titre et lignes `countdownRingText` (partagé avec le serveur : nom, élément, « Minuteur de 10 min terminé »), lien `openRingTarget`, sa sonnerie), puis `recordRung`.
+- Interne : `recordRung(countdown, queryClient)` : `sendCountdownRung`, puis recharge les minuteurs ; non noté sonné par l’API (horloge de l’appareil en avance sur le serveur), le note à nouveau 5 secondes plus tard tant qu’il est montré avec la même fin (`recordRingAgain`) : il ne reste pas montré fini. Un seul enregistrement à la fois par minuteur dans l’onglet.
 
 ## lib
 

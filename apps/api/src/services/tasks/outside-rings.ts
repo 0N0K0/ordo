@@ -49,6 +49,7 @@ import { ringCountdown } from './countdowns';
 import { effectiveTaskOf, loadTaskInheritance } from './task-inheritance';
 import { effectiveRoutineOf } from '../routines/routine-inheritance';
 import { pushEnabled, pushToUser } from './push';
+import { capRunningTimers } from './time-entries';
 
 /**
  * Rings outside the app (push notifications). Every 30 seconds, for the users who chose « Sonner
@@ -189,12 +190,15 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
 /**
  * Alarms of the workspace due now: the scheduled ones at their times (in Paris time, as in the app), recorded as rung (« pas de chrono »: consumed without ringing while a timer runs); those on the
  * duration of a timer at each step of each running timer on their task, or on their project and its sub-projects (the step reached now only).
+ * The timers past their 24 hours are stopped first (`capRunningTimers`), as when the app reads them.
  * @param {Workspace} workspace Workspace (the job runs in it).
  * @param {boolean} several The user has several workspaces.
  * @param {Date} now Now.
  * @returns {Promise<DueRing[]>} Rings due.
  */
 async function dueAlarms(workspace: Workspace, several: boolean, now: Date): Promise<DueRing[]> {
+  // The timers past their 24 hours are stopped first: none rings nor keeps « pas de chrono » silent as still running.
+  await capRunningTimers();
   const [alarms, running, tree] = await Promise.all([
     prisma.alarm.findMany({ where: { enabled: true }, include: { task: { select: { id: true, number: true, label: true, projectId: true } }, project: { select: { id: true, label: true } } } }),
     prisma.timeEntry.findMany({ where: { endedAt: null }, select: { id: true, projectId: true, tasks: { select: { id: true } }, startedAt: true, endedAt: true, pausedAt: true, pausedSeconds: true, duration: true } }),

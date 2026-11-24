@@ -16,7 +16,7 @@ Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label
 | `timeQueryKey`                         | Clé `['time']` des données du temps.                                                                                                                                                                      |
 | `useTimeEntries(projectId)`            | Temps d’un projet et de ses sous-projets (rien sans projet). Utilisé par `ProjectTimePanel`.                                                                                                              |
 | `useTimeEntriesSince(since, enabled?)` | Temps de tous les projets depuis un moment (ISO), ou tous (`null`). Utilisé par `TimePage`, `PlannedTime`, l’agenda (`CalendarPage`), l’accueil (`home-data.ts`).                                         |
-| `useRunningTimers()`                   | Les chronos en cours (plusieurs à la fois), le premier démarré d’abord ; relus au retour du focus et chaque minute, onglet en arrière-plan compris. |
+| `useRunningTimers()`                   | Les chronos en cours (plusieurs à la fois), le premier démarré d’abord ; relus au retour du focus et chaque minute, onglet en arrière-plan compris ; clé `runningTimersQueryKey`. |
 | `runningOn(running, on)`               | Le chrono en cours sur un élément (le premier), sinon `null`. Utilisé par `TrackedTime`, `TimerCell`, `ChronoCell` (routines). |
 | `TimeEntryValues` (interface)          | Champs d’un temps envoyés : `projectId`, `routineIds?`, `taskIds`, `description`, `startedAt`, `duration` (secondes), `events?` (plusieurs de chaque). |
 | `TimerStartValues` (interface)         | Démarrage d’un chrono : `projectId?`, `routineIds?`, `taskIds`, `description?`, `events?`. |
@@ -104,7 +104,7 @@ Classes `clock` (horloge, en couleur atténuée quand `data-paused`) et `fields`
 ### `components/TimerStop.tsx`
 
 - `TIMER_RUNNING` : « Chrono en cours ».
-- `StopTimerButton({ entry, name?, size? })` : bouton rouge « Arrêter le chrono » (toast du temps enregistré).
+- `StopTimerButton({ entry, name?, size? })` : bouton rouge « Arrêter le chrono » (toast du temps enregistré ; arrêté par l’API après 24 heures juste avant : `notifyTimerCap` avec ce sur quoi il portait, `entrySubject`).
 - `TimerRunningBadge()` : badge « Chrono en cours ».
 
 ### `components/TimerToggle.tsx`
@@ -114,7 +114,7 @@ Classes `clock` (horloge, en couleur atténuée quand `data-paused`) et `fields`
 ### `components/TimerWidget.tsx`
 
 - `TimerWidget()` : chronos en cours dans l’en-tête de l’app (rien sans chrono), en pastille `RunningPill` (`components/feedback`). Monté par `app/layout/AppLayout.tsx` (pas sur téléphone).
-- Internes : `RunningControls({ entry })` (un seul chrono : sujet et horloge, bulle « Détails du chrono » avec `RunningTimer`, `TimerControls`) ; `SeveralRunning({ entries })` (plusieurs : « 2 chronos » et l’horloge du plus long, bulle « Chronos en cours » : une ligne `RunningRow` par chrono, puis « Arrêter tout ») ; `RunningRow({ entry })` (sujet, horloge, `TimerControls`). ; `useTimerCapNotice(entries)` (notification « Chrono arrêté après 24 heures » quand un chrono disparaît des chronos en cours après 24 heures, sauf arrêté ou abandonné à la main dans l’onglet, `wasStoppedByHand`) ; `useTimerCapRefresh(entries)` (au moment où un chrono qui tourne atteint 24 heures, recharge les temps, `timeQueryKey`, et les tâches, `tasksQueryKey` : l’API l’arrête en les lisant).
+- Internes : `RunningControls({ entry })` (un seul chrono : sujet et horloge, bulle « Détails du chrono » avec `RunningTimer`, `TimerControls`) ; `SeveralRunning({ entries })` (plusieurs : « 2 chronos » et l’horloge du plus long, bulle « Chronos en cours » : une ligne `RunningRow` par chrono, puis « Arrêter tout ») ; `RunningRow({ entry })` (sujet, horloge, `TimerControls`). ; `useTimerCapNotice(entries)` (notification « Chrono arrêté après 24 heures » quand un chrono disparaît des chronos en cours après 24 heures, `reachedDurationMax`, `notifyTimerCap`, sauf arrêté ou abandonné à la main dans l’onglet, `wasStoppedByHand`) ; `useTimerCapRefresh(entries)` (au moment où un chrono qui tourne atteint 24 heures, recharge les temps, `timeQueryKey`, et les tâches, `tasksQueryKey` : l’API l’arrête en les lisant).
 
 Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`components/feedback/RunningPill.module.css`), commune aux chronos et aux minuteurs.
 
@@ -152,9 +152,10 @@ Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`compo
 ### `hooks/use-stop-timer.ts`
 
 - `savedTimeMessage(stopped)` : « Temps enregistré : 1 h 05. », la somme des durées enregistrées par l’API (`duration` renvoyé par `stopTimer` / `stopAllTimers`).
-- `wasStoppedByHand(id)` : le chrono a été arrêté ou abandonné à la main dans cet onglet (« Arrêter », « Arrêter tout », « Abandonner », « Supprimer le temps ») : `useTimerCapNotice` ne le dit pas arrêté après 24 heures.
+- `notifyTimerCap(id, subject?)` : notification « Chrono arrêté après 24 heures » (ce sur quoi il portait, quand il est donné, puis « Sa durée est de 24 heures, le maximum d’un temps. »), une fois par chrono (`timer-cap-<id>`) : `useTimerCapNotice`, et « Arrêter » / « Arrêter tout » sur un chrono que l’API venait d’arrêter après 24 heures.
+- `wasStoppedByHand(id)` : le chrono a été arrêté ou abandonné à la main dans cet onglet (« Arrêter », « Arrêter tout », « Abandonner », « Supprimer le temps ») : `useTimerCapNotice` ne le dit pas arrêté après 24 heures. Un arrêt qui échoue (réseau) l’oublie : son arrêt après 24 heures reste annoncé.
 - `endTimerByHand(id, run)` : met fin à un chrono à la main autrement qu'en l'arrêtant (abandonné, temps supprimé) : `wasStoppedByHand` le dit fini à la main ; en cas d'échec, il est oublié.
-- `useStopTimer()` : `{ stopTimer(entry), stopAll(entries), isPending }` : arrête ce chrono (les autres continuent), ou tous (« Arrêter tout » : « 2 chronos arrêtés. Temps enregistré : 1 h 40. ») ; le toast compte les chronos que l’API dit avoir arrêtés et leur durée enregistrée, ceux inconnus de l’onglet compris (aucun : toast d'information « Ce chrono était déjà arrêté. » / « Ces chronos étaient déjà arrêtés. »).
+- `useStopTimer(subjectOf?)` : `{ stopTimer(entry), stopAll(entries), isPending }` : arrête ce chrono (les autres continuent), ou tous (« Arrêter tout » : « 2 chronos arrêtés. Temps enregistré : 1 h 40. ») ; le toast compte les chronos que l’API dit avoir arrêtés et leur durée enregistrée, ceux inconnus de l’onglet compris. Un chrono qu’elle n’a pas arrêté et qui avait passé 24 heures (`reachedDurationMax` sur sa durée rechargée, à défaut sur celle de l’onglet : l’API venait de l’arrêter) : `notifyTimerCap`, avec ce sur quoi il portait quand `subjectOf` est donné (`SeveralRunning`, `StopTimerButton`) ; un chrono que « Arrêter tout » a laissé en cours (toujours dans les chronos en cours rechargés, `runningTimersQueryKey` : changé deux fois ailleurs) : « Ce chrono vient d’être modifié : réessayez. » / « Ces chronos viennent d’être modifiés : réessayez. » ; les autres : toast d'information « Ce chrono était déjà arrêté. » / « Ces chronos étaient déjà arrêtés. » (s’il n’y a rien d’autre à dire). Une erreur (« Ce chrono vient d’être modifié : réessayez. », réseau) : toast d’erreur, et les chronos ne sont plus comptés arrêtés à la main.
 
 ### `hooks/use-time-dialogs.tsx`
 

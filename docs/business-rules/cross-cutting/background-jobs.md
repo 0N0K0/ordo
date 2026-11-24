@@ -53,7 +53,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Mail](../resources/
 
 ### Arrêt des chronos de 24 heures (`scheduleTimerCap`)
 
-- Dans chaque espace, arrête les chronos qui ont tourné 24 heures, pauses déduites (`capRunningTimers`) : fin au moment où ils les ont atteintes, durée 24 heures, la durée maximale d’un temps. Rattrapage au réveil : un chrono passé les 24 heures pendant le sommeil du serveur est arrêté au passage suivant, avec la même fin. Détails : [Temps](../activities/time.md#arrêt-après-24-heures).
+- Dans chaque espace, arrête les chronos qui ont tourné 24 heures, pauses déduites (`capRunningTimers`) : fin au moment où ils les ont atteintes, durée 24 heures, la durée maximale d’un temps. Rattrapage au réveil : un chrono passé les 24 heures pendant le sommeil du serveur est arrêté au passage suivant, avec la même fin. Aussi fait avant chaque lecture des temps, chaque pause ou reprise et les alarmes de chrono de « Sonneries hors de l’app » : aucun n’est vu en cours au-delà de ses 24 heures. Détails : [Temps](../activities/time.md#arrêt-après-24-heures).
 
 ### Autres travaux en arrière-plan
 

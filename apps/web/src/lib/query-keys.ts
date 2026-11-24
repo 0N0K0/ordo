@@ -19,6 +19,9 @@ export const routinesKey = ['routines'] as const;
 /** Root key of the time entry queries. */
 export const timeQueryKey = ['time'] as const;
 
+/** Key of the running timers (`useRunningTimers`), under the time entry queries. */
+export const runningTimersQueryKey = [...timeQueryKey, 'running'] as const;
+
 /** Root key of the accounting queries. */
 export const accountingQueryKey = ['accounting'] as const;
 

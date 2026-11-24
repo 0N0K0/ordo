@@ -82,9 +82,10 @@ builder.mutationFields((t) => ({
     resolve: async (query, _root, { id, minutes }, ctx) => reloaded(prisma.countdown, query, countdowns.extendCountdown(signedInSession(ctx).userId, id, minutes)),
   }),
   ringCountdown: t.boolean({
-    description: 'Records that the end of a timer rang (its ring goes on as an AlarmRing): it no longer shows.',
+    description:
+      'Records that the end of a timer rang (its ring goes on as an AlarmRing): it no longer shows. False when not recorded: not running, not ended yet for the server (a few seconds of clock gap allowed), already rung or cancelled.',
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }, ctx) => done(countdowns.ringCountdown(signedInSession(ctx).userId, id)),
+    resolve: (_root, { id }, ctx) => countdowns.ringCountdown(signedInSession(ctx).userId, id),
   }),
   cancelCountdown: t.boolean({
     description: 'Cancels a timer: it never rings.',

@@ -6,8 +6,10 @@ import {
   countdownRingText,
   deadTimesSchema,
   readDeadTimes,
+  recordRingAgain,
   savedCountdownLinksSchema,
 } from '../../src/dates/countdowns';
+import { RING_LATE_MS } from '../../src/dates/ringing';
 
 describe('timers', () => {
   it('a timer lasts 1 minute to 24 hours; its ringtone outside the bank reads as none; no name: none', () => {
@@ -36,6 +38,32 @@ describe('timers', () => {
   it('20 saved timers at most per item, each once', () => {
     expect(savedCountdownLinksSchema.parse(['a', 'b', 'a'])).toEqual(['a', 'b']);
     expect(savedCountdownLinksSchema.safeParse(Array.from({ length: 21 }, (_, index) => `c${index}`)).error?.issues[0].message).toBe('20 minuteurs au plus.');
+  });
+});
+
+describe('recordRingAgain: the ring of a timer the API did not record yet (a device clock ahead)', () => {
+  const end = '2026-11-23T10:00:00.000Z';
+  const rang = { endsAt: end, remainingSeconds: null };
+  const now = Date.parse(end) - 10_000;
+
+  it('still shown with the end it rang at: recorded again', () => {
+    expect(recordRingAgain(rang, { endsAt: end, remainingSeconds: null }, now)).toBe(true);
+    expect(recordRingAgain(rang, { endsAt: new Date(end), remainingSeconds: null }, now)).toBe(true);
+  });
+
+  it('paused, given more minutes, rung or cancelled elsewhere meanwhile: not recorded again', () => {
+    expect(recordRingAgain(rang, { endsAt: null, remainingSeconds: 30 }, now)).toBe(false);
+    expect(recordRingAgain(rang, { endsAt: '2026-11-23T10:01:00.000Z', remainingSeconds: null }, now)).toBe(false);
+    expect(recordRingAgain(rang, undefined, now)).toBe(false);
+  });
+
+  it('ended more than 6 hours ago: no longer recorded (the API does it as it reads them)', () => {
+    expect(recordRingAgain(rang, rang, Date.parse(end) + RING_LATE_MS)).toBe(true);
+    expect(recordRingAgain(rang, rang, Date.parse(end) + RING_LATE_MS + 1)).toBe(false);
+  });
+
+  it('a timer paused when it rang has no end to record', () => {
+    expect(recordRingAgain({ endsAt: null, remainingSeconds: 0 }, { endsAt: null, remainingSeconds: 0 }, now)).toBe(false);
   });
 });
 

@@ -13,6 +13,7 @@ import {
   nextOccurrence,
   parseDuration,
   previousOccurrence,
+  reachedDurationMax,
   timeEntryFormSchema,
 } from '../../src/tasks/time';
 import { rule } from '../rules';
@@ -198,5 +199,33 @@ describe('alarms', () => {
     const weekly = { ...alarm, frequency: 'WEEKLY' as const, weekdays: [1], endDate: '2026-11-30' };
     expect(nextOccurrence(weekly, new Date('2026-11-23T09:00:00Z'))?.toISOString()).toBe('2026-11-30T08:00:00.000Z');
     expect(nextOccurrence(weekly, new Date('2026-11-30T09:00:00Z'))).toBeNull();
+  });
+});
+
+describe('reachedDurationMax: a timer that has run 24 hours, pauses left out', () => {
+  const start = '2026-11-23T08:00:00Z';
+  const at = (iso: string) => Date.parse(iso);
+  const running = { startedAt: start, endedAt: null, pausedAt: null, pausedSeconds: 0, duration: null };
+
+  it('reached at 24 hours exactly, not a second before', () => {
+    expect(reachedDurationMax(running, at('2026-11-24T07:59:59Z'))).toBe(false);
+    expect(reachedDurationMax(running, at('2026-11-24T08:00:00Z'))).toBe(true);
+    expect(reachedDurationMax(running, at('2026-11-24T08:03:00Z'))).toBe(true);
+  });
+
+  it('its pauses are left out', () => {
+    const paused10min = { ...running, pausedSeconds: 600 };
+    expect(reachedDurationMax(paused10min, at('2026-11-24T08:05:00Z'))).toBe(false);
+    expect(reachedDurationMax(paused10min, at('2026-11-24T08:10:00Z'))).toBe(true);
+  });
+
+  it('paused before 24 hours: it does not get there; paused after: reached', () => {
+    expect(reachedDurationMax({ ...running, pausedAt: '2026-11-24T07:00:00Z' }, at('2026-11-25T08:00:00Z'))).toBe(false);
+    expect(reachedDurationMax({ ...running, pausedAt: '2026-11-24T08:01:00Z' }, at('2026-11-24T08:02:00Z'))).toBe(true);
+  });
+
+  it('stopped: its recorded duration (24 hours at most)', () => {
+    expect(reachedDurationMax({ ...running, endedAt: '2026-11-24T08:00:00Z', duration: DURATION_MAX_SECONDS }, at('2026-11-25T00:00:00Z'))).toBe(true);
+    expect(reachedDurationMax({ ...running, endedAt: '2026-11-23T09:00:00Z', duration: 3600 }, at('2026-11-25T00:00:00Z'))).toBe(false);
   });
 });

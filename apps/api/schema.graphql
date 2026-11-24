@@ -2629,7 +2629,7 @@ type Mutation {
   ringAlarm(input: AlarmRingInput!): AlarmRing!
 
   """
-  Records that the end of a timer rang (its ring goes on as an AlarmRing): it no longer shows.
+  Records that the end of a timer rang (its ring goes on as an AlarmRing): it no longer shows. False when not recorded: not running, not ended yet for the server (a few seconds of clock gap allowed), already rung or cancelled.
   """
   ringCountdown(id: ID!): Boolean!
   saveBirthdayLook(input: BirthdayLookInput!): BirthdayLook!
