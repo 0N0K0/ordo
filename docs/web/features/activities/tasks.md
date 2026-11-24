@@ -295,7 +295,7 @@ Classe `recurring` (dans la couche `app`) : les petites icônes devant le libell
 
 - `TaskContext` (interface) : données et fonctions partagées des écrans de tâches : `tasks`, `contributors`, `statuses`, `priorities`, `types`, `tags`, `projects`, `milestones` (dans l’ordre choisi), `milestoneOrder`, `milestoneRank`, `sprints`, `meId`, index `taskById`, `statusById`, `priorityById`, `typeById`, `tagById`, `contributorById`, `projectById`, `milestoneById`, `sprintById`, et :
   - `taskLabel(task, fromProjectId?)` : chemin complet « Client › Projet › #3 Parent › #12 Titre » ;
-  - `milestoneLabel`, `sprintLabel` : « Client › Projet › Nom » ;
+  - `milestoneLabel`, `sprintLabel` : le nom seul, sans le chemin du projet ;
   - `projectLabel(projectId)` : chemin du projet, « Sans projet » ;
   - `projectOptions(projects)`, `taskOptions(tasks)` : options d’arbre pour les sélecteurs ;
   - `rootOf(projectId)` : projet racine (`null` sans projet) ;
