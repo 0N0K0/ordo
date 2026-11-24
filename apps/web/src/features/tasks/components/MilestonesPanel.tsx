@@ -23,7 +23,7 @@ import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwit
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR } from '../../../lib/notify';
@@ -134,7 +134,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
   const { remove, move, update } = useMilestoneMutations();
   const setArchived = useSetArchived('MILESTONE');
   const [order, setOrder] = useMilestoneOrder();
-  const today = localToday();
+  const today = parisToday();
   // Already in the chosen order.
   const all = (context?.milestones ?? []).filter((milestone) => milestone.projectId === projectId);
   const { shown: milestones, toggle: archivedToggle } = useArchivedToggle(all);

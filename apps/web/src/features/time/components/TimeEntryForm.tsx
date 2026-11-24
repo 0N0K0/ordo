@@ -2,7 +2,7 @@ import { SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { formDateTime } from '../../../components/inputs/date-fields';
 import { durationText, parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
-import { localInstant, localParts, localToday } from '../../../lib/dates';
+import { parisInstant, parisParts, parisToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
@@ -26,7 +26,7 @@ interface TimeEntryFormProps {
 }
 
 /**
- * Input of the API from the values of the form (local day and time).
+ * Input of the API from the values of the form (day and time in Paris).
  * @param {TimeEntryFormValues} values Values.
  * @returns {TimeEntryValues} Input.
  */
@@ -35,19 +35,50 @@ const entryInput = (values: TimeEntryFormValues): TimeEntryValues => ({
   routineIds: values.routineIds,
   taskIds: values.taskIds,
   description: values.description,
-  startedAt: localInstant(values.date, values.start).toISOString(),
+  startedAt: parisInstant(values.date, values.start).toISOString(),
   duration: parseDuration(values.duration)!,
   events: parseEventKeys(values.events),
 });
 
 /**
- * Values of the form of an existing time (its local day and start time, its duration as « h:mm »).
+ * Input of the API for the fields of the form that changed only: the duration and the start of a time stay exact
+ * (to the second) while they are not touched.
+ * @param {Partial<TimeEntryFormValues>} changes Fields changed.
+ * @param {TimeEntryFormValues} values All the values.
+ * @returns {Partial<TimeEntryValues>} Input.
+ */
+const changedInput = (changes: Partial<TimeEntryFormValues>, values: TimeEntryFormValues): Partial<TimeEntryValues> => {
+  // The duration is read only when it changed (an untouched one may be out of what can be typed).
+  const all = entryInput(values);
+  const fields: (keyof TimeEntryValues)[] = [
+    ...('projectId' in changes ? (['projectId'] as const) : []),
+    ...('routineIds' in changes ? (['routineIds'] as const) : []),
+    ...('taskIds' in changes ? (['taskIds'] as const) : []),
+    ...('description' in changes ? (['description'] as const) : []),
+    ...('events' in changes ? (['events'] as const) : []),
+    ...('date' in changes || 'start' in changes ? (['startedAt'] as const) : []),
+    ...('duration' in changes ? (['duration'] as const) : []),
+  ];
+  return Object.fromEntries(fields.map((field) => [field, all[field]]));
+};
+
+/**
+ * Day of a time from the day typed (a Paris day, as the API reads it: the events of that day are offered); today while
+ * the day is not typed.
+ * @param {string} date Day typed (YYYY-MM-DD).
+ * @returns {string} Day in Paris.
+ */
+const entryDay = (date: string): string => date || parisToday();
+
+/**
+ * Values of the form of an existing time (its day and start time in Paris, its duration as « h:mm »).
  * @param {TimeEntry} entry Time.
  * @returns {TimeEntryFormValues} Values.
  */
 const timeEntryFormValues = (entry: TimeEntry): TimeEntryFormValues => {
-  const { date, time } = localParts(entry.startedAt);
-  const minutes = entry.duration ? Math.round(entry.duration / 60) : 60;
+  const { date, time } = parisParts(entry.startedAt);
+  // A chrono of a few seconds (or none) shows « 0:00 ».
+  const minutes = Math.round((entry.duration ?? 0) / 60);
   return {
     projectId: entry.projectId ?? '',
     routineIds: entry.routines.map((routine) => routine.id),
@@ -76,7 +107,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
   const base = useAppForm<TimeEntryFormValues>({
     initialValues: entry
       ? timeEntryFormValues(entry)
-      : { projectId: defaultProjectId ?? '', routineIds: [], taskIds: [], events: [], description: '', date: localToday(), start: '09:00', duration: '1:00' },
+      : { projectId: defaultProjectId ?? '', routineIds: [], taskIds: [], events: [], description: '', date: parisToday(), start: '09:00', duration: '1:00' },
     schema: timeEntryFormSchema,
   });
   // The time of the cache followed (changed in a cell, another tab), whatever list holds it.
@@ -86,7 +117,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
     (item: TimeEntry) => item.id === entry?.id,
   );
   const { form, saving, fieldProps } = useFieldSave(base, {
-    save: entry ? (_changes, values) => update.mutateAsync({ id: entry.id, input: entryInput(values) }) : null,
+    save: entry ? (changes, values) => update.mutateAsync({ id: entry.id, input: changedInput(changes, values) }) : null,
     schema: timeEntryFormSchema,
     saved: entry && timeEntryFormValues(current ?? entry),
     onBlur: ON_BLUR,
@@ -117,7 +148,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
           <TimeSubjectsFields
             context={context}
             projectId={form.values.projectId || null}
-            day={form.values.date || localToday()}
+            day={entryDay(form.values.date)}
             entry={entry}
             value={{ routineIds: form.values.routineIds, taskIds: form.values.taskIds, events: form.values.events }}
             onChange={(change) => form.setValues(change)}

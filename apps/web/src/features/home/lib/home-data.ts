@@ -1,5 +1,5 @@
-import { localDay, localMidnight, monthOfDay, yearOfDay } from '../../../lib/dates';
-import { addDays, entrySeconds, filterPeriod } from '@ordo/shared';
+import { parisMidnight, monthOfDay, yearOfDay } from '../../../lib/dates';
+import { addDays, entrySecondsWithin, filterPeriod } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
 import { useDoableTaskIds, useTaskWaitReasons, type Task, type TaskWaitReasons } from '../../tasks/api';
@@ -205,22 +205,26 @@ export interface WeekTime {
  */
 export function useWeekTime(today: string): WeekTime | null {
   const [monday] = filterPeriod('thisWeek', today, currentWeek());
-  const entries = useTimeEntriesSince(localMidnight(monday));
+  const entries = useTimeEntriesSince(parisMidnight(monday));
   const running = entries.data?.some((entry) => !entry.endedAt && !entry.pausedAt && entry.duration === null) ?? false;
   const now = useNow(running);
   return useMemo(() => {
     if (!entries.data) return null;
     const time: WeekTime = { today: 0, week: 0, byProject: [] };
     const byProject = new Map<string, number>();
+    // The part of each time within the week and within today (a timer running past midnight counts on both days).
+    const weekStart = Date.parse(parisMidnight(monday));
+    const dayStart = Date.parse(parisMidnight(today));
+    const dayEnd = Date.parse(parisMidnight(addDays(today, 1)));
     for (const entry of entries.data) {
-      const seconds = entrySeconds(entry, now);
+      const seconds = entrySecondsWithin(entry, weekStart, Number.POSITIVE_INFINITY, now);
       time.week += seconds;
-      if (localDay(entry.startedAt) === today) time.today += seconds;
+      time.today += entrySecondsWithin(entry, dayStart, dayEnd, now);
       if (entry.projectId) byProject.set(entry.projectId, (byProject.get(entry.projectId) ?? 0) + seconds);
     }
     time.byProject = [...byProject.entries()].map(([projectId, seconds]) => ({ projectId, seconds })).sort((a, b) => b.seconds - a.seconds);
     return time;
-  }, [entries.data, now, today]);
+  }, [entries.data, now, today, monday]);
 }
 
 /**

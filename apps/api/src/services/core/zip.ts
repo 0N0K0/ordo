@@ -1,3 +1,5 @@
+import { parisParts } from '@ordo/shared';
+
 /** CRC-32 table (IEEE). */
 const TABLE = Array.from({ length: 256 }, (_, index) => {
   let value = index;
@@ -17,14 +19,18 @@ function crc32(data: Uint8Array): number {
 }
 
 /**
- * DOS date and time of a date.
+ * DOS date and time of a date, in Paris.
  * @param {Date} date Date.
  * @returns {{ time: number, day: number }} DOS time and date.
  */
 function dosTime(date: Date): { time: number; day: number } {
+  // The day and time of the archive are those of Paris, as every day and hour of Ordo.
+  const parts = parisParts(date);
+  const [year, month, day] = parts.date.split('-').map(Number);
+  const [hours, minutes] = parts.time.split(':').map(Number);
   return {
-    time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
-    day: ((Math.max(date.getFullYear(), 1980) - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate(),
+    time: (hours << 11) | (minutes << 5) | Math.floor(date.getUTCSeconds() / 2),
+    day: ((Math.max(year, 1980) - 1980) << 9) | (month << 5) | day,
   };
 }
 

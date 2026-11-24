@@ -5,7 +5,7 @@ import { colorSchema } from '../core/workspace';
 import { filterConditionSchemaFor, filterDaySchema, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf } from '../tables/filters';
 import { tableFilterSchema } from '../tables/table-views';
 import { TASK_CLOSE_REASONS, TASK_STATUS_CATEGORIES, type TaskCloseReason } from './task-columns';
-import { effortSchema, type TaskBulkChanges } from './tasks';
+import { effortSchema, type TaskBulkChanges, type TaskLinksLost } from './tasks';
 
 /**
  * Automations of the tasks: rules « quand … alors … » of a workspace, for every task of every project. A rule has a
@@ -272,7 +272,7 @@ export const taskAutomationSchema = z.object({
 });
 export type TaskAutomationInput = z.input<typeof taskAutomationSchema>;
 
-/** What gives a task back as it was before a rule: its project (moved back), its fields, its open / closed state (and how it was closed) and its archive. */
+/** What gives a task back as it was before a rule: its project (moved back, with the links it lost), its fields, its open / closed state (and how it was closed) and its archive. */
 export interface TaskAutomationRevert {
   taskId: string;
   /** Project it is moved back to (undefined: not moved). */
@@ -284,6 +284,8 @@ export interface TaskAutomationRevert {
   closeReason?: TaskCloseReason;
   /** Restored when the rule archived it. */
   restore?: boolean;
+  /** Links its transfer removed, put back with its move back to its project (`undoTaskTransfer`). */
+  links?: TaskLinksLost;
 }
 
 /** A rule applied during a change: its name, what it did, the tasks it changed and how to undo it; or why it could not. */

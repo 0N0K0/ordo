@@ -8,7 +8,7 @@ import { builder, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
 import { deletedTreeIds, subtreeIds } from '../../services/core/trees';
 import { goneOccurrences, placeLegacyEventComments } from '../../services/calendar/calendar-events';
-import { placeLegacyRoutineComments } from '../../services/routines/routines';
+import { followingOccurrencesGone, placeLegacyRoutineComments } from '../../services/routines/routines';
 import { calendarEventsGone } from '../../services/calendar/calendars';
 import { EventScope } from './calendar';
 import { reloaded } from '../reload';
@@ -182,16 +182,19 @@ const alarmInput = (input: typeof AlarmInput.$inferInput) => ({
 builder.queryFields((t) => ({
   timeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description: 'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.',
+    description: 'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since). Timers past their 24 hours are stopped first.',
     args: { projectId: t.arg.id(), routineId: t.arg.id(), since: t.arg({ type: 'DateTime' }) },
     resolve: async (query, _root, { projectId, routineId, since }) => {
+      // The timers past their 24 hours are stopped first: read stopped, without waiting for the background task.
+      await timeEntries.capRunningTimers();
       const projectIds = projectId ? await subtreeIds('project', projectId) : undefined;
       return prisma.timeEntry.findMany({
         ...query,
         where: {
           ...(projectIds ? { projectId: { in: projectIds } } : {}),
           ...(routineId ? { routines: { some: { id: routineId } } } : {}),
-          ...(since ? { startedAt: { gte: since } } : {}),
+          // Those crossing the moment too (a timer running past midnight, started the evening before).
+          ...(since ? { OR: [{ startedAt: { gte: since } }, { endedAt: null }, { endedAt: { gte: since } }] } : {}),
         },
         orderBy: { startedAt: 'desc' },
       });
@@ -224,7 +227,7 @@ builder.queryFields((t) => ({
       const comments = await commentsLostOnDelete({
         routineIds: routinesGone,
         // A cancelled occurrence stays shown with its comments: only the following ones deleted lose theirs.
-        routines: routineOccurrence?.scope === 'FOLLOWING' ? [{ id: routineOccurrence.id, from: routineOccurrence.date }] : [],
+        routines: routineOccurrence?.scope === 'FOLLOWING' ? await followingOccurrencesGone(routineOccurrence.id, routineOccurrence.date) : [],
         events: events.map((gone) => ({ id: gone.eventId, on: gone.on, from: gone.from })),
       });
       return { times: times.length, comments };
@@ -232,8 +235,12 @@ builder.queryFields((t) => ({
   }),
   runningTimeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description: 'Running timers of the workspace (several at once), the first started first.',
-    resolve: (query) => prisma.timeEntry.findMany({ ...query, where: { endedAt: null }, orderBy: [{ startedAt: 'asc' }, { id: 'asc' }] }),
+    description: 'Running timers of the workspace (several at once), the first started first; those past their 24 hours are stopped first.',
+    resolve: async (query) => {
+      // The timers past their 24 hours are stopped first (not running any more).
+      await timeEntries.capRunningTimers();
+      return prisma.timeEntry.findMany({ ...query, where: { endedAt: null }, orderBy: [{ startedAt: 'asc' }, { id: 'asc' }] });
+    },
   }),
   alarms: t.prismaField({
     type: ['Alarm'],
@@ -257,7 +264,7 @@ builder.mutationFields((t) => ({
   stopTimer: t.prismaField({
     type: 'TimeEntry',
     nullable: true,
-    description: 'Stops a running timer (its time saved); null when it no longer runs. The others keep running.',
+    description: 'Stops a running timer (its time saved); null when it no longer runs or was stopped elsewhere meanwhile. The others keep running.',
     args: { id: t.arg.id({ required: true }) },
     resolve: async (query, _root, { id }) => {
       const entry = await timeEntries.stopTimer(id);
@@ -266,7 +273,7 @@ builder.mutationFields((t) => ({
   }),
   stopAllTimers: t.prismaField({
     type: ['TimeEntry'],
-    description: '« Arrêter tout »: stops every running timer (their time saved).',
+    description: '« Arrêter tout »: stops every running timer (their time saved); returns only those this call stopped.',
     resolve: async (query) => {
       const stopped = await timeEntries.stopAllTimers();
       return prisma.timeEntry.findMany({ ...query, where: { id: { in: stopped.map((entry) => entry.id) } }, orderBy: { startedAt: 'asc' } });

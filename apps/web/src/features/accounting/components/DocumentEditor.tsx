@@ -53,7 +53,7 @@ import {
 } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { notifySuccess, onMutationError, toastCallbacks, ON_ERROR } from '../../../lib/notify';
@@ -295,7 +295,7 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const createFrom = (type: 'INVOICE' | 'CREDIT_NOTE') =>
-    mutations.createFrom.mutate({ sourceId: document.id, type, issueDate: localToday() }, { onSuccess: (id) => void navigate(documentPath(id)), onError: onMutationError });
+    mutations.createFrom.mutate({ sourceId: document.id, type, issueDate: parisToday() }, { onSuccess: (id) => void navigate(documentPath(id)), onError: onMutationError });
 
   const canBillTime = document.type === 'INVOICE' && document.status === 'DRAFT' && !archived;
   const billedIds = values.timeEntryIds ?? [];
@@ -448,7 +448,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 size="lg"
                 item={document}
                 hint="Copie en brouillon, datée d’aujourd’hui"
-                duplicate={(source) => mutations.duplicate.mutateAsync({ id: source.id, issueDate: localToday() })}
+                duplicate={(source) => mutations.duplicate.mutateAsync({ id: source.id, issueDate: parisToday() })}
                 done="Document dupliqué en brouillon."
                 open={(id) => void navigate(documentPath(id))}
               />

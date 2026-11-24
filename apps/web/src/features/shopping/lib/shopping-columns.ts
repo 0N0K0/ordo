@@ -5,7 +5,7 @@ import type { ShoppingCategory, ShoppingStore } from '../api';
 import { NO_GROUP_NAME, rowPeopleKeys, type ShoppingFields } from './shopping-format';
 import * as fmt from '../../../lib/format';
 import { conservationKey, NOT_PERISHABLE, PERISHABLE } from './conservation';
-import { NEUTRAL_YES_WARNING_NO_ICONS, withArchived } from '../../../components/data-table/table/data-table';
+import { NEUTRAL_YES_WARNING_NO_ICONS, withArchived, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { itemChoices } from '../../../components/items/item-look';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
@@ -127,12 +127,19 @@ export function itemColumns<T extends ShoppingFields>(names: ItemNames, extra: D
   ];
 }
 
+/** States of « Facultatif », in its column and on its state buttons: a neutral yes, a required no (a warning). */
+export const OPTIONAL_STATES: YesNoStates = {
+  labels: { yes: 'Facultatif', no: 'Obligatoire' },
+  icons: NEUTRAL_YES_WARNING_NO_ICONS,
+  toggleLabels: { yes: 'Marquer comme facultatif', no: 'Marquer comme obligatoire' },
+};
+
 /**
  * « Facultatif » column of the items of the shopping lists and of the sheets: not needed, bought if possible.
  * @returns {DataColumn<T>} Column.
  */
 export function optionalColumn<T extends { optional?: boolean | null }>(): DataColumn<T> {
-  return booleanColumn<T>({ id: 'optional', bulk: true, label: 'Facultatif', size: 110, groupable: true, groupLabels: { yes: 'Facultatif', no: 'Obligatoire' }, icons: NEUTRAL_YES_WARNING_NO_ICONS, value: (item) => Boolean(item.optional) });
+  return booleanColumn<T>({ id: 'optional', bulk: true, label: 'Facultatif', size: 110, groupable: true, states: OPTIONAL_STATES, value: (item) => Boolean(item.optional) });
 }
 
 /** Columns of the shopping items a sheet item has too (store, conservation, whom it is for, link). */

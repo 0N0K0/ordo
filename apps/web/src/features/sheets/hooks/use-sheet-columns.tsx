@@ -1,9 +1,9 @@
 import { useShoppingData } from '../../shopping/api';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import type { DataColumn, YesNoStates } from '../../../components/data-table/table/data-table';
 import { itemChoices } from '../../../components/items/item-look';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
@@ -12,6 +12,12 @@ import { usePeople } from '../../shopping/lib/shopping-format';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useSheetCategories, type ChecklistItem, type Sheet, type SheetCategory, type SheetDetail, type SheetDetailItem } from '../api';
 
+
+/** States of « Fait » of an item of a checklist, on its state buttons. */
+export const CHECKLIST_DONE_STATES: YesNoStates = {
+  labels: { yes: 'Collecté', no: 'À collecter' },
+  toggleLabels: { yes: 'Marquer comme collecté', no: 'Marquer comme à collecter' },
+};
 /**
  * Columns of the sheets.
  * @param {TaskContext | null} context Names of the projects.
@@ -79,7 +85,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       hiddenByDefault: true,
       sortValue: (sheet) => sheet.updatedAt,
       text: (sheet) => fmt.day(sheet.updatedAt),
-      filter: { kind: 'date', value: (sheet) => localDay(sheet.updatedAt) },
+      filter: { kind: 'date', value: (sheet) => parisDay(sheet.updatedAt) },
     },
   ];
 }
@@ -155,7 +161,7 @@ export function useChecklistColumns(list: { items: readonly ChecklistItem[] } | 
   const { data: shopping } = useShoppingData();
   const categories = shopping?.shoppingCategories ?? [];
   return [
-    booleanColumn<ChecklistItem>({ id: 'done', label: 'Fait', size: 70, bulk: true, groupLabels: { yes: 'Collectés', no: 'À collecter' }, value: (item) => Boolean(item.checkedAt) }),
+    booleanColumn<ChecklistItem>({ id: 'done', label: 'Fait', size: 70, bulk: true, states: CHECKLIST_DONE_STATES, groupLabels: { yes: 'Collectés', no: 'À collecter' }, value: (item) => Boolean(item.checkedAt) }),
     { id: 'label', required: true, label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     quantityColumn<ChecklistItem>(),
     unitColumn<ChecklistItem>(),

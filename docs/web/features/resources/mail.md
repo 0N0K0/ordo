@@ -144,7 +144,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailListItem.tsx`
 
-- `MailListItem({ message, labels, ownAddresses, active, ticked, onTick, onOpen, drag?, footer? })` : ligne d’une liste de mails (case, « Traité », correspondant, drapeaux, trombone, date, objet, pied facultatif) ; glissable si `drag` est donné ; ouverture au clic ou à Entrée. Utilisé par `MailPage`, `MailSearchList`.
+- `MailListItem({ message, labels, ownAddresses, active, ticked, onTick, onOpen, drag?, footer? })` : ligne d’une liste de mails (case, marque « Traité » `YesNoIcon` de `MAIL_DONE_STATES`, correspondant, drapeaux, trombone, date, objet, pied facultatif) ; glissable si `drag` est donné ; ouverture au clic ou à Entrée. Utilisé par `MailPage`, `MailSearchList`.
 - Internes : `MailListMessage` (champs affichés), `MailListItemProps`.
 
 ### `components/MailListPane.tsx`
@@ -157,7 +157,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailOrganizeActions.tsx`
 
-- `MailOrganizeActions({ groups, done, labelIds, onMoved?, onManageLabels, noMove? })` : actions d’organisation sur des mails groupés par boîte et dossier : `StateSwitch` « Traité », menu « Drapeaux » (drapeaux non archivés, plus ceux déjà posés ; « Gérer les drapeaux… »), spam / pas spam (pas spam quand tous sont dans le dossier des indésirables d’une seule boîte), « Déplacer vers… » (une seule boîte, sauf `noMove`). Utilisé par `MailReader`, `MailSelectionBar`.
+- `MailOrganizeActions({ groups, done, labelIds, onMoved?, onManageLabels, noMove? })` : actions d’organisation sur des mails groupés par boîte et dossier : bouton d’état `StateButton` « Traité » (`MAIL_DONE_STATES`, taille `md`), menu « Drapeaux » (drapeaux non archivés, plus ceux déjà posés ; « Gérer les drapeaux… »), spam / pas spam (pas spam quand tous sont dans le dossier des indésirables d’une seule boîte), « Déplacer vers… » (une seule boîte, sauf `noMove`). Utilisé par `MailReader`, `MailSelectionBar`.
 - `MailSelectionBar({ groups, done, labelIds, onGone, onClear, onManageLabels, noMove? })` : barre de la sélection : compte, `MailOrganizeActions`, lu / non lu, « Supprimer » (confirmation), « Désélectionner ». Utilisé par `MailPage`, `MailSearchList`.
 
 ### `components/MailReader.tsx`
@@ -267,6 +267,7 @@ Le glisser-déposer des mails et des dossiers repose sur les briques communes de
 | `addressLabel(address)`            | « Nom \<adresse\> » ou l’adresse seule.                                                      | `MailHeader`, `forwardOptions`.                              |
 | `accountLabel(account)`            | Une boîte affichée partout : « Nom \<adresse\> ».                              | Navigation, rédaction, formulaires ; `OverdueInvoicesPanel`. |
 | `senderName(addresses)`            | Nom, sinon adresse du premier ; « (inconnu) » sans adresse.                                  | `MailHeader`, `replyOptions`.                                |
+| `MAIL_DONE_STATES`                 | États « Traité » / « À traiter » des mails, « Marquer comme traité » / « Marquer comme à traiter » (`YesNoStates`). | `MailOrganizeActions`, `MailListItem`.                       |
 | `correspondent(mail, own)`         | « À : destinataire » pour un mail envoyé d’une adresse de l’utilisateur, sinon l’expéditeur. | `MailListItem`.                                              |
 | `listDate(iso)`                    | Heure aujourd’hui, jour court cette année, date complète avant.                              | `MailListItem`.                                              |
 | `escapeHtml(text)`                 | Échappe `&`, `<`, `>`, `"`.                                                                  | `compose-options`, `MailReader`, `document-pdf.tsx`.         |

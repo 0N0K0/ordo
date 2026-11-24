@@ -27,7 +27,7 @@ import { tableFilterFields } from '../../../components/data-table/table/table-en
 import { DayValue, FieldsFilterBuilder, type FilterFields } from '../../../components/filters/FilterBuilder';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FRENCH_NUMBER_FORMAT, optionalNumber } from '../../../components/inputs/number-format';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import type { TaskContext } from '../hooks/use-task-context';
 
@@ -138,7 +138,7 @@ interface TaskAutomationFieldsProps {
  * @returns {JSX.Element} Fields.
  */
 export function TaskAutomationFields({ values, errors, context, onChange }: TaskAutomationFieldsProps) {
-  const columns = useTaskColumns(context, localToday(), { doable: false });
+  const columns = useTaskColumns(context, parisToday(), { doable: false });
   const fields = tableFilterFields(columns.filter((column) => (TASK_AUTOMATION_FILTER_FIELDS as readonly string[]).includes(column.id)));
   const { trigger, actions } = values;
   const errorOf = (path: string) => (typeof errors[path] === 'string' ? (errors[path] as string) : undefined);

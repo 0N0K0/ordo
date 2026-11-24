@@ -13,11 +13,12 @@ import { Badge, Group, Stack, Text } from '@mantine/core';
 import { ArrowsClockwiseIcon, BellRingingIcon, BuildingsIcon, ColumnsIcon, FileTextIcon, FileZipIcon, PackageIcon, PaperPlaneTiltIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
+import { EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
+import { ChipChoiceCell } from '../../../components/data-table/cells/ChipChoiceCell';
 import { useSearchParams } from 'react-router';
-import { localToday, yearOfDay } from '../../../lib/dates';
+import { parisToday, yearOfDay } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import { CatalogPanel } from '../components/CatalogPanel';
 import { OverdueInvoicesPanel } from '../components/OverdueInvoicesPanel';
@@ -25,7 +26,7 @@ import { useOverdueInvoices } from '../api/tracking';
 import { useAccountingDocuments, useImportedDocuments, useRecurringInvoices, useRecurringMutations, type RecurringInvoice, type RecurringSettings } from '../api/documents';
 import { DocumentsTable } from '../components/DocumentsTable';
 import { DOCUMENT_TABS, documentsTableKey, EMPTY_DOCUMENTS } from '../lib/labels';
-import { RECURRING_COLUMNS, repetitionText } from '../lib/accounting-columns';
+import { RECURRING_COLUMNS, RECURRING_STATES, repetitionText } from '../lib/accounting-columns';
 import { AccountingColumnDefaults } from '../components/AccountingColumnDefaults';
 import { newDocumentMenu } from '../lib/new-document';
 import { DocumentsZipForm } from '../components/DocumentsZipForm';
@@ -139,15 +140,12 @@ function RecurringList() {
           repetition: <Text size="sm">{repetitionText(item) || '—'}</Text>,
           next: item.nextDate ? fmt.day(item.nextDate) : 'Terminée',
           state: (
-            <EditableSelect
+            <ChipChoiceCell
               value={item.active ? 'active' : 'paused'}
+              items={RECURRING_STATES}
               label={cellLabelOf('state', item, 'État')}
               readOnly={item.archived}
-              data={[
-                { value: 'active', label: 'Active' },
-                { value: 'paused', label: 'En pause' },
-              ]}
-              onSave={(state) => state && bulk('state')(item, { active: state === 'active' })}
+              onChoose={(state) => state && bulk('state')(item, { active: state === 'active' })}
             />
           ),
           issued: item.issuedCount,
@@ -183,7 +181,7 @@ export function AccountingPage() {
   const [tab, setTab] = usePageTab(PAGE_TABS, 'QUOTE', ACCOUNTING_MOVED_TABS);
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
-  const overdue = useOverdueInvoices(localToday());
+  const overdue = useOverdueInvoices(parisToday());
   const [settingsTab, setSettingsTab] = useSettingsTab(SETTINGS_TABS);
   // The former parameter of the tab of the settings (links, bookmarks): the one of every page.
   useEffect(() => {
@@ -194,7 +192,7 @@ export function AccountingPage() {
   // of every type and year.
   // Years of the documents, offered by the download of a period.
   const yearOf = (date: string) => String(yearOfDay(date));
-  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), yearOf(localToday())])]
+  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), yearOf(parisToday())])]
     .sort()
     .reverse();
   // Archived ones are not to do any more.

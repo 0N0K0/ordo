@@ -7,7 +7,7 @@ import { useLocalStorage } from '@mantine/hooks';
 import { addDays } from '@ordo/shared';
 import { useState } from 'react';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { RoutineDayAgenda, type AgendaLayers } from './RoutineDayAgenda';
 import { useRoutineDay } from '../hooks/use-routine-day';
 import { useAgendaLayerOptions } from '../hooks/use-agenda-layers';
@@ -26,7 +26,7 @@ import { archivedLabel } from '../../../lib/archive';
  * @returns {JSX.Element} History.
  */
 export function RoutineHistory({ routineId, onRoutine }: { routineId: string | null; onRoutine: (id: string | null) => void }) {
-  const today = localToday();
+  const today = parisToday();
   const [day, setDay] = useState(today);
   const { routines, byId, items, doneCount, loading } = useRoutineDay(day, routineId);
   // Slots and events shown with the routines, remembered.

@@ -2,7 +2,7 @@ import { NumberInput, Paper, Select, Stack, Text } from '@mantine/core';
 import { ClientSelect } from '../../projects/components/ClientSelect';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAsyncAction } from '../../../lib/use-async-action';
 
 import { useAccountingDocuments, useDocumentMutations, useImportedDocuments } from '../api/documents';
@@ -88,7 +88,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
     async () => {
       if (!selected) throw new Error('Choisissez un devis.');
       const { tag: kind, id } = parseTaggedKey(selected.value) ?? { tag: '', id: '' };
-      return createDeposit.mutateAsync({ quoteId: kind === 'ordo' ? id : null, importedQuoteId: kind === 'imported' ? id : null, percent: rate, issueDate: localToday() });
+      return createDeposit.mutateAsync({ quoteId: kind === 'ordo' ? id : null, importedQuoteId: kind === 'imported' ? id : null, percent: rate, issueDate: parisToday() });
     },
     {
       fallback: 'Création impossible.',

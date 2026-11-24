@@ -1,8 +1,9 @@
 import { copyName } from '../../../lib/text';
 import { useSetParams, useSearchParam } from '../../../lib/search-params';
 import { byPosition } from '@ordo/shared';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { onMutationError, ON_ERROR } from '../../../lib/notify';
+import { ArrowClockwiseIcon } from '@phosphor-icons/react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { notifyFailure, onMutationError, ON_ERROR } from '../../../lib/notify';
 import { useTaskViewMutations, useTaskViews, type TaskViewRecord, type ViewKind } from './api';
 
 /** Saved view with its configuration parsed. */
@@ -77,8 +78,9 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
   const [requestedId] = useSearchParam(param);
   const setParams = useSetParams();
   const [drafts, setDrafts] = useState<Record<string, C>>({});
-  // Scope whose first views were asked for: asked once only, even when it fails (no retry loop).
-  const created = useRef<string | null>(null);
+  // Scope whose first views were asked for, and when that failed: asked again only on a later read of the views (a
+  // visit, a reload) or by « Réessayer », never in a loop.
+  const created = useRef<{ scope: string; failedAt?: number } | null>(null);
 
   const views: SavedView<C>[] = useMemo(() => [...(viewsQuery.data ?? [])].sort(byPosition).map((view) => ({ ...view, config: parse(view.config) })), [viewsQuery.data, parse]);
 
@@ -88,14 +90,35 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
 
   // The first visit makes the first views so there is always a tab (one after the other: in their order).
   const createAsync = mutations.create.mutateAsync;
+  const scope = `${kind}:${tableKey ?? ''}:${projectId ?? ''}`;
+  /**
+   * Makes the first views of the scope; failed, an error toast offers « Réessayer » (it stays until closed).
+   * @returns {void}
+   */
+  const createFirst = useCallback(() => {
+    /**
+     * One attempt (« Réessayer » makes another).
+     * @returns {void}
+     */
+    const attempt = (): void => {
+      const asked: { scope: string; failedAt?: number } = { scope };
+      created.current = asked;
+      void (async () => {
+        for (const view of first()) await createAsync({ label: view.label, config: view.config, projectId, kind, tableKey });
+      })().catch((error: unknown) => {
+        // After the views were read again following the failure (the mutation refreshes them before it fails).
+        asked.failedAt = Date.now();
+        notifyFailure(error, undefined, [{ label: 'Réessayer', icon: createElement(ArrowClockwiseIcon, { 'aria-hidden': true }), onClick: attempt }]);
+      });
+    };
+    attempt();
+  }, [scope, first, createAsync, projectId, kind, tableKey]);
   useEffect(() => {
-    const scope = `${kind}:${tableKey ?? ''}:${projectId ?? ''}`;
-    if (!viewsQuery.isSuccess || !ready || views.length > 0 || created.current === scope) return;
-    created.current = scope;
-    void (async () => {
-      for (const view of first()) await createAsync({ label: view.label, config: view.config, projectId, kind, tableKey });
-    })().catch(onMutationError);
-  }, [viewsQuery.isSuccess, ready, views.length, createAsync, projectId, kind, tableKey, first]);
+    if (!viewsQuery.isSuccess || !ready || views.length > 0) return;
+    const asked = created.current;
+    if (asked?.scope === scope && (asked.failedAt === undefined || viewsQuery.dataUpdatedAt <= asked.failedAt)) return;
+    createFirst();
+  }, [viewsQuery.isSuccess, viewsQuery.dataUpdatedAt, ready, views.length, scope, createFirst]);
 
   /**
    * Selects a view (kept in the URL).

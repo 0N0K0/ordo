@@ -527,7 +527,7 @@ input CalendarEventInput {
   relationIds: [ID!]
 
   """
-  Minutes before the start (24 hours at most) or a time of its first day, 10 at most.
+  Minutes before its start or its end (24 hours at most), a time of its first (or last) day, or that time 1 to 30 days before; each with its ringtone or none; 10 at most.
   """
   reminders: [ReminderInput!]!
 
@@ -596,7 +596,7 @@ type CalendarEventOccurrence {
   relationIds: [ID!]!
 
   """
-  Minutes before the start (all day: Paris midnight of its first day), or a time of its first day.
+  Minutes before its start or its end (all day: Paris midnight of its first day, or after its last day), a time of its first (or last) day, or that time 1 to 30 days before.
   """
   reminders: [Reminder!]!
 
@@ -605,6 +605,11 @@ type CalendarEventOccurrence {
 
   """Saved timers launched from the event (its whole series)."""
   savedCountdownIds: [ID!]!
+
+  """
+  Changed on its own: its fields as its series has them on its date (what « Toutes les occurrences » and « Celle-ci et les suivantes » edit); else null.
+  """
+  series: CalendarEventSeriesFields
   seriesStartDate: String!
   start: DateTime!
   startDate: String!
@@ -626,6 +631,29 @@ enum CalendarEventScope {
   ALL
   FOLLOWING
   THIS
+}
+
+"""
+Fields of an occurrence changed on its own as its series has them on its date.
+"""
+type CalendarEventSeriesFields {
+  allDay: Boolean!
+  description: String
+  endDate: String!
+  endTime: String
+  label: String!
+  links: [ItemLink!]!
+  location: String
+  locationLat: Float
+  locationLon: Float
+  startDate: String!
+  startTime: String
+
+  """Travel time back, in minutes."""
+  travelAfter: Int!
+
+  """Travel time there, in minutes."""
+  travelBefore: Int!
 }
 
 """Event (and occurrence) a postponement replaces."""
@@ -1275,15 +1303,25 @@ enum DocumentStatusScope {
 
 """Occurrence of a routine (its day) an event is about."""
 type EventRoutineLink {
-  """YYYY-MM-DD."""
+  """
+  Day that identifies the occurrence (YYYY-MM-DD): its due day, or the day of its rule when moved onto a day that has its own and kept apart.
+  """
   date: String!
   routineId: ID!
+
+  """Day the occurrence shows on (a day of the event; YYYY-MM-DD)."""
+  shownDate: String!
 }
 
 input EventRoutineLinkInput {
-  """YYYY-MM-DD, a day of the occurrence."""
+  """Day that identifies the occurrence of the routine (YYYY-MM-DD)."""
   date: String!
   routineId: ID!
+
+  """
+  Moved with the event: the day it shows on now (YYYY-MM-DD); the occurrence of that routine shown that day is linked, none there: the link is dropped.
+  """
+  shownDate: String
 }
 
 """
@@ -2016,7 +2054,7 @@ type Mutation {
   """
   Moves the tasks and their sub-tasks to another project, or out of any (projectId null).
   """
-  bulkTransferTasks(ids: [ID!]!, projectId: ID): RemovedLinksResult!
+  bulkTransferTasks(ids: [ID!]!, projectId: ID): TaskTransferResult!
 
   """
   Applies the same changes to several routines; those moved to another project tree lose their links out of it (told back).
@@ -2051,7 +2089,7 @@ type Mutation {
   changePassword(currentPassword: String!, password: String!): Boolean!
 
   """
-  Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all.
+  Changes the day and the times of one time of the day of an occurrence (date: the day that identifies it): this one (an exception), it and the following ones, or all. This one onto a day that has its own occurrence: sameDay. Returns the day that identifies it now.
   """
   changeRoutineOccurrence(
     """
@@ -2062,10 +2100,15 @@ type Mutation {
     dueTime: String
     fromTime: String
     id: ID!
+
+    """
+    Onto a day that has its own occurrence: KEEP_BOTH or MERGE; omitted there: CONFIRMATION_REQUIRED, extension lost.merge (the day), nothing changes.
+    """
+    sameDay: RoutineSameDayChoice
     scope: CalendarEventScope!
     slot: Int!
     to: Date!
-  ): Boolean!
+  ): Date!
   changeUsername(currentPassword: String!, username: String!): User!
 
   """Works without a session: the link may be opened on another device."""
@@ -2438,9 +2481,19 @@ type Mutation {
   moveRoutineCategory(id: ID!, index: Int, parentId: ID): Boolean!
 
   """
-  Moves an occurrence to another day (postponed or brought forward) and / or other times ([{ fromTime, dueTime } | null] by time of the day, null: those of its rule; none: those it had); back to its own day and times, the exception is removed.
+  Moves an occurrence (date: the day that identifies it) to another day (postponed or brought forward) and / or other times ([{ fromTime, dueTime } | null] by time of the day, null: those of its rule; none: those it had); back to its own day and times, the exception is removed. Returns the day that identifies it now (its new day, or the day of its rule when kept apart).
   """
-  moveRoutineOccurrence(date: Date!, id: ID!, times: JSON, to: Date!): Boolean!
+  moveRoutineOccurrence(
+    date: Date!
+    id: ID!
+
+    """
+    Onto a day that has its own occurrence: KEEP_BOTH or MERGE; omitted there: CONFIRMATION_REQUIRED, extension lost.merge (the day), nothing changes.
+    """
+    sameDay: RoutineSameDayChoice
+    times: JSON
+    to: Date!
+  ): Date!
 
   """
   Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
@@ -2503,13 +2556,18 @@ type Mutation {
   removePushSubscription(id: ID!): Boolean!
 
   """
-  Removes an exception: the occurrence goes back to its own day; after its deletion (undo), with the comments deleted with it.
+  Removes an exception: the occurrence goes back to its own day; after its deletion (undo), with the comments deleted with it; undoing a cancel or a merge (undo), as it was before.
   """
   removeRoutineMove(
     """Comments deleted with the occurrence, given back on it."""
     comments: [CommentSnapshotInput!]
     from: Date!
     id: ID!
+
+    """
+    Undo of a cancel or a merge: the occurrence comes back with the exception it had before (moved, kept apart, other times).
+    """
+    undo: Boolean
   ): Boolean!
   removeSheetFromShoppingList(listId: ID!, sheetId: ID!): Boolean!
   removeSignedQuote(id: ID!): Boolean!
@@ -2766,7 +2824,14 @@ type Mutation {
   """
   Closes tasks as done (reason omitted) or as cancelled (NOT_PLANNED), or reopens them; a closed task no longer blocks other tasks. A task already closed keeps its closing date and takes the new reason.
   """
-  setTasksClosed(closed: Boolean!, ids: [ID!]!, reason: TaskCloseReason): Boolean!
+  setTasksClosed(
+    closed: Boolean!
+    ids: [ID!]!
+    reason: TaskCloseReason
+
+    """Undo: tasks archived since are accepted (only that check is skipped)."""
+    restoring: Boolean
+  ): Boolean!
 
   """Pauses or resumes a running timer."""
   setTimerPaused(id: ID!, paused: Boolean!): TimeEntry!
@@ -2807,11 +2872,13 @@ type Mutation {
   """« Arrêter »: the ring is stopped for good, in every tab and device."""
   stopAlarmRing(key: String!): Boolean!
 
-  """« Arrêter tout »: stops every running timer (their time saved)."""
+  """
+  « Arrêter tout »: stops every running timer (their time saved); returns only those this call stopped.
+  """
   stopAllTimers: [TimeEntry!]!
 
   """
-  Stops a running timer (its time saved); null when it no longer runs. The others keep running.
+  Stops a running timer (its time saved); null when it no longer runs or was stopped elsewhere meanwhile. The others keep running.
   """
   stopTimer(id: ID!): TimeEntry
 
@@ -2838,6 +2905,11 @@ type Mutation {
   Moves a chart to another dashboard (or to the first one of a project, created if needed); returns that dashboard.
   """
   transferDashboardChart(dashboardId: ID, id: ID!, projectId: ID): ID!
+
+  """
+  Undo of a transfer, in one transaction (all or nothing): the tasks go back to their project group after group (archived tasks and projects accepted), then the links it removed (its lost result) come back. Archived values are accepted; tasks deleted since are passed over.
+  """
+  undoTaskTransfer(links: JSON!, moves: [TaskProjectMoveInput!]!): Boolean!
   unlinkGithubProject(projectId: ID!): Boolean!
   unlinkMail(id: ID!): Boolean!
 
@@ -2907,7 +2979,7 @@ type Mutation {
     input: RoutineInput!
 
     """
-    Undo: archived values given back are accepted (only that check is skipped).
+    Undo: archived values and hourless « avant » reminders given back are accepted, links out of the tree it moves back to are dropped; every other check is made.
     """
     restoring: Boolean
   ): RemovedLinksResult!
@@ -2937,7 +3009,15 @@ type Mutation {
   updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateStockItem(id: ID!, input: StockItemInput!): Boolean!
   updateStockLocation(id: ID!, input: StockLocationInput!): Boolean!
-  updateTask(id: ID!, input: TaskUpdateInput!): Task!
+  updateTask(
+    id: ID!
+    input: TaskUpdateInput!
+
+    """
+    Undo: archived values given back are accepted (only that check is skipped).
+    """
+    restoring: Boolean
+  ): Task!
   updateTaskAutomation(id: ID!, input: TaskAutomationPatch!): TaskAutomation!
   updateTaskComment(body: String!, id: ID!): TaskComment!
   updateTaskPriority(id: ID!, input: TaskLabelUpdateInput!): TaskPriority!
@@ -3274,9 +3354,9 @@ type Query {
   defaultScheduleKind: DefaultScheduleKind!
 
   """
-  Open tasks and whether they can be done now: opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.
+  Open tasks and whether they can be done now (Paris time): opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.
   """
-  doableTasks(utcOffset: Int!): [TaskDoability!]!
+  doableTasks(utcOffset: Int @deprecated(reason: "Ignored: doability is read in Paris time.")): [TaskDoability!]!
   documentFolders: [DocumentFolder!]!
 
   """
@@ -3450,7 +3530,7 @@ type Query {
   routines: [Routine!]!
 
   """
-  Running timers of the workspace (several at once), the first started first.
+  Running timers of the workspace (several at once), the first started first; those past their 24 hours are stopped first.
   """
   runningTimeEntries: [TimeEntry!]!
 
@@ -3558,7 +3638,7 @@ type Query {
   tasks: [Task!]!
 
   """
-  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.
+  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since). Timers past their 24 hours are stopped first.
   """
   timeEntries(projectId: ID, routineId: ID, since: DateTime): [TimeEntry!]!
 
@@ -3748,9 +3828,14 @@ type Routine {
   categoryIds: [ID!]!
 
   """
-  Current occurrence: the last one on or before today (null before the start or after the end).
+  Current occurrence, by the day that identifies it (its due day, or the day of its rule when moved and kept apart): the last one on or before today (null before the start or after the end); two due the same day, the first not done yet.
   """
   currentDate: Date
+
+  """
+  Due day of the current occurrence (currentDate unless moved and kept apart).
+  """
+  currentDueDate: Date
 
   """« Temps morts »: waits a timer is launched for from an occurrence."""
   deadTimes: [DeadTime!]!
@@ -3803,12 +3888,15 @@ type Routine {
   moments: JSON!
 
   """
-  Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times }] (YYYY-MM-DD), by day of the rule.
+  Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart?, merged?, mergedRows?, previous? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from); merged: merged into the occurrence of that day (no longer one of its own; mergedRows: the rows it brought); previous: cancelled or merged, the exception it had before, given back when that is undone.
   """
   moves: JSON!
 
-  """First occurrence after today."""
+  """First occurrence after today, by the day that identifies it."""
   nextDate: Date
+
+  """Due day of the next occurrence (nextDate unless moved and kept apart)."""
+  nextDueDate: Date
 
   """
   « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.
@@ -4126,8 +4214,13 @@ type RoutineOccurrence {
   """
   cancelled: Boolean!
 
-  """Due day (its last day)."""
+  """
+  Day that identifies it (its ticks, comments, checklist, links with events, the changes of it): its due day, or the day of its rule when moved onto a day that has its own and kept apart.
+  """
   date: Date!
+
+  """Due day (its last day)."""
+  dueDate: Date!
 
   """Day of the rule it was moved from (an exception)."""
   movedFrom: Date
@@ -4234,13 +4327,18 @@ input RoutinePatch {
 
 """Occurrence of a routine its reminders ring for (Paris time)."""
 type RoutineReminderOccurrence {
-  """Due day of the occurrence."""
+  """
+  Day that identifies the occurrence: its due day, or the day of its rule when moved and kept apart.
+  """
   date: Date!
 
   """
   Its first day (« Ouverture »): the day of its reminders « À HH:MM » (the due day `date`: those from the end).
   """
   day: Date!
+
+  """Due day of the occurrence."""
+  dueDate: Date!
 
   """
   Its times of the day not ticked, with their hours (the moments its reminders « N min avant » count from: `routineSlotAnchors`).
@@ -4257,6 +4355,19 @@ type RoutineReminderSlot {
 
   """Index of its time of the day."""
   slot: Int!
+}
+
+"""
+An occurrence moved onto a day that has its own: both kept apart (the moved one keeps the day of its rule as its identity), or merged into one.
+"""
+enum RoutineSameDayChoice {
+  """Both kept, apart."""
+  KEEP_BOTH
+
+  """
+  Merged into the occurrence of that day, with the ticks and comments of both.
+  """
+  MERGE
 }
 
 """Time of the day of an occurrence of a routine."""
@@ -5436,6 +5547,14 @@ type TaskPriority {
   position: Int!
 }
 
+"""Tasks put back in a project by the undo of a transfer."""
+input TaskProjectMoveInput {
+  ids: [ID!]!
+
+  """Project (null: out of any project)."""
+  projectId: ID
+}
+
 type TaskStatus {
   """Archived: hidden by default, read only."""
   archived: Boolean!
@@ -5469,6 +5588,19 @@ type TaskTag {
   id: ID!
   label: String!
   position: Int!
+}
+
+"""
+Outcome of a transfer of tasks: the links removed because they left the project tree.
+"""
+type TaskTransferResult {
+  """
+  { blocks, relations, parents, milestones, sprints, resources, projects, inheritedProjects }: the links removed, the sub-tasks in another project than their parent and the tasks that stopped inheriting their project, as undoTaskTransfer takes them back.
+  """
+  lost: JSON!
+
+  """Links removed because they left the project tree."""
+  removedLinks: Int!
 }
 
 type TaskType {

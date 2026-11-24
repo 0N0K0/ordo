@@ -1,7 +1,7 @@
 import { Fieldset, Stack, Switch, TextInput } from '@mantine/core';
 import { DateField } from '../../../components/inputs/DateField';
 import { DEFAULT_RECURRENCE, recurrenceSchema, recurringInvoiceSchema, type Recurrence } from '@ordo/shared';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { formCallbacks, useAppForm, useFieldSave } from '../../../lib/form';
 import { useRecurringInvoices, useRecurringMutations, type RecurringInvoice } from '../api/documents';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
@@ -39,7 +39,7 @@ const recurringValues = (recurring?: RecurringInvoice): RecurringValues => {
   const stored = recurring ? recurrenceSchema.safeParse(recurring.recurrence) : null;
   return {
     label: recurring?.label ?? '',
-    startDate: recurring ? recurring.startDate : localToday(),
+    startDate: recurring ? recurring.startDate : parisToday(),
     recurrence: stored?.success ? stored.data : { ...DEFAULT_RECURRENCE, frequency: 'MONTHLY' },
     autoFinalize: recurring?.autoFinalize ?? false,
     active: recurring?.active ?? true,

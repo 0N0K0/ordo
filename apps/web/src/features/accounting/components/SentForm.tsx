@@ -2,7 +2,7 @@ import { Select, Stack } from '@mantine/core';
 import { DateField } from '../../../components/inputs/DateField';
 import { SENDING_CHANNEL_LABELS, SENDING_CHANNELS, type SendingChannel } from '@ordo/shared';
 import { useState } from 'react';
-import { localDay, localToday } from '../../../lib/dates';
+import { parisDay, parisToday } from '../../../lib/dates';
 import { useAsyncAction } from '../../../lib/use-async-action';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -22,8 +22,8 @@ interface SentFormProps {
  * @returns {JSX.Element} Form.
  */
 export function SentForm({ sentAt, sentVia, onSubmit, onDone }: SentFormProps) {
-  const today = localToday();
-  const [date, setDate] = useState<string | null>(sentAt ? localDay(sentAt) : today);
+  const today = parisToday();
+  const [date, setDate] = useState<string | null>(sentAt ? parisDay(sentAt) : today);
   const [via, setVia] = useState<SendingChannel>((SENDING_CHANNELS as readonly string[]).includes(sentVia ?? '') ? (sentVia as SendingChannel) : 'CHORUS');
   const { run: save, loading: saving } = useAsyncAction(
     async () => {

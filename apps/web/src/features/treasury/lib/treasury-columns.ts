@@ -1,13 +1,15 @@
 import { EVERYDAY_CONTEXT } from '@ordo/shared';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { LATE_GROUP_LABELS, multiValues, WARNING_YES_ICONS, type DataColumn } from '../../../components/data-table/table/data-table';
+import { LATE_GROUP_LABELS, multiValues, WARNING_YES_ICONS, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
 import { itemChoices } from '../../../components/items/item-look';
 import { signedText } from '../../../components/money/signed-text';
 import { memberOrRelationKey, personKey, ME_KEY } from '../../../components/people/people-keys';
 import { meName, personName, type RelationWords } from '../../../components/people/people-options';
 import * as fmt from '../../../lib/format';
 import { taggedKey } from '../../../lib/tagged-key';
+import { IMPORTED_LOOK } from '../../accounting/lib/labels';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { ForecastEntry, ProjectionItem, TreasuryEntry } from '../api';
 import { categoryChoices } from './categories';
@@ -15,15 +17,32 @@ import { entryFieldColumns } from './entry-columns';
 import type { AnyEntry, EntryEnv } from './entry-env';
 import type { LineValues } from './lines';
 
-/** Origin of a row of the forecast: its name and color. */
-export const FORECAST_KINDS: Record<string, { label: string; color: string }> = {
-  FORECAST: { label: 'Prévision', color: 'grape' },
-  ACTUAL: { label: 'À venir', color: 'gray' },
-  INVOICE: { label: 'Facture', color: 'blue' },
-  CREDIT_NOTE: { label: 'Avoir', color: 'orange' },
-  IMPORTED: { label: 'Importé', color: 'cyan' },
-  RECURRING_INVOICE: { label: 'Récurrente', color: 'teal' },
+
+/** States of « Prêt » of a line, in its column and on its state buttons: an advance (a warning) or final. */
+export const LOAN_STATES: YesNoStates = {
+  labels: { yes: 'Avancé', no: 'Définitif' },
+  icons: WARNING_YES_ICONS,
+  toggleLabels: { yes: 'Marquer comme prêt (avancé)', no: 'Marquer comme définitif' },
 };
+/** Origin of a row of the forecast. */
+type ForecastOrigin = 'FORECAST' | 'ACTUAL' | 'INVOICE' | 'CREDIT_NOTE' | 'IMPORTED' | 'RECURRING_INVOICE';
+
+/** Origins of a row of the forecast, in their order, with their name and badge colour; an imported document as in the documents. */
+const FORECAST_ORIGINS: ColumnState<ForecastOrigin>[] = [
+  { id: 'FORECAST', label: 'Prévision', color: 'grape' },
+  { id: 'ACTUAL', label: 'À venir', color: 'gray' },
+  { id: 'INVOICE', label: 'Facture', color: 'blue' },
+  { id: 'CREDIT_NOTE', label: 'Avoir', color: 'orange' },
+  { id: 'IMPORTED', ...IMPORTED_LOOK },
+  { id: 'RECURRING_INVOICE', label: 'Récurrente', color: 'teal' },
+];
+
+/**
+ * Origin of an expected movement: its kind, a forecast when unknown.
+ * @param {ProjectionItem} item Expected movement.
+ * @returns {ForecastOrigin} Origin.
+ */
+const forecastOrigin = (item: ProjectionItem): ForecastOrigin => FORECAST_ORIGINS.find(({ id }) => id === item.kind)?.id ?? 'FORECAST';
 
 /** Row of the forecast: an expected movement, at its place. */
 export type ForecastRow = { item: ProjectionItem; index: number };
@@ -49,20 +68,7 @@ export function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | u
       filter: { kind: 'date', value: ({ item }) => item.date },
     },
     { id: 'label', label: 'Libellé', size: 320, locked: true, required: true, bulk: true, sortValue: ({ item }) => item.label, text: ({ item }) => item.label },
-    {
-      id: 'origin',
-      label: 'Origine',
-      size: 130,
-      required: true,
-      sortValue: ({ item }) => (FORECAST_KINDS[item.kind] ?? FORECAST_KINDS.FORECAST).label,
-      text: ({ item }) => (FORECAST_KINDS[item.kind] ?? FORECAST_KINDS.FORECAST).label,
-      filter: {
-        kind: 'choice',
-        value: ({ item }) => (item.kind in FORECAST_KINDS ? item.kind : 'FORECAST'),
-        options: Object.entries(FORECAST_KINDS).map(([value, kind]) => ({ value, label: kind.label })),
-      },
-      groupable: true,
-    },
+    stateColumn<ForecastRow, ForecastOrigin>({ id: 'origin', label: 'Origine', size: 130, required: true, states: FORECAST_ORIGINS, value: ({ item }) => forecastOrigin(item), groupable: true }),
     booleanColumn<ForecastRow>({ id: 'overdue', label: 'En retard', size: 110, hiddenByDefault: true, groupable: true, groupLabels: LATE_GROUP_LABELS, icons: WARNING_YES_ICONS, value: ({ item }) => Boolean(item.overdue) }),
     ...entryFieldColumns<ForecastRow>(entryOf, env, { payerName: ({ item }) => item.payerName ?? '', recurrence: true }),
     {
@@ -235,7 +241,7 @@ export function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       text: (row) => signedText(row.amount),
       filter: { kind: 'number', value: (row) => row.amount },
     },
-    booleanColumn<LineRow>({ id: 'loan', bulk: true, label: 'Prêt', size: 80, groupLabels: { yes: 'Avancé', no: 'Définitif' }, icons: WARNING_YES_ICONS, value: (row) => row.line.loan }),
+    booleanColumn<LineRow>({ id: 'loan', bulk: true, label: 'Prêt', size: 80, states: LOAN_STATES, value: (row) => row.line.loan }),
     {
       id: 'date',
       bulk: true,

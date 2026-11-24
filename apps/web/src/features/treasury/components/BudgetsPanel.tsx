@@ -20,7 +20,7 @@ import { bulkCellLabels, bulkSaver } from '../../../components/data-table/select
 import { EditableNumber, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { localToday, monthOfDay } from '../../../lib/dates';
+import { parisToday, monthOfDay } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR } from '../../../lib/notify';
@@ -154,7 +154,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
   const categories = settings?.treasuryCategories ?? [];
   const base = useAppForm<BudgetValues>({
     initialValues: {
-      month: budget?.month ?? monthOfDay(localToday()),
+      month: budget?.month ?? monthOfDay(parisToday()),
       memberId: budget?.memberId ?? null,
       relationId: budget?.relationId ?? null,
       contextId: budget?.contextId ?? null,
@@ -307,7 +307,7 @@ const NO_BUDGETS: TreasuryBudget[] = [];
  */
 export function BudgetsPanel() {
   const { perso } = useActiveWorkspace();
-  const [month, setMonth] = useState(() => monthOfDay(localToday()));
+  const [month, setMonth] = useState(() => monthOfDay(parisToday()));
   const { data, isPending } = useTreasuryBudgets(month, month);
   const { data: settings } = useTreasurySettings();
   const { remove, save } = useTreasuryBudgetMutations();

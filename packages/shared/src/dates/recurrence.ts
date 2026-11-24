@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { addDays, DAY_MS, formatDay, isoWeek, isoWeekday, monthOfYear, parseDay, weekdayOfDate, yearOfDay } from './days';
 import { daySchema } from './times';
 import { endAfter } from '../core/rules';
+import { groupBy } from '../core/collections';
 
 export const RECURRENCE_FREQUENCIES = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
 export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
@@ -149,6 +150,16 @@ export const recurrenceSchema = z
 export type Recurrence = z.infer<typeof recurrenceSchema>;
 
 /**
+ * Validated recurrence rule stored in JSON, or null (none, or invalid).
+ * @param {unknown} value JSON value.
+ * @returns {Recurrence | null} Rule.
+ */
+export function storedRecurrence(value: unknown): Recurrence | null {
+  const parsed = recurrenceSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
  * Whether the occurrences of a rule depend on the day it counts from: every n days / weeks / months / years (n > 1,
  * not the even or odd weeks), or a number of occurrences.
  * @param {Recurrence | null} rule Rule (none: a single occurrence).
@@ -280,6 +291,183 @@ export function occurrenceDates(rule: Recurrence, start: string, from: string, t
     if (date >= from) result.push(date);
   }
   return result;
+}
+
+/**
+ * Rule whose monthly and yearly values are those of a new day (its day of the month, weekday, position, month, week).
+ * @param {Recurrence} rule Rule.
+ * @param {string} to New day.
+ * @returns {Recurrence} Rule.
+ */
+export function ruleMovedTo(rule: Recurrence, to: string): Recurrence {
+  const day = dayOfMonthOf(to);
+  const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
+  const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
+  return { ...rule, monthDay: day, weekday: weekdayOfDate(to), position, month: monthOfYear(to), week: isoWeek(to) };
+}
+
+/**
+ * Weeks a weekday moves by when moved by a number of days (past Sunday: the next week; before Monday: the previous one).
+ * @param {number} weekday 1 (Monday) to 7 (Sunday).
+ * @param {number} days Days moved (negative: earlier).
+ * @returns {number} Weeks (negative: earlier).
+ */
+export const crossedWeeks = (weekday: number, days: number): number => Math.floor((weekday - 1 + days) / 7);
+
+/**
+ * Whether a weekly rule moved into another week by a number of weeks counts its weeks otherwise: an odd number of
+ * weeks for the even or odd weeks, a number that is not a multiple of n for every n weeks.
+ * @param {Recurrence} rule Rule.
+ * @param {number} weeks Weeks moved.
+ * @returns {boolean} Its weeks change.
+ */
+export const weeksChange = (rule: Recurrence, weeks: number): boolean =>
+  rule.frequency === 'WEEKLY' && (rule.weekParity ? Math.abs(weeks) % 2 === 1 : rule.interval > 1 && weeks % rule.interval !== 0);
+
+/** Rule of a piece of a repetition, with the day its rhythm counts from (none: that of the repetition, moved as much). */
+export interface RulePiece {
+  rule: Recurrence;
+  anchor: string | null;
+}
+
+/**
+ * Rule with its end, excluded dates and pauses moved by a number of days.
+ * @param {Recurrence} rule Rule.
+ * @param {number} days Days moved (negative: earlier).
+ * @returns {Recurrence} Rule.
+ */
+const shiftedDates = (rule: Recurrence, days: number): Recurrence => ({
+  ...rule,
+  until: rule.until && addDays(rule.until, days),
+  exceptions: rule.exceptions.map((day) => addDays(day, days)),
+  pauses: rule.pauses.map((pause) => ({ from: addDays(pause.from, days), to: addDays(pause.to, days) })),
+});
+
+/**
+ * Weekly rule kept to some of its weekdays, all moving into the same week, moved by a number of days: those weekdays
+ * turned, even or odd weeks swapped when they change week an odd number of times, and the day its rhythm counts from
+ * (every n weeks) moved with them: the first of those weekdays on its rhythm from the anchor, moved (its week goes with
+ * them). Its end, excluded dates and pauses are left as given.
+ * @param {Recurrence} rule Rule (its weeks before the move).
+ * @param {string | null} anchor Day its rhythm counts from before the move; null: not wanted (no anchor returned).
+ * @param {readonly number[]} weekdays Its weekdays that move (all of them, or the weekday of a rule without weekdays).
+ * @param {number} days Days moved (negative: earlier).
+ * @returns {RulePiece} Rule and the day its rhythm counts from after the move.
+ */
+export function movedWeekdays(rule: Recurrence, anchor: string | null, weekdays: readonly number[], days: number): RulePiece {
+  const crossed = weekdays.length ? crossedWeeks(weekdays[0], days) : Math.floor(days / 7);
+  const weekParity = rule.weekParity && Math.abs(crossed) % 2 === 1 ? (rule.weekParity === 'EVEN' ? 'ODD' : 'EVEN') : rule.weekParity;
+  const turned: Recurrence = {
+    ...rule,
+    weekParity,
+    weekdays: rule.weekdays.length ? weekdays.map((weekday) => ((((weekday - 1 + days) % 7) + 7) % 7) + 1).sort((a, b) => a - b) : [],
+  };
+  if (anchor === null) return { rule: turned, anchor: null };
+  const pattern: Recurrence = { ...rule, weekdays: weekdays.length ? [...weekdays] : rule.weekdays, until: null, count: null, exceptions: [], pauses: [] };
+  const first = occurrenceDates(pattern, anchor, anchor, addDays(anchor, 7 * rule.interval + 13))[0] ?? anchor;
+  return { rule: turned, anchor: addDays(first, days) };
+}
+
+/**
+ * Rule moved with its whole series by a number of days, so that it still falls on its days: its end, excluded dates
+ * and pauses, its weekdays, and its monthly and yearly values (those of its first occurrence, moved). Weekly, its days
+ * all change week together, or its weeks are not counted (every week): `shiftedRulePieces` splits the others.
+ * @param {Recurrence} rule Rule.
+ * @param {string | null} first First occurrence before the move (its monthly and yearly values, and the weekday of a
+ * weekly rule without weekdays); null: not looked for (daily rules and weekly ones with weekdays do not need it).
+ * @param {number} days Days moved (negative: earlier).
+ * @returns {Recurrence} Rule.
+ */
+function shiftedRecurrence(rule: Recurrence, first: string | null, days: number): Recurrence {
+  if (days === 0) return rule;
+  const moved = shiftedDates(rule, days);
+  if (rule.frequency === 'DAILY') return moved;
+  if (rule.frequency === 'WEEKLY') return movedWeekdays(moved, null, rule.weekdays.length ? rule.weekdays : first ? [weekdayOfDate(first)] : [], days).rule;
+  return first ? ruleMovedTo(moved, addDays(first, days)) : moved;
+}
+
+/**
+ * Rule of a repetition moved with its whole series by a number of days (`shiftedRecurrence`), as one piece or several:
+ * weekly with its weeks counted (every n weeks, even or odd weeks), the weekdays changing week apart from those that do
+ * not, each piece on its own weeks (`movedWeekdays`: its own even or odd weeks, its own day its rhythm counts from).
+ * Split, a number of occurrences becomes the day of the last one, moved, so that the pieces keep the same occurrences
+ * together.
+ * @param {Recurrence} rule Rule.
+ * @param {string | null} first First occurrence before the move (see `shiftedRecurrence`).
+ * @param {number} days Days moved (negative: earlier).
+ * @param {string} anchor Day its rhythm counts from before the move.
+ * @returns {RulePiece[]} Pieces (one or two); an anchor only when the rhythm needs one other than the former one moved.
+ */
+export function shiftedRulePieces(rule: Recurrence, first: string | null, days: number, anchor: string): RulePiece[] {
+  if (days === 0 || rule.frequency !== 'WEEKLY' || (rule.interval === 1 && !rule.weekParity)) return [{ rule: shiftedRecurrence(rule, first, days), anchor: null }];
+  const own = rule.weekdays.length ? rule.weekdays : [weekdayOfDate(first ?? anchor)];
+  const groups = [...groupBy(own, (weekday) => crossedWeeks(weekday, days)).values()];
+  let moved = shiftedDates(rule, days);
+  if (groups.length > 1 && rule.count !== null) {
+    const last = occurrenceDates(rule, anchor, anchor, addDays(anchor, 36_600)).at(-1);
+    if (last) moved = { ...moved, count: null, until: addDays(last, days) };
+  }
+  return groups.map((group) => movedWeekdays(moved, anchor, group, days));
+}
+
+/** A series of events once moved: its rule and its first day. */
+export interface MovedSeries {
+  rule: Recurrence;
+  start: string;
+}
+
+/**
+ * Series of events a series becomes once moved (`shiftedRulePieces`): one (from its first day, moved), or, weekly with its weeks counted and only
+ * some of its weekdays changing week, one per group of weekdays, each from its own first day.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start Day its rhythm counts from before the move (an occurrence).
+ * @param {string | null} first First occurrence before the move (see `shiftedRecurrence`).
+ * @param {number} days Days moved (negative: earlier).
+ * @returns {MovedSeries[]} Series, in order of their first day.
+ */
+function movedSeries(rule: Recurrence, start: string, first: string | null, days: number): MovedSeries[] {
+  const pieces = shiftedRulePieces(rule, first, days, start);
+  if (pieces.length === 1) return [{ rule: pieces[0].rule, start: addDays(start, days) }];
+  return pieces.map((piece) => ({ rule: piece.rule, start: piece.anchor ?? addDays(start, days) })).sort((a, b) => (a.start < b.start ? -1 : 1));
+}
+
+/**
+ * Series of the new part of a cut (« Celle-ci et les suivantes »): the rule given, moved from the occurrence by the
+ * days it moved (`movedSeries`, one series per group of weekdays changing week apart); its number of occurrences, when
+ * left as the series had it, reduced by those before the cut (one at least).
+ * @param {Recurrence} rule Rule given.
+ * @param {Recurrence} before Rule of the series before the cut.
+ * @param {string} seriesStart First day of the series.
+ * @param {string} date Occurrence the cut starts at.
+ * @param {number} days Days the occurrence moved.
+ * @returns {MovedSeries[]} New series.
+ */
+export function cutSeries(rule: Recurrence, before: Recurrence, seriesStart: string, date: string, days: number): MovedSeries[] {
+  const counted = rule.count === null || rule.count !== before.count ? rule : { ...rule, count: Math.max(1, rule.count - occurrencesBefore(before, seriesStart, date)) };
+  return movedSeries(counted, date, date, days);
+}
+
+/**
+ * Series a series moved by a number of days from its first date becomes (`movedSeries`, its first occurrence looked for
+ * over a year and a month).
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First date of the series before the move.
+ * @param {number} days Days moved (negative: earlier).
+ * @returns {MovedSeries[]} Series.
+ */
+export function shiftedSeries(rule: Recurrence, start: string, days: number): MovedSeries[] {
+  return movedSeries(rule, start, occurrenceDates(rule, start, start, addDays(start, 400))[0] ?? start, days);
+}
+
+/**
+ * The series, among those a series became, that holds a day: the one of its weekday (the first one when none holds it).
+ * @param {readonly MovedSeries[]} series Series (one at least).
+ * @param {string} day Day.
+ * @returns {MovedSeries} Series.
+ */
+export function seriesOn(series: readonly MovedSeries[], day: string): MovedSeries {
+  const weekday = weekdayOfDate(day);
+  return series.find((item) => item.rule.frequency === 'WEEKLY' && item.rule.weekdays.includes(weekday)) ?? series[0];
 }
 
 /**

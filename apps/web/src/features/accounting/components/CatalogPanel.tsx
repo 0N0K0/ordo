@@ -3,7 +3,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { Badge, Fieldset, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Fieldset, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
@@ -27,7 +27,10 @@ import { archiveItemsAction, deleteItemsAction, rowLabel, rowMenuEntry } from '.
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { vatRateOptions } from '../lib/labels';
-import { catalogColumns } from '../lib/accounting-columns';
+import { CATALOG_KINDS, catalogColumns } from '../lib/accounting-columns';
+import { ChipChoiceCell } from '../../../components/data-table/cells/ChipChoiceCell';
+import { stateOf } from '../../../components/data-table/table/state-column';
+import { ItemBadge } from '../../../components/items/ItemBadge';
 
 /** Values of the form of a catalogue item. */
 type CatalogValues = CatalogItemInput & Record<string, unknown>;
@@ -218,11 +221,7 @@ export function CatalogPanel() {
             <Group gap={6} wrap="nowrap">
               <EditableText value={item.label} label={cellLabelOf('label', item, 'Libellé')} strong readOnly={item.archived} onSave={(label) => label && bulk('label')(item, { label })} />
               {item.archived && <ArchivedBadge size="xs" />}
-              {item.kind === 'DISBURSEMENT' && (
-                <Badge size="xs" variant="light" color="grape" style={{ flex: 'none' }}>
-                  Débours
-                </Badge>
-              )}
+              {item.kind === 'DISBURSEMENT' && <ItemBadge size="xs" style={{ flex: 'none' }} item={stateOf(CATALOG_KINDS, 'DISBURSEMENT')} />}
             </Group>
             {item.description && (
               <Text size="xs" c="dimmed" lineClamp={1}>
@@ -232,15 +231,12 @@ export function CatalogPanel() {
           </>
         ),
         kind: (
-          <EditableSelect
-            value={item.kind}
+          <ChipChoiceCell
+            value={item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM'}
+            items={CATALOG_KINDS}
             label={cellLabelOf('kind', item, 'Nature')}
             readOnly={item.archived}
-            data={[
-              { value: 'ITEM', label: 'Prestation' },
-              { value: 'DISBURSEMENT', label: 'Débours' },
-            ]}
-            onSave={(kind) => kind && bulk('kind')(item, { kind: kind as CatalogItemInput['kind'] })}
+            onChoose={(kind) => kind && bulk('kind')(item, { kind: kind as CatalogItemInput['kind'] })}
           />
         ),
         unit: (

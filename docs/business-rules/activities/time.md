@@ -28,9 +28,9 @@ Source : `checkedSubjects` (`placeOf`, `assertProjectTree`, `assertActiveLinks`,
 
 - Un temps porte sur **plusieurs tâches, plusieurs routines et plusieurs évènements**, chacun une fois.
 - Un temps a **au moins un projet, une tâche, une routine ou un évènement** : sinon « Choisissez un projet, une tâche, une routine ou un évènement. » (sous `projectId`, `TIME_SUBJECT_REQUIRED`). Un temps sur un évènement, sur des tâches ou sur des routines n’a donc pas besoin de projet. Retirer le dernier d’un temps sans projet (formulaire, cellule, chrono) est refusé ainsi : le temps n’est pas supprimé.
-- Avec des routines et sans projet donné, le temps prend **le projet de sa première routine qui en a un** (éventuellement aucun). Routine inconnue : « Routine introuvable. ».
+- Avec des routines et sans projet donné, le temps prend **le projet de sa première routine qui en a un** (éventuellement aucun). Routine inconnue : « Routine introuvable. ». À la modification, seulement quand le projet ou les routines du temps sont changés : changer un autre champ (description, début, durée, tâches, évènements) d’un temps sans projet le laisse sans projet.
 - Projet inconnu : « Projet introuvable. ». Un projet archivé est refusé, sauf s’il est déjà celui du temps.
-- Tâches et routines : toutes doivent exister (« Tâche introuvable. », « Routine introuvable. ») et appartenir au projet **ou à l’un de ses sous-projets** : « Les tâches doivent appartenir au projet ou à ses sous-projets. », « Les routines doivent appartenir au projet ou à ses sous-projets. ». Celles sans projet vont avec n’importe quel projet.
+- Tâches et routines : toutes doivent exister (« Tâche introuvable. », « Routine introuvable. ») et appartenir au projet **ou à l’un de ses sous-projets** : « Les tâches doivent appartenir au projet ou à ses sous-projets. », « Les routines doivent appartenir au projet ou à ses sous-projets. ». Celles sans projet vont avec n’importe quel projet. À la modification d’un temps dont le projet ne change pas, seules les tâches et routines ajoutées sont vérifiées : celles qu’il avait déjà restent valides, même passées depuis dans un autre projet (comme pour l’archivage).
 - Sans projet : seules des tâches et des routines sans projet sont acceptées : « Choisissez d’abord le projet des tâches. », « Choisissez d’abord le projet des routines. ».
 - Routines, tâches et évènements **nouvellement** choisis ne doivent pas être archivés (« Élément archivé : restaurez-le pour le modifier. » sous le champ) ; ceux que le temps avait déjà restent valides.
 - Évènements : chacun doit exister (« Évènement introuvable. »). Pour un évènement récurrent, l’occurrence est requise : « Choisissez l’occurrence de l’évènement. ». Pour un évènement simple, la date d’occurrence est ignorée. Deux occurrences d’un même évènement récurrent peuvent être choisies.
@@ -68,15 +68,25 @@ Source : `setTimerPaused(id, paused)`.
 - Le chrono est désigné par son temps ; s’il ne tourne pas (arrêté, inconnu) : « Ce chrono ne tourne plus. ».
 - Demander l’état déjà en place ne fait rien.
 - Pause : `pausedAt` = maintenant. Reprise : la durée de la pause (en secondes entières) s’ajoute à `pausedSeconds`, `pausedAt` est vidé.
+- Écrit seulement si le chrono tourne encore tel qu’il a été lu : changé ailleurs entre-temps, il est relu ; arrêté entre-temps : « Ce chrono ne tourne plus. ». Un temps terminé ne garde jamais de pause.
 
 ### Arrêter
 
 Source : `stopTimer(id)`, `stopAllTimers` (« Arrêter tout »).
 
-- Le chrono est désigné par son temps ; s’il ne tourne plus : ne fait rien (renvoie `null`). Les autres continuent.
-- « Arrêter tout » arrête chacun des chronos en cours de l’espace (mêmes règles).
+- Le chrono est désigné par son temps ; s’il ne tourne plus, ou s’il est arrêté, mis en pause ou repris ailleurs pendant l’arrêt : ne fait rien (renvoie `null`). Les autres continuent.
+- « Arrêter tout » arrête chacun des chronos en cours de l’espace (mêmes règles) et ne renvoie que ceux qu’il a arrêtés.
 - Un chrono en pause s’arrête **au début de sa pause**.
-- Durée = (fin − début) en secondes entières − `pausedSeconds`, jamais négative.
+- Durée = (fin − début) en secondes entières − `pausedSeconds`, jamais négative, **24 heures au plus** : un chrono arrêté après avoir passé 24 heures (avant le passage de l’arrêt automatique) finit au moment où il les a atteintes, sa durée vaut 24 heures.
+
+### Arrêt après 24 heures
+
+Source : `capRunningTimers`, `scheduleTimerCap` (tâche de fond « Chronos de plus de 24 heures », voir [Tâches de fond](../cross-cutting/background-jobs.md)).
+
+- Un chrono qui a tourné **24 heures** (pauses déduites, `DURATION_MAX_SECONDS`, la durée maximale d’un temps) est **arrêté tout seul** par l’API, même app fermée : sa fin est posée au moment où il atteint 24 heures (début + pauses + 24 h), sa durée vaut 24 heures. Un chrono en pause avant d’atteindre 24 heures n’est pas arrêté (sa durée n’avance plus).
+- Vérifié toutes les 5 minutes dans chaque espace, et à chaque lecture des temps (`timeEntries`, `runningTimeEntries` arrêtent d’abord ceux qui ont passé 24 heures) : sa durée reste 24 heures.
+- Chaque chrono n’est écrit que s’il tourne encore tel qu’il a été lu (comme « Arrêter ») : un chrono arrêté, mis en pause, repris ou abandonné au même moment est laissé tel quel, les autres sont arrêtés.
+- L’app le montre au moment où il atteint 24 heures, sans attendre le retour du focus : elle recharge alors les temps (pastille, accueil, « Prévu et réalisé », journal) et les tâches ; le chrono disparaît des chronos en cours (rechargés aussi chaque minute) avec la notification « Chrono arrêté après 24 heures » (ce sur quoi il portait, « Sa durée est de 24 heures, le maximum d’un temps. ») ; pas pour un chrono arrêté, abandonné ou supprimé à la main dans l’onglet (son propre toast le dit, même s’il avait déjà passé 24 heures).
 
 ### Abandonner
 
@@ -102,8 +112,10 @@ Source : `updateTimeEntry`.
 - Refusée si le temps est sur une **facture validée** (voir plus bas).
 - Champ omis (ou `null` pour `taskIds`, `routineIds`, `events`) = inchangé ; une liste vide les retire tous.
 - Les tâches, routines et évènements donnés remplacent ceux du temps.
-- Chrono en cours : sa durée ne se modifie pas (« La durée d’un chrono en cours ne se modifie pas. ») et son début ne peut pas être dans le futur (« Le début ne peut pas être dans le futur. »). Il continue de tourner.
+- Chrono en cours : sa durée ne se modifie pas (« La durée d’un chrono en cours ne se modifie pas. ») et son début ne peut pas être dans le futur (« Le début ne peut pas être dans le futur. ») ; en pause, son début doit précéder la pause, ses pauses passées déduites (« Le début doit précéder la pause. »). Il continue de tourner.
 - Temps terminé : changer le début ou la durée recalcule la fin (début + durée).
+- Le jour d’un temps est celui de son début à l’heure de Paris, pour l’API comme pour l’app (les évènements et routines de son jour proposés, `parisDay`), quel que soit le fuseau du navigateur.
+- Début changé de jour (heure de Paris) sans que ses évènements soient donnés : le temps quitte les évènements qui ne sont pas ce jour-là (une occurrence d’un autre jour, un évènement unique qui ne couvre pas ce jour) ; ceux de ce jour restent. S’il n’a plus rien (sans projet, ni tâche, ni routine), le changement est refusé comme un retrait du dernier (« Choisissez un projet, une tâche, une routine ou un évènement. »).
 
 ## Suppression
 
@@ -137,7 +149,7 @@ Source : `assertNotInvoiced` (`time-entries.ts`), `assertBillableTime` (`account
 
 Source : requêtes `timeEntries`, `runningTimeEntries`.
 
-- `timeEntries(projectId?, routineId?, since?)` : les temps du projet **et de ses sous-projets**, ou ceux qui portent sur une routine, ou tous ; éventuellement depuis un moment ; du plus récent au plus ancien.
+- `timeEntries(projectId?, routineId?, since?)` : les temps du projet **et de ses sous-projets**, ou ceux qui portent sur une routine, ou tous ; avec `since`, ceux qui ne sont pas finis avant ce moment (commencés depuis, en cours, ou finis depuis : un chrono lancé la veille au soir compte) ; du plus récent au plus ancien. Les totaux par jour et par semaine de l’app comptent la part de chaque temps dans la période (`entrySecondsWithin`).
 - `lostOnDelete(taskIds?, routineIds?, withSubtree?, eventId?, scope?, occurrenceDate?, calendarId?, routineOccurrence?)` : `{ times, comments }`, ce qu’une suppression de tâches, de routines, d’occurrences d’une routine, d’un évènement ou d’un calendrier (tous ses évènements, `calendarEventsGone`) supprimera avec eux : les temps (voir plus haut) et les commentaires des routines, évènements et occurrences supprimés (`commentsLostOnDelete` ; les commentaires de tâche ne sont pas comptés).
 - `runningTimeEntries` : les chronos en cours, le premier démarré d’abord (liste vide : aucun).
 

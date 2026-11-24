@@ -142,13 +142,15 @@ export function notifyWarning(title: string, message: string): void {
 }
 
 /**
- * Shows an error toast that stays until closed.
+ * Shows an error toast that stays until closed, with its actions (« Réessayer »…), each closing it first.
  * @param {string} message Message to display.
+ * @param {NotifyAction[]} [actions] Actions. Optional. Default = none.
  * @returns {void}
  */
-export function notifyError(message: string): void {
+export function notifyError(message: string, actions: NotifyAction[] = []): void {
+  const id = `ordo-error-${(sequence += 1)}`;
   // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
-  notifications.show({ color: FEEDBACK_COLORS.error, icon: <ErrorFeedbackIcon />, title: 'Erreur', message, autoClose: false });
+  notifications.show({ id, color: FEEDBACK_COLORS.error, icon: <ErrorFeedbackIcon />, title: 'Erreur', message: actions.length ? toastBody(id, [message], actions) : message, autoClose: false });
 }
 
 /**
@@ -164,12 +166,19 @@ export const ON_ERROR: { onError: (error: Error) => void } = { onError: onMutati
 
 /**
  * Callbacks of a mutation without form: a toast once done, its error in an error toast.
- * @param {string | ((result: T) => string)} message Success message (« Alarme supprimée. »), or made from what the mutation returned.
+ * @param {string | ((result: T) => string | { info: string } | null)} message Success message (« Alarme supprimée. »), or made from what the mutation returned: `{ info }` when nothing was done but it is worth telling (an information toast: « Ce chrono était déjà arrêté. »), null when nothing is to tell (no toast).
  * @returns {{ onSuccess: (result: T) => void, onError: (error: Error) => void }} Callbacks.
  */
-export function toastCallbacks<T = unknown>(message: string | ((result: T) => string)): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
-  // eslint-disable-next-line no-restricted-syntax -- toastCallbacks itself.
-  return { onSuccess: (result) => notifySuccess(typeof message === 'string' ? message : message(result)), onError: onMutationError };
+export function toastCallbacks<T = unknown>(message: string | ((result: T) => string | { info: string } | null)): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
+  return {
+    onSuccess: (result) => {
+      const text = typeof message === 'string' ? message : message(result);
+      if (text === null) return;
+      if (typeof text === 'string') notifySuccess(text);
+      else notifyInfo({ title: text.info });
+    },
+    onError: onMutationError,
+  };
 }
 
 /** An action the user declined at its confirmation (« Annuler »): it stops there, without an error toast. */
@@ -193,14 +202,15 @@ const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
  * (`ActionDeclined`) too.
  * @param {unknown} error What was thrown.
  * @param {string} [fallback] Message when it has none. Optional. Default = « Une erreur inattendue est survenue. ».
+ * @param {NotifyAction[]} [actions] Actions of the toast (« Réessayer »…). Optional. Default = none.
  * @returns {void}
  */
-export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERROR): void {
+export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERROR, actions: NotifyAction[] = []): void {
   // eslint-disable-next-line no-restricted-syntax -- notifyFailure itself.
   if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') return;
   // Declined at its confirmation: nothing failed.
   if (error instanceof ActionDeclined) return;
-  notifyError(error instanceof Error && error.message ? error.message : fallback);
+  notifyError(error instanceof Error && error.message ? error.message : fallback, actions);
 }
 
 /**

@@ -6,7 +6,7 @@ import { Anchor, Select, Stack } from '@mantine/core';
 import { DateField } from '../../../components/inputs/DateField';
 import { documentPaymentSchema } from '@ordo/shared';
 import { Link } from 'react-router';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
 import { useTreasuryAccounts, useTreasurySettings, type TreasuryAccount, type TreasuryPaymentMethod } from '../../treasury/api';
@@ -66,7 +66,7 @@ function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsPro
   const form = useAppForm<PaymentValues>({
     initialValues: {
       accountId: open[0]?.id ?? '',
-      date: localToday(),
+      date: parisToday(),
       amount: document.balance ?? 0,
       // The first method named in the payment terms of the document.
       methodId: methods.find((method) => document.paymentMethods?.toLowerCase().includes(method.label.toLowerCase()))?.id ?? null,

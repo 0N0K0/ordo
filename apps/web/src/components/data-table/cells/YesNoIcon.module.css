@@ -1,0 +1,37 @@
+@layer app {
+  /* An icon of its own drawn white in a filled square or round (a cart): its box as large as the other icons. */
+  .badge {
+    /* Agencement */
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+
+    /* Dimension */
+    width: var(--yes-no-size);
+    height: var(--yes-no-size);
+  }
+
+  /* Its square or round, as large as those of the check and the cross. */
+  .disc {
+    /* Agencement */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Dimension */
+    width: 70%;
+    height: 70%;
+    border-radius: 12%;
+
+    /* Arrière-Plan */
+    background-color: var(--yes-no-color);
+
+    [data-shape='round'] > & {
+      /* Dimension */
+      width: 75%;
+      height: 75%;
+      border-radius: 50%;
+    }
+  }
+}

@@ -1,4 +1,13 @@
 import * as fmt from '../../../lib/format';
+import { parisDay, parisToday, yearOfDay } from '../../../lib/dates';
+import type { YesNoStates } from '../../../components/data-table/table/data-table';
+
+/** States of « Traité » of mails: on the state button of their toolbar, and the mark of a row of a list. */
+export const MAIL_DONE_STATES: YesNoStates = {
+  labels: { yes: 'Traité', no: 'À traiter' },
+  toggleLabels: { yes: 'Marquer comme traité', no: 'Marquer comme à traiter' },
+};
+
 /** Address of a mail, as returned by the API. */
 export interface Address {
   name?: string | null;
@@ -51,11 +60,11 @@ export function correspondent(mail: { from: Address[]; to: Address[] }, own: Rea
  * @returns {string} Label.
  */
 export function listDate(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  if (date.toDateString() === now.toDateString()) return fmt.time(date);
-  if (date.getFullYear() === now.getFullYear()) return fmt.dayShort(date);
-  return fmt.day(date);
+  const day = parisDay(iso);
+  const today = parisToday();
+  if (day === today) return fmt.time(iso);
+  if (yearOfDay(day) === yearOfDay(today)) return fmt.dayShort(iso);
+  return fmt.day(iso);
 }
 
 /**

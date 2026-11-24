@@ -4,7 +4,7 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { useTasksData } from '../api';
 import { useTaskLabelItems, useTaskStatusItems } from '../hooks/use-label-items';
 import { ColumnDefaults } from '../../../components/data-table/views/ColumnDefaults';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { useTaskContext } from '../hooks/use-task-context';
 import { LightningIcon } from '@phosphor-icons/react';
@@ -24,7 +24,7 @@ export function TaskSettings() {
   const tags = useTaskLabelItems('tag');
   const tasks = data?.tasks ?? [];
   const { context } = useTaskContext();
-  const columns = useTaskColumns(context, localToday(), { doable: false });
+  const columns = useTaskColumns(context, parisToday(), { doable: false });
 
   // In the settings sidebar: the sections one under the other, the whole width.
   return (

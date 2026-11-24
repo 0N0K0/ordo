@@ -7,6 +7,7 @@ import { archiveEdit } from '../../services/calendar/slot-conditions';
 import { settleScheduleChange } from '../../services/routines/routines';
 import { assertPeopleArchivable, LINKED_PEOPLE_KINDS, linkedPeople } from '../../services/people/contributor-links';
 import { automated } from '../../services/tasks/task-automation-engine';
+import { assertEventsArchivable } from '../../services/calendar/calendar-events';
 
 /** Kinds whose archive changes what tasks go by (the dates of a milestone, the sprints of today): through the rules of the tasks. */
 const TASK_FOLLOWED_KINDS = new Set<archive.ArchivableKind>(['MILESTONE', 'SPRINT']);
@@ -78,8 +79,11 @@ builder.mutationFields((t) => ({
           along: LINKED_PEOPLE_KINDS.has(kind) ? (found) => linkedPeople(kind, found) : undefined,
           settle: async (changing) => {
             await assertPeopleArchivable(changing, archived);
+            // The events of an archived calendar are read only.
+            await assertEventsArchivable(changing.CALENDAR_EVENT ?? []);
             const edit = archiveEdit(changing, archived);
-            if (edit) await settleScheduleChange(edit, confirmLoss ?? false);
+            // The comments of the occurrences lost go once the change is saved.
+            return edit ? settleScheduleChange(edit, confirmLoss ?? false) : undefined;
           },
         }),
       ),

@@ -92,11 +92,11 @@ Toasts (en haut à droite, `Notifications` de `main.tsx`) : une erreur reste jus
 - `closeToast(id)` : ferme un toast (une sonnerie arrêtée dans un autre onglet).
 - `notifySuccess(message)` : succès (4 s).
 - `notifyWarning(title, message)` : avertissement (8 s).
-- `notifyError(message)` : erreur, titre « Erreur », persistante.
+- `notifyError(message, actions?)` : erreur, titre « Erreur », persistante ; avec ses actions (`NotifyAction`, ex. « Réessayer »), chacune fermant le toast d'abord.
 - `onMutationError(error)` : le gestionnaire de tout `onError` (→ `notifyFailure`).
 - `ON_ERROR` : `{ onError: onMutationError }`, options d'une mutation sans toast de succès.
-- `toastCallbacks(message)` : `onSuccess` (toast) et `onError` d'une mutation sans formulaire.
-- `notifyFailure(error, fallback?)` : échec d'une action quelconque en toast d'erreur : son message, ou « Une erreur inattendue est survenue. » ; une session expirée (`UNAUTHENTICATED`) reste silencieuse (retour à la connexion), une action refusée à sa confirmation (`ActionDeclined`) aussi.
+- `toastCallbacks(message)` : `onSuccess` (toast) et `onError` d'une mutation sans formulaire ; `message` peut être fait du résultat de la mutation : `{ info }` pour un toast d'information quand rien n'a été fait mais que c'est à dire (« Ce chrono était déjà arrêté. »), `null` pour ne pas afficher de toast.
+- `notifyFailure(error, fallback?, actions?)` : échec d'une action quelconque en toast d'erreur : son message, ou « Une erreur inattendue est survenue. » ; une session expirée (`UNAUTHENTICATED`) reste silencieuse (retour à la connexion), une action refusée à sa confirmation (`ActionDeclined`) aussi.
 - `ActionDeclined` (classe) : erreur d'une action que l'utilisateur a refusée à sa confirmation (« Action annulée. ») ; elle s'arrête sans toast. Lancée par `withLossConfirmation`.
 - `notifyWithUndo(message, onUndo)` : succès avec bouton « Annuler » (8 s).
 - Interne : `toastBody` (lignes de texte et boutons `tertiary`).
@@ -124,7 +124,7 @@ Voir [Règles : archivage](../business-rules/cross-cutting/archiving.md).
 
 ## Formats (`format.ts`)
 
-Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme numérique seulement dans les exports. Les dates acceptent un jour calendaire (YYYY-MM-DD, affiché tel quel) ou un instant (affiché dans le fuseau de l'utilisateur). eslint interdit `Intl.*Format` avec options et `toLocale*String` ailleurs.
+Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme numérique seulement dans les exports. Les dates acceptent un jour calendaire (YYYY-MM-DD, affiché tel quel) ou un instant (affiché à l'heure de Paris, quel que soit le fuseau du navigateur). eslint interdit `Intl.*Format` avec options et `toLocale*String` ailleurs.
 
 | Fonction                       | Exemple                                 | Rôle                                                              |
 | ------------------------------ | --------------------------------------- | ----------------------------------------------------------------- |
@@ -162,14 +162,16 @@ Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme
 
 ### `dates.ts`
 
-- `localDay(instant)` : jour (YYYY-MM-DD) d'un instant dans le fuseau de l'utilisateur.
-- `dayOf(value)` : jour d'un jour (ou mois) tel quel, ou d'un instant dans le fuseau de l'utilisateur.
-- `localToday()` : jour courant de l'utilisateur (~50 fichiers).
-- `localParts(instant)` : `{ date: 'YYYY-MM-DD', time: 'HH:MM' }` locaux.
-- `localMidnight(day)` : minuit local d'un jour, en date-heure ISO.
-- Réexports de `@ordo/shared` (seul chemin autorisé par eslint) : `monthOfDay`, `yearOfDay`, `localInstant` (instant d'un jour et d'une heure de l'utilisateur, partagé avec les alarmes).
+Tout jour et toute heure du web sont ceux de Paris, comme l'API, quel que soit le fuseau du navigateur ; un jour `YYYY-MM-DD` (ou un mois `YYYY-MM`) est gardé tel quel.
 
-eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('…T00:00')` : utiliser ces aides. Voir [Dates](../business-rules/cross-cutting/dates.md).
+- `parisDay(value)` : jour à Paris d'un instant (date, texte ISO ou horodatage), un jour ou un mois tel quel : jour d'un temps, d'une ligne d'un tableau, filtres et groupes par date, colonne « Mois »…
+- `parisToday()` : aujourd'hui à Paris (`useToday()` de `use-now.ts` le suit au passage de minuit).
+- `parisParts(instant)` : `{ date: 'YYYY-MM-DD', time: 'HH:MM' }` à Paris d'un instant (date ou texte ISO).
+- `parisMidnight(day)` : minuit à Paris d'un jour, en date-heure ISO.
+- `localDay` : `parisDay` sous son ancien nom, lu seulement par la bibliothèque de documents (à réécrire) ; eslint l'interdit ailleurs.
+- Réexports de `@ordo/shared` (seul chemin autorisé par eslint) : `monthOfDay`, `yearOfDay`, `parisInstant` (instant d'un jour et d'une heure de Paris : saisie d'un temps, envoi programmé, coche après coup…).
+
+eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('…T00:00')`, l'import de `dayIn`, `timeIn`, `zonedInstant`, `parisInstant`, `parisParts` depuis `@ordo/shared`, et la lecture d'une `Date` dans le fuseau du navigateur (`get`/`set` `FullYear`, `Month`, `Date`, `Day`, `Hours`, `Minutes`, `Seconds`, `getTimezoneOffset`, `toDateString`, `toTimeString`, `new Date(année, mois, …)`, `dayjs()` sans argument ; règle `PARIS_TIME_RULES` de `packages/shared/eslint-rules.js`, commune au web, au paquet partagé et à l'API) : utiliser ces aides. Voir [Dates](../business-rules/cross-cutting/dates.md).
 
 ### `periods.ts`
 
@@ -188,6 +190,8 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 ### `use-now.ts`
 
 `useNow(active, everyMs = 1000)` : heure courante, rafraîchie à intervalle tant que `active` (juste après chaque changement de seconde, de minute… : une heure affichée à la minute n'est jamais en retard), figée sinon. Utilisé par l'horloge de l'en-tête, les chronos, les routines, l'agenda.
+
+`useToday()` : jour courant de l'utilisateur, qui change tout seul à minuit (vérifié chaque minute) : les pastilles du menu (`NavBadges`), l’accueil (`HomePage`) et « Prévu et réalisé » (`PlannedTime`) suivent le jour sans recharger ni naviguer.
 
 ## Sonneries (`alarm-sound.ts`)
 

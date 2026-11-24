@@ -102,11 +102,14 @@ export function withOwnMoves(routine: { inheritedFields: readonly string[] }, mo
  * Before routines lose their parent (made top-level, parent deleted): each field they inherit becomes their own, with
  * the value they went by (nothing changes for the user), and they inherit nothing more.
  * @param {readonly string[]} ids Routines.
- * @returns {Promise<void>}
+ * @returns {Promise<() => Promise<void>>} Puts their inherited lists back (the change that took their parent away failed).
  */
-export async function freezeRoutineInheritance(ids: readonly string[]): Promise<void> {
-  const inheriting = await prisma.routine.findMany({ where: { id: { in: [...ids] }, NOT: { inheritedFields: { isEmpty: true } } }, select: { id: true } });
-  if (!inheriting.length) return;
+export async function freezeRoutineInheritance(ids: readonly string[]): Promise<() => Promise<void>> {
+  const inheriting = await prisma.routine.findMany({ where: { id: { in: [...ids] }, NOT: { inheritedFields: { isEmpty: true } } }, select: { id: true, inheritedFields: true } });
+  const thaw = async () => {
+    await prisma.$transaction(inheriting.map((routine) => prisma.routine.update({ where: { id: routine.id }, data: { inheritedFields: routine.inheritedFields } })));
+  };
+  if (!inheriting.length) return thaw;
   const byId = await loadRoutineInheritance();
   const json = (value: unknown) => (value === null ? Prisma.DbNull : toJson(value));
   await prisma.$transaction(
@@ -134,6 +137,7 @@ export async function freezeRoutineInheritance(ids: readonly string[]): Promise<
       });
     }),
   );
+  return thaw;
 }
 
 /**

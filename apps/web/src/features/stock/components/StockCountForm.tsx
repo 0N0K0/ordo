@@ -12,6 +12,7 @@ import { useCountFormColumns } from '../hooks/use-stock-columns';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
+import { cellTextAlign } from '../../../components/data-table/cells/cell-field';
 import { unarchived } from '../../../lib/archive';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
@@ -58,6 +59,8 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
               min={0}
               allowNegative={false}
               hideControls
+              // At the end, as the quantities of its column.
+              styles={{ input: cellTextAlign('right') }}
               placeholder={fmt.quantity({ quantity: item.quantity })}
               value={counts.get(item.id) ?? ''}
               onChange={(value) =>

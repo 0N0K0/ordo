@@ -114,6 +114,7 @@ Colonnes des tableaux des fiches, chacune lue par son tableau et par `SheetsSett
 | `useSheetColumns(inProject)` | Colonnes des fiches (`sheets`) : `label`, `categories`, `project` (masquée par défaut dans un projet), `items`, `usedBy`, `updatedAt`. Utilisé par `SheetsTable`. |
 | `useSheetItemColumns(sheet)` | Colonnes des éléments d'une fiche (`sheet-items`) : élément, référence, catégorie, quantité, unité, consommable, colonnes des achats (`sheetShoppingColumns`), facultatif, description, commentaires (sans fiche : aucun compté). Utilisé par `SheetPage`. |
 | `useChecklistColumns(list)` | Colonnes d'une liste à cocher (`checklist`) : fait, élément, quantité, unité, catégorie, consommable, description, fiches. Utilisé par `ChecklistPanel`. |
+| `CHECKLIST_DONE_STATES` | États du bouton d'état « Fait » d'un élément : « Collecté » / « À collecter », « Marquer comme collecté » / « Marquer comme à collecter » (`YesNoStates`). Utilisé par `ChecklistPanel`. |
 
 Interne : `sheetColumns(context, categories, inProject)`.
 

@@ -22,7 +22,7 @@ import { memo, useCallback, useMemo, useRef, useState, type CSSProperties, type 
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { ColumnHeaderMenu, type ColumnMove } from '../toolbar/ColumnHeaderMenu';
-import { clampWidth, columnCell, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn, type TreeGroup } from './data-table';
+import { alignAttribute, clampWidth, columnAlign, columnCell, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ColumnAlign, type ShownColumn, type TreeGroup } from './data-table';
 import { columnFilter, LAST_RANK, NO_VALUE_LABEL } from './table-engine';
 import { DataViewBar, type DataViewBarProps } from '../toolbar/DataViewBar';
 import { GroupHeaderRow } from './GroupHeaderRow';
@@ -221,6 +221,13 @@ function getProjection(items: DragItem[], activeId: string, overId: string, offs
     return { min: Math.min(next?.depth ?? 0, max), max };
   });
 }
+
+/**
+ * Whether a row of data, in its groups, has sub-rows (a group heading alone does not count).
+ * @param {Item<R>[]} items Items.
+ * @returns {boolean} A row has sub-rows.
+ */
+const hasSubRows = <R,>(items: Item<R>[]): boolean => items.some((item) => (item.kind === 'row' && item.children.length > 0) || (item.kind === 'group' && hasSubRows(item.children)));
 
 /**
  * Rows as a tree: each under its parent when its parent is shown, at the top otherwise; their order kept.
@@ -459,6 +466,9 @@ export function DataTable<R>({
     },
     onExpandedChange: (updater) => setExpanded((current) => apply(updater, current)),
   });
+
+  // A row of the table has sub-rows: the first cell of the others keeps the place of the chevron.
+  const foldable = tree && hasSubRows(items);
 
   const order = columnOrder(view.columns, layout);
   const visibleRows = table.getRowModel().rows;
@@ -710,7 +720,7 @@ export function DataTable<R>({
                       key={column.id}
                       className={first ? `${classes.cell} ${classes.titleCell}` : classes.cell}
                       style={first ? ({ '--row-depth': depth } as CSSProperties) : undefined}
-                      data-numeric={column.numeric || undefined}
+                      {...alignAttribute(first ? 'start' : columnAlign(column))}
                       ff={column.numeric ? 'monospace' : undefined}
                       {...(locked ? {} : view.cellProps(column.id, key))}
                     >
@@ -719,7 +729,8 @@ export function DataTable<R>({
                           {row.getCanExpand() ? (
                             <FoldButton expanded={row.getIsExpanded()} about="les sous-éléments" inRow onToggle={() => row.toggleExpanded()} />
                           ) : (
-                            <span className={classes.chevronSpacer} />
+                            // Aligned on its folding siblings: only when some row of the table folds.
+                            foldable && <span className={classes.chevronSpacer} />
                           )}
                           <div style={{ minWidth: 0, flex: 1 }}>{cellOf(column)}</div>
                         </Group>
@@ -815,7 +826,7 @@ export function DataTable<R>({
                   const sort = view.sorting.find((item) => item.id === id);
                   const sortable = Boolean(column.sortValue);
                   return (
-                    <HeaderCell key={header.id} id={id} width={header.column.getSize()} numeric={column.numeric} sort={sort}>
+                    <HeaderCell key={header.id} id={id} width={header.column.getSize()} align={index === 0 && tree ? 'start' : columnAlign(column)} sort={sort}>
                       <Group gap={2} wrap="nowrap" className={classes.headerContent}>
                         {sortable ? (
                           <button type="button" className={classes.sortButton} onClick={(event) => view.setSorting(toggleSort(view.sorting, id, event.shiftKey))}>
@@ -912,7 +923,8 @@ export function DataTable<R>({
 interface HeaderCellProps {
   id: string;
   width: number;
-  numeric?: boolean;
+  /** Alignment of its column. */
+  align: ColumnAlign;
   sort: { desc: boolean } | undefined;
   children: ReactNode;
 }
@@ -922,7 +934,7 @@ interface HeaderCellProps {
  * @param {HeaderCellProps} props Component props.
  * @returns {JSX.Element} Header cell.
  */
-function HeaderCell({ id, width, numeric, sort, children }: HeaderCellProps) {
+function HeaderCell({ id, width, align, sort, children }: HeaderCellProps) {
   const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id: `${COLUMN_PREFIX}${id}` });
   return (
     <Table.Th
@@ -931,7 +943,7 @@ function HeaderCell({ id, width, numeric, sort, children }: HeaderCellProps) {
       className={classes.header}
       data-reveal-host
       data-dragging={isDragging || undefined}
-      data-numeric={numeric || undefined}
+      {...alignAttribute(align)}
       aria-sort={sort ? (sort.desc ? 'descending' : 'ascending') : undefined}
       title="Glisser pour déplacer la colonne"
       {...listeners}

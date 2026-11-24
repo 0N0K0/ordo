@@ -228,7 +228,7 @@ export function bucketLabel(start: string, bucket: ChartBucket): string {
 /**
  * First day and day after the last one of the period of a time axis, or nulls for everything.
  * @param {ChartConfig['period']} period Period.
- * @param {string} today User's day.
+ * @param {string} today Today in Paris.
  * @returns {[string | null, string | null]} Range.
  */
 export function periodRange(period: ChartConfig['period'], today: string): [string | null, string | null] {
@@ -280,7 +280,7 @@ function compareKeys(a: Key, b: Key): number {
  * of a field counts for each.
  * @param {ChartRecord[]} records Records.
  * @param {ChartConfig} config Configuration.
- * @param {string} today User's day (YYYY-MM-DD).
+ * @param {string} today Today in Paris (YYYY-MM-DD).
  * @returns {ChartData} Data.
  */
 export function aggregate(records: ChartRecord[], config: ChartConfig, today: string): ChartData {

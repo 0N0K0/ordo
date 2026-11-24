@@ -1,13 +1,17 @@
 import { Group, Stack, Text } from '@mantine/core';
-import { entrySeconds, formatClock } from '@ordo/shared';
+import { DURATION_MAX_SECONDS, entrySeconds, formatClock } from '@ordo/shared';
+import { useEffect, useRef } from 'react';
+import { notifyInfo } from '../../../lib/notify';
 import { StopIcon } from '@phosphor-icons/react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RunningPill } from '../../../components/feedback/RunningPill';
 import { useNow } from '../../../lib/use-now';
 import { countOf } from '../../../lib/text';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
-import { useRunningTimers, type TimeEntry } from '../api';
-import { useStopTimer } from '../hooks/use-stop-timer';
+import { timeQueryKey, useRunningTimers, type TimeEntry } from '../api';
+import { tasksQueryKey } from '../../tasks/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { useStopTimer, wasStoppedByHand } from '../hooks/use-stop-timer';
 import { entrySubject } from '../lib/entry-subject';
 import { RunningTimer } from './TimerCard';
 import { TimerControls } from './TimerControls';
@@ -58,8 +62,8 @@ function RunningRow({ entry }: { entry: TimeEntry }) {
 }
 
 /**
- * Header pill of several running timers: their number and the time of the last one started (opening the
- * list of them, each stoppable on its own, and « Arrêter tout »).
+ * Header pill of several running timers: their number and the clock of the longest one (opening the list of them,
+ * each stoppable on its own, and « Arrêter tout »); grey when all are paused.
  * @param {{ entries: TimeEntry[] }} props Running timers.
  * @returns {JSX.Element} Pill.
  */
@@ -90,6 +94,49 @@ function SeveralRunning({ entries }: { entries: TimeEntry[] }) {
 }
 
 /**
+ * Tells when a running timer is stopped by the API once it has run 24 hours (the longest time): « Chrono arrêté après
+ * 24 heures », with what it was spent on; not for one stopped by hand in this tab (its stop toast tells the time).
+ * @param {readonly TimeEntry[]} entries Timers running now.
+ * @returns {void}
+ */
+function useTimerCapNotice(entries: readonly TimeEntry[]): void {
+  const { context } = useTaskContext();
+  const previous = useRef<readonly TimeEntry[]>([]);
+  useEffect(() => {
+    const now = Date.now();
+    for (const entry of previous.current) {
+      // Stopped by hand in this tab: its own toast tells the time recorded.
+      if (entries.some((item) => item.id === entry.id) || wasStoppedByHand(entry.id) || entrySeconds(entry, now) < DURATION_MAX_SECONDS) continue;
+      notifyInfo({ id: `timer-cap-${entry.id}`, title: 'Chrono arrêté après 24 heures', lines: [entrySubject(entry, context), 'Sa durée est de 24 heures, le maximum d’un temps.'] });
+    }
+    previous.current = entries;
+  }, [entries, context]);
+}
+
+/**
+ * Refreshes the time data (badge, home, « Prévu et réalisé », journal) and the tasks (their tracked time) the moment a
+ * running timer reaches 24 hours: the API stops it as it reads them, so none counts it as running any more, without
+ * waiting for the focus. A paused timer does not get there.
+ * @param {readonly TimeEntry[]} entries Timers running now.
+ * @returns {void}
+ */
+function useTimerCapRefresh(entries: readonly TimeEntry[]): void {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const now = Date.now();
+    const left = entries.filter((entry) => entry.pausedAt === null).map((entry) => (DURATION_MAX_SECONDS - entrySeconds(entry, now)) * 1000);
+    if (!left.length) return;
+    // A second after the moment (the longest wait a timer of the browser takes).
+    const wait = Math.min(Math.max(0, Math.min(...left)) + 1000, 2 ** 31 - 1);
+    const timer = window.setTimeout(() => {
+      void queryClient.invalidateQueries({ queryKey: timeQueryKey });
+      void queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+    }, wait);
+    return () => window.clearTimeout(timer);
+  }, [entries, queryClient]);
+}
+
+/**
  * Running timers in the app header, on every page (a timer is started from the « Ajouter » menu): the one running, or
  * the number of those running (several at once).
  * @returns {JSX.Element | null} Pill, while a timer runs.
@@ -97,6 +144,8 @@ function SeveralRunning({ entries }: { entries: TimeEntry[] }) {
 export function TimerWidget() {
   const running = useRunningTimers();
   const entries = running.data ?? [];
+  useTimerCapNotice(entries);
+  useTimerCapRefresh(entries);
   if (!entries.length) return null;
   return entries.length === 1 ? <RunningControls entry={entries[0]} /> : <SeveralRunning entries={entries} />;
 }

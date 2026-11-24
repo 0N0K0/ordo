@@ -102,10 +102,21 @@ Page `/calendar`. Voir [Agenda](../activities/calendar.md).
 
 | Onglet                  | Ce qu’il gère                                                                                                                                                                                                                                                                                                                           |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Affichage et export » | « Affichage » : calendriers et créneaux affichés ou masqués, « Aussi dans l’agenda » (Tâches, Routines, créneaux, Chronos, archivés), « Heures (semaine, jour) » « Par 5 minutes » (sinon par 30). « Exporter » : « Vue en PDF » et l’export ICS des calendriers.                                                                           |
+| « Affichage et export » | « Affichage de la vue « X » » (réglages de la vue affichée, enregistrés avec elle) : calendriers et créneaux affichés ou masqués, « Aussi dans l’agenda » (Tâches, Routines, créneaux, Chronos, archivés), « Heures (semaine, jour) » « Par 5 minutes » (sinon par 30). « Exporter » : « Vue en PDF » (la vue affichée, ses filtres appliqués) et l’export ICS des calendriers.                                                                           |
 | « Paramètres »          | « Semaine » (« Semaine du … au … » de tout l’espace ; aussi dans les paramètres des chronos et de l’onglet « Temps » d’un projet), « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Créneaux sans type », « Types de créneaux » (couleur et affichage), « Créneaux des autres espaces » (abonnement à un type de créneau d’un autre espace), puis en dernier « Colonnes des nouvelles vues » des tableaux des créneaux et des éphémérides. |
 
 Les créneaux eux-mêmes se gèrent par un bouton de la page, pas dans le panneau.
+
+Réglages de l’agenda, selon ce qu’ils règlent :
+
+| Réglage                                                                                                   | Portée      | Où                                   |
+| --------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------ |
+| Affichage « Mois » / « Semaine » / « Jour »                                                               | vue         | page (barre d’outils)                |
+| Filtres (une section par sorte d’éléments affichée)                                                       | vue         | page (« Filtrer »)                   |
+| Calendriers et créneaux / éphémérides affichés, « Aussi dans l’agenda », « Afficher les archivés », « Par 5 minutes » | vue | paramètres, « Affichage et export » |
+| Ligne journée entière dépliée                                                                             | non gardé (repliée à chaque ouverture) | page (en-tête de la ligne, « +N »)   |
+| Mode « Modifier les créneaux et éphémérides »                                                             | page ouverte (non gardé) | page (barre d’outils) |
+| Semaine, calendriers, abonnements, catégories, créneaux sans type, types de créneaux et d’éphémérides (couleur, affichage dans l’agenda, « Indisponible »), anniversaires (couleur, « Afficher dans l’agenda »), créneaux des autres espaces, colonnes des nouvelles vues | espace | paramètres, « Paramètres » |
 
 ### Mails — « Paramètres des mails »
 
@@ -154,7 +165,7 @@ Accueil, Documents, Tableaux de bord, Mon compte et la page Paramètres n’ont 
 
 ## Où chaque section apparaît
 
-Portée : « espace » = un réglage de tout l’espace, le même partout où il est montré ; « projet » = propre au projet ; « utilisateur » = valable dans tous les espaces.
+Portée : « espace » = un réglage de tout l’espace, le même partout où il est montré ; « projet » = propre au projet ; « utilisateur » = valable dans tous les espaces ; « vue » = propre à une vue enregistrée (l’agenda), enregistré avec elle.
 
 | Section                                                                   | Portée      | Où elle apparaît                                                                                   |
 | ------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |
@@ -170,7 +181,8 @@ Portée : « espace » = un réglage de tout l’espace, le même partout où il
 | Suivi, Ma société et numérotation                                         | espace (PRO) | Facturation ; projet, onglet « Facturation »                                                       |
 | Export ZIP de la facturation                                              | espace (PRO) | Facturation                                                                                        |
 | Boîtes mail, drapeaux                                                     | espace      | Mails (et la page elle-même sans boîte active) ; projet, onglet « Mails »                           |
-| Affichage de l’agenda, calendriers, catégories d’agenda, créneaux         | espace      | Agenda                                                                                              |
+| Affichage de la vue de l’agenda (calendriers et créneaux affichés, « Aussi dans l’agenda », archivés, « Par 5 minutes ») | vue | Agenda |
+| Calendriers, catégories d’agenda, créneaux, types, anniversaires          | espace      | Agenda                                                                                              |
 | Paramètres de la trésorerie                                               | espace      | Trésorerie (« Équipe » / « Foyer » et « Relations » / « Proches » aussi dans la page Paramètres)    |
 | Paramètres de l’inventaire (emplacements, catégories des articles, unités) | espace     | Inventaire                                                                                          |
 | Minuteurs enregistrés                                                     | espace      | Alarmes                                                                                             |

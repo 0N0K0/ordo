@@ -1,7 +1,7 @@
 import { useDebouncedValue } from '@mantine/hooks';
 import { addDays, isTimeDimension, type ChartConfig, subtreeOf } from '@ordo/shared';
 import { useMemo } from 'react';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
 import type { Task } from '../../tasks/api';
 import { filterUses, matchTasks } from '../../tasks/lib/task-columns';
@@ -68,7 +68,7 @@ export interface ChartScope {
  * @returns {{ data: ChartData | null, isPending: boolean, error: Error | null }} Data.
  */
 export function useChartData(config: ChartConfig, scope: ChartScope, context: TaskContext | null) {
-  const today = localToday();
+  const today = parisToday();
   const parts = useMemo(() => datasetParts(config), [config]);
   const sources = new Set(parts.map((part) => part.config.source));
 

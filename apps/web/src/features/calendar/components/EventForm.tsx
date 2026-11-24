@@ -9,11 +9,11 @@ import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Anchor, Badge, Fieldset, Select, Stack, Text, TextInput } from '@mantine/core';
 import { PeriodField } from '../../../components/inputs/PeriodField';
-import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, type Recurrence, sharePeople, shiftTime, TEXT_MAX } from '@ordo/shared';
+import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, type Recurrence, cutSeries, seriesOn, sharePeople, shiftedSeries, shiftTime, TEXT_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
@@ -31,7 +31,7 @@ import { useActiveWorkspace } from '../../workspaces/api';
 import { askScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
-import { occurrenceInput, routineLinkKey, routineLinkOf } from '../lib/event-input';
+import { occurrenceInput, routineLinkKey, routineLinkOf, seriesInput, withDays } from '../lib/event-input';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
@@ -109,7 +109,8 @@ function PostponeForm({ fields, label, loading, onCancel, onConfirm }: PostponeF
         submitIcon={<ArrowArcRightIcon aria-hidden />}
         loading={loading}
         disabled={!valid}
-        onSubmit={() => onConfirm({ ...fields, label: values.label.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })}
+        // Its routine links go with it to its new days.
+        onSubmit={() => onConfirm({ ...withDays(fields, values.startDate, endDate), label: values.label.trim(), startTime: values.startTime, endTime: values.endTime, recurrence: null })}
       />
     </Stack>
   );
@@ -167,6 +168,8 @@ interface SaveTarget {
   scope: CalendarEventScope;
   /** First day of its series (its rule is edited from there). */
   ruleStart: string;
+  /** Rule of its series as saved (a cut reduces its number of occurrences from it). */
+  rule: Recurrence | null;
 }
 
 /**
@@ -218,9 +221,13 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   // Without a choice, the event goes into the first calendar not archived.
   const defaultCalendarId = unarchived(calendars)[0]?.id ?? null;
   // Questions are stacked over this form's panel: it must stay mounted to finish the save.
-  const today = localToday();
+  const today = parisToday();
+  // Edited with its series (« Toutes les occurrences », « Celle-ci et les suivantes »): an occurrence changed on its own
+  // shows the fields of its series on its date.
   const initial: CalendarEventInput = occurrence
-    ? occurrenceInput(occurrence)
+    ? scope === 'THIS'
+      ? occurrenceInput(occurrence)
+      : seriesInput(occurrence)
     : {
         label: '',
         description: '',
@@ -258,6 +265,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     occurrenceDate: occurrence?.occurrenceDate ?? null,
     scope: occurrence?.occurrenceDate != null ? (scope ?? 'ALL') : 'ALL',
     ruleStart: occurrence?.seriesStartDate ?? occurrence?.startDate ?? '',
+    rule: (occurrence?.recurrence as Recurrence | null | undefined) ?? null,
   }));
   // The saves run one after the other: each reads where the previous one left the event.
   const saveTarget = useRef(target);
@@ -268,11 +276,21 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
           const eventId = await update.mutateAsync({ id: now.eventId, input, scope: now.scope, occurrenceDate: now.occurrenceDate });
           if (now.scope === 'THIS') return;
           const split = now.scope === 'FOLLOWING' && eventId !== now.eventId;
+          // A series moved keeps its days of the week, of the month or of the year (as the API moves its rule).
+          const shift = daysBetween(now.occurrenceDate ?? input.startDate, input.startDate);
+          const rule = input.recurrence as Recurrence | null | undefined;
+          // The series the API saved the occurrence in: moved with the series (its weekdays changing week apart from
+          // the others make series of their own), and, after a cut, its number of occurrences reduced by those before
+          // it; the next saves start from it.
+          const series = rule ? (split && now.rule && now.occurrenceDate ? cutSeries(rule, now.rule, now.ruleStart, now.occurrenceDate, shift) : shiftedSeries(rule, now.ruleStart, shift)) : null;
+          const saved = series && seriesOn(series, input.startDate);
+          if (saved && saved.rule !== rule) form.setFieldValue('recurrence', saved.rule);
           saveTarget.current = {
             eventId,
             occurrenceDate: input.recurrence ? input.startDate : null,
             scope: 'ALL',
-            ruleStart: split || !input.recurrence ? input.startDate : addDays(now.ruleStart, daysBetween(now.occurrenceDate ?? input.startDate, input.startDate)),
+            ruleStart: saved?.start ?? input.startDate,
+            rule: saved?.rule ?? null,
           };
           setTarget(saveTarget.current);
         }
@@ -287,19 +305,23 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   // One occurrence edited alone: the fields of the series stay as they are (the API keeps them).
   const seriesFields = target.scope === 'THIS' && target.occurrenceDate !== null;
   const { perso } = useActiveWorkspace();
-  // Routines due on the days of the event (an occurrence each), with someone in common with it; those chosen stay.
+  // Routines due on the days of the event (an occurrence each, as the agenda shows them: one moved there and kept apart
+  // too, told by the day it comes from), with someone in common with it; those chosen stay.
   const { data: routinesData } = useRoutinesData();
   const { data: routineDays } = useRoutineOccurrences(values.startDate && values.endDate ? { from: values.startDate, to: values.endDate } : null);
   const routineById = mapById(routinesData?.routines ?? []);
   const multiDay = values.startDate !== values.endDate;
   const chosenLinks = new Set((values.routineLinks ?? []).map(routineLinkKey));
+  const shownDays = new Map((routineDays ?? []).map((item) => [routineLinkKey(item), item.dueDate]));
   const routineOptions = [
     ...new Map([...unarchived(routineDays ?? []).filter((item) => !item.cancelled).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [routineLinkKey(link), link])).values(),
   ].flatMap((link) => {
     const routine = routineById.get(link.routineId);
     const key = routineLinkKey(link);
     if (!routine || (!chosenLinks.has(key) && (routine.archived || !sharePeople(routine.assigneeIds, values.contributorIds)))) return [];
-    return [{ value: key, label: multiDay ? `${routine.label} (${fmt.weekday(link.date)})` : routine.label }];
+    const shown = shownDays.get(key) ?? link.date;
+    const details = [...(multiDay ? [fmt.weekday(shown)] : []), ...(shown !== link.date ? [`déplacée du ${fmt.weekday(link.date)}`] : [])];
+    return [{ value: key, label: details.length ? `${routine.label} (${details.join(', ')})` : routine.label }];
   });
   const recurring = target.occurrenceDate !== null;
 
@@ -627,7 +649,10 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                   recurrence: (values.recurrence as Recurrence | null | undefined) ?? null,
                 }}
                 // One occurrence alone keeps the rule of its series.
-                onChange={(timing) => form.setValues({ ...timing, ...(seriesFields && { recurrence: values.recurrence }) })}
+                // Its routine links move with it.
+                onChange={(timing) =>
+                  form.setValues({ ...timing, routineLinks: withDays(values, timing.startDate, timing.endDate).routineLinks, ...(seriesFields && { recurrence: values.recurrence }) })
+                }
                 onCommit={() => commit(TIMING)}
               />
               <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />

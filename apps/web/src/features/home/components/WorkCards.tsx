@@ -1,7 +1,7 @@
 import { calendarPath, PAGES, projectPath } from '../../../app/pages';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import { Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { addDays, formatDuration, TASK_WAIT_REASON_LABELS } from '@ordo/shared';
@@ -113,13 +113,13 @@ export function AgendaCard({ today }: { today: string }) {
     for (const event of events) {
       if (!event.allDay && event.end && Date.parse(event.end) < now.getTime()) continue;
       const start = event.allDay ? null : new Date(event.start);
-      const day = start ? localDay(start) : event.startDate;
+      const day = start ? parisDay(start) : event.startDate;
       // One started before today, still running, shows today, for the whole day.
       if (day < today) list.push({ key: event.key, day: today, time: null, label: event.label, alarm: false });
       else list.push({ key: event.key, day, time: start ? fmt.time(start) : null, label: event.label, alarm: false });
     }
     for (const { alarm, at: next } of nextRings(alarms.data, now)) {
-      const day = localDay(next);
+      const day = parisDay(next);
       if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: fmt.time(next), label: alarm.label, alarm: true });
     }
     return list.sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? '').localeCompare(b.time ?? ''));

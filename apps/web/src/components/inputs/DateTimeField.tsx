@@ -1,6 +1,6 @@
 import { DateTimePicker, type DateTimePickerProps } from '@mantine/dates';
 import * as fmt from '../../lib/format';
-import { pickerDay, todayPresets } from './date-fields';
+import { parisTodayDays, pickerDay, todayPresets } from './date-fields';
 
 /** Props of `DateTimeField`. */
 export interface DateTimeFieldProps extends Omit<DateTimePickerProps<'default'>, 'type' | 'value' | 'defaultValue' | 'onChange' | 'presets' | 'highlightToday' | 'date'> {
@@ -13,8 +13,8 @@ export interface DateTimeFieldProps extends Omit<DateTimePickerProps<'default'>,
 }
 
 /**
- * Field of a day and its time, in one picker, the same everywhere: Mantine's `DateTimePicker` (24 hours), today
- * highlighted in its calendar and « Aujourd'hui » beside it (today, at the time already chosen). The day and the time
+ * Field of a day and its time, in one picker, the same everywhere: Mantine's `DateTimePicker` (24 hours), today (in
+ * Paris) highlighted in its calendar and « Aujourd'hui » beside it (today, at the time already chosen). The day and the time
  * stay two values (`formDateTime` binds them to a form). A whole day (no time) is a `DateField`.
  * @param {DateTimeFieldProps} props Component props.
  * @returns {JSX.Element} Field.
@@ -31,6 +31,7 @@ export function DateTimeField({ day, time, onChange, placeholder, defaultTimeVal
       placeholder={day && !time ? `${fmt.day(day)}, heure à choisir` : placeholder}
       onChange={(next) => (next ? onChange(pickerDay(next), next.split(' ')[1].slice(0, 5)) : onChange(null, null))}
       {...props}
+      getDayProps={parisTodayDays(props.getDayProps)}
     />
   );
 }

@@ -1,10 +1,11 @@
+import { StateButton } from '../../../components/data-table/cells/StateButton';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { plural, countOf } from '../../../lib/text';
 import { Stack, Text } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClipboardTextIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { EditableCheck, EditableNumber, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
+import { EditableNumber, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
@@ -21,7 +22,8 @@ import { SheetLinksField } from './SheetLinksField';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetPicker } from './SheetPicker';
-import { useChecklistColumns } from '../hooks/use-sheet-columns';
+import { CHECKLIST_DONE_STATES, useChecklistColumns } from '../hooks/use-sheet-columns';
+import { CONSUMABLE_STATES } from '../../shopping/lib/product-columns';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import { itemGroupFields } from '../lib/sheet-format';
 import { checklistItemSchema } from '@ordo/shared';
@@ -142,7 +144,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
         getKey={(item) => item.id}
         isDone={(item) => Boolean(item.checkedAt)}
         cells={(item) => ({
-          done: <EditableCheck value={Boolean(item.checkedAt)} label={cellLabelOf('done', item, 'Fait')} onSave={(checked) => bulk('done')(item, { checked })} />,
+          done: <StateButton {...CHECKLIST_DONE_STATES} value={Boolean(item.checkedAt)} label={cellLabelOf('done', item, 'Fait')} onChange={(checked) => bulk('done')(item, { checked })} />,
           label: <EditableText value={item.label} label={cellLabelOf('label', item, 'Libellé')} onSave={(next) => next && bulk('label')(item, { label: next })} />,
           quantity: (
             <EditableNumber value={item.quantity ?? null} label={cellLabelOf('quantity', item, 'Quantité')} decimals={3} nullable onSave={(quantity) => bulk('quantity')(item, { quantity })} />
@@ -153,7 +155,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
           ),
           note: <EditableMarkdown value={item.note ?? null} label={cellLabelOf('note', item, 'Description')} onSave={(note) => bulk('note')(item, { note })} />,
           // Ticked, a consumable item that is a reference is taken from the stock.
-          consumable: <EditableCheck value={item.consumable} label={cellLabelOf('consumable', item, 'Consommable')} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,
+          consumable: <StateButton {...CONSUMABLE_STATES} value={item.consumable} label={cellLabelOf('consumable', item, 'Consommable')} onChange={(consumable) => bulk('consumable')(item, { consumable })} />,
           sources: (
             <StackedValues>
               {item.sources.map((source) => (

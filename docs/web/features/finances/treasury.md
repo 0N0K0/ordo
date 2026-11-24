@@ -305,14 +305,14 @@ Colonnes des tableaux de la trésorerie, lues par leur tableau et par `TreasuryC
 
 | Élément | Rôle |
 | --- | --- |
-| `FORECAST_KINDS` | Libellé et couleur de chaque origine (`FORECAST`, `ACTUAL`, `INVOICE`, `CREDIT_NOTE`, `IMPORTED`, `RECURRING_INVOICE`). Aussi lu par `TreasuryPage`. |
 | `ForecastRow` | Ligne du prévisionnel : `{ item, index }`. |
-| `forecastColumns(entryOf, env)` | Colonnes du prévisionnel : « Mois », « Date d’exécution », « Libellé », « Origine », « En retard », colonnes partagées (avec « Répétition »), « Montant ». `TreasuryPage`. |
+| `forecastColumns(entryOf, env)` | Colonnes du prévisionnel : « Mois », « Date d’exécution », « Libellé », « Origine » (`stateColumn` ; internes `FORECAST_ORIGINS`, origines dans leur ordre avec libellé et couleur, « Importé » par `IMPORTED_LOOK` de la facturation, et `forecastOrigin`, « Prévision » pour une origine inconnue), « En retard », colonnes partagées (avec « Répétition »), « Montant ». `TreasuryPage`. |
 | `entryColumns(env)` | Colonnes des mouvements : « Mois », « Date d’exécution », « Libellé », colonnes partagées, « Documents réglés », « Montant ». |
 | `entryTableColumns(env, comments)` | `entryColumns` et les commentaires des mouvements. `EntriesPanel`. |
 | `LineRow` | Ligne de la répartition : rang, valeurs, montant signé, pièces. |
 | `whomKey(line)` | Clé du bénéficiaire (`m:`, `r:` ou « Moi », `ME_KEY`). |
 | `lineColumns(env)` | Colonnes de la répartition : « Libellé », « Bénéficiaire », « Catégorie », « Contexte », « Unité », « Valeur », « Montant », « Prêt », « Date », « Projet », « Pièces justificatives », « Relative à un autre mouvement ». `EntryLinesTable`. |
+| `LOAN_STATES` | États de « Prêt » (colonne et bouton d'état) : « Avancé » / « Définitif », triangle orange / coche verte, « Marquer comme prêt (avancé) » / « Marquer comme définitif ». Utilisé par `EntryLinesTable`. |
 | `LoanRow` | Ligne des prêts : relation ou ligne de prêt. |
 | `loanColumns(words)` | Colonnes « Relation / ligne » (ou « Proche / ligne »), « Solde », « Sorti vers elle », « Reçu d’elle », « Date », « Montant ». `LoansPanel`. |
 

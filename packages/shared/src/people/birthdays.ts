@@ -1,9 +1,8 @@
 import { z } from 'zod';
 import { twoDigits } from '../core/numbers';
-import { dayIn, yearOfDay } from '../dates/days';
+import { dayIn, PARIS_ZONE, yearOfDay } from '../dates/days';
 import { countOf } from '../core/text';
 import { dayInMonth, daysInMonth } from '../dates/months';
-import { PARIS_ZONE } from '../dates/reminders';
 
 /**
  * Birth dates of the people (contributors, members, relations) and the birthdays they give: whole-day

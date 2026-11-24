@@ -2,7 +2,7 @@ import { unarchived } from '../../../lib/archive';
 import { Badge, type MantineColor } from '@mantine/core';
 import { formatDuration, sumOf } from '@ordo/shared';
 import { countOf, plural } from '../../../lib/text';
-import { localToday } from '../../../lib/dates';
+import { useToday } from '../../../lib/use-now';
 import { useHeldEvents, useHomeTasks, useMyTodayTasks, useWeekTime } from '../../home/lib/home-data';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRunningTimers } from '../../time/api';
@@ -47,7 +47,7 @@ export function NavBadge({ value, label, color, variant = 'light' }: NavBadgePro
  * @returns {JSX.Element | null} Badge.
  */
 export function TasksNavBadge() {
-  const today = localToday();
+  const today = useToday();
   const { context } = useTaskContext();
   const { tasks } = useMyTodayTasks(context, today);
   const { items, nowCount, loading } = useHomeTasks(context, tasks, today);
@@ -69,7 +69,7 @@ export function TasksNavBadge() {
  * @returns {JSX.Element | null} Badge.
  */
 export function RoutinesNavBadge() {
-  const { items, doneCount, loading } = useRoutineDay(localToday());
+  const { items, doneCount, loading } = useRoutineDay(useToday());
   if (loading) return null;
   return (
     <NavBadge
@@ -85,7 +85,7 @@ export function RoutinesNavBadge() {
  * @returns {JSX.Element | null} Badge.
  */
 export function AgendaNavBadge() {
-  const today = localToday();
+  const today = useToday();
   const events = useHeldEvents(today, today);
   if (!events) return null;
   return <NavBadge value={events.length ? String(events.length) : null} label={`${countOf(events.length, 'évènement')} aujourd’hui`} />;
@@ -96,7 +96,7 @@ export function AgendaNavBadge() {
  * @returns {JSX.Element | null} Badge.
  */
 export function TimeNavBadge() {
-  const time = useWeekTime(localToday());
+  const time = useWeekTime(useToday());
   const running = Boolean(useRunningTimers().data?.length);
   if (!time) return null;
   const done = formatDuration(time.today);

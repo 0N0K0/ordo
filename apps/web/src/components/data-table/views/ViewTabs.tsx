@@ -4,6 +4,7 @@ import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import { openLabelForm } from '../../dialogs/open-label-form';
 
 import { viewLabelSchema } from '@ordo/shared';
+// eslint-disable-next-line no-restricted-syntax -- the star of the default view, not a favourite.
 import { ArrowCounterClockwiseIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
 import { duplicateRowsAction, rowMenuEntry } from '../selection/selection-actions';
 import type { SavedView, SavedViewsState } from './use-saved-views';
@@ -22,13 +23,23 @@ function promptLabel(title: string, initial: string, submitLabel: string, onSubm
   openLabelForm(title, { initial, fieldLabel: 'Libellé de la vue', schema: viewLabelSchema, submitLabel, onSubmit });
 }
 
+/** Words of the deletion of a view: what its configuration holds, what stays untouched. */
+export interface ViewWords {
+  config: string;
+  untouched: string;
+}
+
+/** Words of the deletion of a view of a table. */
+const TABLE_VIEW_WORDS: ViewWords = { config: 'filtres, tris, colonnes', untouched: 'Les lignes du tableau ne sont pas modifiées.' };
+
 /**
  * Tabs of the saved views, reordered by drag and drop; the menu of the current one saves or reverts its changes
  * (also at the top of the « Options » menu).
- * @param {{ state: SavedViewsState<C> }} props Component props.
+ * @param {{ state: SavedViewsState<C>, about?: ViewWords }} props Component props: the views, and the words of the
+ *   deletion of one (default: those of a table).
  * @returns {JSX.Element} Tabs.
  */
-export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
+export function ViewTabs<C>({ state, about = TABLE_VIEW_WORDS }: { state: SavedViewsState<C>; about?: ViewWords }) {
   const { views, current, dirty } = state;
   // Its height, that a table next to other content leaves out of its own.
   const ref = usePublishedHeight<HTMLDivElement>('--onoko-view-tabs-height');
@@ -40,7 +51,11 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
   const confirmDelete = (view: SavedView<C>) => {
     confirmDestructive({
       title: 'Supprimer la vue',
-      risks: <>La vue « {view.label} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les lignes du tableau ne sont pas modifiées.</>,
+      risks: (
+        <>
+          La vue « {view.label} » et sa configuration ({about.config}) seront supprimées. {about.untouched}
+        </>
+      ),
       run: () => state.remove(view),
       done: 'Vue supprimée.',
     });

@@ -40,7 +40,7 @@ Mutations de `useRoutineMutations()` (toutes invalident `routinesKey` en arrièr
 | `patch`                                                                | `patchRoutine` (renvoie `removedLinks`)                     | fusionne les champs                             |
 | `move`                                                                 | `moveRoutine`, sous `withLossConfirmation` (une nouvelle parente qui fait perdre des occurrences commentées est confirmée ; refusé, le cache revient) | `moveInCache`                                   |
 | `setDone`                                                              | `setRoutineDone`                                            | `withSlotsDone` (occurrence en cours seulement) |
-| `moveOccurrence`, `changeOccurrence`, `deleteOccurrence`, `removeMove` | exceptions ; `deleteOccurrence` renvoie `{ archived, comments }`, `removeMove` rend ces `comments` ; `update`, `patch`, `bulkUpdate`, `changeOccurrence` passent par `withLossConfirmation` | —                                               |
+| `moveOccurrence`, `changeOccurrence`, `deleteOccurrence`, `removeMove` | exceptions ; `deleteOccurrence` renvoie `{ archived, comments }`, `removeMove` rend ces `comments` (avec `undo`, « Annuler » d'une annulation ou d'une fusion, « Rétablir » d'une occurrence annulée : l'occurrence revient avec son exception d'avant) ; `update`, `patch`, `bulkUpdate`, `moveOccurrence`, `changeOccurrence` passent par `withLossConfirmation` (sauf `moveOccurrence`) ; `moveOccurrence` et `changeOccurrence` par `withSameDayChoice` (sur un jour qui a son occurrence : « Garder les deux » ou « Fusionner », `sameDay`), et renvoient le jour qui identifie l'occurrence ensuite ; `moveOccurrence` prend aussi `sameDay` donné (l'annulation d'un déplacement) | —                                               |
 | `bulkUpdate`                                                           | `bulkUpdateRoutines` (renvoie `removedLinks`)               | `withBulkChanges`                               |
 | `bulkArchive`                                                          | `bulkSetRoutinesArchived`                                   | `archiveInCache` (sous-routines, parentes)      |
 | `bulkDone`                                                             | `bulkSetRoutinesDone`                                       | tous les moments                                |
@@ -100,7 +100,7 @@ Internes : `NONE`, `modeOptions(frequency)`, `firstValue(mode, frequency)`.
 
 | Export                                   | Rôle                                                                                                                                                                                           |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineMoveForm({ routineId, onDone })` | Panneau « Reporter ou annuler » : occurrence (30 jours avant à 68 après, avec dessous quand elle ouvre : `OccurrenceOpening`), nouvelle date, horaires, « Annuler l'occurrence » (confirmation), liste des exceptions avec « Remettre à son jour ». |
+| `RoutineMoveForm({ routineId, onDone })` | Panneau « Reporter ou annuler » : occurrence (30 jours avant à 68 après, à son échéance, « déplacée du … » pour une occurrence gardée à part ; avec dessous quand elle ouvre : `OccurrenceOpening`), nouvelle date (par défaut le lendemain de son échéance), horaires, « Annuler l'occurrence » (confirmation), liste des exceptions (« à part de celle du jour » pour une occurrence gardée à part) avec « Remettre à son jour ». |
 
 Internes : `shortText`, `PAST_DAYS`, `NEXT_DAYS`, `Times`, `timesOf(occurrence)`.
 
@@ -122,9 +122,9 @@ Le jour vient de `useRoutineDay(day, routineId)`.
 
 | Export                                                  | Rôle                                                                                                                                                                      |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HistoryItem`                                           | Moment de l'historique : routine, jour, premier jour de l’occurrence (`startDate`), index, horaires, `planned`, `optional`, `movedFrom`, `check`.                                                                     |
+| `HistoryItem`                                           | Moment de l'historique : routine, jour qui identifie l’occurrence (`date`) et son échéance (`dueDate`, montrée), premier jour de l’occurrence (`startDate`), index, horaires, `planned`, `optional`, `movedFrom`, `check`.                                                                     |
 | `AgendaLayers`                                          | `{ scheduleIds, calendarIds }` affichés avec les routines.                                                                                                                |
-| `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour : horaires des créneaux en fond, évènements des calendriers (non archivés), moments des routines colorés par état, de leur début à leur fin (`routineSlotSpan` avec `routineMinutes(estimate)` : le temps estimé, 30 min sans lui) ; un clic ouvre `TickForm` (avec `CountdownLaunchButtons` pour l’occurrence : temps morts et minuteurs enregistrés), sauf pour une routine archivée (estompée, « (archivée) », lecture seule). |
+| `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour, à l'heure de Paris comme l'agenda (`parisCalendarOptions`) : horaires des créneaux en fond, évènements des calendriers (non archivés), moments des routines colorés par état, de leur début à leur fin (`routineSlotSpan` avec `routineMinutes(estimate)` : le temps estimé, 30 min sans lui) ; un clic ouvre `TickForm` (avec `CountdownLaunchButtons` pour l’occurrence : temps morts et minuteurs enregistrés), sauf pour une routine archivée (estompée, « (archivée) », lecture seule). |
 
 Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à minuit après le jour), `historyItemState`, `proposedTime`, `TickForm` (jour, horaires et état, avec dessous quand l’occurrence ouvre, `OccurrenceOpening` ; cocher après coup à une heure, changer l'heure, décocher, avec annulation).
 
@@ -132,9 +132,9 @@ Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à
 
 | Export                                                   | Rôle                                                                                                                                                                                |
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineDoneToggles({ routine, dateLabel?, disabled? })` | Interrupteur(s) « faite » de l'occurrence en cours : un seul, ou un par moment (facultatif en pointillés). Utilisé par `RoutinesPanel` et `features/home/components/LifeCards.tsx`. |
+| `RoutineDoneToggles({ routine, dateLabel?, disabled? })` | Bouton(s) d'état « Faite » / « À faire » de l'occurrence en cours (`ROUTINE_DONE_STATES`) : un seul, ou un par moment (facultatif en pointillés). Utilisé par `RoutinesPanel`, `RoutineForm` et `features/home/components/LifeCards.tsx`. |
 
-Interne : `DoneToggle` (`StateSwitch` vert avec coche).
+Interne : `DoneToggle` (`StateButton` : rond gris vide, puis rond vert coché).
 
 ### `components/RoutineBulkBar.tsx`
 
@@ -193,7 +193,7 @@ Interne : `hasOwnTimes(routine)`.
 | `ChronoCell({ routine, running })`                    | `TimerToggle` (chrono démarré sur `routineIds: [id]`) et temps passé (ou le chrono en cours qui porte sur la routine, `runningOn` ; `running` : les chronos en cours). |
 | `AddRoutineRow({ categoryId, projectId, groupName })` | Ligne d'ajout : routine quotidienne dès aujourd'hui.                                      |
 
-Interne : `DueBadge` (« Après … », « Partir maintenant », « Aujourd'hui … », rafraîchi chaque minute).
+Interne : `DueBadge` (« D'ici … » pendant l'« Ouverture », « Après … », « Partir maintenant », « Aujourd'hui … », à l'heure de Paris par `parisParts`, rafraîchi chaque minute).
 
 ### `components/WaitingIcon.tsx`
 
@@ -216,7 +216,7 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 ### `hooks/use-routine-day.ts`
 
 - `RoutineDay` (interface) : routines, `byId`, moments prévus du jour (`items`), cochés (`doneCount`), chargement.
-- `useRoutineDay(day, routineId?)` : chaque moment prévu ce jour-là (`useRoutineOccurrences` du jour, annulées écartées, une routine seule ou toutes) avec sa coche (`useRoutineChecks`), triés par heure puis libellé (interne `historyItems`), et combien sont cochés. Utilisé par `RoutineHistory` (onglet « Historique ») et `RoutinesNavBadge` (barre latérale, aujourd’hui).
+- `useRoutineDay(day, routineId?)` : chaque moment prévu ce jour-là (`useRoutineOccurrences` du jour, celles dues ce jour-là, annulées écartées, une routine seule ou toutes ; deux occurrences d’une routine ce jour-là, chacune les siens) avec sa coche (`useRoutineChecks` du plus ancien au plus récent des jours qui les identifient : celle d’une occurrence gardée à part est à son jour d’origine, plus tôt ou plus tard), triés par heure puis libellé (interne `historyItems`), et combien sont cochés. Utilisé par `RoutineHistory` (onglet « Historique ») et `RoutinesNavBadge` (barre latérale, aujourd’hui).
 
 ### `hooks/use-routine-columns.ts`
 
@@ -229,8 +229,8 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 
 | Export                 | Rôle                                                                                                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `useRoutineMove()`     | `(routine, to, date?, onDone?, times?)` : déplace une occurrence (par défaut `movableOccurrence`) avec toast et « Annuler » (mouvement inverse). |
-| `usePostponeRoutine()` | `(routine)` : reporte au lendemain. Utilisé par le menu, la barre de sélection et `LifeCards` (seulement s’il y a une occurrence à reporter, `movableOccurrence`).                                                   |
+| `useRoutineMove()`     | `(routine, to, date?, onDone?, times?)` : déplace une occurrence (par défaut `movableOccurrence` ; `date` : le jour qui l’identifie) avec toast et « Annuler » (mouvement inverse, depuis le jour qui l’identifie ensuite, rendu par l’API ; à part de nouveau si elle l’était ; fusionnée : `removeMove` avec `undo`, elle revient avec son exception d’avant la fusion). |
+| `usePostponeRoutine()` | `(routine)` : reporte au lendemain de son échéance. Utilisé par le menu, la barre de sélection et `LifeCards` (seulement s’il y a une occurrence à reporter, `movableOccurrence`).                                                   |
 
 Interne : `MovedTimes`.
 
@@ -259,6 +259,11 @@ Interne : `MovedTimes`.
 | `useRoutineCategoryItems()` | `SettingsItemKind` des catégories (`ROUTINE_CATEGORY`, `routineCategorySchema`, mutations) pour `SettingsList` et la création depuis un select. |
 
 ## `lib/`
+
+### `lib/same-day.tsx`
+
+- `askSameDay(day)` : question « Deux occurrences le même jour » (`askChoice`) : « Garder les deux » (`KEEP_BOTH`), « Fusionner » (`MERGE`), « Annuler » (`null`).
+- `withSameDayChoice(run)` : lance un déplacement d'occurrence sans réponse (`run()`) ; si l'API répond `CONFIRMATION_REQUIRED` avec `lost.merge` (le jour), pose `askSameDay` puis relance avec la réponse (`run(choice)`) ; « Annuler » : `ActionDeclined` ; les autres refus passent. Utilisé par `moveOccurrence` et `changeOccurrence`.
 
 ### `lib/conversion-loss.tsx`
 
@@ -301,7 +306,8 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 | `movesOf(routine)`                                     | Exceptions.                                                                                                                                                                               |
 | `movableOccurrence(routine)`                           | Occurrence déplaçable : en cours si rien n'est coché, sinon la suivante.                                                                                                                  |
 | `panelOccurrence(routine)`                             | Occurrence ouverte par le panneau sans occurrence choisie (ses commentaires) : en cours, sinon la suivante, sinon la première ; `null` sans aucune. Utilisée par `RoutineForm` et la colonne « Commentaires » (`routine-columns.ts`, `RoutinesPage`). |
-| `moveTo(routine, date)`                                | Exception qui a amené une occurrence à ce jour.                                                                                                                                           |
+| `moveTo(routine, date)`                                | Exception qui a amené une occurrence à son jour (`date` : le jour qui l'identifie, `moveKey`).                                                                                            |
+| `dueDayOf(routine, date)`                              | Échéance de l'occurrence en cours ou suivante d'après le jour qui l'identifie (`currentDueDate`, `nextDueDate` : une autre seulement pour une occurrence gardée à part sur le jour d'une autre) ; un autre jour est rendu tel quel. Utilisé par `useRoutineMove`, `usePostponeRoutine`, `RoutineMoveForm`. |
 | `manualOrder(routines)`                                | Rang de chaque routine dans l'ordre manuel (parent puis enfants, chacun par sa position globale). Utilisé par `features/calendar/pages/CalendarPage.tsx`.                                 |
 
 ### `lib/routine-view.ts`
@@ -310,7 +316,7 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `opensWords(routine)`       | « Ouverture » de la règle en clair, capitalisé.                                                                                  |
 | `occurrenceOpensWords(routine, occurrence)` | Quand une occurrence ouvre (`occurrenceOpensText`) : l’« Ouverture » qu’elle suit (celle de son cas, `routineCaseOn` sur son jour dans la règle, sinon de la règle ; la routine lue comme les écrans la lisent, héritage compris) et son premier jour donné par l’API (`startDate` de `routineOccurrences`, jamais recalculé) ; `null` sans « Ouverture ». |
-| `ROUTINE_STATE_LABELS`      | « En retard », « À faire », « À venir », « Faite ».                                                                                |
+| `ROUTINE_STATE_BADGES`      | États du jour d’une routine dans leur ordre, avec leur pastille (`ColumnState`) : « En retard » (`LATE_COLOR`), « À faire » (bleu, comme le badge d’une routine due aujourd’hui), « À venir » (gris), « Faite » (vert). Colonne « État » (`stateColumn`). Interne : `ROUTINE_STATE_LOOKS`. |
 | `REPETITION_LABELS`         | « Chaque jour » … « Selon un planning ».                                                                                           |
 | `routineFrequency(routine)` | Fréquence (quotidienne par défaut).                                                                                                |
 | `RoutineEnv`                | Ce dont les colonnes ont besoin : `today`, `byId`, `categories`, `context`, `doable`, `comments?`, `slotKinds?`, `beneficiaries?`. |
@@ -319,7 +325,8 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 
 | Export                | Rôle                                                                                                                              |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `routineColumns(env)` | Définitions des colonnes du tableau (libellés, tri, texte, filtres, totaux, `groupTree` des catégories, « Priorité » et « Type » des listes des tâches (`context.priorities` / `context.types` : tri dans l’ordre de la liste, filtre `choice`, groupes), colonne de commentaires ; « Faite », « En attente », « Faisable maintenant » par `booleanColumn`, nommées « Faites » / « À faire », « En attente » / « Libre » et `DOABLE_GROUP_LABELS` ; « Documents » par `documentsColumn`, [Code web : documents liés](../cross-cutting/documents.md)). |
+| `routineColumns(env)` | Définitions des colonnes du tableau (libellés, tri, texte, filtres, totaux, `groupTree` des catégories, « Priorité » et « Type » des listes des tâches (`context.priorities` / `context.types` : tri dans l’ordre de la liste, filtre `choice`, groupes), « État » par `stateColumn` (`ROUTINE_STATE_BADGES`) ; colonne de commentaires ; « Faite », « En attente », « Faisable maintenant » par `booleanColumn`, nommées « Faites » / « À faire », « En attente » / « Libre » et `DOABLE_GROUP_LABELS` ; « Documents » par `documentsColumn`, [Code web : documents liés](../cross-cutting/documents.md)). |
+| `ROUTINE_DONE_STATES` | États du bouton d'état « Faite » d'une routine ou d'un moment : « Faite » / « À faire », « Marquer comme faite » / « Marquer comme à faire ». Utilisé par `DoneToggle`. |
 
 Internes : `dayText(date)`, `labelColumn` (colonne « Priorité » ou « Type »).
 

@@ -24,7 +24,7 @@ export const calendarEventInputSchema = z
     endDate: endDaySchema,
     endTime: timeOfDaySchema.nullable(),
     recurrence: recurrenceSchema.nullable(),
-    /** Minutes before the start (24 hours at most), or a time of its first day. */
+    /** Minutes before its start or its end (24 hours at most), a time of its first (or last) day, or that time 1 to 30 days before; each with its ringtone or none; 10 at most. */
     reminders: eventRemindersSchema,
     /** Point of the location, and travel time to the event and back from it, in minutes (timed events). */
     ...locatedFields,
@@ -42,7 +42,8 @@ export const calendarEventInputSchema = z
     taskIds: z.array(z.string()).max(50, '50 tâches maximum.'),
     /** Routines of a day of the event it is about (that day only, even for a repeated routine). */
     routineLinks: z
-      .array(z.object({ routineId: z.string(), date: daySchema() }))
+      // `shownDate`: the day the occurrence shows on once the event moved (the occurrence of that day is linked).
+      .array(z.object({ routineId: z.string(), date: daySchema(), shownDate: daySchema().optional() }))
       .max(200)
       .default([]),
   })

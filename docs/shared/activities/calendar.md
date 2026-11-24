@@ -51,12 +51,24 @@ Sert à savoir si une tâche ou une routine peut être faite à un moment (plani
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BusyEvent`                                  | Occurrence d'événement vue sous l'angle de l'occupation : `label`, `allDay`, `startDate` / `endDate` (inclus), `start` / `end` (instants), `contributorIds` (aucun : « Moi »), `taskIds`, `routineLinks?`, `calledOff` (annulé).                                                                                                                        |
 | `blockingEvent(events, item, meId, at, day)` | Événement qui empêche de faire une tâche ou une routine à un moment : non annulé, en cours à ce moment (toute la journée pour un événement journée entière), avec au moins un participant commun (un événement sans participant et un élément sans assigné valent « Moi », `meId`), et qui ne porte ni sur cette tâche ni sur cette routine ce jour-là. |
-| `busyUntil(event, timeZone?)`                | Fin de l'occupation : la fin de l'événement, ou minuit après son dernier jour s'il dure toute la journée (dans le fuseau donné, sinon local). |
+| `busyUntil(event, timeZone?)`                | Fin de l'occupation : la fin de l'événement, ou minuit après son dernier jour s'il dure toute la journée (dans le fuseau donné, Paris par défaut). |
 | `NEXT_ALLOWED_DAYS`, `NextAllowedContext`, `nextAllowedMoment(item, from, { events, meId, timeZone, nextInSlots? })` | Premier moment, d'ici 14 jours, où une tâche ou une routine peut être faite : le prochain que sa condition permet (`nextInSlots` ; sans : le moment même), après les évènements qui occupent ses assignés (20 tours au plus) ; null sinon. La seule façon de reporter un rappel de routine, dans l'app (`useSlotRules().nextAllowedAt`) et sur le serveur (`outside-rings.ts`), à l'heure de Paris. `BusyItem` exporté. |
 | `nextInSlotsOf(condition, slotsOn, hours?)` | Le `nextInSlots` de `nextAllowedMoment` : prochain moment, à l'heure de Paris, que la condition et les horaires permettent hors des créneaux « Indisponible » (`nextConditionMoment`). Une routine le reçoit sans condition (ses moments la suivent déjà) : ses rappels sonnent à la fin d'un créneau indisponible, dans l’app (`useSlotRules`) comme sur le serveur (`outside-rings.ts`). Garde eslint web : `nextConditionMoment` ne s’importe pas, `nextInSlotsOf` le remplace. |
 | `sharePeople(assigneeIds, contributorIds)`   | Une tâche peut être rattachée à un événement si ses assignés et les participants ont quelqu'un en commun, ou si l'un des deux côtés est vide.                                                                                                                                                                                                           |
 
 Internes : `BusyItem` (`assigneeIds`, `taskId?`, `routineId?`), `peopleOf` (liste, ou « Moi » si vide).
+
+## `calendar-views.ts` — vues enregistrées de l’agenda
+
+| Export | Rôle |
+| ------ | ---- |
+| `CALENDAR_VIEW_KEY` | `calendar` : `tableKey` des vues de la page Agenda (vues `TABLE`). Utilisé par le web (`useCalendarViews`) et l’API (`task-views.ts`, qui valide leur configuration par `calendarViewConfigSchema`). |
+| `CALENDAR_DISPLAYS`, `CalendarDisplay` | Affichage d’une vue : `MONTH`, `WEEK` (semaine de l’espace), `DAY`. |
+| `CALENDAR_FILTER_KINDS`, `CalendarFilterKind` | Sortes d’éléments filtrées, chacune par son propre filtre : `events`, `tasks`, `routines`, `timers`, `slots`, `ephemerides`. |
+| `calendarViewConfigSchema` / `CalendarViewConfig` | Configuration d’une vue : `display` (défaut `WEEK`), `tasks` (vrai), `routines` (vrai), `schedules` (créneaux, éphémérides et anniversaires ; vrai), `timers` (faux), `includeArchived` (faux), `fineSlots` (faux), `hiddenCalendarIds` et `hiddenScheduleIds` (500 au plus), `filters` (un `tableFilterSchema` par sorte). Un champ invalide retombe sur son défaut (`catch`). |
+| `calendarViewConfig(config?)` | Configuration lue (les valeurs par défaut si elle ne valide pas). |
+
+Interne : `HIDDEN_MAX`, `hiddenIdsSchema`, `kindFilterSchema`, `calendarFiltersSchema`.
 
 ## `slot-conditions.ts` — condition de créneaux d'une tâche ou d'une routine
 
@@ -155,4 +167,4 @@ Erreurs de `changedScheduleSlot` (levées en `UserError`, dans les mots de `slot
 
 Erreurs de validation des cas : « Ajoutez des horaires, ou « Journée entière ». », « Des horaires se chevauchent. », « Choisissez au moins un jour. » (hebdomadaire sans jour), « Semaine ou mois : chaque année seulement. » (ancienne forme), « Au moins 1 jour. », « 366 jours au plus. ».
 
-Internes : `timeRangeSchema`, `refineScheduleTimes`, `scheduleCaseSchema` (ancienne forme), `scheduleTimesSchema`, `scheduleRepetitionCaseSchema`, `exceptionFields`, `scheduleExceptionSchema`, `PlannedPause`, `mondayOf`, `caseAnchor`, `scheduleCaseRepetition` (conversion ancienne forme → répétition commune), `caseOn`, `casesOn`, `legacySlotSchema`, `legacyPauseSchema`, `singleSlotCase`, `withDaySlots`, `daySlots`, `sameHours`, `ruleMovedTo`, `movedCase`, `shiftedCase`, `shiftedSchedule`.
+Internes : `timeRangeSchema`, `refineScheduleTimes`, `scheduleCaseSchema` (ancienne forme), `scheduleTimesSchema`, `scheduleRepetitionCaseSchema`, `exceptionFields`, `scheduleExceptionSchema`, `PlannedPause`, `mondayOf`, `caseAnchor`, `scheduleCaseRepetition` (conversion ancienne forme → répétition commune), `caseOn`, `casesOn`, `legacySlotSchema`, `legacyPauseSchema`, `singleSlotCase`, `withDaySlots`, `daySlots`, `sameHours`, `movedCase` (règle hebdomadaire par `movedWeekdays`), `shiftedCases` (règle par `shiftedRulePieces` : un cas, ou deux quand ses jours se partagent entre deux semaines), `caseFirstDay`, `shiftedSchedule`.

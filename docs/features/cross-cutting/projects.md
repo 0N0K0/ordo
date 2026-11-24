@@ -16,6 +16,7 @@ Composant `Sidebar`, à gauche de l’application.
 - « Accueil » (`/`).
 - Groupes repliables, fermés au départ ; l’état de chaque groupe est gardé par fenêtre ; le groupe de la page ouverte se déplie, et est surligné s’il est replié :
   - « Activités » : « Tâches » (pastille : nombre de tâches faisables maintenant de la vue par défaut de la page « Tâches », comme la section « Maintenant » de la carte de l’accueil, sans vue celles de mes tâches du jour ; pleine et en couleur de retard si certaines sont en retard), « Routines » (pastille : moments faits sur prévus aujourd’hui, « 3/7 », comme l’onglet « Historique » ; verte quand tout est fait), « Agenda » (pastille : évènements du jour, journée entière comprise, hors annulés), « Chronos » (pastille : temps du jour, « 2 h 30 », chronos en cours comptés en direct ; rouge quand un chrono tourne), « Alarmes » (pastille : temps jusqu’à la prochaine sonnerie, « 12 min », « 2 h », « 3 j », recalculé chaque minute : rappels des évènements, tâches, routines, éphémérides et anniversaires, alarmes programmées, paliers des chronos en cours, fins des minuteurs, comme le centre des alarmes).
+  - Les pastilles « Tâches », « Routines », « Agenda » et « Chronos » suivent le jour : à minuit elles passent au nouveau jour d’elles-mêmes, sans recharger ni changer de page.
   - Une pastille sans valeur (0, rien de prévu) ne s’affiche pas ; chacune a un libellé pour les lecteurs d’écran (« 5 tâches faisables maintenant », « Prochaine sonnerie dans 12 min »…).
   - « Économat » : « Achats », « Fiches », « Inventaire ».
   - « Finances » : « Facturation » (absente en PERSO), « Trésorerie » (pastille : solde du jour des comptes ouverts, rouge s’il est négatif).
@@ -48,7 +49,7 @@ Composant `Sidebar`, à gauche de l’application.
   - client actif : « Ajouter un projet » ;
   - projet actif sous la profondeur maximale : « Ajouter un sous-projet » ;
   - « Tout développer » / « Tout réduire » s’il a des enfants ;
-  - élément actif : « Modifier », « Ajouter aux favoris » / « Retirer des favoris » ;
+  - élément actif : « Modifier », « Ajouter aux favoris » (étoile grise vide) / « Retirer des favoris » (étoile jaune pleine) ;
   - « Archiver » / « Restaurer » (« avec ses projets et ses contacts » pour un client) et « Supprimer ».
 
 ### Glisser-déposer (« Clients » et « Projets »)
@@ -63,7 +64,7 @@ Disponible en ordre manuel, hors recherche, et pas sur écran tactile ni télép
 
 Route `/clients/:id` (PRO seulement). Composant `ClientPage`.
 
-- En-tête : avatar (logo ou initiales sur sa couleur), nom, badge « Archivé », nombre de projets, interrupteur « Favori » (client actif), bouton « Nouveau projet » (client actif), menu « … » (archiver / restaurer, supprimer).
+- En-tête : avatar (logo ou initiales sur sa couleur), nom, badge « Archivé », nombre de projets, bouton étoile « Favori » (client actif : étoile grise vide, jaune pleine quand c’est un favori ; un clic bascule, infobulle « Ajouter aux favoris » / « Retirer des favoris »), bouton « Nouveau projet » (client actif), menu « … » (archiver / restaurer, supprimer).
 - Section « Projets » : liste encadrée de ses projets et sous-projets en retrait, actifs puis archivés, avec avatar, statut et badge « Archivé ». Chaque projet replie ses sous-projets ; les projets actifs se déplacent par leur poignée : en haut d’une ligne = avant, en bas = après, au milieu = dedans (en dernier), dans la limite de profondeur. État vide « Aucun projet pour ce client. ».
 - Documents de facturation du client et de ses projets (et sous-projets) : voir [Facturation](../finances/accounting.md).
 - Panneau des paramètres (« Paramètres du client »), deux onglets : « Facturation » (coordonnées, prestations, contacts : voir [Facturation](../finances/accounting.md)) et « Nom, couleur et icône » (formulaire du client).
@@ -75,7 +76,7 @@ Route `/projects/:id`. Composant `ProjectPage`. L’onglet est dans l’adresse 
 
 ### En-tête
 
-Avatar, libellé, badge « Archivé », fil d’Ariane (client ou « Sans client » en PRO, puis les projets parents, chacun cliquable), interrupteur « Favori », bouton « Nouveau sous-projet » (projet actif sous la profondeur maximale), menu « … » (archiver / restaurer, supprimer).
+Avatar, libellé, badge « Archivé », fil d’Ariane (client ou « Sans client » en PRO, puis les projets parents, chacun cliquable), bouton étoile « Favori » (élément actif : étoile grise vide, jaune pleine quand c’est un favori ; un clic bascule, infobulle « Ajouter aux favoris » / « Retirer des favoris »), bouton « Nouveau sous-projet » (projet actif sous la profondeur maximale), menu « … » (archiver / restaurer, supprimer).
 
 ### Onglets
 

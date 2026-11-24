@@ -165,11 +165,12 @@ const MarkAlarmFiredDocument = graphql(`
 export const alarmsQueryKey = ['alarms'] as const;
 
 /**
- * Every alarm.
+ * Every alarm, reloaded every 5 minutes (in the background too).
  * @returns {UseQueryResult} Query state.
  */
 export function useAlarms() {
-  return useQuery({ queryKey: alarmsQueryKey, queryFn: async () => (await execute(AlarmsDocument)).alarms });
+  // A tab left open in the background sees the alarms created or changed elsewhere.
+  return useQuery({ queryKey: alarmsQueryKey, queryFn: async () => (await execute(AlarmsDocument)).alarms, refetchInterval: 5 * 60_000, refetchIntervalInBackground: true });
 }
 
 /**

@@ -2,11 +2,11 @@ import { Input, Popover, SegmentedControl, SimpleGrid, Stack, Text, type Mantine
 import { DatePicker, TimePicker } from '@mantine/dates';
 import { CalendarBlankIcon, CheckIcon, XIcon } from '@phosphor-icons/react';
 import { useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { localToday } from '../../lib/dates';
+import { parisToday } from '../../lib/dates';
 import { ActionButton } from '../actions/ActionButton';
 import { InheritanceNote, type InheritedFieldState } from '../inheritance/InheritedField';
 import inheritedClasses from '../inheritance/InheritedField.module.css';
-import { todayPresets } from './date-fields';
+import { parisTodayDays, todayPresets } from './date-fields';
 import type { RangeBinding } from './date-range';
 import classes from './PeriodField.module.css';
 import { boundText, PERIOD_BOUNDS, PERIOD_OPEN_BOUNDS, periodError, pickPeriodDay, type PeriodDraft, type PeriodSide } from './period-field';
@@ -116,7 +116,7 @@ export function PeriodField({
   const saved: PeriodDraft = { days: [value[0], value[1]], times: [times?.[0] ?? null, times?.[1] ?? null], side: 'start' };
   const [opened, setOpened] = useState(false);
   const [draft, setDraft] = useState<PeriodDraft>(saved);
-  const [month, setMonth] = useState(localToday());
+  const [month, setMonth] = useState(parisToday());
   // Last period given while the dropdown is open (the saved one may follow later): not given twice.
   const given = useRef<PeriodDraft | null>(null);
   const needed = (side: PeriodSide) => required === true || required === side;
@@ -140,7 +140,7 @@ export function PeriodField({
     if (disabled || readOnly) return;
     given.current = null;
     setDraft(saved);
-    setMonth(saved.days[0] ?? saved.days[1] ?? localToday());
+    setMonth(saved.days[0] ?? saved.days[1] ?? parisToday());
     setOpened(true);
   };
   /**
@@ -308,7 +308,7 @@ export function PeriodField({
                 onChange={pick}
                 minDate={endMin}
                 maxDate={max}
-                getDayProps={(day) => {
+                getDayProps={parisTodayDays((day) => {
                   const range = Boolean(start && end && start !== end);
                   return {
                     selected: day === start || day === end,
@@ -316,7 +316,7 @@ export function PeriodField({
                     firstInRange: range && day === start,
                     lastInRange: range && day === end,
                   };
-                }}
+                })}
               />
               {opened && periodError(draft.days, withTimes ? draft.times : undefined) && (
                 <Text size="xs" c="var(--mantine-color-error)">

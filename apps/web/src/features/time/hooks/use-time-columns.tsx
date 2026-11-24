@@ -1,8 +1,8 @@
 import { entrySeconds, formatDuration, lineageOf, round2 } from '@ordo/shared';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { DURATION_COLUMN, TIME_COLUMN, type DataColumn } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { collator } from '../../../lib/text';
 import { DRAFT_NAME } from '../../accounting/lib/labels';
@@ -59,15 +59,16 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       locked: true,
       sortValue: (entry) => entry.startedAt,
       text: (entry) => fmt.capitalize(fmt.dayLong(entry.startedAt)),
-      filter: { kind: 'date', value: (entry) => localDay(entry.startedAt) },
+      filter: { kind: 'date', value: (entry) => parisDay(entry.startedAt) },
       groupable: true,
     },
     monthColumn('month', 'Mois', (entry) => entry.startedAt, 140),
-    { id: 'start', bulk: true, label: 'Heure de début', size: 110, sortValue: (entry) => fmt.time(entry.startedAt), text: (entry) => fmt.time(entry.startedAt), filter: false },
+    { id: 'start', bulk: true, label: 'Heure de début', size: 110, ...TIME_COLUMN, sortValue: (entry) => fmt.time(entry.startedAt), text: (entry) => fmt.time(entry.startedAt), filter: false },
     {
       id: 'end',
       label: 'Heure de fin',
       size: 110,
+      ...TIME_COLUMN,
       sortValue: (entry) => (entry.endedAt ? fmt.time(entry.endedAt) : null),
       text: (entry) => (entry.endedAt ? fmt.time(entry.endedAt) : ''),
       filter: false,
@@ -78,7 +79,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       bulk: true,
       label: 'Durée',
       size: 100,
-      numeric: true,
+      ...DURATION_COLUMN,
       sortValue: (entry) => entrySeconds(entry),
       formatTotal: (seconds) => formatDuration(Math.round(seconds)),
       text: (entry) => (entry.endedAt ? formatDuration(entrySeconds(entry)) : TIMER_RUNNING),

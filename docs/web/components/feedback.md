@@ -7,6 +7,7 @@ Briques qui disent l'état de ce qui est affiché : alertes, états vides, pages
 ### `feedback-colors.ts`
 
 - `FEEDBACK_COLORS` : couleur de chaque type de retour, commune aux alertes et aux toasts, avec une icône par type : `success` vert, `info` bleu, `warning` orange, `error` rouge.
+- `FAVORITE_COLOR` : couleur d'un favori (son étoile pleine), le jaune Mantine du thème (`yellow`). Utilisé par `YesNoIcon`.
 - `LATE_COLOR` : couleur d'un retard (accueil, facturation, trésorerie, tâches, routines, badge de navigation…), orange (`FEEDBACK_COLORS.warning`), partout ; seuls les impayés de plus de 45 jours passent au rouge (second palier). Imposée par eslint (pas de `red` / `orange` choisi à la main sur un test `late` / `overdue`).
 
 ### `feedback-icons.tsx`

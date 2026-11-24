@@ -3,7 +3,7 @@ import { SegmentedControl, Select } from '@mantine/core';
 import { YearPickerInput } from '@mantine/dates';
 import { MonthField } from '../../../components/inputs/MonthField';
 import { CALENDAR_SCALE_OPTIONS, calendarStart, type CalendarScale, type ChartConfig } from '@ordo/shared';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { calendarParts } from '../lib/aggregate';
 import { relativePeriodName } from '../../../lib/periods';
 
@@ -30,7 +30,7 @@ const which = (scale: CalendarScale) => [
 export function CalendarPeriodPicker({ value, onChange }: { value: ChartConfig['period']; onChange: (period: ChartConfig['period']) => void }) {
   const { scale, anchor } = calendarParts(value);
   const chosen = anchor !== '0' && anchor !== '-1';
-  const today = localToday();
+  const today = parisToday();
   const set = (nextScale: CalendarScale, nextAnchor: string) => onChange(`${nextScale}:${nextAnchor}` as ChartConfig['period']);
   return (
     <LabeledField label="Période">

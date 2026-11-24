@@ -70,8 +70,8 @@ Fonctions internes : `useShoppingMutation` (mutation qui invalide `shoppingKey`)
 
 ### `components/ShoppingTable.tsx`
 
-- `ShoppingTable<T>(props)` : tableau commun des produits et des éléments (sur `DataTable`), groupé seulement par la vue : le regroupement de la vue par « Catégorie », « Magasin », « Conservation » ou « Bénéficiaires » (`groupingOfColumn`) fait des glisser-déposer vers un autre groupe (qui a des lignes) un changement de ce champ (`moveToGroup`) et place la ligne ajoutée dans un groupe (`AddShoppingRow` + `placeInGroup`) ; groupé par une autre colonne ou pas groupé, une ligne lâchée ou ajoutée ne change pas de valeur. Sans tri, la place choisie par glisser-déposer est enregistrée dans la vue (`orderInView` de `DataTable` : `manualOrder`), dans un groupe ou sans regroupement. Cellules modifiables sur place et en lot (`bulkSaver`), bascule en tête (`ToggleCell`). Props principales : `items`, `label`, `readOnly`, `rowReadOnly`, `onSave(row, input)`, `toggle`, `badge`, `extra`, `extraCells`, `actions`, `summary`, `done`, `categories`, `add`, `view`, `selectionActions`, `selectionLabel`. Utilisé par `BaseList` et `ShoppingListPage`.
-- `ShoppingToggle<T>` (interface) : bascule d'une ligne (`id`, `name`, `value`, `label`, `hint`, `icon`, `color`, `onChange(rows, on)`). Utilisé par `BaseList` et `ShoppingListPage`.
+- `ShoppingTable<T>(props)` : tableau commun des produits et des éléments (sur `DataTable`), groupé seulement par la vue : le regroupement de la vue par « Catégorie », « Magasin », « Conservation » ou « Bénéficiaires » (`groupingOfColumn`) fait des glisser-déposer vers un autre groupe (qui a des lignes) un changement de ce champ (`moveToGroup`) et place la ligne ajoutée dans un groupe (`AddShoppingRow` + `placeInGroup`) ; groupé par une autre colonne ou pas groupé, une ligne lâchée ou ajoutée ne change pas de valeur. Sans tri, la place choisie par glisser-déposer est enregistrée dans la vue (`orderInView` de `DataTable` : `manualOrder`), dans un groupe ou sans regroupement. Cellules modifiables sur place et en lot (`bulkSaver`), bouton d’état en tête (`StateButton` avec les `states` du `toggle`, libellé de cellule `cellLabelOf`), « Facultatif » en bouton d’état (`OPTIONAL_STATES`). Props principales : `items`, `label`, `readOnly`, `rowReadOnly`, `onSave(row, input)`, `toggle`, `badge`, `extra`, `extraCells`, `actions`, `summary`, `done`, `categories`, `add`, `view`, `selectionActions`, `selectionLabel`. Utilisé par `BaseList` et `ShoppingListPage`.
+- `ShoppingToggle<T>` (interface) : état d'une ligne basculé par son bouton d'état en tête (`id`, `name`, `value`, `states` : `YesNoStates`, `MISSING_STATES` ou `BOUGHT_STATES`, `onChange(rows, on)`). Utilisé par `BaseList` et `ShoppingListPage`.
 - Interne : `ShoppingTableProps<T>`, `handleMove(move)`, `cells(item)` (cellules : libellé + note, catégorie, magasin, quantité, unité, prix, conservation, date, bénéficiaires, lien, facultatif, fiches).
 
 ### `components/AddShoppingRow.tsx`
@@ -93,9 +93,8 @@ Cellules modifiables des tables de produits. (partagé avec les fiches et le sto
 | `ExpiryCell({ value, label, disabled?, readOnly?, onSave })`                      | Date de péremption, rouge et en gras une fois dépassée (« Date dépassée ») ; rien si non périssable. | `ShoppingTable`                                              |
 | `CategoryCell({ value, categories, label, readOnly?, onSave })`                   | Choix d'une catégorie en arbre, avec son avatar.                                                     | `ShoppingTable`, `StockTable`, `SheetPage`, `ChecklistPanel` |
 | `TasksCell({ label, items, options, value, onSave, readOnly? })`                  | Tâches d'une liste, multi-sélection (« Aucune tâche »).                                              | `ShoppingPage`                                               |
-| `ToggleCell({ on, label, hint, icon, color, readOnly?, onSave })`                 | Bascule d'état (`StateSwitch`) : manque, acheté.                                                     | `ShoppingTable`                                              |
 
-Interfaces internes : `UnitCellProps`, `StoreCellProps`, `PeopleCellProps`, `ConservationCellProps`, `ExpiryCellProps`, `CategoryCellProps`, `ToggleCellProps`.
+Interfaces internes : `UnitCellProps`, `StoreCellProps`, `PeopleCellProps`, `ConservationCellProps`, `ExpiryCellProps`, `CategoryCellProps`.
 
 ### `components/ShoppingForm.tsx`
 
@@ -141,7 +140,7 @@ Champs de formulaire partagés par les achats et le stock.
 
 ### `components/StoreMode.tsx`
 
-- `StoreMode({ list, onClose })` : mode collecte plein écran (`Modal fullScreen`) : sections des livraisons (avec « Réceptionnée »), puis par magasin et arbre de catégories (`shoppingRows` + `visibleRows`), lignes `Checkbox.Card` cochées d'un tap, section « Acheté » ; propose le stock après achat (`useStockProposal`). Utilisé par `ShoppingListPage`.
+- `StoreMode({ list, onClose })` : mode collecte plein écran (`Modal fullScreen`) : sections des livraisons (avec « Réceptionnée »), puis par magasin et arbre de catégories (`shoppingRows` + `visibleRows`), lignes touchables entières avec un `StateButton` « Acheté » (`BOUGHT_STATES`, taille `xl`) en tête, un tap sur le bouton ou la ligne bascule, section « Acheté » ; propose le stock après achat (`useStockProposal`). Utilisé par `ShoppingListPage`.
 - Internes : `HeadingProps`, `Heading(props)` (titre repliable avec badge du reste à acheter, vert à 0), `toggle(key)`, `row(item, depth)`, `categories(storeKey, storeItems)`.
 
 ### `components/OrderPanel.tsx`
@@ -197,10 +196,11 @@ Colonnes des tableaux des achats, chacune lue par son tableau et par `ShoppingSe
 
 | Export | Rôle |
 | --- | --- |
-| `useShoppingListColumns(lists)` | Colonnes de la table des listes (`shopping-lists`) : liste, tâches, projet, état, achats, restant, produits, total estimé, créée le, clôturée le, payée, catégories, magasins, libellés des produits, commentaires. |
+| `useShoppingListColumns(lists)` | Colonnes de la table des listes (`shopping-lists`) : liste, tâches, projet, état (`stateColumn` : « En cours » bleu, « Clôturée » gris ; interne `LIST_STATES`), achats, restant, produits, total estimé, créée le, clôturée le, payée, catégories, magasins, libellés des produits, commentaires. |
 | `listSheets(items)` | Fiches d'origine des éléments d'une liste, chacune une fois. Utilisé aussi par `ShoppingListPage` (`SheetPicker`). |
 | `useShoppingItemColumns(list)` | Colonnes des éléments d'une liste (`shopping-list`) : `itemColumns` + `optionalColumn` + « Acheté », « En stock », « Livraison » (masquée hors commande à distance), « Fiches », commentaires ; sans liste (paramètres) : sans livraisons, fiches ni commentaires. |
 | `useBaseListColumns(baseList, products)` | Colonnes des produits d'une référence (`shopping-base-list`) : `itemColumns` + commentaires, « Dernier achat », « Manque », « Suivie en stock », « Consommable », « Ajout auto au stock », « Emplacement en stock » ; sans référence : toutes les catégories. |
+| `MISSING_STATES`, `BOUGHT_STATES`, `STOCK_TRACKED_STATES`, `AUTO_STOCK_STATES` | États des boutons d'état (`YesNoStates`) : « Manque » / « Pourvu » (chariot blanc sur fond bleu, `ShoppingCartIcon` en `badge` / carré gris vide), « Acheté » / « À acheter », « Suivie en stock » / « Non suivie en stock », « Ajoutée au stock une fois achetée » / « Pas ajoutée au stock », avec ce que fait un clic ; aussi les icônes et noms de leurs colonnes (`booleanColumn({ states })`). Utilisé par `BaseList`, `ShoppingListPage`, `StoreMode`. |
 
 Internes : `ListEnv`, `projectsOf(list, context)`, `listColumns(env)`.
 
@@ -246,6 +246,7 @@ Interne : `ShoppingGroupLabels`.
 
 - `itemColumns<T>(names, extra?)` : colonnes communes des produits et éléments (libellé, catégorie, magasin, quantité, unité, prix, conservation, date, bénéficiaires, lien), toutes affichées ; « Catégorie » (arbre), « Magasin », « Conservation » (`groupValue` : le mode d'un périssable) et « Bénéficiaires » se groupent avec leurs groupes dans l'ordre des paramètres (`groupTree`) et leur groupe « sans » (`groupNoneLabel` = `NO_GROUP_NAME`). Utilisé par `BaseList`, `ShoppingListPage`.
 - `optionalColumn<T>()` : colonne oui / non « Facultatif » (`booleanColumn`, « Facultatif » / « Obligatoire », `NEUTRAL_YES_WARNING_NO_ICONS`). Utilisé par `ShoppingListPage`, `SheetPage`.
+- `OPTIONAL_STATES` : états de « Facultatif » (colonne et bouton d'état) : « Facultatif » / « Obligatoire », coche bleue / triangle orange, « Marquer comme facultatif » / « Marquer comme obligatoire ». Utilisé par `ShoppingTable`, `SheetPage`.
 - `sheetShoppingColumns<T>(names)` : colonnes magasin, conservation, bénéficiaires, lien pour les éléments de fiches. Utilisé par `SheetPage`.
 - Internes : `ItemNames`, `SHEET_SHOPPING_COLUMNS`, `flatGroups(items)` (groupes des magasins, modes), `peopleGroups(names)` (membres puis relations, par clé de personne).
 
@@ -259,6 +260,7 @@ Colonnes de produits partagées par achats, stock, fiches et listes à cocher. (
 | `unitColumn(options?)`                 | « Unité ».                                                            | idem                                                                       |
 | `categoryColumn(categories, options?)` | « Catégorie » : chemin complet, filtre en arbre (archivées marquées), groupée en arbre (`groupTree`, couleur héritée), « Sans catégorie ». | idem                                                                       |
 | `consumableColumn(options?)`           | « Consommable », colonne oui / non (`booleanColumn`, « Consommable » / « Permanent »). | `useStockItemColumns`, `useSheetItemColumns`, `useChecklistColumns`, `useBaseListColumns` |
+| `CONSUMABLE_STATES`                    | États de « Consommable » (colonne et bouton d'état) : « Consommable » / « Permanent », « Marquer comme consommable » / « Marquer comme permanent ». | `BaseList`, `SheetPage`, `ChecklistPanel` |
 | `noteColumn(options?)`                 | « Description » (note).                                               | `StockPage`, `StockTable`, `MovementsTable`, `SheetPage`, `ChecklistPanel` |
 
 Interne : `ColumnOptions<T>`.

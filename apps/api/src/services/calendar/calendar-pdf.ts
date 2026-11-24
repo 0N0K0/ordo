@@ -12,6 +12,7 @@ import {
   timeToMinutes,
   WEEKDAY_SHORT_LABELS,
   weekdayText,
+  weekdayOfDate,
   twoDigits,
   dayOfMonthOf,
 } from '@ordo/shared';
@@ -288,7 +289,8 @@ function drawMonth(doc: PdfDoc, view: z.infer<typeof calendarPdfSchema>, area: {
   const cellWidth = area.width / 7;
   const cellHeight = (area.height - headerHeight) / weeks;
   const month = monthOfDay(addDays(view.from, 15));
-  WEEKDAY_SHORT_LABELS.forEach((label, index) =>
+  // The days of the week from the first day shown (the first day of the week of the workspace).
+  Array.from({ length: 7 }, (_, index) => WEEKDAY_SHORT_LABELS[weekdayOfDate(addDays(view.from, index)) - 1]).forEach((label, index) =>
     clippedText(doc, label, { x: area.x + index * cellWidth + 4, y: area.y + 3, width: cellWidth - 8, height: 10, size: 7.5, color: COLORS.muted, bold: true }),
   );
   const items = view.items.filter((item) => item.kind !== 'background');

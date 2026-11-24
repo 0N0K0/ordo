@@ -1,20 +1,27 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
-import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
+import { ROUTINE_REPETITIONS, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
-import { multiValues, WARNING_YES_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import { BADGE_COLUMN, DURATION_COLUMN, multiValues, TIME_COLUMN, WARNING_YES_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
 import { isDone, panelOccurrence, routineTreeOptions, currentRoutineState, waitingFor, blockedRoutineIds } from './routine-format';
-import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
-import { localDay } from '../../../lib/dates';
+import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_BADGES, type RoutineEnv } from './routine-view';
+import { parisDay } from '../../../lib/dates';
 import { LAST_RANK } from '../../../components/data-table/table/table-engine';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
+import { stateColumn } from '../../../components/data-table/table/state-column';
 import { DOABLE_GROUP_LABELS } from '../../tasks/lib/task-columns';
 import { itemChoices } from '../../../components/items/item-look';
 import type { TaskLabel } from '../../tasks/api';
 import { documentsColumn } from '../../documents/lib/documents-column';
 
+
+/** States of « Faite » of a routine (or of one of its times of the day), on its state buttons. */
+export const ROUTINE_DONE_STATES = {
+  labels: { yes: 'Faite', no: 'À faire' },
+  toggleLabels: { yes: 'Marquer comme faite', no: 'Marquer comme à faire' },
+} satisfies YesNoStates;
 /**
  * Short date of a calendar date: "lun. 10 nov.".
  * @param {string | null} date YYYY-MM-DD.
@@ -65,6 +72,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id,
       label,
       size: 120,
+      ...BADGE_COLUMN,
       bulk: true,
       sortValue: (routine) => byLabel.get(value(routine) ?? '')?.position ?? null,
       text: (routine) => byLabel.get(value(routine) ?? '')?.label ?? '',
@@ -78,20 +86,11 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       label: 'Échéance',
       size: 200,
       bulk: true,
-      sortValue: (routine) => routine.currentDate || null,
-      text: (routine) => dayText(routine.currentDate || null),
-      filter: { kind: 'date', value: (routine) => routine.currentDate || null },
+      sortValue: (routine) => routine.currentDueDate || null,
+      text: (routine) => dayText(routine.currentDueDate || null),
+      filter: { kind: 'date', value: (routine) => routine.currentDueDate || null },
     },
-    {
-      id: 'state',
-      label: 'État',
-      size: 110,
-      required: true,
-      hiddenByDefault: true,
-      sortValue: (routine) => ROUTINE_STATES.indexOf(state(routine)),
-      text: (routine) => ROUTINE_STATE_LABELS[state(routine)],
-      filter: { kind: 'choice', value: state, options: ROUTINE_STATES.map((value) => ({ value, label: ROUTINE_STATE_LABELS[value] })) },
-    },
+    stateColumn({ id: 'state', label: 'État', size: 110, required: true, hiddenByDefault: true, states: ROUTINE_STATE_BADGES, value: state }),
     {
       id: 'firstDate',
       label: 'Première échéance',
@@ -105,9 +104,9 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       label: 'Échéance suivante',
       size: 150,
       hiddenByDefault: true,
-      sortValue: (routine) => routine.nextDate || null,
-      text: (routine) => dayText(routine.nextDate || null),
-      filter: { kind: 'date', value: (routine) => routine.nextDate || null },
+      sortValue: (routine) => routine.nextDueDate || null,
+      text: (routine) => dayText(routine.nextDueDate || null),
+      filter: { kind: 'date', value: (routine) => routine.nextDueDate || null },
     },
     {
       id: 'startDate',
@@ -134,22 +133,22 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'estimate',
       label: 'Temps estimé',
       size: 110,
-      numeric: true,
+      ...DURATION_COLUMN,
       bulk: true,
       sortValue: (routine) => routine.estimate ?? null,
       text: (routine) => minutes(routine.estimate ?? null),
       filter: { kind: 'number', value: (routine) => routine.estimate ?? null },
       formatTotal: (value) => minutes(Math.round(value)),
     },
-    { id: 'fromTime', label: 'À partir de', size: 110, bulk: true, sortValue: (routine) => routine.fromTime ?? null, text: (routine) => routine.fromTime ?? '' },
-    { id: 'dueTime', label: 'Avant', size: 110, bulk: true, sortValue: (routine) => routine.dueTime ?? null, text: (routine) => routine.dueTime ?? '' },
+    { id: 'fromTime', label: 'À partir de', size: 110, ...TIME_COLUMN, bulk: true, sortValue: (routine) => routine.fromTime ?? null, text: (routine) => routine.fromTime ?? '' },
+    { id: 'dueTime', label: 'Avant', size: 110, ...TIME_COLUMN, bulk: true, sortValue: (routine) => routine.dueTime ?? null, text: (routine) => routine.dueTime ?? '' },
     { id: 'opensOn', label: 'Ouverture', size: 120, hiddenByDefault: true, bulk: true, text: (routine) => opensWords(routine) ?? '' },
     { id: 'location', label: 'Lieu', size: 200, hiddenByDefault: true, bulk: true, sortValue: (routine) => routine.location ?? null, text: (routine) => routine.location ?? '' },
     {
       id: 'travelBefore',
       label: 'Trajet aller',
       size: 110,
-      numeric: true,
+      ...DURATION_COLUMN,
       hiddenByDefault: true,
       bulk: true,
       sortValue: (routine) => routine.travelBefore || null,
@@ -160,7 +159,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'travelAfter',
       label: 'Trajet retour',
       size: 110,
-      numeric: true,
+      ...DURATION_COLUMN,
       hiddenByDefault: true,
       bulk: true,
       sortValue: (routine) => routine.travelAfter || null,
@@ -171,6 +170,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'alarms',
       label: 'Rappels',
       size: 100,
+      ...BADGE_COLUMN,
       hiddenByDefault: true,
       bulk: true,
       sortValue: (routine) => routine.reminders.length || null,
@@ -190,7 +190,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       // Time spent, as for the tasks (« Chrono » is their timer); never empty.
       label: 'Temps passé',
       size: 120,
-      numeric: true,
+      ...DURATION_COLUMN,
       required: true,
       sortValue: (routine) => routine.trackedSeconds,
       text: (routine) => (routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''),
@@ -204,7 +204,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       hiddenByDefault: true,
       sortValue: (routine) => routine.lastDoneAt || null,
       text: (routine) => (routine.lastDoneAt ? fmt.dateTime(routine.lastDoneAt) : ''),
-      filter: { kind: 'date', value: (routine) => (routine.lastDoneAt ? localDay(routine.lastDoneAt) : null) },
+      filter: { kind: 'date', value: (routine) => (routine.lastDoneAt ? parisDay(routine.lastDoneAt) : null) },
     },
     {
       id: 'assignees',
@@ -301,7 +301,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     { id: 'description', label: 'Description', size: 240, hiddenByDefault: true, groupable: false, text: (routine) => routine.description ?? '' },
     documentsColumn<Routine>((routine) => routine),
-    booleanColumn<Routine>({ id: 'done', label: 'Faite', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Faites', no: 'À faire' }, value: isDone }),
+    booleanColumn<Routine>({ id: 'done', label: 'Faite', size: 90, hiddenByDefault: true, states: ROUTINE_DONE_STATES, groupLabels: { yes: 'Faites', no: 'À faire' }, value: isDone }),
     booleanColumn<Routine>({ id: 'waiting', label: 'En attente', size: 100, hiddenByDefault: true, groupLabels: { yes: 'En attente', no: 'Libre' }, icons: WARNING_YES_ICONS, value: (routine) => waitingFor(routine, byId).length > 0 }),
     booleanColumn<Routine>({ id: 'doableNow', label: 'Faisable maintenant', size: 140, hiddenByDefault: true, groupLabels: DOABLE_GROUP_LABELS, value: env.doable }),
     commentColumn<Routine>(

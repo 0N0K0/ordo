@@ -36,6 +36,7 @@ import { assertKindContextsKept, syncKindContexts } from '../treasury/treasury-c
 import { currentWorkspaceId } from '../../workspace-context';
 import { currentWorkspaceFields } from '../workspaces/current-workspace';
 import { toJson } from '../core/json';
+import { NOTHING_AFTER, type AfterSave } from '../core/occurrence-rows';
 
 /**
  * Schedule as the shared functions read it: its cases and exceptions, or, saved before cases, its former slots
@@ -125,10 +126,10 @@ async function scheduleData(input: WorkScheduleInput, currentTypeId: string | nu
  * Before a change of the schedules is saved, once checked: what it does to the routines (their occurrences it makes
  * disappear, `settleScheduleChange`), given the schedules of the workspace as it leaves them.
  */
-export type ScheduleChangeSettler = (change: (own: WorkScheduleRule[]) => WorkScheduleRule[]) => Promise<void>;
+export type ScheduleChangeSettler = (change: (own: WorkScheduleRule[]) => WorkScheduleRule[]) => Promise<AfterSave>;
 
 /** No settling (internal changes). */
-const NO_SETTLER: ScheduleChangeSettler = async () => {};
+const NO_SETTLER: ScheduleChangeSettler = async () => NOTHING_AFTER;
 
 /**
  * Creates a schedule.
@@ -138,8 +139,10 @@ const NO_SETTLER: ScheduleChangeSettler = async () => {};
  */
 export async function createWorkSchedule(input: WorkScheduleInput, settle: ScheduleChangeSettler = NO_SETTLER): Promise<WorkSchedule> {
   const data = await scheduleData(input);
-  await settle((own) => [...own, scheduleRuleOf('new', input, data)]);
-  return prisma.workSchedule.create({ data });
+  const after = await settle((own) => [...own, scheduleRuleOf('new', input, data)]);
+  const created = await prisma.workSchedule.create({ data });
+  await after();
+  return created;
 }
 
 /**
@@ -154,14 +157,16 @@ export async function updateWorkSchedule(id: string, input: WorkScheduleInput, s
   refuseArchived(current);
   const data = await scheduleData(input, current.typeId);
   // Its kind kept: archived as it is; another one: not archived (checked).
-  await settle((own) =>
+  const after = await settle((own) =>
     own.map((rule) => {
       if (rule.id !== id) return rule;
       const next = scheduleRuleOf(id, input, data);
       return { ...next, kindArchived: Boolean(rule.kindArchived && rule.typeId === next.typeId) };
     }),
   );
-  return prisma.workSchedule.update({ where: { id }, data });
+  const updated = await prisma.workSchedule.update({ where: { id }, data });
+  await after();
+  return updated;
 }
 
 /**
@@ -172,8 +177,9 @@ export async function updateWorkSchedule(id: string, input: WorkScheduleInput, s
  */
 export async function deleteWorkSchedule(id: string, settle: ScheduleChangeSettler = NO_SETTLER): Promise<void> {
   await assertExists(prisma.workSchedule, id, 'Créneau de travail');
-  await settle((own) => own.filter((rule) => rule.id !== id));
+  const after = await settle((own) => own.filter((rule) => rule.id !== id));
   await deleteOrNotFound(prisma.workSchedule, id, 'Créneau de travail');
+  await after();
 }
 
 /**
@@ -193,8 +199,9 @@ export async function setWorkScheduleEphemeris(id: string, ephemeris: boolean, s
   refuseArchived(current);
   if (current.ephemeris === ephemeris) return;
   const leavesKind = Boolean(current.type && current.type.ephemeris !== ephemeris);
-  await settle((own) => own.map((rule) => (rule.id === id ? { ...rule, ephemeris, ...(leavesKind ? { typeId: null, kindArchived: false } : {}) } : rule)));
+  const after = await settle((own) => own.map((rule) => (rule.id === id ? { ...rule, ephemeris, ...(leavesKind ? { typeId: null, kindArchived: false } : {}) } : rule)));
   await prisma.workSchedule.update({ where: { id }, data: { ephemeris, ...(leavesKind ? { typeId: null } : {}) } });
+  await after();
 }
 
 /**
@@ -211,8 +218,9 @@ export async function setScheduleTypeEphemeris(id: string, ephemeris: boolean, s
   refuseArchived(current);
   if (current.ephemeris === ephemeris) return;
   if (current.budgetContext) throw clientError('BAD_USER_INPUT', 'Ce type sert de contexte au budget : retirez d’abord « Sert de contexte au budget ».');
-  await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, ephemeris } : rule)));
+  const after = await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, ephemeris } : rule)));
   await prisma.$transaction([prisma.scheduleType.update({ where: { id }, data: { ephemeris } }), prisma.workSchedule.updateMany({ where: { typeId: id }, data: { ephemeris } })]);
+  await after();
 }
 
 /** Kinds of time slots (label, color and display, checked here); the schedules of a deleted one stay, without kind. */
@@ -277,10 +285,11 @@ export async function updateScheduleType(id: string, input: object, settle: Sche
   checkKindContext(next);
   await assertKindContextsKept(id, next);
   const unavailable = patch.unavailable ?? current.unavailable;
-  if (unavailable !== current.unavailable) await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, unavailable } : rule)));
+  const after = unavailable !== current.unavailable ? await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, unavailable } : rule))) : NOTHING_AFTER;
   const type = await baseScheduleTypes.update(id, { ...changes, sharedContext: next.sharedContext, unavailable });
   if (unavailable !== current.unavailable) await prisma.workSchedule.updateMany({ where: { typeId: id }, data: { unavailable } });
   await syncKindContexts(id);
+  await after();
   return type;
 }
 
@@ -293,8 +302,9 @@ export async function updateScheduleType(id: string, input: object, settle: Sche
  */
 export async function deleteScheduleType(id: string, settle: ScheduleChangeSettler = NO_SETTLER): Promise<void> {
   await assertExists(prisma.scheduleType, id, 'Type de créneau');
-  await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, typeId: null, kindArchived: false } : rule)));
+  const after = await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, typeId: null, kindArchived: false } : rule)));
   await scheduleTypes.remove(id);
+  await after();
 }
 
 /**
@@ -692,19 +702,20 @@ export async function setScheduleSubscriptionLook(sourceWorkspaceId: string, typ
  * @param {string} sourceWorkspaceId Workspace of the schedules.
  * @param {string | null} typeId Kind; none: the schedules without kind.
  * @param {boolean} unavailable « Indisponible ».
- * @param {(change: { sourceWorkspaceId: string, typeId: string | null, unavailable: boolean }) => Promise<void>} [settle] Run once checked, before it is saved. Optional. Default = none.
+ * @param {(change: { sourceWorkspaceId: string, typeId: string | null, unavailable: boolean }) => Promise<AfterSave>} [settle] Run once checked, before it is saved; what it returns runs once saved. Optional. Default = none.
  * @returns {Promise<void>}
  */
 export async function setScheduleSubscriptionUnavailable(
   sourceWorkspaceId: string,
   typeId: string | null,
   unavailable: boolean,
-  settle: (change: { sourceWorkspaceId: string; typeId: string | null; unavailable: boolean }) => Promise<void> = async () => {},
+  settle: (change: { sourceWorkspaceId: string; typeId: string | null; unavailable: boolean }) => Promise<AfterSave> = async () => NOTHING_AFTER,
 ): Promise<void> {
   const current = await orNotFound(prisma.workScheduleSubscription.findFirst({ where: { sourceWorkspaceId, typeId }, select: { unavailable: true } }), 'Abonnement');
   if (current.unavailable === unavailable) return;
-  await settle({ sourceWorkspaceId, typeId, unavailable });
+  const after = await settle({ sourceWorkspaceId, typeId, unavailable });
   await prisma.workScheduleSubscription.updateMany({ where: { sourceWorkspaceId, typeId }, data: { unavailable } });
+  await after();
 }
 
 /**

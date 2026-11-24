@@ -15,6 +15,7 @@ import { clientError, fieldError, isUniqueConflict, orNotFound, parseField, pars
 import { createContributor, freeHandle } from '../projects/contributors';
 import { personDetailsData, type PersonDetailsFields } from '../core/person-details';
 import { NO_PEOPLE_SETTLER, personChange, type PeopleChangeSettler } from '../calendar/birthdays';
+import { NOTHING_AFTER } from '../core/occurrence-rows';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertActive, findActive } from '../core/archive';
 import { memberWhere } from '../people/members';
@@ -41,8 +42,10 @@ export async function addMember(input: { contributorId?: string | null; name?: s
     await assertExists(prisma.contributor, input.contributorId, 'Contributeur');
     // A contributor is linked to a membership, a relation or a contact, one at most.
     await assertNoOtherLink(input.contributorId, 'MEMBER');
-    await settle(personChange('contributor', input.contributorId, { member: true }));
-    return prisma.contributor.update({ where: { id: input.contributorId }, data: { teamMember: true } });
+    const after = await settle(personChange('contributor', input.contributorId, { member: true }));
+    const member = await prisma.contributor.update({ where: { id: input.contributorId }, data: { teamMember: true } });
+    await after();
+    return member;
   }
   const name = parseField('name', personNameSchema, input.name ?? '');
   const contributor = await createContributor({ name, handle: await freeHandle(name) });
@@ -59,8 +62,9 @@ export async function addMember(input: { contributorId?: string | null; name?: s
 export async function removeMember(contributorId: string, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<void> {
   const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: contributorId }, select: { userId: true } }), 'Contributeur');
   if (contributor.userId) throw clientError('BAD_USER_INPUT', 'Vous êtes toujours membre de votre équipe ou de votre foyer.');
-  await settle(personChange('contributor', contributorId, { member: false }));
+  const after = await settle(personChange('contributor', contributorId, { member: false }));
   await prisma.contributor.update({ where: { id: contributorId }, data: { teamMember: false } });
+  await after();
 }
 
 /**
@@ -77,8 +81,10 @@ export async function updateMemberDetails(contributorId: string, input: PersonDe
   const linked = contributorDetails(await prisma.contributor.findUniqueOrThrow({ where: { id: contributorId }, select: CONTRIBUTOR_LINK_SELECT }));
   if (linked.link !== 'MEMBER') throw clientError('BAD_USER_INPUT', 'Seul un membre de l’équipe ou du foyer a ses propres coordonnées : modifiez celles de sa relation ou de son contact.');
   const data = personDetailsData(input);
-  if (data.birthDate !== undefined && data.birthDate !== contributor.birthDate) await settle(personChange('contributor', contributorId, { birthDate: data.birthDate }));
-  return prisma.contributor.update({ where: { id: contributorId }, data });
+  const after = data.birthDate !== undefined && data.birthDate !== contributor.birthDate ? await settle(personChange('contributor', contributorId, { birthDate: data.birthDate })) : NOTHING_AFTER;
+  const updated = await prisma.contributor.update({ where: { id: contributorId }, data });
+  await after();
+  return updated;
 }
 
 /**
@@ -136,10 +142,14 @@ export async function saveRelation(
   const data = { name: parsed.name, note: parsed.note, contributorId: parsed.contributorId ?? null, ...personDetailsData(input) };
   // Its birthday, or the one that applies to it (its contributor's), changes.
   const birthDate = data.birthDate === undefined ? (current?.birthDate ?? null) : data.birthDate;
-  if (birthDate !== (current?.birthDate ?? null) || data.contributorId !== (current?.contributorId ?? null))
-    await settle(personChange('relation', id ?? '', { name: data.name, birthDate, contributorId: data.contributorId }));
+  const after =
+    birthDate !== (current?.birthDate ?? null) || data.contributorId !== (current?.contributorId ?? null)
+      ? await settle(personChange('relation', id ?? '', { name: data.name, birthDate, contributorId: data.contributorId }))
+      : NOTHING_AFTER;
   try {
-    return id ? await prisma.treasuryRelation.update({ where: { id }, data }) : await prisma.treasuryRelation.create({ data });
+    const saved = id ? await prisma.treasuryRelation.update({ where: { id }, data }) : await prisma.treasuryRelation.create({ data });
+    await after();
+    return saved;
   } catch (error) {
     if (isUniqueConflict(error)) {
       const contributor = String(error.meta?.target ?? '').includes('contributorId') || JSON.stringify(error.meta ?? {}).includes('contributorId');
@@ -158,6 +168,7 @@ export async function saveRelation(
  */
 export async function deleteRelation(id: string, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<void> {
   await assertExists(prisma.treasuryRelation, id, 'Relation');
-  await settle(personChange('relation', id, null));
+  const after = await settle(personChange('relation', id, null));
   await deleteOrNotFound(prisma.treasuryRelation, id, 'Relation');
+  await after();
 }

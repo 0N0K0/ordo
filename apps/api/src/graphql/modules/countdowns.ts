@@ -53,7 +53,12 @@ builder.queryFields((t) => ({
   countdowns: t.prismaField({
     type: ['Countdown'],
     description: 'Timers of the user not rung yet (every workspace), the soonest end first, paused ones last.',
-    resolve: (query, _root, _args, ctx) => prisma.countdown.findMany({ ...query, ...countdowns.activeCountdowns(signedInSession(ctx).userId) }),
+    resolve: async (query, _root, _args, ctx) => {
+      const { userId } = signedInSession(ctx);
+      // Those ended long ago without ringing, or paused once ended, settled first.
+      await countdowns.settleStaleCountdowns(userId);
+      return prisma.countdown.findMany({ ...query, ...countdowns.activeCountdowns(userId) });
+    },
   }),
 }));
 

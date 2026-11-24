@@ -3,7 +3,10 @@ import { ActionsMenu } from '../../actions/ActionsMenu';
 import { aggregateValues, type TableAggregate } from '@ordo/shared';
 import { CaretDownIcon } from '@phosphor-icons/react';
 import * as fmt from '../../../lib/format';
-import type { ShownColumn } from './data-table';
+import { columnAlign, type ColumnAlign, type ShownColumn } from './data-table';
+
+/** Text alignment of a total under a column, as its cells. */
+const TEXT_ALIGN: Record<ColumnAlign, 'left' | 'center' | 'right'> = { start: 'left', center: 'center', end: 'right' };
 
 const LABELS: Record<TableAggregate, string> = { count: 'Compte', sum: 'Somme', avg: 'Moyenne', median: 'Médiane' };
 
@@ -64,7 +67,7 @@ export function TableFooter<R>({ shown, rows, totals, onChange, before, after }:
           const { numeric, text } = totalOf(column, rows, chosen);
           const options = (['count', ...(numeric ? (['sum', 'avg', 'median'] as const) : [])] as TableAggregate[]).map((value) => ({ value, label: LABELS[value] }));
           return (
-            <Table.Th key={column.id} ta={column.numeric ? 'right' : undefined} fw={500}>
+            <Table.Th key={column.id} ta={TEXT_ALIGN[columnAlign(column)]} fw={500}>
               <ActionsMenu
                 about={`total de « ${column.label} »`}
                 position="bottom-start"
@@ -120,7 +123,7 @@ export function GroupFooter<R>({ shown, rows, totals, before, after, label, trPr
         const chosen = totals[column.id];
         if (!chosen || (!column.sortValue && !column.text)) return <Table.Td key={column.id} />;
         return (
-          <Table.Td key={column.id} ta={column.numeric ? 'right' : undefined} style={{ whiteSpace: 'nowrap' }}>
+          <Table.Td key={column.id} ta={TEXT_ALIGN[columnAlign(column)]} style={{ whiteSpace: 'nowrap' }}>
             <Text span size="xs" ff={column.numeric ? 'monospace' : undefined}>
               <Text span size="xs" c="dimmed">
                 {LABELS[chosen]}{' '}

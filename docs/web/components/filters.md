@@ -39,7 +39,7 @@ Libellés (`OPERATOR_LABELS`) :
 ## `FilterBuilder.tsx`
 
 - `FilterFields<F>` (interface) — ce qu’un éditeur propose : `kinds` (type de chaque champ), `labels`, `groups` (champs du select, par groupe), `first` (champ d’une nouvelle condition), `options(field, values)` (props de select des valeurs d’un champ `reference` / `multiReference` / `sprint` / `category`, valeurs archivées comprises tant qu’elles sont dans le filtre), `isComplete(condition)`, `operatorLabel?(field, op)`, `operators?(field)`, `yesNo?(field)` (noms `YesNoLabels` et icônes `YesNoIcons` des valeurs d’un champ oui / non), `required?` (champs jamais vides), `emptyText` (texte d’un filtre vide).
-- `FieldsFilterBuilder({ filter, fields, onChange })` — l’éditeur d’un arbre de filtres. Utilisé par `DataViewBar`, `tasks`, `routines`.
+- `FieldsFilterBuilder({ filter, fields, onChange })` — l’éditeur d’un arbre de filtres. Utilisé par `DataViewBar`, `tasks`, `routines`, `calendar` (une section par sorte du filtre de l’agenda).
 
 Composants internes :
 

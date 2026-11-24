@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
+import { ShoppingCartIcon } from '@phosphor-icons/react';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { multiValues, WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
+import { FEEDBACK_COLORS } from '../../../components/feedback/feedback-colors';
+import { BADGE_COLUMN, multiValues, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { itemChoices } from '../../../components/items/item-look';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
@@ -18,6 +21,37 @@ import { categoriesForBaseList, leftToBuy, listClosed, listTasks, shoppingProgre
 
 type ShoppingItem = ShoppingList['items'][number];
 
+
+/** States of « Manque » of a reference, in its column and on its state buttons: a blue cart (to buy), an empty one. */
+export const MISSING_STATES: YesNoStates = {
+  labels: { yes: 'Manque', no: 'Pourvu' },
+  icons: { yes: { icon: ShoppingCartIcon, tone: 'info', badge: true }, no: 'empty' },
+  toggleLabels: { yes: 'Marquer comme manquant (sur la prochaine liste générée)', no: 'Marquer comme pourvu' },
+};
+
+/** States of a shopping list: open blue (under way), closed gray. */
+const LIST_STATES: ColumnState<'OPEN' | 'CLOSED'>[] = [
+  { id: 'OPEN', label: 'En cours', color: FEEDBACK_COLORS.info },
+  { id: 'CLOSED', label: 'Clôturée', color: 'gray' },
+];
+
+/** States of « Acheté » of an item of a list, on its state buttons. */
+export const BOUGHT_STATES: YesNoStates = {
+  labels: { yes: 'Acheté', no: 'À acheter' },
+  toggleLabels: { yes: 'Marquer comme acheté', no: 'Marquer comme à acheter' },
+};
+
+/** States of « Suivie en stock » of a reference, on its state buttons. */
+export const STOCK_TRACKED_STATES: YesNoStates = {
+  labels: { yes: 'Suivie en stock', no: 'Non suivie en stock' },
+  toggleLabels: { yes: 'Suivre en stock', no: 'Ne plus suivre en stock' },
+};
+
+/** States of « Ajout auto au stock » of a reference, on its state buttons. */
+export const AUTO_STOCK_STATES: YesNoStates = {
+  labels: { yes: 'Ajoutée au stock une fois achetée', no: 'Pas ajoutée au stock' },
+  toggleLabels: { yes: 'Ajouter au stock une fois achetée', no: 'Ne plus ajouter au stock une fois achetée' },
+};
 /** What the columns of the lists need: the tasks, the categories and the stores. */
 interface ListEnv {
   context: TaskContext | null;
@@ -76,27 +110,12 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
         options: context ? context.projectOptions(context.projects) : [],
       },
     },
-    {
-      id: 'state',
-      required: true,
-      label: 'État',
-      size: 110,
-      hiddenByDefault: true,
-      sortValue: (list) => (listState(list) === 'CLOSED' ? 1 : 0),
-      text: (list) => (listState(list) === 'CLOSED' ? 'Clôturée' : 'En cours'),
-      filter: {
-        kind: 'choice',
-        value: listState,
-        options: [
-          { value: 'OPEN', label: 'En cours' },
-          { value: 'CLOSED', label: 'Clôturée' },
-        ],
-      },
-    },
+    stateColumn({ id: 'state', required: true, label: 'État', size: 110, hiddenByDefault: true, states: LIST_STATES, value: listState }),
     {
       id: 'progress',
       label: 'Achats',
       size: 100,
+      ...BADGE_COLUMN,
       groupable: false,
       sortValue: (list) => (shoppingProgress(list.items).total ? shoppingProgress(list.items).bought / shoppingProgress(list.items).total : null),
       text: (list) => `${shoppingProgress(list.items).bought} / ${shoppingProgress(list.items).total}`,
@@ -140,7 +159,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       size: 110,
       sortValue: (list) => list.createdAt,
       text: (list) => fmt.day(list.createdAt),
-      filter: { kind: 'date', value: (list) => localDay(list.createdAt) },
+      filter: { kind: 'date', value: (list) => parisDay(list.createdAt) },
     },
     {
       id: 'closedAt',
@@ -149,7 +168,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       hiddenByDefault: true,
       sortValue: (list) => list.closedAt || null,
       text: (list) => (list.closedAt ? fmt.day(list.closedAt) : ''),
-      filter: { kind: 'date', value: (list) => (list.closedAt ? localDay(list.closedAt) : null) },
+      filter: { kind: 'date', value: (list) => (list.closedAt ? parisDay(list.closedAt) : null) },
     },
     booleanColumn<ShoppingList>({ id: 'paid', label: 'Payée', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Payée', no: 'À payer' }, value: (list) => list.entryId !== null }),
     {
@@ -242,7 +261,7 @@ export function useShoppingItemColumns(list: ShoppingList | undefined): DataColu
     },
     [
       optionalColumn<ShoppingItem>(),
-      booleanColumn<ShoppingItem>({ id: 'bought', label: 'Acheté', size: 100, hiddenByDefault: true, groupLabels: { yes: 'Acheté', no: 'À acheter' }, value: (item) => Boolean(item.purchasedAt) }),
+      booleanColumn<ShoppingItem>({ id: 'bought', label: 'Acheté', size: 100, hiddenByDefault: true, states: BOUGHT_STATES, value: (item) => Boolean(item.purchasedAt) }),
       {
         id: 'inStock',
         label: 'En stock',
@@ -315,12 +334,12 @@ export function useBaseListColumns(baseList: ShoppingBaseList | null, products: 
         size: 120,
         sortValue: (product) => product.lastPurchasedAt ?? null,
         text: (product) => (product.lastPurchasedAt ? `${fmt.day(product.lastPurchasedAt)}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
-        filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(product.lastPurchasedAt) : null) },
+        filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? parisDay(product.lastPurchasedAt) : null) },
       },
-      booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Manquants', no: 'Pourvus' }, icons: WARNING_YES_NEUTRAL_NO_ICONS, value: (product) => product.missing }),
-      booleanColumn<ShoppingProduct>({ id: 'stockTracked', label: 'Suivie en stock', size: 130, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Suivis en stock', no: 'Non suivis en stock' }, value: (product) => product.stockTracked }),
+      booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, states: MISSING_STATES, groupLabels: { yes: 'Manquants', no: 'Pourvus' }, value: (product) => product.missing }),
+      booleanColumn<ShoppingProduct>({ id: 'stockTracked', label: 'Suivie en stock', size: 130, bulk: true, hiddenByDefault: true, groupable: true, states: STOCK_TRACKED_STATES, groupLabels: { yes: 'Suivis en stock', no: 'Non suivis en stock' }, value: (product) => product.stockTracked }),
       consumableColumn<ShoppingProduct>({ hiddenByDefault: true }),
-      booleanColumn<ShoppingProduct>({ id: 'autoStock', label: 'Ajout auto au stock', size: 150, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Ajoutés automatiquement au stock', no: 'Non ajoutés automatiquement au stock' }, value: (product) => product.autoStock }),
+      booleanColumn<ShoppingProduct>({ id: 'autoStock', label: 'Ajout auto au stock', size: 150, bulk: true, hiddenByDefault: true, groupable: true, states: AUTO_STOCK_STATES, groupLabels: { yes: 'Ajoutés automatiquement au stock', no: 'Non ajoutés automatiquement au stock' }, value: (product) => product.autoStock }),
       {
         id: 'stockLocation',
         label: 'Emplacement en stock',

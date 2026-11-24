@@ -29,7 +29,7 @@ import { addMember, saveContext, saveRelation } from '../../src/services/treasur
 import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
 import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspaces/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
-import { calendarCategory, chart, contextPeriod, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, treasuryCategoryMaker } from './factories';
+import { calendarCategory, chart, contextPeriod, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, parisAt, projectFactory, relativeDay, rule, taskFactory, treasuryCategoryMaker } from './factories';
 import { initialsIcon } from './images';
 import { pdfFile } from './mail';
 import { rebuildStatusHistory } from './history';
@@ -448,7 +448,7 @@ export async function seedPersonal({
 
   // --- Tracked time on the projects ------------------------------------------------------------------------
   for (let index = 0; index < 6; index += 1) {
-    const startedAt = localAt(day(-faker.number.int({ min: 1, max: 30 })), faker.number.int({ min: 9, max: 17 }));
+    const startedAt = parisAt(day(-faker.number.int({ min: 1, max: 30 })), faker.number.int({ min: 9, max: 17 }));
     await createTimeEntry({
       projectId: faker.helpers.arrayElement([bathroom.id, garden.id, papers.id]),
       description: faker.helpers.arrayElement(['Bricolage', 'Rangement', 'Papiers']),

@@ -17,20 +17,23 @@ import {
   type FilterGroupOf,
   type TableViewConfig,
   type TaskStatusCategory,
+  type TaskCloseReason,
   lineageOf,
   relativeSprintIds,
   sprintFilterValues,
 } from '@ordo/shared';
-import { LATE_GROUP_LABELS, WARNING_YES_ICONS, type ColumnChoice, type ColumnFilter, type DataColumn, type YesNoIcons, type YesNoLabels } from '../../../components/data-table/table/data-table';
+import { BADGE_COLUMN, DURATION_COLUMN, LATE_GROUP_LABELS, WARNING_YES_ICONS, type ColumnChoice, type ColumnFilter, type DataColumn, type YesNoIcons, type YesNoLabels } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
+import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
+import { FEEDBACK_COLORS } from '../../../components/feedback/feedback-colors';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import { type TaskContext, taskNumber } from '../hooks/use-task-context';
 import { BULK_EDITABLE_COLUMNS, COLUMN_LABELS, COLUMN_SIZES, LOCKED_COLUMNS } from './columns-meta';
 import { eventCell, taskCell } from './export';
 import { eventSortValue, sortValue } from './task-rows';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
 import { isTaskOverdue } from './task-overdue';
 import { taggedKey } from '../../../lib/tagged-key';
@@ -38,6 +41,21 @@ import { documentsColumn } from '../../documents/lib/documents-column';
 
 /** Names of the two sides of « Faisable maintenant » (its groups, the sections of the home card): yes first. */
 export const DOABLE_GROUP_LABELS = { yes: 'Maintenant', no: 'Plus tard' } as const;
+
+/**
+ * Kinds of the columns of the tasks that are not a text (their alignment): a badge or a button alone (status, priority,
+ * type, alarms, chrono), a number, a duration; the dates and the yes / no come from their filter.
+ */
+const COLUMN_KINDS: Partial<Record<TaskColumn, Pick<DataColumn<TaskTableRow>, 'numeric' | 'align'>>> = {
+  status: BADGE_COLUMN,
+  priority: BADGE_COLUMN,
+  type: BADGE_COLUMN,
+  alarms: BADGE_COLUMN,
+  timer: BADGE_COLUMN,
+  effort: { numeric: true },
+  comments: { numeric: true },
+  trackedTime: DURATION_COLUMN,
+};
 
 /** Row of the task table: a task, or a calendar event listed with them (read only). */
 export type TaskTableRow = { kind: 'task'; key: string; task: Task } | { kind: 'event'; key: string; event: EventOccurrence };
@@ -56,9 +74,17 @@ interface TaskColumnExtras {
   eventComments?: ReadonlyMap<string, number>;
 }
 
-/** Categories of the statuses, in their order. */
-const STATUS_CATEGORY_ORDER = TASK_STATUS_CATEGORIES;
-const STATUS_CATEGORY_LABELS = TASK_STATUS_CATEGORY_LABELS.status;
+/**
+ * Colours of the categories of the statuses, those of the statuses an empty workspace is given: to do gray, in progress
+ * blue, done green; cancelled gray, as a cancelled task is dimmed.
+ */
+const STATUS_CATEGORY_COLORS: Record<TaskStatusCategory, string> = { TODO: 'gray', IN_PROGRESS: FEEDBACK_COLORS.info, DONE: FEEDBACK_COLORS.success, CANCELLED: 'gray' };
+
+/** Categories of the statuses, in their order, with their badges. */
+const STATUS_CATEGORY_BADGES: ColumnState<TaskStatusCategory>[] = TASK_STATUS_CATEGORIES.map((id) => ({ id, label: TASK_STATUS_CATEGORY_LABELS.status[id], color: STATUS_CATEGORY_COLORS[id] }));
+
+/** How a task is closed, with its badge: done green, cancelled gray (a cancelled task is dimmed). */
+const CLOSE_REASON_BADGES: ColumnState<TaskCloseReason>[] = TASK_CLOSE_REASONS.map((id) => ({ id, label: TASK_CLOSE_REASON_LABELS[id], color: id === 'COMPLETED' ? FEEDBACK_COLORS.success : 'gray' }));
 
 /**
  * Rows of the task table made of tasks, in their manual order (then by number), as the table lists them.
@@ -263,7 +289,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       }
       case 'createdAt':
       case 'updatedAt':
-        return { kind: 'date', value: (row) => (row.kind === 'task' ? localDay(row.task[id]) : null) };
+        return { kind: 'date', value: (row) => (row.kind === 'task' ? parisDay(row.task[id]) : null) };
       case 'slots':
         // Schedules and kinds its condition names, on or out of them.
         return {
@@ -299,7 +325,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     required: id === 'label' || id === 'comments' || id === 'trackedTime',
     hiddenByDefault: DEFAULT_HIDDEN_COLUMNS.includes(id),
     bulk: BULK_EDITABLE_COLUMNS.includes(id),
-    numeric: id === 'effort' || id === 'trackedTime' || id === 'comments',
+    ...COLUMN_KINDS[id],
     sortValue: (row) => {
       const value = row.kind === 'task' ? sortValue(row.task, id, context) : eventSortValue(row.event, id, context, commentsOf(row));
       return typeof value === 'number' || typeof value === 'string' ? value : null;
@@ -358,27 +384,15 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     // eslint-disable-next-line no-restricted-syntax -- a group name, not a count.
     flag('hasAlarms', 'A des alarmes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0, { yes: 'Avec alarme(s)', no: 'Sans alarme' }),
     flag('hasComments', 'A des commentaires', (task) => commentTotal(task.commentCount, task.description) > 0, { yes: 'Commentée', no: 'Non commentée' }),
-    {
+    stateColumn({
       id: 'statusCategory',
       label: 'Catégorie de statut',
       size: 140,
       hiddenByDefault: true,
-      sortValue: (row) => (row.kind === 'task' ? STATUS_CATEGORY_ORDER.indexOf(categoryOf(row.task) ?? 'TODO') : null),
-      text: (row) => {
-        const category = row.kind === 'task' ? categoryOf(row.task) : null;
-        return category ? STATUS_CATEGORY_LABELS[category] : '';
-      },
-      filter: { kind: 'choice', value: (row) => (row.kind === 'task' ? categoryOf(row.task) : null), options: STATUS_CATEGORY_ORDER.map((value) => ({ value, label: STATUS_CATEGORY_LABELS[value] })) },
-    },
+      states: STATUS_CATEGORY_BADGES,
+      value: (row) => (row.kind === 'task' ? categoryOf(row.task) : null),
+    }),
     // How a closed task was closed: done or cancelled (empty while open).
-    {
-      id: 'closeReason',
-      label: 'Fermeture',
-      size: 120,
-      hiddenByDefault: true,
-      sortValue: (row) => (row.kind === 'task' && row.task.closeReason ? TASK_CLOSE_REASONS.indexOf(row.task.closeReason) : null),
-      text: (row) => (row.kind === 'task' && row.task.closeReason ? TASK_CLOSE_REASON_LABELS[row.task.closeReason] : ''),
-      filter: { kind: 'choice', value: (row) => (row.kind === 'task' ? row.task.closeReason : null), options: TASK_CLOSE_REASONS.map((value) => ({ value, label: TASK_CLOSE_REASON_LABELS[value] })) },
-    },
+    stateColumn({ id: 'closeReason', label: 'Fermeture', size: 120, hiddenByDefault: true, states: CLOSE_REASON_BADGES, value: (row) => (row.kind === 'task' ? row.task.closeReason : null) }),
   ];
 }

@@ -1,7 +1,7 @@
-import { addDays, dayOfMonthOf, fileName, formatDay, minutesBeforeMoment, readReminders, reminderAnchorOf, occurrenceDates, type ItemLink, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
+import { addDays, dayOfMonthOf, daysBetween, fileName, formatDay, minutesBeforeMoment, readReminders, reminderAnchorOf, occurrenceDates, type ItemLink, type Recurrence, ruleValues, storedRecurrence, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import { orNotFound } from '../../graphql/errors';
-import { occurrenceInclude, storedRecurrence, toOccurrence, type EventWithRelations } from './calendar-events';
+import { occurrenceInclude, toOccurrence, type EventWithRelations } from './calendar-events';
 import { readLinks } from '../core/links';
 import { PARIS } from '../../today';
 
@@ -98,7 +98,8 @@ function clampedDates(rule: Recurrence, start: string, until: string | null): st
 function rrule(rule: Recurrence, start: string, time: string | null): string[] {
   // Values of the monthly and yearly modes: chosen, else those of the first date.
   const values = ruleValues(rule, start);
-  const parts = [`FREQ=${rule.frequency}`, `INTERVAL=${rule.interval}`];
+  // Even or odd weeks: every other week from a first date of the right week (`parityDates` fixes the years of 53 weeks).
+  const parts = [`FREQ=${rule.frequency}`, `INTERVAL=${rule.frequency === 'WEEKLY' && rule.weekParity ? 2 : rule.interval}`];
   if (rule.frequency === 'WEEKLY') {
     parts.push(`BYDAY=${(rule.weekdays.length ? rule.weekdays : [weekdayOfDate(start)]).map((day) => WEEKDAYS[day - 1]).join(',')}`, 'WKST=MO');
   }
@@ -136,6 +137,67 @@ function excludedDates(rule: Recurrence, start: string, cancelled: string[]): st
 }
 
 /**
+ * Dates where a rule of even or odd weeks and its iCalendar rule (every other week from its first date) differ, up to
+ * its end or the horizon: after a year of 53 weeks the parity of the weeks no longer alternates.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First date (in a week of the right parity).
+ * @param {string | null} until Last date, if any (a number of occurrences: up to the last one).
+ * @returns {{ extra: string[], missing: string[] }} Dates of the iCalendar rule Ordo does not have (EXDATE), and dates
+ * of Ordo it does not have (RDATE).
+ */
+function parityDates(rule: Recurrence, start: string, until: string | null): { extra: string[]; missing: string[] } {
+  if (rule.frequency !== 'WEEKLY' || !rule.weekParity) return { extra: [], missing: [] };
+  const horizon = addDays(start, 366 * HORIZON_YEARS);
+  // A number of occurrences: up to the last one.
+  const end = rule.count !== null ? (occurrenceDates(rule, start, start, addDays(start, 366 * 100)).at(-1) ?? start) : until;
+  const last = end && end < horizon ? end : horizon;
+  const bare = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
+  const ordo = new Set(occurrenceDates(bare, start, start, last));
+  const ics = new Set(occurrenceDates({ ...bare, weekParity: null, interval: 2 }, start, start, last));
+  return { extra: [...ics].filter((date) => !ordo.has(date)), missing: [...ordo].filter((date) => !ics.has(date)) };
+}
+
+/**
+ * First date of a rule from the start of its series (the pattern alone: an excluded or paused first date is excluded
+ * by EXDATE), looked for close first, then further; the start itself when none is found.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start Start of the series.
+ * @returns {string} First date.
+ */
+function firstRuleDate(rule: Recurrence, start: string): string {
+  const pattern = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
+  for (const days of [14, 400, 366 * HORIZON_YEARS]) {
+    const [first] = occurrenceDates(pattern, start, start, addDays(start, days));
+    if (first) return first;
+  }
+  return start;
+}
+
+/**
+ * Time zone of the events (every event is in Paris time), for the readers that need it written (Outlook).
+ * @returns {string[]} Content lines.
+ */
+const parisTimeZone = (): string[] => [
+  'BEGIN:VTIMEZONE',
+  `TZID:${PARIS}`,
+  'BEGIN:DAYLIGHT',
+  'TZOFFSETFROM:+0100',
+  'TZOFFSETTO:+0200',
+  'TZNAME:CEST',
+  'DTSTART:19700329T020000',
+  'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+  'END:DAYLIGHT',
+  'BEGIN:STANDARD',
+  'TZOFFSETFROM:+0200',
+  'TZOFFSETTO:+0100',
+  'TZNAME:CET',
+  'DTSTART:19701025T030000',
+  'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+  'END:STANDARD',
+  'END:VTIMEZONE',
+];
+
+/**
  * Travel time to an event, as Apple Calendar reads it (others ignore it; the way back has no property).
  * @param {number} minutes Travel time to the event.
  * @returns {string[]} Content lines, none without travel.
@@ -171,9 +233,14 @@ type ExportedEvent = Omit<EventWithRelations, 'categories'> & { categories: { id
  * @returns {string[]} Content lines.
  */
 function eventLines(event: ExportedEvent, stamp: Date): string[] {
-  const start = formatDay(event.startDate);
   const rule = storedRecurrence(event.recurrence);
+  const seriesStart = formatDay(event.startDate);
+  // The series starts on its first occurrence (a day of its rule, in a week of the right parity): readers count the
+  // DTSTART as an occurrence even off the rule.
+  const start = rule ? firstRuleDate(rule, seriesStart) : seriesStart;
   const uid = `${event.id}@ordo`;
+  // An exception whose day is no longer one of the rule (the rule changed since) is left out.
+  const current = rule ? event.exceptions.filter((change) => occurrenceDates(rule, seriesStart, formatDay(change.date), formatDay(change.date)).length > 0) : [];
 
   /**
    * Fields of an occurrence (the series, or one changed on its own).
@@ -217,7 +284,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
       allDay: event.allDay,
       startDate: start,
       startTime: event.startTime,
-      endDate: formatDay(event.endDate),
+      endDate: addDays(formatDay(event.endDate), daysBetween(seriesStart, start)),
       endTime: event.endTime,
       calledOff: event.calledOff,
     }),
@@ -226,10 +293,12 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
   if (rule) {
     const time = event.allDay ? null : event.startTime;
     series.push(...rrule(rule, start, time));
+    const { extra, missing } = parityDates(rule, start, rule.until);
+    for (const date of missing) series.push(moment('RDATE', date, time));
     const excluded = excludedDates(
       rule,
       start,
-      event.exceptions.filter((change) => change.cancelled).map((change) => formatDay(change.date)),
+      [...current.filter((change) => change.cancelled).map((change) => formatDay(change.date)), ...extra],
     );
     for (const date of excluded) series.push(moment('EXDATE', date, time));
   }
@@ -237,7 +306,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
 
   // Occurrences changed on their own: the same event at its original date (RECURRENCE-ID), as the app shows them.
   const changed = rule
-    ? event.exceptions
+    ? current
         .filter((change) => !change.cancelled)
         .flatMap((change) => {
           const date = formatDay(change.date);
@@ -280,6 +349,7 @@ export async function calendarIcs(calendarId: string | null): Promise<{ filename
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${text(name)}`,
+    ...parisTimeZone(),
     ...events.flatMap((event) => eventLines(event, stamp)),
     'END:VCALENDAR',
   ];

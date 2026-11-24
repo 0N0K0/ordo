@@ -1,6 +1,6 @@
 import { commentTotal } from '../../comments/lib/comment-column';
 import { readTaskHours, type TaskColumn } from '@ordo/shared';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { taskHoursText } from './task-hours-text';
 
 /** What a task is sorted by: a column, or its number. */
@@ -42,7 +42,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'location':
       return task.location || null;
     case 'hours':
-      return taskHoursText(readTaskHours(task.hours), localToday()) || null;
+      return taskHoursText(readTaskHours(task.hours), parisToday()) || null;
     case 'subtasks':
       return context.childrenOf(task.id).length || null;
     case 'progress': {

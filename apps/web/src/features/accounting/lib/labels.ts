@@ -12,6 +12,9 @@ export function isFeminineDocumentType(type: AccountingDocumentType): boolean {
   return isInvoice(type);
 }
 
+/** Badge of a document issued before Ordo and imported, the same in the documents and in the treasury forecast: cyan. */
+export const IMPORTED_LOOK = { label: 'Importé', color: 'cyan' } as const;
+
 /** Kind of a client: a company (« Professionnel ») or a person (« Particulier »). */
 /* eslint-disable no-restricted-syntax -- the labels themselves. */
 export const CLIENT_KIND_LABELS: Record<'COMPANY' | 'INDIVIDUAL', string> = {

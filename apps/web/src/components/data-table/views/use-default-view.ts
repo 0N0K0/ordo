@@ -1,6 +1,6 @@
 import { byPosition, type TableViewConfig } from '@ordo/shared';
 import { useMemo } from 'react';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import type { DataColumn } from '../table/data-table';
 import { viewRows, type ViewRows } from '../table/table-engine';
 import { useTaskViews } from './api';
@@ -48,7 +48,7 @@ interface ViewRowsOptions<R> {
  * @returns {ViewRows<R>} Rows, groups and the column grouped by.
  */
 export function useViewRows<R>({ view, columns, rows, archived }: ViewRowsOptions<R>): ViewRows<R> {
-  const today = localToday();
+  const today = parisToday();
   return useMemo(() => {
     if (!view) return { rows: [], groups: [], groupColumn: null };
     return viewRows(archived ? rows.filter((row) => !archived(row)) : rows, columns, view.config, today);

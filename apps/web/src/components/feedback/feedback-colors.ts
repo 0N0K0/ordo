@@ -3,3 +3,6 @@ export const FEEDBACK_COLORS = { success: 'green', info: 'blue', warning: 'orang
 
 /** Colour of a lateness in the home page, the billing and the treasury: a warning, orange. */
 export const LATE_COLOR = FEEDBACK_COLORS.warning;
+
+/** Colour of a favourite (its filled star): the Mantine yellow of the theme. */
+export const FAVORITE_COLOR = 'yellow';

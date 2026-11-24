@@ -22,7 +22,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionModal } from '../../../components/recurrence/RepetitionField';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf } from '../../geo/lib/location';
 import { useFormLocation } from '../../geo/hooks/use-location-draft';
@@ -242,7 +242,7 @@ function RoutineRepetitionEditor({
   withStart?: boolean;
   onCommit?: () => void;
 }) {
-  const start = draft.startDate || localToday();
+  const start = draft.startDate || parisToday();
   return (
     <Stack gap="md">
       {withStart && <DateField label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: date })} />}

@@ -1,12 +1,12 @@
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 
 import { plannedPauses, plannedSlots, withinSlots, type WorkScheduleRule } from '@ordo/shared';
+import { parisInstant } from '../../../lib/dates';
 
 import { useWorkingHours } from '../api';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useSlotRules } from '../hooks/use-slot-rules';
 import { unavailableWarning } from '../lib/schedule-text';
-import { localInstant } from '../../../lib/dates';
 
 interface AvailabilityHintProps {
   allDay: boolean;
@@ -54,7 +54,7 @@ export function AvailabilityHint({ allDay, startDate, startTime, endDate, endTim
   const { perso } = useActiveWorkspace();
   if (allDay || !startTime || !endTime || !startDate || !endDate) return null;
   const messages = [
-    unavailableWarning(slotRules.unavailable(localInstant(startDate, startTime), localInstant(endDate, endTime))),
+    unavailableWarning(slotRules.unavailable(parisInstant(startDate, startTime), parisInstant(endDate, endTime))),
     !perso && rules?.length && startDate === endDate ? workingHoursWarning(rules, startDate, startTime, endTime) : null,
   ].filter((message): message is string => Boolean(message));
   if (!messages.length) return null;

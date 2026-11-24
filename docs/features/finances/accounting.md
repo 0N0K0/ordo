@@ -65,7 +65,7 @@ Colonnes :
 | « Projet »                  | Modifiable en place (brouillon comme définitif ; pas pour un document archivé), en lot. Filtre, regroupable.                                                                                      |
 | « Objet »                   | Objet ; pour un devis : « Facturé à N % » ; « Depuis D2600004 » pour un document établi depuis un autre.                                                                                          |
 | « Statut »                  | Brouillon, ou statut de suivi modifiable en place (menu), en lot ; badge orange « En retard » (facture) ou « Expiré » (devis) ; pour un importé autre qu’un devis, badge « Reste … » / « Réglé ».        |
-| « Origine »                 | « Ordo » ou « Importé », masquée par défaut.                                                                                                                                                      |
+| « Origine »                 | Pastille « Ordo » (bleue) ou « Importé » (cyan), centrée, triée dans cet ordre ; masquée par défaut.                                                                                                     |
 | « Total HT », « Total TTC » | Avec total de colonne ; sous le TTC : « Reste … » ou « À rembourser … » quand une partie est réglée.                                                                                              |
 | « Reste dû »                | Masquée par défaut.                                                                                                                                                                               |
 | « Pièces jointes »          | Masquée par défaut : fichiers du document (ouvrir, retirer après confirmation, « Joindre des fichiers »), fichier d’un importé. Ajout en lot.                                                     |
@@ -96,7 +96,7 @@ Tableau « Factures récurrentes » :
 | « Client »     | Client du modèle, regroupable.                                                                                |
 | « Répétition » | Phrase de la règle de récurrence (voir [Récurrence](../../web/components/recurrence.md)).                     |
 | « Prochaine »  | Prochaine date d’émission, ou « Terminée ».                                                                   |
-| « État »       | « Active » / « En pause », modifiable en place, masquée par défaut.                                           |
+| « État »       | Pastille centrée « Active » (vert) / « En pause » (gris), choisie en place dans la liste des pastilles (en lot), masquée par défaut. |
 | « Émises »     | Nombre de factures émises, masquée par défaut.                                                                |
 | « Montant »    | Total TTC du modèle.                                                                                          |
 
@@ -106,7 +106,7 @@ Actions : « Modifier la planification » (panneau « Facture récurrente », en
 
 ### Catalogue (onglet « Catalogue »)
 
-Tableau des articles : « Article » (libellé modifiable, badge « Débours », description en aperçu), « Nature » (« Prestation » / « Débours », masquée par défaut), « Unité », « Prix HT », « TVA » (vide pour un débours), commentaires. Libellé, nature, unité, prix et TVA se modifient en place et en lot.
+Tableau des articles : « Article » (libellé modifiable, badge « Débours », description en aperçu), « Nature » (pastille centrée « Prestation » bleue / « Débours » violette, choisie en place dans la liste des pastilles, triée dans cet ordre, masquée par défaut), « Unité », « Prix HT », « TVA » (vide pour un débours), commentaires. Libellé, nature, unité, prix et TVA se modifient en place et en lot.
 
 - « Nouvel article » ouvre le formulaire (bouton « Ajouter », toast « Article ajouté au catalogue. ») ; « Modifier » ouvre le panneau de l’article, enregistré champ par champ : chaque champ dès qu’il change (« Libellé », « Description » et « Prix unitaire HT » en les quittant), « Enregistrement… » puis « Enregistré » en haut, sans bouton ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; un article archivé s’ouvre en lecture seule. Champs : nature (« Produit ou service » / « Débours » ; un débours passe à TVA 0 et unité forfait), « Libellé » (obligatoire), « Description » (markdown, reprise dans la ligne), « Unité » (heure par défaut), « Prix unitaire HT », « TVA » (20 %, ou 0 % si la société n’applique pas la TVA). Les commentaires de l’article sont sous le formulaire.
 - « Archiver » : l’article n’est plus proposé et passe en lecture seule. « Afficher les archivés » les montre.

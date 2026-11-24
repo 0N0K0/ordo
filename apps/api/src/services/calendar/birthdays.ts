@@ -1,6 +1,7 @@
 import { personBirthdayId, readBirthDate, readReminders, type BirthdayPerson, type Reminder } from '@ordo/shared';
 import { prisma } from '../../db';
 import { isMember } from '../people/members';
+import { NOTHING_AFTER, type AfterSave } from '../core/occurrence-rows';
 
 /**
  * Birthday of a person: derived from its birth date at read time, no row of its own. Slot
@@ -45,12 +46,12 @@ export type PeopleChange = (people: BirthdayRows) => BirthdayRows;
 
 /**
  * Before a change of the people is saved, once checked: what it does to the routines whose conditions name birthdays
- * (`settleScheduleChange`).
+ * (`settleScheduleChange`); what it returns runs once the change is saved.
  */
-export type PeopleChangeSettler = (change: PeopleChange) => Promise<void>;
+export type PeopleChangeSettler = (change: PeopleChange) => Promise<AfterSave>;
 
 /** No settling (internal changes). */
-export const NO_PEOPLE_SETTLER: PeopleChangeSettler = async () => {};
+export const NO_PEOPLE_SETTLER: PeopleChangeSettler = async () => NOTHING_AFTER;
 
 /**
  * Change of one person: its fields changed (a new one added), or removed (null).

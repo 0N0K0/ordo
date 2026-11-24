@@ -83,11 +83,11 @@ Mots des rappels, les mêmes dans l'éditeur et là où ils sont dits :
 
 ### `StateSwitch`
 
-Interrupteur d'un état oui / non ou d'un mode (une bascule n'est pas un bouton) : fait, favori, acheté, mode d'édition. Nom caché sauf `showLabel`, infobulle (`hint`) affichée même désactivé (`ActionTooltip wrapped`). Props : `label`, `showLabel`, `checked`, `onChange(checked)`, `hint`, `color`, `icon` (dans le curseur quand actif), `dashed` (piste en pointillés : facultatif, ex. heure facultative d'une routine ; `StateSwitch.module.css`), `size` (`sm`), `disabled`. eslint interdit `aria-pressed` et un `Switch` à libellé caché écrit à la main.
+Interrupteur d'un réglage ou d'un mode (un état des données, même dans un en-tête de page ou une barre d'outils, est un bouton d'état, [`StateButton`](data-table.md#statebuttontsx) : fait, traité, favori…) : un élément activé ou non (alarme active, abonnement), un mode d'édition. Nom caché sauf `showLabel`, infobulle (`hint`) affichée même désactivé (`ActionTooltip wrapped`). Props : `label`, `showLabel`, `checked`, `onChange(checked)`, `hint`, `color`, `icon` (dans le curseur quand actif), `size` (`sm`), `disabled`. Utilisé par `AlarmList`, `CalendarPage`. eslint interdit `aria-pressed` (sauf dans `StateButton`), un `Switch` à libellé caché écrit à la main et un `Switch` / `StateSwitch` de favori.
 
 ## Dates et périodes
 
-Un seul champ par rôle, partout (gardes eslint : `DatePickerInput`, `DateInput`, `DateTimePicker`, `MonthPickerInput` et `DatePicker` de Mantine ne s'importent que dans ces briques et `app/theme.ts` ; une période n'est pas deux `DateField` / `DateTimeField` étalés d'une borne `{...range.start}`). Chaque sélecteur met en avant le jour du jour dans son calendrier (`highlightToday`) et offre « Aujourd’hui » à côté (« Ce mois-ci » pour un mois), sauf quand ce jour ne peut pas être choisi ; les semaines commencent le lundi (`WeekDatesProvider`). Validation inchangée : au blur (à la fermeture du calendrier pour une période), messages des schémas, `END_AFTER_START` pour une fin avant le début.
+Aujourd'hui (« Aujourd’hui » et le jour mis en avant dans le calendrier) est le jour à Paris dans chacun d'eux, quel que soit le fuseau du navigateur (`parisToday`, `parisTodayDays`). Un seul champ par rôle, partout (gardes eslint : `DatePickerInput`, `DateInput`, `DateTimePicker`, `MonthPickerInput` et `DatePicker` de Mantine ne s'importent que dans ces briques et `app/theme.ts` ; une période n'est pas deux `DateField` / `DateTimeField` étalés d'une borne `{...range.start}`). Chaque sélecteur met en avant le jour du jour dans son calendrier (`highlightToday`) et offre « Aujourd’hui » à côté (« Ce mois-ci » pour un mois), sauf quand ce jour ne peut pas être choisi ; les semaines commencent le lundi (`WeekDatesProvider`). Validation inchangée : au blur (à la fermeture du calendrier pour une période), messages des schémas, `END_AFTER_START` pour une fin avant le début.
 
 ### `DateField`
 
@@ -128,7 +128,8 @@ Champs en `PeriodField` : tâche (« Dates » : début et fin ; « Ouverture et 
 
 - `TODAY_LABEL` (« Aujourd’hui »), `THIS_MONTH_LABEL` (« Ce mois-ci »).
 - `pickerDay(bound)` : jour d'une borne donnée à un sélecteur (jour, « YYYY-MM-DD HH:mm:ss » ou instant).
-- `todayPresets({ min, max, time })` : « Aujourd’hui » d'un sélecteur (`presets` de Mantine ; avec l'heure pour un date et heure), aucun quand aujourd'hui ne peut pas être choisi ; `thisMonthPresets({ min, max })` : « Ce mois-ci ».
+- `parisTodayDays(getDayProps?)` : `getDayProps` d'un calendrier Mantine qui marque aujourd'hui à Paris (`data-today`, mis en avant par `highlightToday` ; Mantine marquerait le jour du fuseau du navigateur), les props de chaque jour données gardées. Utilisé par `DateField`, `DateTimeField`, `PeriodField`.
+- `todayPresets({ min, max, time })` : « Aujourd’hui » (à Paris) d'un sélecteur (`presets` de Mantine ; avec l'heure pour un date et heure), aucun quand aujourd'hui ne peut pas être choisi ; `thisMonthPresets({ min, max })` : « Ce mois-ci ».
 - `formDateTime(form, champ du jour, champ de l'heure)` : lien d'un `DateTimeField` avec deux champs d'un formulaire Mantine (valeurs, les deux mis d'un coup, erreur, blur). Interne : `PickerPreset`, `DateTimeBinding`.
 
 ### `date-range.ts`

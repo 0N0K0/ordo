@@ -12,8 +12,7 @@ import {
   COLORS,
   commentFactory,
   contributorFactory,
-  localAt,
-  localDate,
+  parisAt,
   maybe,
   milestoneFactory,
   PHASES,
@@ -22,7 +21,7 @@ import {
   taskFactory,
   timeEntryFactory,
 } from './fixtures/factories';
-import { addDays, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, minutesToTime, parseDay, type Recurrence, weekdayOfDate } from '@ordo/shared';
+import { addDays, dayIn, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, minutesToTime, parseDay, type Recurrence, weekdayOfDate } from '@ordo/shared';
 import { createAlarm } from '../src/services/tasks/alarms';
 import { createCalendarEvent, postponeCalendarEvent } from '../src/services/calendar/calendar-events';
 import { createView } from '../src/services/tasks/task-views';
@@ -374,7 +373,7 @@ const personalCalendar = (await prisma.calendar.create({ data: { label: 'Personn
  */
 const calendarOf = (categoryIds: readonly string[]) => (categoryIds.some((id) => [personal, sport, health].includes(id)) ? personalCalendar : workCalendar);
 
-const today = localDate(new Date());
+const today = dayIn(new Date());
 // Monday of the current week.
 const monday = addDays(today, 1 - weekdayOfDate(today));
 const activeRoots = projects.filter((project) => project.parentId === null && !project.archivedAt);
@@ -647,7 +646,7 @@ await createCalendarEvent({
 if (firstRoot) {
   for (let date = addDays(monday, -14); date < today; date = addDays(date, 1)) {
     if (weekdayOfDate(date) > 5 || !faker.datatype.boolean(0.7)) continue;
-    await createTimeEntry({ projectId: firstRoot.id, events: [{ eventId: standUp, occurrenceDate: date }], description: 'Stand-up', startedAt: localAt(date, 9), duration: 15 * 60 });
+    await createTimeEntry({ projectId: firstRoot.id, events: [{ eventId: standUp, occurrenceDate: date }], description: 'Stand-up', startedAt: parisAt(date, 9), duration: 15 * 60 });
   }
 }
 // The next sport session is moved to the day after (the occurrence is called off and a new event made).

@@ -12,7 +12,7 @@ import { DateField } from '../../../components/inputs/DateField';
 import { PLAIN_TEXT_MAX, SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
 import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, NotePencilIcon, PaperPlaneTiltIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import type { AccountingDocument } from '../api/documents';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
@@ -32,7 +32,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
  */
 function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone: () => void }) {
   const { accept } = useTrackingMutations();
-  const [date, setDate] = useState<string | null>(document.acceptedAt ? document.acceptedAt : localToday());
+  const [date, setDate] = useState<string | null>(document.acceptedAt ? document.acceptedAt : parisToday());
   const [file, setFile] = useState<File | null>(null);
   return (
     <Stack gap="sm">

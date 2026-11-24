@@ -19,7 +19,7 @@ import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwit
 
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR } from '../../../lib/notify';
@@ -110,7 +110,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const { remove, update } = useSprintMutations();
   const setArchived = useSetArchived('SPRINT');
-  const today = localToday();
+  const today = parisToday();
   // Every sprint of the project (a new one follows the last, archived or not); those shown.
   const sprints = (context?.sprints ?? []).filter((sprint) => sprint.projectId === projectId);
   const { shown, toggle: archivedToggle } = useArchivedToggle(sprints);

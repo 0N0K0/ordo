@@ -1,8 +1,9 @@
-import { twoDigits } from '../core/numbers';
-
 /** Milliseconds in a day (calendar arithmetic, UTC). */
 // eslint-disable-next-line no-restricted-syntax -- the constant itself.
 export const DAY_MS = 86_400_000;
+
+/** Time zone of Ordo: every day and every time of the app and of the API is read in Paris, whatever the zone of the browser or of the server. */
+export const PARIS_ZONE = 'Europe/Paris';
 
 /** A calendar day (YYYY-MM-DD) or month (YYYY-MM): read as it is, whatever the time zone. */
 export const CALENDAR_DAY = /^\d{4}-\d{2}(-\d{2})?$/;
@@ -18,16 +19,14 @@ export function parseDay(date: string): Date {
 }
 
 /**
- * Day of an instant in a time zone, YYYY-MM-DD: the zone given (Paris for the API), or the local one of the
- * machine (the user's in the web).
+ * Day of an instant in a time zone, YYYY-MM-DD.
  * @param {Date} instant Instant.
- * @param {string} [timeZone] IANA time zone. Optional. Default = the local time zone.
+ * @param {string} [timeZone] IANA time zone. Optional. Default = Paris (`PARIS_ZONE`).
  * @returns {string} Day.
  */
-export function dayIn(instant: Date, timeZone?: string): string {
+export function dayIn(instant: Date, timeZone: string = PARIS_ZONE): string {
   // eslint-disable-next-line no-restricted-syntax -- the day in a time zone, as YYYY-MM-DD.
-  if (timeZone) return instant.toLocaleDateString('sv-SE', { timeZone });
-  return `${instant.getFullYear()}-${twoDigits(instant.getMonth() + 1)}-${twoDigits(instant.getDate())}`;
+  return instant.toLocaleDateString('sv-SE', { timeZone });
 }
 
 /**
@@ -42,16 +41,13 @@ export function timeIn(instant: Date, timeZone: string): string {
 }
 
 /**
- * Instant of a day and a time in the local time zone (the user's in the web): an alarm ringing, a time entry
- * starting… The inverse of `dayIn` without a zone.
- * @param {string} day YYYY-MM-DD.
- * @param {string} [time] HH:MM. Optional. Default = 00:00 (the start of the day).
- * @returns {Date} Instant.
+ * Day and time of an instant in Paris, the time every day and hour of the app and of the API is read in, whatever the
+ * zone of the browser or of the server.
+ * @param {Date} instant Instant.
+ * @returns {{ date: string, time: string }} Day (YYYY-MM-DD) and time (HH:MM) in Paris.
  */
-export function localInstant(day: string, time = '00:00'): Date {
-  const [year, month, date] = day.split('-').map(Number);
-  const [hours, minutes] = time.split(':').map(Number);
-  return new Date(year, month - 1, date, hours, minutes);
+export function parisParts(instant: Date): { date: string; time: string } {
+  return { date: dayIn(instant, PARIS_ZONE), time: timeIn(instant, PARIS_ZONE) };
 }
 
 /**

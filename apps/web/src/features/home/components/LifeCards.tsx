@@ -53,7 +53,7 @@ export function RoutinesCard({ today }: { today: string }) {
       // Late ones first, then by time to leave (or to do it by), those of any time of the day last.
       .sort(
         (a, b) =>
-          (a.currentDate ?? '').localeCompare(b.currentDate ?? '') ||
+          (a.currentDueDate ?? '').localeCompare(b.currentDueDate ?? '') ||
           (scheduleOf(a).leaveAt ?? a.windowFrom ?? a.windowTo ?? '99').localeCompare(scheduleOf(b).leaveAt ?? b.windowFrom ?? b.windowTo ?? '99') ||
           collator.compare(a.label, b.label),
       );
@@ -76,7 +76,7 @@ export function RoutinesCard({ today }: { today: string }) {
           group={list.group}
           render={({ key, row: routine }) => {
             const waiting = waitingFor(routine, byId);
-            const late = routine.currentDate !== null && routine.currentDate < today;
+            const late = routine.currentDueDate !== null && routine.currentDueDate < today;
             return (
               <Group key={key} justify="space-between" wrap="nowrap" gap="xs" className={`${tile.tile} ${classes.row}`}>
                 <Group gap="xs" wrap="nowrap" miw={0}>
@@ -87,7 +87,7 @@ export function RoutinesCard({ today }: { today: string }) {
                 </Group>
                 <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
                   <WaitingIcon waiting={waiting} />
-                  {late && routine.currentDate && <LateBadge due={routine.currentDate} today={today} />}
+                  {late && routine.currentDueDate && <LateBadge due={routine.currentDueDate} today={today} />}
                   {(routine.windowFrom || routine.windowTo) && (
                     <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
                       {[scheduleOf(routine).leaveAt && `départ ${scheduleOf(routine).leaveAt}`, windowText(windowOf(routine))].filter(Boolean).join(' · ')}

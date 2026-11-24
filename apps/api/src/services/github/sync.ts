@@ -3,6 +3,9 @@ import {
   clipText,
   dayPart,
   DEFAULT_LABEL_COLOR,
+  effortSchema,
+  lineageOf,
+  marksInherited,
   formatOptionalDay,
   mapById,
   nameKey,
@@ -20,7 +23,7 @@ import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, errorMessage, orNotFound } from '../../graphql/errors';
-import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskRelation } from '../tasks/tasks';
+import { addTaskBlock, addTaskRelation, assertParent, createTask, followParentProjects, removeTaskBlock, removeTaskRelation } from '../tasks/tasks';
 import {
   addIssueComment,
   boardById,
@@ -72,12 +75,12 @@ interface SyncSummary {
   comments: number;
 }
 
-const linkedTask = { select: { id: true, githubContentId: true, githubContentType: true } } as const;
+const linkedTask = { select: { id: true, githubContentId: true, githubContentType: true, archivedAt: true } } as const;
 const include = {
   assignees: { select: { id: true, githubLogin: true } },
   tags: { select: { id: true, label: true } },
   sprints: { select: { id: true, startDate: true, githubIterationId: true } },
-  parent: { select: { githubContentId: true, githubContentType: true } },
+  parent: { select: { githubContentId: true, githubContentType: true, archivedAt: true } },
   blockedBy: { select: { blocker: linkedTask } },
   relationsA: { select: { taskB: linkedTask } },
   relationsB: { select: { taskA: linkedTask } },
@@ -87,12 +90,13 @@ interface LinkedTask {
   id: string;
   githubContentId: string | null;
   githubContentType: string | null;
+  archivedAt: Date | null;
 }
 type SyncedTask = Task & {
   assignees: { id: string; githubLogin: string | null }[];
   tags: { id: string; label: string }[];
   sprints: { id: string; startDate: Date; githubIterationId: string | null }[];
-  parent: { githubContentId: string | null; githubContentType: string | null } | null;
+  parent: { githubContentId: string | null; githubContentType: string | null; archivedAt: Date | null } | null;
   blockedBy: { blocker: LinkedTask }[];
   relationsA: { taskB: LinkedTask }[];
   relationsB: { taskA: LinkedTask }[];
@@ -119,6 +123,8 @@ interface Maps {
   inheritance: TaskInheritanceContext;
   /** Task id by GitHub issue or draft id. */
   taskByContent: Map<string, string>;
+  /** Issues and drafts of archived tasks (read only: left alone on both sides). */
+  archivedContent: Set<string>;
   /** Issue field of each board field showing one (issues only: drafts have none). */
   issueFields: Map<string, string>;
 }
@@ -143,11 +149,19 @@ function fieldValue(value: FieldValue | undefined): string | number | null {
 const labelKeys = (names: string[]) => [...new Set(names.map(nameKey))].sort();
 
 /**
- * Issues of linked tasks (tasks without issue have no counterpart and are left alone on both sides).
+ * Linked tasks whose links are synchronized: with an issue, not archived (an archived task is read only: its links are
+ * left alone on both sides).
+ * @param {LinkedTask[]} tasks Tasks.
+ * @returns {LinkedTask[]} Tasks kept.
+ */
+const syncedLinks = (tasks: LinkedTask[]) => tasks.filter((task) => task.githubContentType === 'ISSUE' && task.githubContentId && !task.archivedAt);
+
+/**
+ * Issues of linked tasks (tasks without issue, or archived, are left alone on both sides).
  * @param {LinkedTask[]} tasks Tasks.
  * @returns {string[]} Issue node ids, sorted.
  */
-const issuesOf = (tasks: LinkedTask[]) => [...new Set(tasks.filter((task) => task.githubContentType === 'ISSUE' && task.githubContentId).map((task) => task.githubContentId!))].sort();
+const issuesOf = (tasks: LinkedTask[]) => [...new Set(syncedLinks(tasks).map((task) => task.githubContentId!))].sort();
 
 /**
  * Tasks related to a task (relations are stored once per pair).
@@ -240,8 +254,8 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
     // Closed as done or as cancelled (the state reason of the issue), or open.
     fields.closed = task.closedAt !== null ? (task.closeReason ?? 'COMPLETED') : false;
     if (link.syncLabels) fields.labels = labelKeys(task.tags.map((tag) => tag.label));
-    // The parent is an issue of the board, or has no counterpart.
-    fields.parent = task.parentId ? (task.parent?.githubContentType === 'ISSUE' && task.parent.githubContentId ? task.parent.githubContentId : `ordo:${task.parentId}`) : null;
+    // The parent is an issue of the board, or has no counterpart (an archived one is left alone).
+    fields.parent = task.parentId ? (task.parent?.githubContentType === 'ISSUE' && task.parent.githubContentId && !task.parent.archivedAt ? task.parent.githubContentId : `ordo:${task.parentId}`) : null;
     fields.milestone = inherited.milestoneId ? (maps.milestoneLabel.get(inherited.milestoneId) ?? null) : null;
     fields.blockedBy = issuesOf(task.blockedBy.map((block) => block.blocker));
     fields.relatesTo = issuesOf(relatedOf(task));
@@ -275,15 +289,15 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
     const value = fieldValue(item.fields[fieldId]);
     return value === null ? null : reverse.has(String(value)) ? String(value) : `gh:${value}`;
   };
-  // Issues without task (outside the board) are left alone on both sides.
-  const known = (ids: string[]) => [...new Set(ids.filter((id) => maps.taskByContent.has(id)))].sort();
+  // Issues without task (outside the board) or of an archived task are left alone on both sides.
+  const known = (ids: string[]) => [...new Set(ids.filter((id) => maps.taskByContent.has(id) && !maps.archivedContent.has(id)))].sort();
   const fields: SyncFields = { title: item.title, body: item.body };
   // Logins without contributor are left alone on both sides.
   if (link.syncAssignees) fields.assignees = item.assignees.filter((login) => maps.contributorByLogin.has(login));
   if (item.type === 'ISSUE') {
     fields.closed = item.closed ? (item.closeReason ?? 'COMPLETED') : false;
     if (link.syncLabels) fields.labels = labelKeys(item.labels.map((label) => label.name));
-    fields.parent = item.parentId ? (maps.taskByContent.has(item.parentId) ? item.parentId : `gh:${item.parentId}`) : null;
+    fields.parent = item.parentId ? (maps.taskByContent.has(item.parentId) && !maps.archivedContent.has(item.parentId) ? item.parentId : `gh:${item.parentId}`) : null;
     fields.milestone = item.milestone?.title ?? null;
     fields.blockedBy = known(item.blockedBy);
     fields.relatesTo = known(item.relatesTo);
@@ -302,19 +316,76 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
   return fields;
 }
 
+/** Synchronized links of a task with other issues, that may point to an archived task. */
+const LINK_FIELDS = ['blockedBy', 'relatesTo'] as const;
+
 /**
- * Ids of a task and its descendants.
- * @param {string} taskId Task.
- * @returns {Promise<Set<string>>} Ids.
+ * Links with archived tasks are left alone on both sides, so that the side that changed wins as for any other value: a
+ * parent that is (on either side) an archived task is not merged, and the links with archived tasks are taken out of
+ * the last snapshot the values are compared with (neither side shows them).
+ * @param {SyncFields} local Values of the task (changed in place).
+ * @param {SyncFields} remote Values of the item (changed in place).
+ * @param {SyncFields | null} last Last snapshot.
+ * @param {Set<string>} archived Issues of archived tasks.
+ * @param {boolean} archivedParent The parent, in Ordo or on GitHub, is an archived task.
+ * @returns {SyncFields | null} Snapshot to compare with.
  */
-async function subtree(taskId: string): Promise<Set<string>> {
-  const ids = new Set([taskId]);
-  for (let frontier = [taskId]; frontier.length;) {
-    const children = await prisma.task.findMany({ where: { parentId: { in: frontier } }, select: { id: true } });
-    frontier = children.map((child) => child.id).filter((id) => !ids.has(id));
-    for (const id of frontier) ids.add(id);
+function setArchivedLinksAside(local: SyncFields, remote: SyncFields, last: SyncFields | null, archived: Set<string>, archivedParent: boolean): SyncFields | null {
+  if (archivedParent) {
+    delete local.parent;
+    delete remote.parent;
   }
-  return ids;
+  if (!last) return null;
+  const base = { ...last };
+  for (const field of LINK_FIELDS) {
+    const before = base[field];
+    if (Array.isArray(before)) base[field] = before.filter((id) => !archived.has(String(id)));
+  }
+  return base;
+}
+
+/**
+ * Links with archived tasks are left alone on both sides: the new snapshot keeps them as the last one had them (the
+ * parent too, when it is an archived task), so that once the task is restored, what GitHub changed meanwhile (a link
+ * removed or added) wins over Ordo's state.
+ * @param {SyncFields} next New snapshot (changed in place).
+ * @param {SyncFields | null} last Last snapshot.
+ * @param {Set<string>} archived Issues of archived tasks.
+ * @param {boolean} archivedParent The parent, in Ordo or on GitHub, is an archived task.
+ * @returns {void}
+ */
+function keepArchivedLinks(next: SyncFields, last: SyncFields | null, archived: Set<string>, archivedParent: boolean): void {
+  if (archivedParent && last && 'parent' in last) next.parent = last.parent;
+  for (const field of LINK_FIELDS) {
+    const before = last?.[field];
+    const after = next[field];
+    if (!Array.isArray(before) || !Array.isArray(after)) continue;
+    next[field] = [...new Set([...after, ...before.filter((id) => archived.has(String(id)))])].sort() as SyncFields[typeof field];
+  }
+}
+
+/**
+ * Values pulled from GitHub that Ordo refuses, left out (the task keeps its own, sent back to GitHub at the next sync):
+ * an effort out of its rule (negative, too large), a start and an end in the wrong order (the days pulled go, those of
+ * the task stay), an « Échéance » before the own « Ouverture » of the task.
+ * @param {SyncFields} values Values pulled from the item.
+ * @param {SyncedTask} task Task.
+ * @returns {SyncFields} Values kept.
+ */
+function acceptedValues(values: SyncFields, task: SyncedTask): SyncFields {
+  const kept = { ...values };
+  if ('effort' in kept && typeof kept.effort === 'number' && !effortSchema.safeParse(kept.effort).success) delete kept.effort;
+  const day = (key: 'start' | 'end' | 'deadline', own: Date | null) => (key in kept ? (kept[key] as string | null) || null : formatOptionalDay(own));
+  const start = day('start', task.startDate);
+  const end = day('end', task.endDate);
+  if (start && end && end < start) {
+    delete kept.start;
+    delete kept.end;
+  }
+  const deadline = day('deadline', task.deadline);
+  const minDate = marksInherited(task, 'MIN_DATE') ? null : formatOptionalDay(task.minDate);
+  if (deadline && minDate && deadline < minDate) delete kept.deadline;
+  return kept;
 }
 
 /**
@@ -338,17 +409,17 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   if ('type' in values) data.type = values.type ? { connect: { id: maps.optionType.get(String(values.type))! } } : { disconnect: true };
   if ('deadline' in values) data.deadline = parseOptionalDay((values.deadline as string | null) || null);
   if ('milestone' in values)
-    data.milestone = values.milestone ? { connect: { id: await milestoneOf(task.projectId!, String(values.milestone)) /* synced tasks are in a linked project */ } } : { disconnect: true };
+    data.milestone = values.milestone ? { connect: { id: await milestoneOf(task.projectId!, String(values.milestone), maps) /* synced tasks are in a linked project */ } } : { disconnect: true };
   if ('blockedBy' in values) {
     const wanted = new Set((values.blockedBy as string[]).map((id) => maps.taskByContent.get(id)).filter((id): id is string => Boolean(id)));
-    const current = task.blockedBy.map((block) => block.blocker).filter((blocker) => blocker.githubContentType === 'ISSUE' && blocker.githubContentId);
+    const current = syncedLinks(task.blockedBy.map((block) => block.blocker));
     for (const blocker of current) if (!wanted.has(blocker.id)) await removeTaskBlock(blocker.id, task.id);
     // A dependency Ordo refuses (circular, other project tree) is left out.
     for (const id of wanted) if (!current.some((blocker) => blocker.id === id)) await addTaskBlock(id, task.id).catch(() => undefined);
   }
   if ('relatesTo' in values) {
     const wanted = new Set((values.relatesTo as string[]).map((id) => maps.taskByContent.get(id)).filter((id): id is string => Boolean(id)));
-    const current = relatedOf(task).filter((other) => other.githubContentType === 'ISSUE' && other.githubContentId);
+    const current = syncedLinks(relatedOf(task));
     for (const other of current) if (!wanted.has(other.id)) await removeTaskRelation(task.id, other.id);
     for (const id of wanted) if (!current.some((other) => other.id === id)) await addTaskRelation(task.id, id).catch(() => undefined);
   }
@@ -385,8 +456,9 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   let inherited: readonly string[] = task.inheritedFields;
   if ('parent' in values) {
     const parentId = values.parent ? maps.taskByContent.get(String(values.parent)) : null;
-    // A task cannot go under itself or one of its sub-tasks.
-    if (!parentId || !(await subtree(task.id)).has(parentId)) {
+    // The parent obeys the rule of Ordo (same project tree, not archived, not under itself or one of its sub-tasks):
+    // otherwise the task keeps its own.
+    if (!parentId || (await assertParent(parentId, task.projectId, task.id).then(() => true, () => false))) {
       data.parent = parentId ? { connect: { id: parentId } } : { disconnect: true };
       if (!parentId && task.parentId) {
         await freezeTaskInheritance([task.id]);
@@ -405,18 +477,22 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
 const PULLED_INHERITED: Record<string, TaskInheritableField> = { priority: 'PRIORITY', deadline: 'DEADLINE', milestone: 'MILESTONE', assignees: 'ASSIGNEES' };
 
 /**
- * Milestone of a project with this label, created when there is none.
+ * Milestone of a project with this label, created when there is none (and then known to the tasks pushed after it in
+ * the same sync).
  * @param {string} projectId Project of the task.
  * @param {string} title Milestone title on GitHub.
+ * @param {Maps} maps Correspondences (milestone labels, completed).
  * @returns {Promise<string>} Milestone id.
  */
-async function milestoneOf(projectId: string, title: string): Promise<string> {
+async function milestoneOf(projectId: string, title: string, maps: Maps): Promise<string> {
   // Cut to the rule of the milestones: a long title is found again by its cut one.
   const cut = clipText(title);
   const found = await prisma.milestone.findFirst({ where: { projectId, label: cut }, select: { id: true } });
   if (found) return found.id;
   const position = await nextPositionIn('milestone', { projectId });
-  return (await prisma.milestone.create({ data: { projectId, label: cut, position }, select: { id: true } })).id;
+  const { id } = await prisma.milestone.create({ data: { projectId, label: cut, position }, select: { id: true } });
+  maps.milestoneLabel.set(id, cut);
+  return id;
 }
 
 /**
@@ -462,6 +538,7 @@ type SentRelations = Set<string>;
  * @param {MilestoneCache} context.milestones Milestones of the repositories.
  * @param {SentRelations} context.sent Relationships already sent in this sync.
  * @param {Map<string, string>} context.taskByContent Tasks by issue: other issues are left alone.
+ * @param {Set<string>} context.archivedContent Issues of archived tasks: left alone too.
  * @param {Map<string, string>} context.issueFields Issue field of the board fields showing one.
  * @returns {Promise<void>}
  */
@@ -477,6 +554,7 @@ async function pushValues(
     milestones,
     sent,
     taskByContent,
+    archivedContent,
     issueFields,
   }: {
     knownBefore: string[];
@@ -485,6 +563,7 @@ async function pushValues(
     milestones: MilestoneCache;
     sent: SentRelations;
     taskByContent: Map<string, string>;
+    archivedContent: Set<string>;
     issueFields: Map<string, string>;
   },
 ): Promise<void> {
@@ -556,7 +635,7 @@ async function pushValues(
     const wanted = values[field] as string[];
     const changes = [
       ...wanted.filter((id) => !before.includes(id)).map((id) => [id, true] as const),
-      ...before.filter((id) => taskByContent.has(id) && !wanted.includes(id)).map((id) => [id, false] as const),
+      ...before.filter((id) => taskByContent.has(id) && !archivedContent.has(id) && !wanted.includes(id)).map((id) => [id, false] as const),
     ];
     for (const [other, add] of changes) {
       // A relation is symmetric: sent once for its pair.
@@ -827,6 +906,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       milestoneLabel: new Map(milestoneRows.map((milestone) => [milestone.id, milestone.label])),
       inheritance: await loadTaskInheritance(),
       taskByContent: new Map(linked.map((task) => [task.githubContentId!, task.id])),
+      archivedContent: new Set(linked.filter((task) => task.archivedAt).map((task) => task.githubContentId!)),
       issueFields: new Map(board.fields.filter((field) => field.issueFieldId).map((field) => [field.id, field.issueFieldId!])),
     };
     const labels: LabelCache = new Map();
@@ -846,13 +926,19 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       milestones,
       sent,
       taskByContent: maps.taskByContent,
+      archivedContent: maps.archivedContent,
       issueFields: maps.issueFields,
     });
     const byItem = new Map(linked.map((task) => [task.githubItemId!, task]));
     const iterationIds = new Set(board.fields.find((field) => field.id === link.iterationFieldId)?.iterations.map((iteration) => iteration.id) ?? []);
 
-    for (const item of items) {
+    // Parents first: what a parent receives reaches the sub-tasks that inherit it in the same pass.
+    const depth = (entry: RemoteItem) => lineageOf(maps.inheritance.tasks, byItem.get(entry.itemId)?.id).length;
+    for (const item of [...items].sort((a, b) => depth(a) - depth(b))) {
       const task = byItem.get(item.itemId)!;
+      // An archived task is read only: neither it nor its item is written (its snapshot stays, the pair is merged
+      // again once it is restored).
+      if (task.archivedAt) continue;
       const local = localFields(task, link, maps, item.type, link.iterationFieldId ? ((fieldValue(item.fields[link.iterationFieldId]) as string | null) ?? null) : null);
       const remote = remoteFields(item, link, maps);
       // An iteration of the last sync that is gone from the board (new ids given by GitHub) is no reference: the
@@ -861,7 +947,10 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       // A state of a former sync, closed without its reason: closed as done.
       if (snapshot?.closed === true) snapshot.closed = 'COMPLETED';
       if (snapshot && typeof snapshot.iteration === 'string' && !iterationIds.has(snapshot.iteration)) delete snapshot.iteration;
-      const result = mergeFields(local, remote, snapshot, task.updatedAt.toISOString() > item.updatedAt);
+      const archivedParent = Boolean(task.parent?.archivedAt) || Boolean(item.parentId && maps.archivedContent.has(item.parentId));
+      const base = setArchivedLinksAside(local, remote, snapshot, maps.archivedContent, archivedParent);
+      const result = mergeFields(local, remote, base, task.updatedAt.toISOString() > item.updatedAt);
+      keepArchivedLinks(result.snapshot, snapshot, maps.archivedContent, archivedParent);
       if (Object.keys(result.push).length) {
         await pushValues(token, link, item, result.push, pushContext(task, (remote.assignees as string[]) ?? []));
         summary.pushed += 1;
@@ -870,7 +959,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       await prisma.task.update({
         where: { id: task.id },
         data: {
-          ...(await pullData(result.pull, task, maps, item)),
+          ...(await pullData(acceptedValues(result.pull, task), task, maps, item)),
           githubContentId: item.contentId,
           githubContentType: item.type,
           githubUrl: item.url,
@@ -878,6 +967,10 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
           githubSnapshot: toJson(result.snapshot),
         },
       });
+      // Placed under a parent of another project of the tree: one inheriting its project follows it.
+      if ('parent' in result.pull) await followParentProjects([task.id]);
+      // A value its sub-tasks may inherit changed: they go by the new one when their turn comes.
+      if ('parent' in result.pull || Object.keys(PULLED_INHERITED).some((key) => key in result.pull)) maps.inheritance = await loadTaskInheritance();
       if (Object.keys(result.pull).length && !created.has(item.itemId)) summary.pulled += 1;
       // The number of the task follows its issue.
       if (item.type === 'ISSUE' && item.number !== null && (await matchIssueNumber(task.id, item.number))) summary.renumbered += 1;
@@ -901,7 +994,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       });
       maps.taskByContent.set(created.contentId, task.id);
       // A parent sent in this same run is known now.
-      const parent = task.parentId ? await prisma.task.findUnique({ where: { id: task.parentId }, select: { githubContentId: true, githubContentType: true } }) : null;
+      const parent = task.parentId ? await prisma.task.findUnique({ where: { id: task.parentId }, select: { githubContentId: true, githubContentType: true, archivedAt: true } }) : null;
       const local = localFields({ ...task, parent }, link, maps, type);
       const item: RemoteItem = {
         ...created,

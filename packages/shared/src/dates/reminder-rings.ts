@@ -152,8 +152,10 @@ export interface RemindedRoutineSlot {
 
 /** An occurrence of a routine its reminders ring for (`reminderOccurrences` of the API). */
 export interface RemindedRoutineOccurrence {
-  /** Due day (« Échéance »). */
+  /** Day that identifies the occurrence: its due day (« Échéance »), or the day of its rule when moved and kept apart. */
   date: string;
+  /** Due day, when it is not `date` (moved and kept apart). Optional. Default = `date`. */
+  dueDate?: string | null;
   /** Opening day (« Ouverture »). */
   day: string;
   /** Its times of the day not ticked. */
@@ -190,7 +192,7 @@ export type RoutineRing<R> = PlannedRing & { routine: R; slot: number; current: 
  * @param {number | null} minutes Time to spend on the routine (`estimate`).
  * @returns {Record<ReminderAnchor, Date> | null} Instant of each anchor, null without any hour.
  */
-export function routineSlotAnchors(occurrence: Pick<RemindedRoutineOccurrence, 'date' | 'day'>, slot: Omit<RemindedRoutineSlot, 'slot'>, minutes: number | null): Record<ReminderAnchor, Date> | null {
+export function routineSlotAnchors(occurrence: Pick<RemindedRoutineOccurrence, 'date' | 'day' | 'dueDate'>, slot: Omit<RemindedRoutineSlot, 'slot'>, minutes: number | null): Record<ReminderAnchor, Date> | null {
   const span = routineSlotSpan(slot, minutes);
   if (!span) return null;
   /**
@@ -199,7 +201,8 @@ export function routineSlotAnchors(occurrence: Pick<RemindedRoutineOccurrence, '
    * @returns {Date} Instant.
    */
   const end = (day: string) => (span.end ? parisInstant(day, span.end) : parisInstant(addDays(day, 1)));
-  return { start: parisInstant(occurrence.day, span.start), openEnd: end(occurrence.day), dueStart: parisInstant(occurrence.date, span.start), end: end(occurrence.date) };
+  const due = occurrence.dueDate ?? occurrence.date;
+  return { start: parisInstant(occurrence.day, span.start), openEnd: end(occurrence.day), dueStart: parisInstant(due, span.start), end: end(due) };
 }
 
 /**
@@ -249,7 +252,7 @@ export function routineRings<R extends RemindedRoutine>(routines: readonly R[], 
           if (!anchors) return [];
           return ROUTINE_REMINDER_ANCHORS.flatMap((anchor) => remindersBefore(`${key}:${slot.slot}`, anchors[anchor], routine.reminders, anchor)).map((reminder) => ({ ...reminder, slot: slot.slot }));
         }),
-        ...[...remindersAt(key, occurrence.day, routine.reminders), ...remindersAt(key, occurrence.date, routine.reminders, true, 'end')].map((reminder) => ({ ...reminder, slot: first })),
+        ...[...remindersAt(key, occurrence.day, routine.reminders), ...remindersAt(key, occurrence.dueDate ?? occurrence.date, routine.reminders, true, 'end')].map((reminder) => ({ ...reminder, slot: first })),
       ];
       const current = routine.currentDate === occurrence.date;
       return planned.flatMap((reminder) => {

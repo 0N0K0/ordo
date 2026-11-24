@@ -1,6 +1,6 @@
-import { addDays, dayIn, timeIn } from '../dates/days';
+import { addDays, dayIn, PARIS_ZONE, timeIn } from '../dates/days';
 import { zonedInstant } from '../dates/recurrence';
-import { PARIS_ZONE, parisInstant } from '../dates/reminders';
+import { parisInstant } from '../dates/reminders';
 import { nextConditionMoment, type SlotCondition, type SlotsOn } from './slot-conditions';
 import type { ScheduleCase } from './work-schedules';
 
@@ -19,7 +19,8 @@ export interface BusyEvent {
   /** Tasks the event is about: they are done during it, it does not block them. */
   taskIds: readonly string[];
   /** Routines of a day the event is about: on that day it does not block them. Optional. */
-  routineLinks?: readonly { routineId: string; date: string }[];
+  /** Routines it is about: the day that identifies each occurrence, and the day it shows on (another one when moved and kept apart). */
+  routineLinks?: readonly { routineId: string; date: string; shownDate?: string }[];
   calledOff: boolean;
 }
 
@@ -48,7 +49,7 @@ const peopleOf = (ids: readonly string[], meId: string | null) => (ids.length ? 
  * @param {BusyItem} item Task or routine.
  * @param {string | null} meId « Moi ».
  * @param {Date} at Moment.
- * @param {string} day Local day of the moment (YYYY-MM-DD).
+ * @param {string} day Day of the moment in Paris (YYYY-MM-DD).
  * @returns {BusyEvent | undefined} Event, if any.
  */
 export function blockingEvent(events: readonly BusyEvent[], item: BusyItem, meId: string | null, at: Date, day: string): BusyEvent | undefined {
@@ -58,7 +59,7 @@ export function blockingEvent(events: readonly BusyEvent[], item: BusyItem, meId
     (event) =>
       !event.calledOff &&
       !(item.taskId && event.taskIds.includes(item.taskId)) &&
-      !(item.routineId && event.routineLinks?.some((link) => link.routineId === item.routineId && link.date === day)) &&
+      !(item.routineId && event.routineLinks?.some((link) => link.routineId === item.routineId && (link.shownDate ?? link.date) === day)) &&
       peopleOf(event.contributorIds, meId).some((id) => people.has(id)) &&
       (event.allDay ? event.startDate <= day && day <= event.endDate : new Date(event.start).getTime() <= at.getTime() && at.getTime() < new Date(event.end).getTime()),
   );
@@ -66,17 +67,14 @@ export function blockingEvent(events: readonly BusyEvent[], item: BusyItem, meId
 
 /**
  * Moment an event stops keeping someone busy: its end, or the midnight after its last day for an all-day one (in a
- * time zone, else the local one).
+ * time zone).
  * @param {BusyEvent} event Event.
- * @param {string} [timeZone] Time zone of its days. Optional. Default = the local one.
+ * @param {string} [timeZone] Time zone of its days. Optional. Default = Paris.
  * @returns {Date} Moment.
  */
-export function busyUntil(event: BusyEvent, timeZone?: string): Date {
+export function busyUntil(event: BusyEvent, timeZone: string = PARIS_ZONE): Date {
   if (!event.allDay) return new Date(event.end);
-  const next = addDays(event.endDate, 1);
-  if (timeZone) return zonedInstant(next, '00:00', timeZone);
-  const [year, month, day] = next.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  return zonedInstant(addDays(event.endDate, 1), '00:00', timeZone);
 }
 
 /** Days ahead the next moment a task or a routine can be done is looked for. */

@@ -5,7 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { localToday } from '../../../lib/dates';
+import { parisToday } from '../../../lib/dates';
 import { ScheduleCases } from '../../calendar/components/ScheduleRepetition';
 import { newScheduleCase } from '../../calendar/lib/schedule-text';
 import { taskHoursLines } from '../lib/task-hours-text';
@@ -59,7 +59,7 @@ function TaskHoursEditor({ draft, setDraft, start }: { draft: ScheduleCase[]; se
  * @returns {JSX.Element} Field.
  */
 export function TaskHoursField({ value, onChange, readOnly = false }: { value: ScheduleCase[]; onChange: (hours: ScheduleCase[]) => void; readOnly?: boolean }) {
-  const start = localToday();
+  const start = parisToday();
   return (
     <RepetitionField<ScheduleCase[]>
       label="Horaires"
@@ -83,7 +83,7 @@ export function TaskHoursField({ value, onChange, readOnly = false }: { value: S
  */
 export function TaskHoursModal({ value, title, onClose, onApply, header }: { value: ScheduleCase[]; title: string; onClose: () => void; onApply: (hours: ScheduleCase[]) => void; header?: ReactNode }) {
   const [draft, setDraft] = useState<ScheduleCase[]>(value);
-  const start = localToday();
+  const start = parisToday();
   return (
     <RepetitionModal<ScheduleCase[]>
       opened

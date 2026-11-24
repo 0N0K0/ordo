@@ -23,6 +23,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Archivage](archivin
 - « Moi » ne peut pas être archivé, ni seul ni avec une personne liée : « Vous ne pouvez pas vous archiver. » (voir [Archivage](archiving.md#personnes-liées)).
 - Dans le calcul d'occupation (`blockingEvent`), un événement sans participant et une tâche ou routine sans assigné comptent comme « Moi ».
 - Filtre « assigné à moi » : valeur `@me` (`ME`).
+- Ce qui ne tourne pour personne en particulier (conditions des règles d’automatisation des tâches) prend le « Moi » du premier utilisateur de l’app, le compte le plus ancien (`firstUserContributorId`, `services/people/members.ts`).
 
 ## Contributeurs
 
@@ -86,7 +87,7 @@ Règle unique pour les assignés des tâches et des routines et les participants
 ## Relations
 
 - Nom unique dans l'espace (« Une relation porte déjà ce nom. »), note (500).
-- Peut être liée à un contributeur qui n'est ni membre (« Ce contributeur est membre : il n’est pas une relation. ») ni lié à un contact (« Ce contributeur est le contact « Prénom Nom · Client » : il ne peut pas aussi être une relation. ») ; un contributeur au plus une fois (« Ce contributeur est déjà une relation. »). Ses coordonnées et son anniversaire sont alors ceux du contributeur.
+- Peut être liée à un contributeur qui n'est ni membre (« Ce contributeur est membre : il n’est pas une relation. ») ni lié à un contact (« Ce contributeur est le contact « Prénom Nom · Client » : il ne peut pas aussi être une relation. ») ; un contributeur au plus une fois (« Ce contributeur est déjà une relation. »). Le contributeur a alors les coordonnées et l’anniversaire de la relation (il n’en a pas à lui).
 - Une ligne ou un budget est pour un membre **ou** une relation, pas les deux (« Un membre ou une relation, pas les deux. ») ; un prêt se fait avec une relation (« Un prêt se fait avec une relation. »).
 - Archivable (`TREASURY_RELATION`) ; commentable.
 

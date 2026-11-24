@@ -32,7 +32,7 @@ Table des articles (`StockTable`), comme toutes les tables (vues, filtres, tris,
   - « Unité » (modifiable, unités des achats) ;
   - « Date de péremption » : la première date des lots, en badge rouge si dépassée, orange avec un signe d'alerte à 3 jours ou moins, gris sinon ;
   - « Bénéficiaires » (modifiables) ;
-  - masquées par défaut : « Lots » (quantité · date de chaque lot), « Périssable » (case modifiable ; oui / non « Périssable » / « Durable » : triangle orange, coche bleue), « Consommable » (celui de la référence ; un article à lui est consommable ; « Consommable » / « Permanent »), « Référence » (nom de la référence ; filtre oui / non), « Valeur » (dernier prix de la référence × quantité, total en pied), « Description » (markdown, modifiable dans l'éditeur markdown ouvert dans un popover), « Modifié le » ;
+  - masquées par défaut : « Lots » (quantité · date de chaque lot), « Périssable » (bouton d’état modifiable « Périssable » / « Durable » : triangle orange, coche bleue), « Consommable » (celui de la référence ; un article à lui est consommable ; « Consommable » / « Permanent »), « Référence » (nom de la référence ; filtre oui / non), « Valeur » (dernier prix de la référence × quantité, total en pied), « Description » (markdown, modifiable dans l'éditeur markdown ouvert dans un popover), « Modifié le » ;
   - commentaires.
 - Toutes les cellules modifiables le sont aussi en lot (sélection de cellules).
 - Boutons : « Afficher les archivés », « Faire l'inventaire » (désactivé sans article non archivé), « Nouvel article ».
@@ -82,14 +82,14 @@ Panneau au nom de l'article (`StockMoveForm`) :
 Panneau large « Faire l'inventaire » (`StockCountForm`) :
 
 - « Emplacement » (« Tout le stock » par défaut) : les articles de l'emplacement et de ses sous-emplacements ; les archivés ne sont pas comptés.
-- Tableau : « Article », « Emplacement », « Attendu », « Compté » (saisie, l'attendu en indication).
+- Tableau : « Article », « Emplacement », « Attendu », « Compté » (saisie alignée à droite comme les quantités, l'attendu en indication).
 - « Saisissez ce que vous comptez : seuls les articles comptés sont enregistrés, l'écart avec l'attendu est noté dans l'historique. »
 - « Description » : markdown, dans l'éditeur markdown partagé (65 536 caractères).
 - « Enregistrer l'inventaire » (désactivé sans compte) : toast « Inventaire enregistré (N articles). ».
 
 ## Onglet « Mouvements »
 
-Table des mouvements, les plus récents d'abord (2000 au plus) (`MovementsTable`) : « Date » (date et heure), « Mois », « Article », « Mouvement » (badge coloré : « Achat » vert, « Consommation » bleu, « Inventaire » violet, « Perte » rouge, « Correction » gris), « Quantité » (signée), « Origine » (« Liste « X » » avec lien vers la liste, « Fiche « X » » avec lien vers la fiche, « Liste à cocher », « Inventaire »), « Description » (note). Vide : « Aucun mouvement. ». La même table, filtrée sur un article, sert à « Historique ».
+Table des mouvements, les plus récents d'abord (2000 au plus) (`MovementsTable`) : « Date » (date et heure), « Mois », « Article », « Mouvement » (pastille colorée, centrée : « Achat » vert, « Consommation » bleu, « Inventaire » violet, « Perte » rouge, « Correction » gris ; triée dans cet ordre), « Quantité » (signée), « Origine » (« Liste « X » » avec lien vers la liste, « Fiche « X » » avec lien vers la fiche, « Liste à cocher », « Inventaire »), « Description » (note). Vide : « Aucun mouvement. ». La même table, filtrée sur un article, sert à « Historique ».
 
 ## Onglet « Inventaires »
 

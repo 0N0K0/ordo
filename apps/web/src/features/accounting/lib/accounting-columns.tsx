@@ -1,7 +1,9 @@
 import { formatDuration, recurrenceSchema, UNIT_LABELS } from '@ordo/shared';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { DURATION_COLUMN, STACKED_COLUMN, type DataColumn } from '../../../components/data-table/table/data-table';
+import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
+import { FEEDBACK_COLORS } from '../../../components/feedback/feedback-colors';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
-import { localDay } from '../../../lib/dates';
+import { parisDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { CatalogItem } from '../api/catalog';
@@ -9,6 +11,18 @@ import type { RecurringInvoice } from '../api/documents';
 import type { OverdueInvoice } from '../api/tracking';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import type { BillableTime } from './time-lines';
+
+/** States of a recurring invoice, changed in place: active green, paused gray. */
+export const RECURRING_STATES: ColumnState<'active' | 'paused'>[] = [
+  { id: 'active', label: 'Active', color: FEEDBACK_COLORS.success },
+  { id: 'paused', label: 'En pause', color: 'gray' },
+];
+
+/** Natures of an item of the catalogue, changed in place: a service blue, a disbursement grape (as its badge by its name). */
+export const CATALOG_KINDS: ColumnState<'ITEM' | 'DISBURSEMENT'>[] = [
+  { id: 'ITEM', label: 'Prestation', color: 'blue' },
+  { id: 'DISBURSEMENT', label: 'Débours', color: 'grape' },
+];
 
 /** Columns of the overdue invoices. */
 export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
@@ -28,9 +42,10 @@ export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     required: true,
     label: 'Envoi',
     size: 230,
+    ...STACKED_COLUMN,
     sortValue: (invoice) => invoice.sentAt ?? null,
-    text: (invoice) => (invoice.sentAt ? fmt.day(localDay(invoice.sentAt)) : ''),
-    filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? localDay(invoice.sentAt) : null) },
+    text: (invoice) => (invoice.sentAt ? fmt.day(parisDay(invoice.sentAt)) : ''),
+    filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? parisDay(invoice.sentAt) : null) },
   },
   {
     id: 'balance',
@@ -45,9 +60,10 @@ export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     id: 'reminder',
     label: 'Dernière relance',
     size: 200,
+    ...STACKED_COLUMN,
     sortValue: (invoice) => invoice.lastReminderAt ?? null,
     text: (invoice) => (invoice.lastReminderAt ? fmt.day(invoice.lastReminderAt) : 'Jamais'),
-    filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(invoice.lastReminderAt) : null) },
+    filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? parisDay(invoice.lastReminderAt) : null) },
   },
   { id: 'email', label: 'Destinataire', size: 240, sortValue: (invoice) => invoice.billingEmail ?? null, text: (invoice) => invoice.billingEmail ?? '' },
 ];
@@ -55,25 +71,7 @@ export const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
 /** Columns of the catalog. */
 const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
   { id: 'label', required: true, label: 'Article', size: 320, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
-  {
-    id: 'kind',
-    required: true,
-    bulk: true,
-    label: 'Nature',
-    size: 120,
-    hiddenByDefault: true,
-    sortValue: (item) => item.kind,
-    text: (item) => (item.kind === 'DISBURSEMENT' ? 'Débours' : 'Prestation'),
-    filter: {
-      kind: 'choice',
-      value: (item) => (item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM'),
-      options: [
-        { value: 'ITEM', label: 'Prestation' },
-        { value: 'DISBURSEMENT', label: 'Débours' },
-      ],
-    },
-    groupable: true,
-  },
+  stateColumn({ id: 'kind', required: true, bulk: true, label: 'Nature', size: 120, hiddenByDefault: true, states: CATALOG_KINDS, value: (item) => (item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM'), groupable: true }),
   { id: 'unit', required: true, label: 'Unité', size: 120, bulk: true, sortValue: (item) => UNIT_LABELS[item.unit].label, text: (item) => UNIT_LABELS[item.unit].label, groupable: true },
   { id: 'price', required: true, label: 'Prix HT', size: 120, bulk: true, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => fmt.money(item.unitPrice) },
   {
@@ -111,7 +109,7 @@ export const BILLING_COLUMNS: DataColumn<BillableTime>[] = [
     required: true,
     label: 'Durée',
     size: 100,
-    numeric: true,
+    ...DURATION_COLUMN,
     sortValue: (entry) => entry.seconds,
     text: (entry) => formatDuration(entry.seconds),
     formatTotal: (seconds) => formatDuration(Math.round(seconds)),
@@ -141,25 +139,7 @@ export const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
     text: (item) => (item.nextDate ? fmt.day(item.nextDate) : 'Terminée'),
     filter: { kind: 'date', value: (item) => item.nextDate || null },
   },
-  {
-    id: 'state',
-    required: true,
-    label: 'État',
-    size: 120,
-    bulk: true,
-    hiddenByDefault: true,
-    sortValue: (item) => (item.active ? 0 : 1),
-    text: (item) => (item.active ? 'Active' : 'En pause'),
-    filter: {
-      kind: 'choice',
-      value: (item) => (item.active ? 'active' : 'paused'),
-      options: [
-        { value: 'active', label: 'Active' },
-        { value: 'paused', label: 'En pause' },
-      ],
-    },
-    groupable: true,
-  },
+  stateColumn({ id: 'state', required: true, label: 'État', size: 120, bulk: true, hiddenByDefault: true, states: RECURRING_STATES, value: (item) => (item.active ? 'active' : 'paused'), groupable: true }),
   {
     id: 'issued',
     required: true,

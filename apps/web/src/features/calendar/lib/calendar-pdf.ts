@@ -1,5 +1,5 @@
 import { addDays, type CalendarPdfKind, DEFAULT_LABEL_COLOR, twoDigits } from '@ordo/shared';
-import { dayOf, localParts } from '../../../lib/dates';
+import { parisDay, parisParts } from '../../../lib/dates';
 import type { EventInput } from '@fullcalendar/core';
 import { fileName, postExport } from '../../../lib/download';
 
@@ -61,18 +61,24 @@ function hexColor(color: string | undefined, fallback: string): string {
     .join('')}`;
 }
 
+/** A day, or a day and time without zone (YYYY-MM-DD, YYYY-MM-DDTHH:MM[:SS]). */
+const WALL_TIME = /^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?)?$/;
+
 /**
- * Local "YYYY-MM-DDTHH:MM" of a FullCalendar date.
+ * Paris "YYYY-MM-DDTHH:MM" of a FullCalendar date (the agenda is shown in Paris time, whatever the browser's zone).
  * @param {EventInput['start']} value Date, string or timestamp.
- * @returns {string} Local date-time.
+ * @returns {string} Date-time in Paris.
  */
-function localDateTime(value: EventInput['start']): string {
-  const parts = localParts(value instanceof Date ? value : new Date(value as string | number));
+function parisDateTime(value: EventInput['start']): string {
+  // A day, or a day and time without zone, is already a Paris one (the agenda reads it in Paris).
+  const wall = typeof value === 'string' ? WALL_TIME.exec(value) : null;
+  if (wall) return `${wall[1]}T${wall[2] ?? '00:00'}`;
+  const parts = parisParts(value instanceof Date ? value : new Date(value as string | number));
   return `${parts.date}T${parts.time}`;
 }
 
 /**
- * Items of the calendar as the PDF draws them: each item shown in its look (`CALENDAR_PDF_KINDS`), dates local,
+ * Items of the calendar as the PDF draws them: each item shown in its look (`CALENDAR_PDF_KINDS`), dates in Paris,
  * all-day ends included, colors resolved (filled looks: their background, the others: their border).
  * @param {EventInput[]} items Items shown (filters applied).
  * @param {string} closedClass Class of the struck through items (cancelled events, done tasks).
@@ -87,13 +93,13 @@ export function pdfItems(items: readonly EventInput[], closedClass: string): Pdf
     const struck = (Array.isArray(item.classNames) ? item.classNames : []).includes(closedClass);
     const label = item.title ?? '';
     if (item.allDay) {
-      const start = dayOf(String(item.start));
+      const start = parisDay(item.start as Date | string | number);
       // FullCalendar ends are exclusive.
-      const end = item.end ? addDays(dayOf(String(item.end)), -1) : start;
+      const end = item.end ? addDays(parisDay(item.end as Date | string | number), -1) : start;
       return [{ label, kind, allDay: true, start, end: end < start ? start : end, color, struck }];
     }
-    const start = localDateTime(item.start);
-    const end = item.end ? localDateTime(item.end) : start;
+    const start = parisDateTime(item.start);
+    const end = item.end ? parisDateTime(item.end) : start;
     return [{ label, kind, allDay: false, start, end: end < start ? start : end, color, struck }];
   });
 }
@@ -106,7 +112,7 @@ export function pdfItems(items: readonly EventInput[], closedClass: string): Pdf
  * @param {'month' | 'week' | 'day'} view.view Kind.
  * @param {string} view.from First day shown.
  * @param {string} view.to Last day shown.
- * @param {string} view.today The user's day.
+ * @param {string} view.today Today in Paris.
  * @param {PdfItem[]} view.items Items.
  * @returns {Promise<void>}
  */

@@ -1,21 +1,26 @@
 import { z } from 'zod';
 import { END_AFTER_START, endsAfter, markdownSchema, markdownTextSchema, optionalPlainText, requiredText } from '../core/rules';
-import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, zonedInstant, type Recurrence } from '../dates/recurrence';
+import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, storedRecurrence, zonedInstant, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
-import { addDays, dayIn } from '../dates/days';
-import { PARIS_ZONE } from '../dates/reminders';
+import { addDays, dayIn, PARIS_ZONE } from '../dates/days';
 import { twoDigits } from '../core/numbers';
 
 /** What was done during a tracked time: markdown (its editor). Blank becomes null. */
 export const timeDescriptionSchema = markdownSchema;
 
-/** Duration of a time entry, in seconds: up to 24 hours. */
+/** Longest time entry, in seconds (24 hours): typed, or of a timer, stopped on its own once reached. */
+export const DURATION_MAX_SECONDS = 24 * 3600;
+
+/** Shortest time entry added or typed, in seconds (1 minute; a timer stopped sooner keeps its seconds). */
+export const DURATION_MIN_SECONDS = 60;
+
+/** Duration of a time entry, in seconds: 1 minute to 24 hours. */
 export const durationSchema = z
   .number({ error: 'Durée attendue.' })
   .int()
-  .min(60, 'Au moins 1 minute.')
-  .max(24 * 3600, '24 heures maximum.');
+  .min(DURATION_MIN_SECONDS, 'Au moins 1 minute.')
+  .max(DURATION_MAX_SECONDS, '24 heures maximum.');
 
 /** A time has at least a project, a task, a routine or an event. */
 export const TIME_SUBJECT_REQUIRED = 'Choisissez un projet, une tâche, une routine ou un évènement.';
@@ -114,6 +119,30 @@ export function entrySeconds(entry: { startedAt: string; endedAt: string | null;
   return Math.max(0, Math.floor((end - Date.parse(entry.startedAt)) / 1000) - entry.pausedSeconds);
 }
 
+/**
+ * Seconds of a time within a period (a day, a week): the part of its duration between the two instants, for a time
+ * that crosses one of them (a timer running past midnight, started the evening before the week). Its pauses, whose
+ * moments are not kept, are shared out over the whole time.
+ * @param {{ startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null }} entry Time.
+ * @param {number} from Start of the period (ms).
+ * @param {number} to End of the period (ms, excluded).
+ * @param {number} [now] Current time (ms). Optional. Default = Date.now().
+ * @returns {number} Seconds.
+ */
+export function entrySecondsWithin(
+  entry: { startedAt: string; endedAt: string | null; pausedAt: string | null; pausedSeconds: number; duration: number | null },
+  from: number,
+  to: number,
+  now = Date.now(),
+): number {
+  const start = Date.parse(entry.startedAt);
+  const end = entry.pausedAt ? Date.parse(entry.pausedAt) : entry.endedAt ? Date.parse(entry.endedAt) : now;
+  const seconds = entrySeconds(entry, now);
+  if (end <= start) return start >= from && start < to ? seconds : 0;
+  const overlap = Math.max(0, Math.min(end, to) - Math.max(start, from));
+  return Math.round((seconds * overlap) / (end - start));
+}
+
 // --- Alarms -----------------------------------------------------------------------------------------
 
 export const ALARM_TYPES = ['REMINDER', 'NOT_TRACKING', 'TRACKING_DURATION'] as const;
@@ -174,8 +203,8 @@ interface AlarmSchedule {
  * @returns {Recurrence | null} Rule.
  */
 export function alarmRule(schedule: AlarmSchedule): Recurrence | null {
-  const stored = recurrenceSchema.safeParse(schedule.recurrence);
-  if (stored.success) return stored.data;
+  const stored = storedRecurrence(schedule.recurrence);
+  if (stored) return stored;
   if (schedule.frequency === 'ONCE') return null;
   return {
     ...DEFAULT_RECURRENCE,
