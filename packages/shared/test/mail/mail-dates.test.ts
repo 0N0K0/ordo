@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareMailDates, dateHeader, EMPTY_MAIL_SEARCH, mailSearchSchema, mailTime } from '../../src/mail/mail';
+import { compareMailDates, dateHeader, EMPTY_MAIL_SEARCH, mailSearchSchema, mailTime, searchKeepsOldest } from '../../src/mail/mail';
 
 describe('mailTime', () => {
   const sent = '2026-11-20T10:00:00Z';
@@ -55,5 +55,14 @@ describe('mailSearchSchema', () => {
   it('keeps the project of a search folder', () => {
     expect(mailSearchSchema.parse({ ...EMPTY_MAIL_SEARCH, label: 'Projet', projectId: 'p1' }).projectId).toBe('p1');
     expect(mailSearchSchema.parse({ ...EMPTY_MAIL_SEARCH, label: 'Tous' }).projectId).toBeNull();
+  });
+});
+
+describe('searchKeepsOldest', () => {
+  it('keeps the oldest mails only sorted oldest first by date', () => {
+    expect(searchKeepsOldest({ by: 'date', ascending: true })).toBe(true);
+    expect(searchKeepsOldest({ by: 'date', ascending: false })).toBe(false);
+    expect(searchKeepsOldest({ by: 'subject', ascending: true })).toBe(false);
+    expect(searchKeepsOldest({ by: 'correspondent', ascending: false })).toBe(false);
   });
 });

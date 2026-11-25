@@ -124,7 +124,7 @@ Source : `apps/api/src/services/mail/reader.ts`.
 - Filtres : non-lus seulement ; état `all` (défaut), `todo`, `done` (toute autre valeur vaut `all`).
 - Tri (`mailSortBy`) : `date` (défaut, valeur inconnue = date), `correspondent`, `subject`, `size` ; descendant par défaut.
   - Par date : la date du mail, celle affichée (`mailTime`) : son en-tête Date (quand il a été envoyé), sinon la date où le serveur l’a reçu (INTERNALDATE). Pas l’ordre d’arrivée dans le dossier (UID) : un mail déplacé, copié ou importé y reçoit un nouvel UID. Entre deux mails de la même date, le plus grand UID d’abord ; l’ordre croissant est l’inverse exact.
-  - Tous les mails retenus sont triés avant le découpage en pages : la page suivante continue la précédente. Pour cela, l’en-tête Date et la date de réception de chaque mail retenu du dossier sont lus (une requête légère, environ 100 octets par mail) ; les autres tris lisent l’enveloppe et la taille de chaque mail.
+  - Tous les mails retenus sont triés avant le découpage en pages : la page suivante continue la précédente. Pour cela, l’en-tête Date et la date de réception de chaque mail retenu du dossier sont lus (une requête légère, environ 100 octets par mail, refaite à chaque page et à chaque rafraîchissement, sans cache) ; les autres tris lisent l’enveloppe et la taille de chaque mail. Une recherche lit de même les dates de chaque mail correspondant de chaque dossier parcouru.
   - Par objet : sans les préfixes « Re: », « Fwd: », « Fw: », « Tr: » répétés.
   - Par correspondant : nom, sinon adresse du premier expéditeur.
   - Entre égaux : le plus récent d’abord (par date).
@@ -205,8 +205,8 @@ Valeurs d’une nouvelle recherche (`EMPTY_MAIL_SEARCH`) : toutes les boîtes, r
 ### Exécution
 
 - Chaque boîte retenue est lue ; une boîte injoignable est ignorée (avertissement dans le journal), sans faire échouer la recherche.
-- Dans chaque dossier, seuls les **200 mails les plus récents** correspondant aux critères serveur sont retenus (sauf pour un projet : tous ses mails). « Récent » se juge à la date du mail, comme dans la liste d’un dossier (en-tête Date, sinon date de réception), lue pour chaque mail correspondant du dossier.
-- Sans mots-clés sur le serveur, l’état et les drapeaux sont filtrés avec les marques gardées dans Ordo (sur au plus les 1 000 mails les plus récents du dossier).
+- Dans chaque dossier, seuls les **200 mails les plus récents** correspondant aux critères serveur sont retenus (sauf pour un projet : tous ses mails) ; triée du plus ancien au plus récent par date, une recherche retient au contraire les **200 plus anciens** (`searchKeepsOldest`) ; l’interface ne propose ce tri que pour les mails d’un projet, qui ne sont pas limités. Les autres tris (correspondant, objet) gardent les 200 plus récents. « Récent » se juge à la date du mail, comme dans la liste d’un dossier (en-tête Date, sinon date de réception), lue pour chaque mail correspondant du dossier.
+- Sans mots-clés sur le serveur, l’état et les drapeaux sont filtrés avec les marques gardées dans Ordo (sur au plus les 1 000 premiers mails du dossier dans le même ordre : les plus récents, ou les plus anciens).
 - « Avec pièce jointe » est filtré d’après la structure des mails retenus.
 - Recherche d’un projet : seulement les boîtes ayant des copies du projet ; dossiers sauf Corbeille, Indésirables, Brouillons (**les Envoyés compris**) ; les mails sont retrouvés par leur en-tête Message-ID (25 par requête). Sans copie : résultat vide.
 - Résultats de toutes les boîtes réunis, triés (date par défaut, descendant ; entre égaux, le plus récent d’abord), paginés par 50. Tri possible sur `date`, `correspondent`, `subject` (`mailSearchSortBy` : `size` ou valeur inconnue = date).

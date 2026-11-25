@@ -80,6 +80,16 @@ export function compareMailDates(a: MailDateKey, b: MailDateKey, ascending = fal
   return ascending ? order : -order;
 }
 
+/**
+ * Whether a search keeps the oldest mails of each folder (sorted oldest first by date) rather than the latest ones
+ * (every other order).
+ * @param {{ by: MailSearchSortBy, ascending: boolean }} sort Order of the search.
+ * @returns {boolean} True to keep the oldest.
+ */
+export function searchKeepsOldest(sort: { by: MailSearchSortBy; ascending: boolean }): boolean {
+  return sort.by === 'date' && sort.ascending;
+}
+
 /** Subject shown for a mail without one. */
 export const NO_SUBJECT = '(sans objet)';
 

@@ -248,7 +248,7 @@ Bouton « Recherche avancée » à côté de la recherche rapide. Panneau :
 - Note : « Les 200 mails les plus récents de chaque dossier sont examinés. ».
 - « Enregistrer en dossier de recherche », « Effacer », « Rechercher ».
 
-Les résultats remplacent la liste, avec l’en-tête « Recherche avancée », « Modifier » / « Masquer les critères » et « Quitter ». Chaque résultat porte un badge « Boîte · Dossier » (le nom de la boîte seulement s’il y a plusieurs boîtes). Les résultats sont triés du plus récent au plus ancien (date affichée de chaque mail). Vide : « Aucun mail ne répond à la recherche. ».
+Les résultats remplacent la liste, avec l’en-tête « Recherche avancée », « Modifier » / « Masquer les critères » et « Quitter ». Chaque résultat porte un badge « Boîte · Dossier » (le nom de la boîte seulement s’il y a plusieurs boîtes). Les résultats sont triés du plus récent au plus ancien (date affichée de chaque mail), sans choix de tri. Vide : « Aucun mail ne répond à la recherche. ».
 
 ### Dossiers de recherche
 
