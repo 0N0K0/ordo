@@ -3510,4 +3510,6 @@ model RoutineCheck {
 
   @@id([routineId, date, slot])
   @@index([workspaceId])
+  /// The history of a day: the ticks done within it.
+  @@index([workspaceId, doneAt])
 }

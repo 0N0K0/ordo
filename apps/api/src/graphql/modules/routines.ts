@@ -1,5 +1,5 @@
 import { parseOptionalDay, sumOf } from '@ordo/shared';
-import { addDays, daysBetween, formatDay, movedFrom, parseDay, readDeadTimes, readOpens, readReminders, reminderDaysAhead, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, movedFrom, parisInstant, parseDay, readDeadTimes, readOpens, readReminders, reminderDaysAhead, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
 import * as occurrences from '../../services/routines/routine-occurrences';
@@ -65,21 +65,34 @@ interface SlotState {
   dueTime: string | null;
   optional: boolean;
   done: boolean;
+  /** When it was done (its tick); null: not ticked. */
+  doneAt: Date | null;
   /** Windows it can be done in that day (several where slots cut it). */
   windows: { fromTime: string | null; dueTime: string | null }[];
 }
 
 /**
+ * Times of the day of an occurrence of a routine, each with its tick (done, and when).
+ * @param {occurrences.RoutineTiming} routine Routine.
+ * @param {string | null} date Day that identifies the occurrence (null: none).
+ * @param {Map<number, Date | null>} ticks When each time of the day ticked was done, by its index.
+ * @param {occurrences.ScheduleContext} context Schedules of the workspace.
+ * @returns {SlotState[]} Times of the day.
+ */
+const tickedSlots = (routine: occurrences.RoutineTiming, date: string | null, ticks: Map<number, Date | null>, context: occurrences.ScheduleContext): SlotState[] =>
+  routines.slotsOf(routine, date, context).map((slot, index) => ({ index, ...slot, done: ticks.has(index), doneAt: ticks.get(index) ?? null }));
+
+/**
  * Times of the day of the current occurrence of a routine (its next one before it starts), with those ticked.
- * @param {occurrences.RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
+ * @param {occurrences.RoutineTiming & { checks: occurrences.RoutineTick[] }} routine Routine with its latest checks.
  * @param {occurrences.ScheduleContext} context Schedules of the workspace.
  * @returns {{ date: string | null, slots: SlotState[] }} Day and its times.
  */
-const slotStates = (routine: occurrences.RoutineTiming & { checks: { date: Date; slot: number }[] }, context: occurrences.ScheduleContext) => {
+const slotStates = (routine: occurrences.RoutineTiming & { checks: occurrences.RoutineTick[] }, context: occurrences.ScheduleContext) => {
   const { current, next } = routines.occurrencesOf(routine, undefined, context);
   const date = current ?? next;
-  const ticked = new Set((occurrences.ticksOf(routine, context) ?? []).filter((check) => current && formatDay(check.date) === current).map((check) => check.slot));
-  return { date, slots: routines.slotsOf(routine, date, context).map((slot, index) => ({ index, ...slot, done: ticked.has(index) })) };
+  const ticks = new Map((occurrences.ticksOf(routine, context) ?? []).filter((check) => current && formatDay(check.date) === current).map((check) => [check.slot, check.doneAt ?? null]));
+  return { date, slots: tickedSlots(routine, date, ticks, context) };
 };
 
 /**
@@ -97,6 +110,7 @@ const RoutineSlotRef = builder.objectRef<SlotState>('RoutineSlot').implement({
     dueTime: t.exposeString('dueTime', { nullable: true }),
     optional: t.exposeBoolean('optional'),
     done: t.exposeBoolean('done'),
+    doneAt: t.expose('doneAt', { type: 'DateTime', nullable: true, description: 'When it was done (its tick); null: not ticked.' }),
     windows: t.field({ type: 'JSON', description: 'Windows it can be done in that day, [{ fromTime, dueTime }] (several where slots cut it).', resolve: (slot) => slot.windows }),
   }),
 });
@@ -588,28 +602,48 @@ builder.queryFields((t) => ({
   }),
   routineOccurrences: t.field({
     type: [RoutineOccurrenceRef],
-    description: `Occurrences of the routines in a period (both days included, ${OCCURRENCE_DAYS} days at most), with their times of the day ticked: the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged).`,
-    args: { from: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }) },
-    resolve: async (_root, { from, to }, ctx) => {
+    description: `Occurrences of the routines in a period (both days included, ${OCCURRENCE_DAYS} days at most), with their times of the day ticked (and when): the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged). With doneInPeriod, also those outside the period with a time of the day done (ticked at) within it, in Paris.`,
+    args: {
+      from: t.arg({ type: 'Date', required: true }),
+      to: t.arg({ type: 'Date', required: true }),
+      doneInPeriod: t.arg.boolean({ description: 'Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the history of a day).' }),
+    },
+    resolve: async (_root, { from, to, doneInPeriod }, ctx) => {
       if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);
       const list = await prisma.routine.findMany({
         // Archived ones: their occurrences started before their archiving, which may be due up to a year
         // and a little after it (« Ouverture » up to 366 days before).
         where: { OR: [{ archivedAt: null }, { archivedAt: { gte: parseDay(addDays(from, -400)) } }] },
-        select: { ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
+        select: { ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true, doneAt: true } } },
       });
       const context = await slotsOf(ctx);
       const today = parisToday();
-      const found = list.map((routine) => ({ routine, spans: occurrences.occurrenceSpansBetween(routine, from, to, context, true) }));
+      // Done within the period (Paris days): the occurrences of those ticks, wherever they are.
+      const doneIn = doneInPeriod
+        ? await prisma.routineCheck.findMany({ where: { doneAt: { gte: parisInstant(from), lt: parisInstant(addDays(to, 1)) } }, select: { routineId: true, date: true } })
+        : [];
+      const found = list.map((routine) => {
+        const spans = occurrences.occurrenceSpansBetween(routine, from, to, context, true);
+        const known = new Set(spans.map((span) => span.date));
+        for (const check of doneIn) {
+          const date = formatDay(check.date);
+          if (check.routineId !== routine.id || known.has(date)) continue;
+          known.add(date);
+          const span = routines.occurrenceOn(routine, date, context);
+          if (span) spans.push(span);
+        }
+        return { routine, spans };
+      });
       // Occurrences kept apart are identified by the day of their rule, maybe out of the period: their ticks too.
       const outside = found.flatMap(({ routine, spans }) => spans.filter((span) => span.date < from || span.date > to).map((span) => ({ routineId: routine.id, date: parseDay(span.date) })));
-      const more = outside.length ? await prisma.routineCheck.findMany({ where: { OR: outside }, select: { routineId: true, date: true, slot: true } }) : [];
+      const more = outside.length ? await prisma.routineCheck.findMany({ where: { OR: outside }, select: { routineId: true, date: true, slot: true, doneAt: true } }) : [];
       return found.flatMap(({ routine, spans }) => {
         // Its exceptions as it goes (its parent's when it inherits them).
         const moves = occurrences.liveMoves(occurrences.occurrenceTiming(routine, context), context);
-        const ticked = new Set([...routine.checks, ...more.filter((check) => check.routineId === routine.id)].map((check) => `${formatDay(check.date)}/${check.slot}`));
+        const checks = [...routine.checks, ...more.filter((check) => check.routineId === routine.id)];
         return spans.map(({ start, end, date, cancelled = false }) => {
           const ruleDay = movedFrom(moves, date);
+          const ticks = new Map(checks.filter((check) => formatDay(check.date) === date).map((check) => [check.slot, check.doneAt]));
           return {
             routineId: routine.id,
             date,
@@ -619,7 +653,7 @@ builder.queryFields((t) => ({
             movedFrom: ruleDay !== end ? ruleDay : null,
             cancelled,
             archived: routine.archivedAt !== null,
-            slots: routines.slotsOf(routine, date, context).map((slot, index) => ({ index, ...slot, done: ticked.has(`${date}/${index}`) })),
+            slots: tickedSlots(routine, date, ticks, context),
           };
         });
       });

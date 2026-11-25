@@ -13,11 +13,9 @@ Requêtes et mutations GraphQL des routines (TanStack Query).
 | `RoutineCategory`                        | Type d'une catégorie (`RoutinesDataQuery['routineCategories'][number]`).                                                                                                                  |
 | `Routine`                                | Type d'une routine telle que la charge `RoutinesData` (occurrences, moments, coches, état calculés par l'API).                                                                            |
 | `routinesKey`                            | Clé de cache `['routines']` ; préfixe aussi des coches et occurrences. Utilisée par `features/time/api` pour rafraîchir.                                                                  |
-| `RoutineCheck`                           | Type d'une coche (`routineChecks`).                                                                                                                                                       |
 | `CommentSnapshot`                        | Commentaire supprimé avec une occurrence (texte, dates), rendu par « Annuler » (`removeMove`). |
-| `useRoutineChecks(from, to)`             | Coches d'une période (historique).                                                                                                                                                        |
 | `RoutineOccurrence`                      | Type d'une occurrence (`routineOccurrences`).                                                                                                                                             |
-| `useRoutineOccurrences(range, enabled?)` | Occurrences des routines d'une période (100 jours au plus), les annulées comprises (`cancelled`, écartées de l'historique et du formulaire de report) et celles des routines archivées dues avant leur archivage (`archived`) ; `range` `null` : rien chargé. Utilisée par l'historique, le formulaire de report, `CalendarPage`, `EventForm`. |
+| `useRoutineOccurrences(range, enabled?)` | Occurrences des routines d'une période (100 jours au plus), chaque moment avec sa coche (`done`, `doneAt`), les annulées comprises (`cancelled`, écartées de l'historique et du formulaire de report) et celles des routines archivées dues avant leur archivage (`archived`) ; avec `range.doneInPeriod`, aussi celles hors de la période dont un moment a été fait pendant la période (l'historique d'un jour ; clé de cache à part) ; `range` `null` : rien chargé. Utilisée par l'historique, le formulaire de report, `CalendarPage`, `EventForm`. |
 | `useRoutinesData()`                      | Routines et catégories ; rechargées au retour du focus (les occurrences changent avec le jour) ; chaque routine telle que les écrans la lisent (interne `fetchRoutinesData`, `routineRow` : ses champs hérités avec la valeur suivie ; la requête lit `inheritedFields`, `inheritance`, `effective`). Utilisée partout (accueil, agenda, alarmes, temps).                                       |
 | `fetchRoutine(queryClient, id)`          | Une routine telle que les routines se lisent maintenant (rechargées, même là où elles ne sont pas chargées) : celle qu'une tâche vient de devenir, pour ouvrir son panneau (`useConvertActivity`). |
 | `isDraftRoutine(routine)`                | Vrai pour une routine en cours de création (id `draft-…`, affichée avant d'être enregistrée).                                                                                             |
@@ -47,7 +45,7 @@ Mutations de `useRoutineMutations()` (toutes invalident `routinesKey` en arrièr
 | `bulkRemove`                                                           | `bulkDeleteRoutines` (`ids`, `deleteSubRoutines`)           | —                                               |
 | `restore`                                                              | `updateRoutine` avec `restoring: true`, routine par routine | —                                               |
 
-Fonctions internes : `useRoutineMutation` (mutation invalidante avec cache optimiste, et d'autres requêtes `also`), `draftRoutine` (brouillon dernier de l'ordre global), `withSlotsDone` (moments, `done`, `doneDates` recalculés), `patchRoutine` (cache), `moveInCache` (ordre global, comme `useMoveTask`), `archiveInCache` (archiver prend les sous-routines, restaurer les parentes), `withBulkChanges`, `fetchChecks`.
+Fonctions internes : `useRoutineMutation` (mutation invalidante avec cache optimiste, et d'autres requêtes `also`), `draftRoutine` (brouillon dernier de l'ordre global), `withSlotsDone` (moments avec leur `doneAt` — l'heure donnée, maintenant sans elle —, `done`, `doneDates` recalculés), `patchRoutine` (cache), `moveInCache` (ordre global, comme `useMoveTask`), `archiveInCache` (archiver prend les sous-routines, restaurer les parentes), `withBulkChanges`.
 
 ## `pages/`
 
@@ -126,15 +124,24 @@ Le jour vient de `useRoutineDay(day, routineId)`.
 | `AgendaLayers`                                          | `{ scheduleIds, calendarIds }` affichés avec les routines.                                                                                                                |
 | `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour, à l'heure de Paris comme l'agenda (`parisCalendarOptions`) : horaires des créneaux en fond, évènements des calendriers (non archivés), moments des routines colorés par état, de leur début à leur fin (`routineSlotSpan` avec `routineMinutes(estimate)` : le temps estimé, 30 min sans lui) ; un clic ouvre `TickForm` (avec `CountdownLaunchButtons` pour l’occurrence : temps morts et minuteurs enregistrés), sauf pour une routine archivée (estompée, « (archivée) », lecture seule). |
 
-Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à minuit après le jour), `historyItemState`, `proposedTime`, `TickForm` (jour, horaires et état, avec dessous quand l’occurrence ouvre, `OccurrenceOpening` ; cocher après coup à une heure, changer l'heure, décocher, avec annulation).
+`HistoryItem` (interface) : un moment de l'historique du jour, avec `doneAt` (quand il a été fait, `null` : pas encore) et `planned` (ouvert ce jour-là, de son premier jour à son échéance ; `false` : fait ce jour-là, hors de ces jours, « (non prévue ce jour) »).
+
+Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à minuit après le jour), `historyItemState`, `TickForm` (jour, horaires et état, « faite le 5 nov. à 08:12 » (`doneAtText`), avec dessous quand l’occurrence ouvre, `OccurrenceOpening` ; `DoneAtForm` proposé à l'heure prévue du jour de l'historique ouvert si elle est passée, sinon maintenant (`routineTickPrefill` avec ce jour), à l'heure où il a été fait une fois coché ; cocher, changer l'heure, « Décocher », par `useRoutineTick`, avec « Annuler »). Un moment fait s'affiche à l'heure où il a été fait (« faite à 08:12 »).
 
 ### `components/DoneToggle.tsx`
 
 | Export                                                   | Rôle                                                                                                                                                                                |
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineDoneToggles({ routine, dateLabel?, disabled? })` | Bouton(s) d'état « Faite » / « À faire » de l'occurrence en cours (`ROUTINE_DONE_STATES`) : un seul, ou un par moment (facultatif en pointillés). Utilisé par `RoutinesPanel`, `RoutineForm` et `features/home/components/LifeCards.tsx`. |
+| `RoutineDoneToggles({ routine, dateLabel?, disabled? })` | Bouton(s) d'état « Faite » / « À faire » de l'occurrence en cours : un `RoutineTickButton` seul, ou un par moment (facultatif en pointillés), sur l'occurrence en cours telle que l'API la lit (`date` `null`), proposé à l'heure prévue de son échéance (`currentDueDate`) une fois passée. Utilisé par `RoutinesPanel` (cellule « Libellé »), `RoutineForm` (en-tête) et `features/home/components/LifeCards.tsx`. |
 
-Interne : `DoneToggle` (`StateButton` : rond gris vide, puis rond vert coché).
+### `components/RoutineTick.tsx`
+
+| Export | Rôle |
+| ------ | ---- |
+| `DoneAtForm({ initial, submitLabel, change?, description?, loading?, disabled?, inPopover?, children?, onSubmit })` | Formulaire « Faite le » d'un moment, le même partout : jour (pas après aujourd'hui) et heure dans un seul `DateTimeField`, une heure à venir refusée (« Cette heure n’est pas encore passée. »), Entrée valide (dans le champ aussi), son bouton (`submitLabel`, coche ou horloge avec `change`) focalisé d'abord ; `children` : les autres boutons, avant le sien ; `inPopover` : le sélecteur s'ouvre dans le popover. Envoie l'instant (ISO). Utilisé par `RoutineTickButton` et `TickForm` (`RoutineDayAgenda`). |
+| `RoutineTickButton({ tick, label, hint?, done, doneAt, target, optional?, disabled?, size? })` | Bouton d'état d'un moment d'une occurrence (`StateButton` avec `ROUTINE_DONE_STATES` : rond gris vide, rond vert coché) : à faire, un clic ouvre `DoneAtForm` dans un popover (« Cocher comme faite », « Annuler » ; aide « L’heure prévue si elle est passée, sinon maintenant. », `routineTickPrefill` de `target`), Échap le ferme sans cocher ; fait, un clic le décoche aussitôt, et une horloge à côté (« Changer l’heure de réalisation », infobulle « … (faite le 5 nov. à 08:12) ») ouvre le même formulaire à l'heure où il a été fait (« Changer l’heure »). Écritures par `useRoutineTick`. Utilisé par `RoutineDoneToggles` et `RoutineOccurrenceForm` (agenda). Garde-fou eslint : pas d'autre `StateButton` avec `ROUTINE_DONE_STATES`. |
+
+Interne : `keepEscape` (Échap dans le popover le ferme sans fermer aussi le panneau latéral dessous : `data-mantine-stop-propagation` sur ce qui y prend le focus).
 
 ### `components/RoutineBulkBar.tsx`
 
@@ -215,8 +222,13 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 
 ### `hooks/use-routine-day.ts`
 
-- `RoutineDay` (interface) : routines, `byId`, moments prévus du jour (`items`), cochés (`doneCount`), chargement.
-- `useRoutineDay(day, routineId?)` : chaque moment prévu ce jour-là (`useRoutineOccurrences` du jour, celles dues ce jour-là, annulées écartées, une routine seule ou toutes ; deux occurrences d’une routine ce jour-là, chacune les siens) avec sa coche (`useRoutineChecks` du plus ancien au plus récent des jours qui les identifient : celle d’une occurrence gardée à part est à son jour d’origine, plus tôt ou plus tard), triés par heure puis libellé (interne `historyItems`), et combien sont cochés. Utilisé par `RoutineHistory` (onglet « Historique ») et `RoutinesNavBadge` (barre latérale, aujourd’hui).
+- `RoutineDay` (interface) : routines, `byId`, moments de l'historique du jour (`items`), faits ce jour-là (`doneCount`), chargement.
+- `useRoutineDay(day, routineId?)` : les moments de l'historique du jour (`useRoutineOccurrences` du jour avec `doneInPeriod` : les occurrences ouvertes ce jour-là et celles dont un moment a été fait ce jour-là), placés par `inRoutineHistoryOn` : un moment fait le jour où il a été coché (à l'heure de Paris), un moment pas encore fait chaque jour de son ouverture jusqu'à son échéance, annulées écartées ; une routine seule ou toutes ; deux occurrences d’une routine ce jour-là, chacune les siens ; triés par heure puis libellé (interne `historyItems`), et combien sont faits. Utilisé par `RoutineHistory` (onglet « Historique ») et `RoutinesNavBadge` (barre latérale, aujourd’hui).
+
+### `hooks/use-routine-tick.ts`
+
+- `RoutineTickRef` (interface) : routine (`id`), jour qui identifie l'occurrence (`date`, `null` : l'occurrence en cours telle que l'API la lit), moment (`slot`).
+- `useRoutineTick()` : `tick(ref, doneAt, previous, onDone?)` coche à une heure, ou change l'heure d'un moment déjà fait (`previous`) ; `untick(ref, previous, onDone?)` décoche ; `pending`. Chacun par `setRoutineDone` (`setDone`), avec un toast « Routine cochée. », « Heure de réalisation changée. » ou « Routine décochée. » et son « Annuler » (remis comme avant : décoché, ou coché à son heure d'avant ; sur le jour rendu par l'API quand `date` est `null`). Suivi par la promesse de la mutation (`mutateAsync`), pas par des callbacks de l'appel : le toast et son « Annuler », ou l'erreur, viennent même quand le bouton a disparu (une ligne que la coche sort d'une vue, un popover ou un panneau fermé). Interne : `write`. Utilisé par `RoutineTickButton` et `TickForm`. Garde-fou eslint : pas d'appel à `setDone.mutate` ailleurs (sauf « Marquer comme faite » d'un rappel qui sonne, `AlarmCenter`).
 
 ### `hooks/use-routine-columns.ts`
 
@@ -302,6 +314,8 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 | `windowOf(routine)`                                    | `{ fromTime: windowFrom, dueTime: windowTo }`.                                                                                                                                            |
 | `scheduleOf(routine)`                                  | Départ / retour (`routineSchedule`).                                                                                                                                                      |
 | `windowText(window)`                                   | Réexporté de `@ordo/shared` (aussi les sonneries poussées) : « 8:20–8:30 », « avant 8:30 », « dès 16:30 », fenêtres jointes par « ou ». Utilisé aussi par l'accueil.                                                                    |
+| `doneAtText(doneAt)`                                   | « faite le 5 nov. à 08:12 » : quand un moment a été fait. Utilisé par `RoutineTickButton`, `TickForm` et `RoutineOccurrenceForm` (agenda). |
+| `doneAtParts(doneAt)`                                  | Jour et heure de Paris où un moment a été fait (`RoutineDoneAt`), ce que « Faite le » montre pour en changer l'heure. Utilisé par `RoutineTickButton` et `TickForm`. |
 | `describeRoutineCase(item, start)`                     | Cas en clair.                                                                                                                                                                             |
 | `movesOf(routine)`                                     | Exceptions qu'elle suit (`effective.moves` : celles de la routine dont elle hérite, aucune vidées exprès), comme ses occurrences ; lues par la liste « Exceptions », `moveTo` et « Annuler » d'un déplacement ou d'une fusion. |
 | `movableOccurrence(routine)`                           | Occurrence déplaçable : en cours si rien n'est coché, sinon la suivante.                                                                                                                  |
@@ -326,7 +340,7 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 | Export                | Rôle                                                                                                                              |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `routineColumns(env)` | Définitions des colonnes du tableau (libellés, tri, texte, filtres, totaux, `groupTree` des catégories, « Priorité » et « Type » des listes des tâches (`context.priorities` / `context.types` : tri dans l’ordre de la liste, filtre `choice`, groupes), « État » par `stateColumn` (`ROUTINE_STATE_BADGES`) ; colonne de commentaires ; « Faite », « En attente », « Faisable maintenant » par `booleanColumn`, nommées « Faites » / « À faire », « En attente » / « Libre » et `DOABLE_GROUP_LABELS` ; « Documents » par `documentsColumn`, [Code web : documents liés](../cross-cutting/documents.md)). |
-| `ROUTINE_DONE_STATES` | États du bouton d'état « Faite » d'une routine ou d'un moment : « Faite » / « À faire », « Marquer comme faite » / « Marquer comme à faire ». Utilisé par `DoneToggle`. |
+| `ROUTINE_DONE_STATES` | États du bouton d'état « Faite » d'une routine ou d'un moment : « Faite » / « À faire », « Marquer comme faite » / « Marquer comme à faire ». Utilisé par `RoutineTickButton` et la colonne « Faite ». |
 
 Internes : `dayText(date)`, `labelColumn` (colonne « Priorité » ou « Type »).
 
@@ -363,7 +377,7 @@ Internes : `RoutineColumn`, `TABLE_COLUMNS`, `useBulkRoutineChanges` (instantan�
 ## Utilisations hors du dossier
 
 - `features/home/components/LifeCards.tsx` : `useRoutinesData`, `RoutineDoneToggles`, `WaitingIcon`, `usePostponeRoutine`, fonctions de `routine-format`.
-- `features/calendar/` : `useRoutineOccurrences`, `useRoutinesData`, `useRoutineMutations`, `manualOrder`, `openRoutineForm`.
+- `features/calendar/` : `useRoutineOccurrences`, `useRoutinesData`, `useRoutineMutations`, `manualOrder`, `openRoutineForm`, `RoutineTickButton`, `doneAtText`, `ROUTINE_DONE_STATES`.
 - `features/alarms/` : `useRoutinesData`, `useRoutineMutations`, `isDone`, `windowText`.
 - `features/time/` : `useRoutinesData`, `routineTreeOptions`, `routinesKey`.
 - `features/projects/pages/ProjectPage.tsx` : `RoutinesPanel`.

@@ -3563,9 +3563,16 @@ type Query {
   routineChecks(from: Date!, to: Date!): [RoutineCheck!]!
 
   """
-  Occurrences of the routines in a period (both days included, 100 days at most), with their times of the day ticked: the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged).
+  Occurrences of the routines in a period (both days included, 100 days at most), with their times of the day ticked (and when): the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged). With doneInPeriod, also those outside the period with a time of the day done (ticked at) within it, in Paris.
   """
-  routineOccurrences(from: Date!, to: Date!): [RoutineOccurrence!]!
+  routineOccurrences(
+    """
+    Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the history of a day).
+    """
+    doneInPeriod: Boolean
+    from: Date!
+    to: Date!
+  ): [RoutineOccurrence!]!
 
   """Every routine, archived ones included, in manual order."""
   routines: [Routine!]!
@@ -4414,6 +4421,9 @@ enum RoutineSameDayChoice {
 """Time of the day of an occurrence of a routine."""
 type RoutineSlot {
   done: Boolean!
+
+  """When it was done (its tick); null: not ticked."""
+  doneAt: DateTime
   dueTime: String
   fromTime: String
   index: Int!

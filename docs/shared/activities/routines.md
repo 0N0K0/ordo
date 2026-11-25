@@ -100,6 +100,18 @@ Champs de `routineSchema` :
 
 Internes : `ROUTINE_ANCHORS`, `timeOfDay`, `dayNumber`, `monthNumber`, `weekdayNumber`, `routineOpensSchema`, `opensInMonth`, `isoWeekDate`, `PERIOD_DAYS`, `movesAway`, `MOVED_SCAN`, `OPENS_CHECKED_WITH`.
 
+## `routine-history.ts` — coches après coup et historique
+
+| Export | Rôle |
+| ------ | ---- |
+| `RoutineDoneAt` | Jour (YYYY-MM-DD) et heure (HH:MM) de Paris où un moment a été (ou est dit) fait. |
+| `RoutineTickTarget` | Moment à cocher : `dueDate` (échéance de l'occurrence), `fromTime`, `dueTime`. |
+| `routineTickPrefill(target, now, day?)` | Jour et heure proposés par le formulaire « Faite le » : l'heure prévue (« jusqu’à », sinon « dès ») de son échéance, ou du jour d'où il est coché (`day`, un jour de l'historique), une fois passée ; sinon maintenant, ou ce jour passé à l'heure de maintenant. Tout à l'heure de Paris. Utilisé par `RoutineTickButton` et `TickForm` (web). |
+| `RoutineHistoryOccurrence` | Occurrence telle que l'historique la place : `startDate`, `dueDate`, `cancelled?`. |
+| `inRoutineHistoryOn(occurrence, doneAt, day)` | Un moment s'affiche dans l'historique de ce jour : fait, le jour où il a été fait (à l'heure de Paris), quel que soit son jour d'échéance ; pas encore fait, chaque jour de son ouverture jusqu'à son échéance ; jamais pour une occurrence annulée. Utilisé par `useRoutineDay` (web). |
+
+Tests : `packages/shared/test/routines/routine-history.test.ts`.
+
 ## `routine-inheritance.ts` — héritage des sous-routines
 
 | Export                                                   | Rôle                                                                                                                                                                                                                                                                                                                                                                                     |

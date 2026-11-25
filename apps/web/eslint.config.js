@@ -1288,6 +1288,16 @@ const RESTRICTED_SYNTAX = [
     selector: "FunctionDeclaration:not([id.name='SettingsScopeNote']) :matches(JSXText, Literal)[value=/valent pour tout l’espace/]",
     message: 'Utiliser SettingsScopeNote (components/settings) : une seule phrase pour dire qu’un paramètre vaut pour tout l’espace.',
   },
+  {
+    // A time of the day of a routine is ticked through one state button (its « Faite le » form, its time changed, its untick with « Annuler »).
+    selector: "JSXOpeningElement[name.name='StateButton']:has(JSXSpreadAttribute > Identifier[name='ROUTINE_DONE_STATES'])",
+    message: 'Utiliser RoutineTickButton (features/routines/components/RoutineTick) : cocher ouvre « Faite le », décocher en un clic avec « Annuler », l’heure se change depuis l’horloge.',
+  },
+  {
+    // A tick of a routine is written by useRoutineTick (its toast and its « Annuler »), not by the mutation by hand.
+    selector: "CallExpression[callee.property.name=/^mutate(Async)?$/]:matches([callee.object.name='setDone'], [callee.object.property.name='setDone'])",
+    message: 'Utiliser useRoutineTick (features/routines/hooks/use-routine-tick) : tick / untick, avec le toast et « Annuler ».',
+  },
 ];
 
 export default defineConfig([

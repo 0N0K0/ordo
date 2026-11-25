@@ -1,22 +1,21 @@
 import { archivedIds } from '../../../lib/archive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, ClockIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import type { EventClickArg, EventInput } from '@fullcalendar/core';
 import interactionPlugin from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { Group, Stack, Text } from '@mantine/core';
-import { DateTimeField } from '../../../components/inputs/DateTimeField';
-import { addDays, plannedSlots, routineMinutes, routineSlotSpan, shiftTime } from '@ordo/shared';
+import { Stack, Text } from '@mantine/core';
+import { addDays, plannedSlots, routineMinutes, routineSlotSpan, routineTickPrefill, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
-import { parisDay, parisInstant } from '../../../lib/dates';
-import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
+import { parisDay } from '../../../lib/dates';
 import { useCalendarEvents, useCalendars, useScheduleSources, useSubscribedCalendarEvents } from '../../calendar/api';
-import { useNow } from '../../../lib/use-now';
 import { occurrenceSpan, scheduleSources, slotBarLook, slotLookClasses } from '../../calendar/lib/calendar-events';
 import calendarClasses from '../../calendar/pages/CalendarPage.module.css';
-import { useRoutineMutations, type Routine, type RoutineCheck } from '../api';
-import { windowText } from '../lib/routine-format';
+import type { Routine } from '../api';
+import { useRoutineTick } from '../hooks/use-routine-tick';
+import { DoneAtForm } from './RoutineTick';
+import { doneAtParts, doneAtText, windowText } from '../lib/routine-format';
 import { parisCalendarOptions } from '../../calendar/lib/paris-calendar';
 import * as fmt from '../../../lib/format';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -38,12 +37,13 @@ export interface HistoryItem {
   slot: number;
   fromTime: string | null;
   dueTime: string | null;
-  /** Planned that day (false: ticked anyway). */
+  /** Open that day, from its first day to its due day (false: done that day, out of those days). */
   planned: boolean;
   optional: boolean;
   /** Day the occurrence was moved from, if any. */
   movedFrom: string | null;
-  check: RoutineCheck | undefined;
+  /** When it was done (ISO); null: not done yet. */
+  doneAt: string | null;
 }
 
 /** State of a time of the day: done, still to do (today), skipped (optional) or missed. */
@@ -63,61 +63,30 @@ const STATES: Record<ItemState, { color: string; text: string }> = {
  * @param {string} today Today (YYYY-MM-DD).
  * @returns {ItemState} State.
  */
-const historyItemState = (item: HistoryItem, today: string): ItemState => (item.check ? 'done' : item.dueDate >= today ? 'todo' : item.optional ? 'skipped' : 'missed');
-
-/**
- * Hour proposed to tick a time of the day after the fact: when it was done if it was, else when it was due (its latest
- * time, else its start), else now today and noon another day.
- * @param {HistoryItem} item Time of the day.
- * @param {string} today Today (YYYY-MM-DD).
- * @returns {string} HH:MM.
- */
-const proposedTime = (item: HistoryItem, today: string) => (item.check ? fmt.time(item.check.doneAt) : (item.dueTime ?? item.fromTime ?? (item.dueDate === today ? fmt.time(new Date()) : '12:00')));
+const historyItemState = (item: HistoryItem, today: string): ItemState => (item.doneAt ? 'done' : item.dueDate >= today ? 'todo' : item.optional ? 'skipped' : 'missed');
 
 interface TickFormProps {
   item: HistoryItem;
   routine: Routine | undefined;
+  /** Day of the history it was opened from. */
+  day: string;
   today: string;
   onDone: () => void;
 }
 
 /**
- * Ticks a time of the day after the fact at a chosen hour (by default when it was due), changes the hour it was done
- * at, or unticks it (with an undo); « Lancer » the dead times of the routine for this occurrence.
+ * Ticks a time of the day after the fact at a chosen time (by default its scheduled time on the day of the history it
+ * was opened from once past, else now), changes the time it was done at, or unticks it (with an undo); « Lancer » the
+ * dead times of the routine for this occurrence.
  * @param {TickFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-function TickForm({ item, routine, today, onDone }: TickFormProps) {
-  const { setDone } = useRoutineMutations();
-  const [time, setTime] = useState(() => proposedTime(item, today));
-  // Day it was done: when it was if ticked, else its own (today for one to come); later for a late one.
-  const [day, setDay] = useState(() => (item.check ? parisDay(item.check.doneAt) : item.dueDate > today ? today : item.dueDate));
+function TickForm({ item, routine, day, today, onDone }: TickFormProps) {
+  const writes = useRoutineTick();
   const state = historyItemState(item, today);
-  const at = parisInstant(day, time || '00:00');
-  // Now when the form opened: a later hour is refused.
-  const now = useNow(false);
-  const future = at.getTime() > now;
   const window = windowText(item);
-  /**
-   * Ticks it (done at the chosen hour) or unticks it, with an undo.
-   * @param {boolean} done Target state.
-   * @returns {void}
-   */
-  const save = (done: boolean) => {
-    const previous = item.check ? new Date(item.check.doneAt).toISOString() : null;
-    setDone.mutate(
-      { id: item.routineId, done, date: item.date, slot: item.slot, doneAt: done ? at.toISOString() : null },
-      {
-        ...ON_ERROR,
-        onSuccess: () => {
-          onDone();
-          notifyWithUndo(done ? 'Routine cochée.' : 'Routine décochée.', () =>
-            setDone.mutate({ id: item.routineId, done: previous !== null, date: item.date, slot: item.slot, doneAt: previous }, ON_ERROR),
-          );
-        },
-      },
-    );
-  };
+  const tick = { id: item.routineId, date: item.date, slot: item.slot };
+  const [initial] = useState(() => (item.doneAt ? doneAtParts(item.doneAt) : routineTickPrefill(item, new Date(), day)));
   return (
     <Stack gap="md">
       <OccurrenceOpening routine={routine} occurrence={item}>
@@ -125,33 +94,25 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
           {fmt.dayLong(item.dueDate)}
           {window ? ` · ${window}` : ''} ·{' '}
           <Text span c={`${STATES[state].color}.7`}>
-            {state === 'done' ? `faite à ${fmt.time(item.check!.doneAt)}` : STATES[state].text}
+            {item.doneAt ? doneAtText(item.doneAt) : STATES[state].text}
           </Text>
         </Text>
       </OccurrenceOpening>
-      <DateTimeField
-        label="Faite le"
-        description={item.check ? undefined : 'À l’heure prévue par défaut.'}
-        maxDate={today}
-        day={day}
-        time={time || null}
-        onChange={(value, hour) => {
-          if (value) setDay(value);
-          setTime(hour ?? '');
-        }}
-        error={future ? 'Cette heure n’est pas encore passée.' : undefined}
-        data-autofocus
-      />
-      <Group justify="flex-end" gap="sm">
-        {item.check && routine && (
-          <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save(false)} loading={setDone.isPending}>
+      <DoneAtForm
+        initial={initial}
+        submitLabel={item.doneAt ? 'Changer l’heure' : 'Cocher comme faite'}
+        change={item.doneAt !== null}
+        description={item.doneAt ? undefined : 'L’heure prévue si elle est passée, sinon maintenant.'}
+        disabled={!routine}
+        loading={writes.pending}
+        onSubmit={(at) => writes.tick(tick, at, item.doneAt, onDone)}
+      >
+        {item.doneAt && routine && (
+          <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => writes.untick(tick, item.doneAt, onDone)} loading={writes.pending}>
             Décocher
           </ActionButton>
         )}
-        <ActionButton icon={item.check ? <ClockIcon aria-hidden /> : <CheckCircleIcon aria-hidden />} onClick={() => save(true)} disabled={!routine || !time || future} loading={setDone.isPending}>
-          {item.check ? 'Changer l’heure' : 'Cocher comme faite'}
-        </ActionButton>
-      </Group>
+      </DoneAtForm>
       {/* Its dead times, launched for this occurrence. */}
       {routine && !routine.archived && <CountdownLaunchButtons deadTimes={routine.deadTimes} savedCountdownIds={routine.savedCountdownIds} item={routineCountdownItem(routine, item.date)} />}
     </Stack>
@@ -246,7 +207,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const state = historyItemState(item, today);
     const { color, text } = STATES[state];
     const minutes = routineMinutes(routine?.estimate);
-    const doneAt = item.check ? new Date(item.check.doneAt) : null;
+    const doneAt = item.doneAt ? new Date(item.doneAt) : null;
     const span = routineSlotSpan(item, minutes);
     let start = span?.start ?? null;
     let end = span ? (span.end ?? MIDNIGHT) : null;
@@ -256,7 +217,8 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       end = stop > start ? stop : MIDNIGHT;
     }
     const timed = start !== null && end !== null && start < end;
-    const status = doneAt ? `faite à ${parisDay(doneAt) === item.dueDate ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
+    // Done: shown on the day it was done, at that time.
+    const status = doneAt ? `faite à ${fmt.time(doneAt)}` : text;
     events.push({
       id: taggedKey('routine', item.key),
       title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}${routine?.archived ? ' (archivée)' : ''}`,
@@ -283,7 +245,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     if (!item) return;
     const routine = byId.get(item.routineId);
     if (routine?.archived) return;
-    openFormPanel(routine?.label ?? 'Routine supprimée', (close) => <TickForm item={item} routine={routine} today={today} onDone={close} />, { panelId: `routine-tick-${item.key}` });
+    openFormPanel(routine?.label ?? 'Routine supprimée', (close) => <TickForm item={item} routine={routine} day={day} today={today} onDone={close} />, { panelId: `routine-tick-${item.key}` });
   };
 
   return (

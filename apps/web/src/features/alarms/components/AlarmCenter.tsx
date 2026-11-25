@@ -129,6 +129,7 @@ export function AlarmCenter() {
         latest.current.routinesData?.routines ?? [],
         now,
         [link(routinesRingPage())],
+        // eslint-disable-next-line no-restricted-syntax -- « Marquer comme faite » of a ringing reminder: done now, from its toast.
         (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, ON_ERROR),
         (routine, at) => latest.current.deferRoutine(routine, at),
       );

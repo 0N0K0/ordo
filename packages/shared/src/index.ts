@@ -36,6 +36,7 @@ export * from './routines/conversion';
 export * from './calendar/slot-conditions';
 export * from './calendar/slot-kinds';
 export * from './routines/routine-views';
+export * from './routines/routine-history';
 export * from './tables/table-layout';
 export * from './tables/table-views';
 export * from './dates/weeks';

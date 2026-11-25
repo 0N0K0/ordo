@@ -1,81 +1,82 @@
-import { joinedKey, mapById } from '@ordo/shared';
+import { inRoutineHistoryOn, joinedKey, mapById } from '@ordo/shared';
 import { useMemo } from 'react';
-import { useRoutineChecks, useRoutineOccurrences, useRoutinesData, type Routine, type RoutineCheck, type RoutineOccurrence } from '../api';
+import { useRoutineOccurrences, useRoutinesData, type Routine, type RoutineOccurrence } from '../api';
 import type { HistoryItem } from '../components/RoutineDayAgenda';
 import { collator } from '../../../lib/text';
 
 /**
- * What a day held: each time of the day planned for the routines that day (done or not, with its tick; two
- * occurrences of a routine that day, one moved there and kept apart, each with its own); nothing else (not a late
- * occurrence of another day); by time of the day, then by title.
- * @param {RoutineOccurrence[]} occurrences Occurrences of the day.
- * @param {RoutineCheck[]} checks Ticks of those occurrences (by the day that identifies each).
+ * What a day of the history holds: each time of the day of the routines done that day (on the day it was ticked,
+ * whichever its due day), and each one not done yet open that day (on every day from its first day to its due day,
+ * `inRoutineHistoryOn`); two occurrences of a routine that day, one moved there and kept apart, each with its own;
+ * by time of the day, then by title.
+ * @param {string} day Day (YYYY-MM-DD).
+ * @param {RoutineOccurrence[]} occurrences Occurrences open that day, and those with a time of the day done that day.
  * @param {Map<string, Routine>} byId Routines by id.
  * @returns {HistoryItem[]} Items.
  */
-function historyItems(occurrences: RoutineOccurrence[], checks: RoutineCheck[], byId: Map<string, Routine>): HistoryItem[] {
-  const tickOf = new Map(checks.map((check) => [joinedKey(check.routineId, check.date, check.slot), check]));
+function historyItems(day: string, occurrences: RoutineOccurrence[], byId: Map<string, Routine>): HistoryItem[] {
   const items: HistoryItem[] = occurrences.flatMap((occurrence) =>
-    occurrence.slots.map((slot) => ({
-      key: joinedKey(occurrence.routineId, occurrence.date, slot.index),
-      routineId: occurrence.routineId,
-      date: occurrence.date,
-      dueDate: occurrence.dueDate,
-      startDate: occurrence.startDate,
-      slot: slot.index,
-      fromTime: slot.fromTime,
-      dueTime: slot.dueTime,
-      planned: true,
-      optional: slot.optional,
-      movedFrom: occurrence.movedFrom,
-      check: tickOf.get(joinedKey(occurrence.routineId, occurrence.date, slot.index)),
-    })),
+    occurrence.slots
+      .filter((slot) => inRoutineHistoryOn(occurrence, slot.doneAt ?? null, day))
+      .map((slot) => ({
+        key: joinedKey(occurrence.routineId, occurrence.date, slot.index),
+        routineId: occurrence.routineId,
+        date: occurrence.date,
+        dueDate: occurrence.dueDate,
+        startDate: occurrence.startDate,
+        slot: slot.index,
+        fromTime: slot.fromTime,
+        dueTime: slot.dueTime,
+        planned: occurrence.startDate <= day && day <= occurrence.dueDate,
+        optional: slot.optional,
+        movedFrom: occurrence.movedFrom,
+        doneAt: slot.doneAt ?? null,
+      })),
   );
   const timeOf = (item: HistoryItem) => item.fromTime ?? item.dueTime ?? '99:99';
   return items.sort((a, b) => timeOf(a).localeCompare(timeOf(b)) || collator.compare(byId.get(a.routineId)?.label ?? '', byId.get(b.routineId)?.label ?? ''));
 }
 
-/** Routines of a day: what was planned and what is ticked. */
+/** Routines of a day: what was done that day and what was still to do. */
 export interface RoutineDay {
   /** Routines of the workspace. */
   routines: Routine[];
   byId: Map<string, Routine>;
-  /** Each time of the day planned that day, by time of the day then title. */
+  /** Each time of the day of the history of that day, by time of the day then title. */
   items: HistoryItem[];
-  /** How many of them are ticked. */
+  /** How many of them are done (that day). */
   doneCount: number;
   loading: boolean;
 }
 
 /**
- * Routines of a day (« Historique » tab, navigation badge): each time of the day planned that day (cancelled
- * occurrences left out), for every routine or for one, and how many are ticked.
+ * Routines of a day (« Historique » tab, navigation badge): each time of the day done that day, and each one not done
+ * yet open that day (cancelled occurrences left out), for every routine or for one, and how many are done.
  * @param {string} day Day.
  * @param {string | null} [routineId] Routine alone, or null for all. Optional. Default = null.
  * @returns {RoutineDay} Day.
  */
 export function useRoutineDay(day: string, routineId: string | null = null): RoutineDay {
   const { data: routinesData } = useRoutinesData();
-  const { data: occurrences, isPending: occurrencesPending } = useRoutineOccurrences({ from: day, to: day });
-  // Due that day: an occurrence moved there and kept apart is identified (ticked) by the day of its rule.
-  const ofDay = useMemo(
-    () => (occurrences ?? []).filter((occurrence) => occurrence.dueDate === day && !occurrence.cancelled && (!routineId || occurrence.routineId === routineId)),
-    [occurrences, day, routineId],
-  );
-  // Its ticks are read from the earliest to the latest of those days (one moved earlier comes from a later day).
-  const first = ofDay.reduce((earliest, occurrence) => (occurrence.date < earliest ? occurrence.date : earliest), day);
-  const last = ofDay.reduce((latest, occurrence) => (occurrence.date > latest ? occurrence.date : latest), day);
-  const { data: checks, isPending } = useRoutineChecks(first, last);
+  const { data: occurrences, isPending } = useRoutineOccurrences({
+    from: day,
+    to: day,
+    doneInPeriod: true,
+  });
   return useMemo(() => {
     const routines = routinesData?.routines ?? [];
     const byId = mapById(routines);
-    const keys = new Set(ofDay.map((occurrence) => joinedKey(occurrence.routineId, occurrence.date)));
-    // A cancelled occurrence is not planned (struck through in the calendar).
     const items = historyItems(
-      ofDay,
-      (checks ?? []).filter((check) => keys.has(joinedKey(check.routineId, check.date))),
+      day,
+      (occurrences ?? []).filter((occurrence) => !routineId || occurrence.routineId === routineId),
       byId,
     );
-    return { routines, byId, items, doneCount: items.filter((item) => item.check).length, loading: isPending || occurrencesPending };
-  }, [routinesData, checks, ofDay, isPending, occurrencesPending]);
+    return {
+      routines,
+      byId,
+      items,
+      doneCount: items.filter((item) => item.doneAt).length,
+      loading: isPending,
+    };
+  }, [routinesData, occurrences, day, routineId, isPending]);
 }

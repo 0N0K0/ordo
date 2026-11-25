@@ -86,6 +86,7 @@ const ElsewhereRemindersDocument = graphql(`
         dueTime
         optional
         done
+        doneAt
         windows
       }
     }

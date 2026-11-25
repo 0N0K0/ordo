@@ -541,7 +541,7 @@ export function CalendarPage() {
         const locked = occurrence.cancelled || occurrence.archived;
         const category = routine.categoryIds.map((id) => routineCategory.get(id)).find((item) => item?.color);
         const color = category?.color ?? (routine.projectId ? context.projectById.get(routine.projectId)?.color : null) ?? 'var(--mantine-color-gray-6)';
-        const slots = occurrence.slots.length ? occurrence.slots : [{ index: 0, fromTime: null, dueTime: null, optional: false, done: false, windows: [] }];
+        const slots = occurrence.slots.length ? occurrence.slots : [{ index: 0, fromTime: null, dueTime: null, optional: false, done: false, doneAt: null, windows: [] }];
         // Shown on its due day once past, today while it runs, its first day before.
         const day = occurrence.shownDate;
         for (const slot of slots) {

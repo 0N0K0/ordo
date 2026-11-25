@@ -3595,7 +3595,7 @@ export type DeleteProjectStatusMutation = { deleteProjectStatus: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, priorityId: string | null, typeId: string | null, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, savedCountdownIds: Array<string>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, libraryDocumentIds: Array<string>, projectResourceIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, currentDueDate: string | null, firstDate: string | null, nextDate: string | null, nextDueDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, inheritedFields: Array<RoutineInheritableField>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, dueDate: string, day: string, slots: Array<{ slot: number, fromTime: string | null, dueTime: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }>, links: Array<{ url: string, label: string }>, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, priorityId: string | null, slotCondition: unknown, opensOn: unknown, location: string | null, locationLat: number | null, locationLon: number | null, startDate: string, recurrence: unknown, cases: unknown, moments: unknown, moves: unknown } }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, priorityId: string | null, typeId: string | null, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, savedCountdownIds: Array<string>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, libraryDocumentIds: Array<string>, projectResourceIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, currentDueDate: string | null, firstDate: string | null, nextDate: string | null, nextDueDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, inheritedFields: Array<RoutineInheritableField>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, dueDate: string, day: string, slots: Array<{ slot: number, fromTime: string | null, dueTime: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, doneAt: string | null, windows: unknown }>, links: Array<{ url: string, label: string }>, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, priorityId: string | null, slotCondition: unknown, opensOn: unknown, location: string | null, locationLat: number | null, locationLon: number | null, startDate: string, recurrence: unknown, cases: unknown, moments: unknown, moves: unknown } }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -3779,21 +3779,14 @@ export type RemoveRoutineMoveMutationVariables = Exact<{
 
 export type RemoveRoutineMoveMutation = { removeRoutineMove: boolean };
 
-export type RoutineChecksQueryVariables = Exact<{
-  from: string;
-  to: string;
-}>;
-
-
-export type RoutineChecksQuery = { routineChecks: Array<{ routineId: string, date: string, slot: number, doneAt: string, fromTime: string | null, dueTime: string | null }> };
-
 export type RoutineOccurrencesQueryVariables = Exact<{
   from: string;
   to: string;
+  doneInPeriod?: boolean | null | undefined;
 }>;
 
 
-export type RoutineOccurrencesQuery = { routineOccurrences: Array<{ routineId: string, date: string, dueDate: string, startDate: string, shownDate: string, movedFrom: string | null, cancelled: boolean, archived: boolean, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
+export type RoutineOccurrencesQuery = { routineOccurrences: Array<{ routineId: string, date: string, dueDate: string, startDate: string, shownDate: string, movedFrom: string | null, cancelled: boolean, archived: boolean, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, doneAt: string | null, windows: unknown }> }> };
 
 export type SheetsQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
@@ -5207,7 +5200,7 @@ export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, label: string, 
 export type ElsewhereRemindersQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ElsewhereRemindersQuery = { tasks: Array<{ id: string, number: number | null, label: string, projectId: string | null, closed: boolean, archived: boolean, effectiveMinDate: string | null, effectiveDeadline: string | null, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, routines: Array<{ id: string, label: string, archived: boolean, location: string | null, estimate: number | null, currentDate: string | null, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, dueDate: string, day: string, slots: Array<{ slot: number, fromTime: string | null, dueTime: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }>, workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, birthdays: Array<{ id: string, name: string, birthDate: string, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }> };
+export type ElsewhereRemindersQuery = { tasks: Array<{ id: string, number: number | null, label: string, projectId: string | null, closed: boolean, archived: boolean, effectiveMinDate: string | null, effectiveDeadline: string | null, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, routines: Array<{ id: string, label: string, archived: boolean, location: string | null, estimate: number | null, currentDate: string | null, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, dueDate: string, day: string, slots: Array<{ slot: number, fromTime: string | null, dueTime: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, doneAt: string | null, windows: unknown }> }>, workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, birthdays: Array<{ id: string, name: string, birthDate: string, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }> };
 
 export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
   id: string | number;
@@ -9180,6 +9173,7 @@ export const RoutinesDataDocument = new TypedDocumentString(`
       dueTime
       optional
       done
+      doneAt
       windows
     }
     windowFrom
@@ -9394,21 +9388,9 @@ export const RemoveRoutineMoveDocument = new TypedDocumentString(`
   removeRoutineMove(id: $id, from: $from, comments: $comments, undo: $undo)
 }
     `) as unknown as TypedDocumentString<RemoveRoutineMoveMutation, RemoveRoutineMoveMutationVariables>;
-export const RoutineChecksDocument = new TypedDocumentString(`
-    query RoutineChecks($from: Date!, $to: Date!) {
-  routineChecks(from: $from, to: $to) {
-    routineId
-    date
-    slot
-    doneAt
-    fromTime
-    dueTime
-  }
-}
-    `) as unknown as TypedDocumentString<RoutineChecksQuery, RoutineChecksQueryVariables>;
 export const RoutineOccurrencesDocument = new TypedDocumentString(`
-    query RoutineOccurrences($from: Date!, $to: Date!) {
-  routineOccurrences(from: $from, to: $to) {
+    query RoutineOccurrences($from: Date!, $to: Date!, $doneInPeriod: Boolean) {
+  routineOccurrences(from: $from, to: $to, doneInPeriod: $doneInPeriod) {
     routineId
     date
     dueDate
@@ -9423,6 +9405,7 @@ export const RoutineOccurrencesDocument = new TypedDocumentString(`
       dueTime
       optional
       done
+      doneAt
       windows
     }
   }
@@ -11694,6 +11677,7 @@ export const ElsewhereRemindersDocument = new TypedDocumentString(`
       dueTime
       optional
       done
+      doneAt
       windows
     }
   }
