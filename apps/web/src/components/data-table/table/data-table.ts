@@ -166,6 +166,15 @@ export const stateIcons = (states: YesNoStates): YesNoIcons => ({ no: 'empty', .
 export const nextStateLabel = (states: YesNoStates, value: boolean): string =>
   value ? (states.toggleLabels?.no ?? `Passer à « ${states.labels.no} »`) : (states.toggleLabels?.yes ?? `Passer à « ${states.labels.yes} »`);
 
+/**
+ * States of « Faite » of an activity (a task, a routine or one of its times of the day) on its state buttons: a green
+ * check once done, an empty gray round while to do.
+ */
+export const DONE_STATES = {
+  labels: { yes: 'Faite', no: 'À faire' },
+  toggleLabels: { yes: 'Marquer comme faite', no: 'Marquer comme à faire' },
+} satisfies YesNoStates;
+
 /** States of a favourite (a client, a project): a filled yellow star, an empty outlined star; one click toggles it. */
 export const FAVORITE_STATES: YesNoStates = {
   labels: { yes: 'Favori', no: 'Pas favori' },

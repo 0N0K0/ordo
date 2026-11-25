@@ -44,12 +44,14 @@ export function useRoutineMove() {
 }
 
 /**
- * Postpones the occurrence of a routine to the next day (the current one, the next one once ticked).
- * @returns {(routine: Routine) => void} Postponer.
+ * Postpones an occurrence of a routine to the day after its due day: the one given, by default the current one (the
+ * next one once ticked).
+ * @returns {(routine: Routine, occurrence?: { date: string, dueDate: string }) => void} Postponer.
  */
 export function usePostponeRoutine() {
   const move = useRoutineMove();
-  return (routine: Routine) => {
+  return (routine: Routine, occurrence?: { date: string; dueDate: string }) => {
+    if (occurrence) return move(routine, addDays(occurrence.dueDate, 1), occurrence.date);
     const date = movableOccurrence(routine);
     if (date) move(routine, addDays(dueDayOf(routine, date), 1), date);
   };

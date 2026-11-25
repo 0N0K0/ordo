@@ -1313,6 +1313,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser RoutineTickButton (features/routines/components/RoutineTick) : cocher ouvre « Faite le », décocher en un clic avec « Annuler », l’heure se change depuis l’horloge.',
   },
   {
+    // « Faite » of an activity is changed through its own state button: a task's closes or reopens it with « Annuler ».
+    selector: "JSXOpeningElement[name.name='StateButton']:has(JSXSpreadAttribute > Identifier[name='DONE_STATES'])",
+    message: 'Utiliser TaskDoneButton (features/tasks/components/TaskDoneButton) pour une tâche, RoutineTickButton (features/routines/components/RoutineTick) pour une routine.',
+  },
+  {
     // A tick of a routine is written by useRoutineTick (its toast and its « Annuler »), not by the mutation by hand.
     selector: "CallExpression[callee.property.name=/^mutate(Async)?$/]:matches([callee.object.name='setDone'], [callee.object.property.name='setDone'])",
     message: 'Utiliser useRoutineTick (features/routines/hooks/use-routine-tick) : tick / untick, avec le toast et « Annuler ».',

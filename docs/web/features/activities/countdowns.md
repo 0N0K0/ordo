@@ -67,7 +67,7 @@ Interne : `useCountdownMutation`.
 - `linkedSavedCountdowns(all, ids)` : les minuteurs enregistrés d’un élément, dans l’ordre de la liste, sans les archivés.
 - `useStartSavedCountdown()` : lance un minuteur enregistré aussitôt (nom, durée, sonnerie), seul ou pour un élément ; toast « Minuteur lancé : 9 min. ».
 - `useItemLaunchers()` : les lanceurs d’un élément (libellé `timerLabel`, action) : les temps morts ouvrent le formulaire, les minuteurs enregistrés démarrent aussitôt. Utilisé par `useCountdownMenuEntries`, `CountdownLaunchButtons`.
-- `useCountdownMenuEntries()` : entrées du menu « … » d’un élément, sections « Temps morts » et « Minuteurs », « Lancer « … » » ; rien sans eux. Utilisé par `useTaskActions`, `RoutinesPage`, `RoutineForm`, `EventForm`, `SheetPage`.
+- `useCountdownMenuEntries()` : entrées du menu « … » d’un élément, sections « Temps morts » et « Minuteurs », « Lancer « … » » ; rien sans eux. Utilisé par `useTaskActions`, `useRoutineOccurrenceMenu`, `RoutineForm`, `useEventMenu`, `SheetPage`.
 - `SavedCountdownExtra` (type), `useSavedCountdownItems()` : la liste et le formulaire des minuteurs enregistrés (`SettingsItemKind` : « Nom », « Durée » tapée enregistrée en la quittant, « Sonnerie » `RingtoneSelect` ; `savedCountdownFormSchema`, minutes par `parseDuration`).
 
 ### `hooks/use-countdown-ringer.ts`

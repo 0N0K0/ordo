@@ -41,16 +41,17 @@ const timesOf = (occurrence: RoutineOccurrence | undefined): Times =>
   occurrence?.slots.length ? occurrence.slots.map((slot) => ({ fromTime: slot.fromTime, dueTime: slot.dueTime })) : [{ fromTime: null, dueTime: null }];
 
 /**
- * Changes an occurrence of a routine, chosen among those around today (by default its current one): another day
+ * Changes an occurrence of a routine, chosen among those around today (by default the one given, else its current one): another day
  * (postponed or brought forward), other times of the day (the same day or another one), or cancelled. Each change is
  * an exception to its rule. Lists the exceptions of the routine, each one removable (the occurrence goes back to its
  * own day and times).
- * @param {{ routineId: string, onDone: () => void }} props Component props.
+ * @param {{ routineId: string, date?: string | null, onDone: () => void }} props Component props.
  * @param {string} props.routineId Routine.
+ * @param {string | null} [props.date] Occurrence chosen first. Optional. Default = its current one (the next one once ticked).
  * @param {() => void} props.onDone Closes the form.
  * @returns {JSX.Element} Form.
  */
-export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDone: () => void }) {
+export function RoutineMoveForm({ routineId, date: firstDate, onDone }: { routineId: string; date?: string | null; onDone: () => void }) {
   const { data } = useRoutinesData();
   const routine = data?.routines.find((item) => item.id === routineId);
   const today = parisToday();
@@ -58,7 +59,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
   const { data: allOccurrences } = useRoutineOccurrences(range);
   // Those not ticked (a ticked one is not changed) nor cancelled (given back from the exceptions), late ones only when past.
   const occurrences = (allOccurrences ?? []).filter((item) => item.routineId === routineId && !item.cancelled && !item.slots.some((slot) => slot.done));
-  const movable = routine ? movableOccurrence(routine) : null;
+  const movable = firstDate ?? (routine ? movableOccurrence(routine) : null);
   const [chosen, setChosen] = useState<string | null>(null);
   const date = chosen ?? movable;
   const occurrence = occurrences.find((item) => item.date === date);

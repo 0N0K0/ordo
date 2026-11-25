@@ -53,7 +53,7 @@ Fonctions internes : `useRoutineMutation` (mutation invalidante avec cache optim
 
 | Export                                       | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutinesPanel({ projectId?, projectIds? })` | Tableau des routines (`DataTable`, vue `routines`) : vues « À faire » et « Toutes » (`ROUTINE_VIEWS`), groupes par catégories, sous-routines sous leur parente, cellules éditables, glisser-déposer (`handleMove` : avant la routine qui suit dans l'ordre global, sous le nouveau parent), menu par ligne, ligne d'ajout, barre de sélection. Sur un projet, filtre les routines de `projectIds` et passe `projectId` aux créations. Utilisé ici et dans `features/projects/pages/ProjectPage.tsx`. |
+| `RoutinesPanel({ projectId?, projectIds? })` | Tableau des routines (`DataTable`, vue `routines`) : vues « À faire » et « Toutes » (`ROUTINE_VIEWS`), groupes par catégories, sous-routines sous leur parente, cellules éditables, glisser-déposer (`handleMove` : avant la routine qui suit dans l'ordre global, sous le nouveau parent), menu par ligne (`useRoutineOccurrenceMenu`, sur l’occurrence en cours), ligne d'ajout, barre de sélection. Sur un projet, filtre les routines de `projectIds` et passe `projectId` aux créations. Utilisé ici et dans `features/projects/pages/ProjectPage.tsx`. |
 | `RoutinesPage()`                             | Page `/routines` : en-tête, `PageSettings` « Paramètres des routines » (`RoutineSettings`), onglets `routines` / `history` (`ROUTINE_TABS`, `usePageTab`), `RoutineHistory` lié au paramètre `routine`. Route dans `app/router.tsx`.                                                                                                                                                                                                                                                                                                              |
 
 Internes : `ROUTINE_VIEWS`, `movedCategories(categoryIds, from, to)` (catégories après un dépôt dans un autre groupe), `cells(routine)` (par `inheritedCells` : champs hérités grisés ; interne `routineCells`), `actions(routine)` (« Héritage… » d’une sous-routine compris) (menu d'une ligne, « Transformer en tâche » compris : `useConvertActivity` ; puis les temps morts et les minuteurs enregistrés pour l’occurrence en cours : `useCountdownMenuEntries`).
@@ -98,7 +98,7 @@ Internes : `NONE`, `modeOptions(frequency)`, `firstValue(mode, frequency)`.
 
 | Export                                   | Rôle                                                                                                                                                                                           |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineMoveForm({ routineId, onDone })` | Panneau « Reporter ou annuler » : occurrence (30 jours avant à 68 après, à son échéance, « déplacée du … » pour une occurrence gardée à part ; avec dessous quand elle ouvre : `OccurrenceOpening`), nouvelle date (par défaut le lendemain de son échéance), horaires, « Annuler l'occurrence » (confirmation), liste des exceptions (« à part de celle du jour » pour une occurrence gardée à part) avec « Remettre à son jour ». |
+| `RoutineMoveForm({ routineId, date?, onDone })` | Panneau « Reporter ou annuler » : occurrence (30 jours avant à 68 après ; d’abord `date`, sinon l’occurrence en cours, `movableOccurrence` ; à son échéance, « déplacée du … » pour une occurrence gardée à part ; avec dessous quand elle ouvre : `OccurrenceOpening`), nouvelle date (par défaut le lendemain de son échéance), horaires, « Annuler l'occurrence » (confirmation), liste des exceptions (« à part de celle du jour » pour une occurrence gardée à part) avec « Remettre à son jour ». |
 
 Internes : `shortText`, `PAST_DAYS`, `NEXT_DAYS`, `Times`, `timesOf(occurrence)`.
 
@@ -244,9 +244,19 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 | Export                 | Rôle                                                                                                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `useRoutineMove()`     | `(routine, to, date?, onDone?, times?)` : déplace une occurrence (par défaut `movableOccurrence` ; `date` : le jour qui l’identifie) avec toast et « Annuler » (mouvement inverse, depuis le jour qui l’identifie ensuite, rendu par l’API ; à part de nouveau si elle l’était ; fusionnée : `removeMove` avec `undo`, elle revient avec son exception d’avant la fusion). |
-| `usePostponeRoutine()` | `(routine)` : reporte au lendemain de son échéance. Utilisé par le menu, la barre de sélection et `LifeCards` (seulement s’il y a une occurrence à reporter, `movableOccurrence`).                                                   |
+| `usePostponeRoutine()` | `(routine, occurrence?)` : reporte au lendemain de son échéance l’occurrence donnée (`date`, `dueDate`), sinon l’occurrence en cours. Utilisé par le menu (`useRoutineOccurrenceMenu`), la barre de sélection et `LifeCards` (seulement s’il y a une occurrence à reporter, `movableOccurrence`).                                                   |
 
 Interne : `MovedTimes`.
+
+### `hooks/use-routine-occurrence-menu.tsx`
+
+| Export | Rôle |
+| ------ | ---- |
+| `useRoutineOccurrenceMenu()` | `(routine, occurrence?) => { primary, items }` : actions d’une routine pour une de ses occurrences, les mêmes dans sa ligne du tableau et dans une liste d’un jour (pour `RowActions`) : « Modifier » (`openRoutineForm`, sur l’occurrence donnée : `occurrenceDate`), puis dans le menu « Ajouter une sous-routine », « Reporter au lendemain » (`usePostponeRoutine`) et « Reporter, changer l’horaire ou annuler… » (`openRoutineMove` sur cette occurrence) tant qu’elle peut bouger (ni annulée, ni archivée, aucun moment fait ; sans occurrence : `movableOccurrence`), « Dupliquer », « Héritage… » (une sous-routine), « Transformer en tâche » (`useConvertActivity`), « Historique », « Archiver » / « Restaurer », « Supprimer » (`useRoutineRowsActions`), puis « Lancer » ses temps morts (`useCountdownMenuEntries`, `routineCountdownItem` de cette occurrence). Archivée : « Historique », « Restaurer », « Supprimer ». Sans occurrence : l’occurrence en cours (la suivante une fois cochée). Utilisé par `RoutinesPanel`. |
+| `RoutineMenuOccurrence` (type) | Ce que le menu lit d’une occurrence : `date`, `dueDate`, `cancelled`, `archived`, `slots`. |
+| `RoutineRowMenu` (interface) | `{ primary, items }` : action principale et entrées du menu. |
+
+Interne : `movable(occurrence)`.
 
 ### `hooks/use-routine-blocks.ts`
 
@@ -258,7 +268,7 @@ Interne : `MovedTimes`.
 
 | Export                 | Rôle                                                                                                                                                                                                                                                                                                                       |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useConvertActivity()` | Entrées « Transformer en routine » (`toRoutine(task, hasChildren)`) et « Transformer en tâche » (`toTask(routine, hasChildren)`) des menus « … » : désactivées avec sous-éléments (infobulle) ; confirmation par la mutation (`convertTask` / `convertToTask`) ; ensuite toast, panneau encore ouvert sur l'ancien élément fermé, qu'il vienne de sa ligne ou de son panneau (`?task=` retiré, ou `closeRoutinePanels`), panneau du nouveau ouvert (`fetchRoutine` puis `openRoutineForm` ; tâches rechargées puis `useTaskLink().open`). Utilisé par `useTaskActions().menu`, `RoutinesPanel` (`actions`) et `RoutineForm`. |
+| `useConvertActivity()` | Entrées « Transformer en routine » (`toRoutine(task, hasChildren)`) et « Transformer en tâche » (`toTask(routine, hasChildren)`) des menus « … » : désactivées avec sous-éléments (infobulle) ; confirmation par la mutation (`convertTask` / `convertToTask`) ; ensuite toast, panneau encore ouvert sur l'ancien élément fermé, qu'il vienne de sa ligne ou de son panneau (`?task=` retiré, ou `closeRoutinePanels`), panneau du nouveau ouvert (`fetchRoutine` puis `openRoutineForm` ; tâches rechargées puis `useTaskLink().open`). Utilisé par `useTaskActions().menu`, `useRoutineOccurrenceMenu` et `RoutineForm`. |
 
 ### `hooks/use-agenda-layers.ts`
 
@@ -342,7 +352,7 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 | Export                | Rôle                                                                                                                              |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `routineColumns(env)` | Définitions des colonnes du tableau (libellés, tri, texte, filtres, totaux, `groupTree` des catégories, « Priorité » et « Type » des listes des tâches (`context.priorities` / `context.types` : tri dans l’ordre de la liste, filtre `choice`, groupes), « État » par `stateColumn` (`ROUTINE_STATE_BADGES`) ; colonne de commentaires ; « Faite », « En attente », « Faisable maintenant » par `booleanColumn`, nommées « Faites » / « À faire », « En attente » / « Libre » et `DOABLE_GROUP_LABELS` ; « Documents » par `documentsColumn`, [Code web : documents liés](../cross-cutting/documents.md)). |
-| `ROUTINE_DONE_STATES` | États du bouton d'état « Faite » d'une routine ou d'un moment : « Faite » / « À faire », « Marquer comme faite » / « Marquer comme à faire ». Utilisé par `RoutineTickButton` et la colonne « Faite ». |
+| `ROUTINE_DONE_STATES` | États du bouton d'état « Faite » d'une routine ou d'un moment : ceux de toute activité (`DONE_STATES`, [tableaux](../../components/data-table.md)), « Faite » / « À faire », « Marquer comme faite » / « Marquer comme à faire ». Utilisé par `RoutineTickButton` et la colonne « Faite ». |
 
 Internes : `dayText(date)`, `labelColumn` (colonne « Priorité » ou « Type »).
 
@@ -375,7 +385,7 @@ Internes : `RoutineColumn`, `TABLE_COLUMNS`, `useBulkRoutineChanges` (instantan�
 
 | Export                     | Rôle                                                     |
 | -------------------------- | -------------------------------------------------------- |
-| `openRoutineMove(routine)` | Ouvre `RoutineMoveForm` (« Reporter ou annuler « … » »). |
+| `openRoutineMove(routine, date?)` | Ouvre `RoutineMoveForm` (« Reporter ou annuler « … » »), sur l’occurrence `date` (le jour qui l’identifie), sinon l’occurrence en cours. |
 
 ## Utilisations hors du dossier
 
