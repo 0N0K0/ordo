@@ -234,7 +234,7 @@ Source : `effectiveTask` (`packages/shared/src/tasks/task-inheritance.ts`, sur `
 
 - Début / fin : créneau valide (« La fin doit suivre le début. »).
 - « Ouverture » / « Échéance » : l’« Échéance » ne précède pas l’« Ouverture » (« La fin doit suivre le début. », sous `deadline`), dans le formulaire (`taskFormSchema`) comme dans l’API (création, modification, modification en masse). L’API compare les valeurs propres de la tâche une fois changées (celles envoyées, sinon celles qu’elle a) : une date héritée ou vidée exprès n’est pas comparée, ni une date suivie venue du jalon, du projet ou du sprint (voir [Dates suivies](#dates-suivies)).
-- **En retard** (`isTaskOverdue` côté web) : « Échéance » suivie (`effectiveDeadline`, voir [Dates suivies](#dates-suivies)) passée (strictement avant aujourd’hui) et tâche non fermée. La même règle partout (tableau, panneau, accueil, agenda).
+- **En retard** (`isTaskOverdue`, `packages/shared/src/tasks/task-day.ts`) : « Échéance » suivie (`effectiveDeadline`, voir [Dates suivies](#dates-suivies)) passée (strictement avant aujourd’hui) et tâche non fermée. La même règle partout (tableau, panneau, accueil, agenda, [« Ma journée »](my-day.md) où le retard ne compte qu’aujourd’hui).
 
 ### Dates suivies
 

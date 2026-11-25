@@ -121,15 +121,20 @@ const intervalOf = (window: TimeWindow): Interval => ({ start: window.fromTime ?
 const windowOf = (interval: Interval): TimeWindow => ({ fromTime: interval.start === '00:00' ? null : interval.start, dueTime: interval.end === '24:00' ? null : interval.end });
 
 /**
+ * Hours of a planned slot, HH:MM to HH:MM: a whole day from "00:00" to "24:00", and a slot up to 23:59 (the latest
+ * time a slot can end) to the end of the day ("24:00").
+ * @param {Pick<PlannedSlot, 'start' | 'end' | 'allDay'>} slot Slot.
+ * @returns {{ start: string, end: string }} Its hours.
+ */
+export const slotSpan = (slot: Pick<PlannedSlot, 'start' | 'end' | 'allDay'>): { start: string; end: string } => (slot.allDay ? { start: '00:00', end: '24:00' } : { start: slot.start, end: slot.end === '23:59' ? '24:00' : slot.end });
+
+/**
  * Hours of planned slots (a whole day: the whole day), merged where they meet or overlap.
  * @param {readonly PlannedSlot[]} slots Slots of a day.
  * @returns {Interval[]} Intervals, in order.
  */
 function merged(slots: readonly PlannedSlot[]): Interval[] {
-  // A slot up to 23:59 (the latest time a slot can end) lasts to the end of the day.
-  const sorted = slots
-    .map((slot) => (slot.allDay ? { start: '00:00', end: '24:00' } : { start: slot.start, end: slot.end === '23:59' ? '24:00' : slot.end }))
-    .sort((a, b) => a.start.localeCompare(b.start));
+  const sorted = slots.map(slotSpan).sort((a, b) => a.start.localeCompare(b.start));
   const result: Interval[] = [];
   for (const interval of sorted) {
     const last = result.at(-1);
@@ -351,6 +356,20 @@ function allowedIntervals(condition: SlotCondition | null | undefined, slotsOn: 
     availableIntervals((query) => slotsOn(query, date)),
   ].filter((part): part is Interval[] => part !== null);
   return parts.length ? parts.reduce((all, part) => intersect(all, part)) : null;
+}
+
+/**
+ * Windows of a day an item (a task, a routine) can be done in: within its own hours (the « Horaires » of a task) when
+ * it has some, those its condition on calendar schedules allows, out of the slots « Indisponible » of the workspace;
+ * null when none of them limits it (any time). A moment is in one of them exactly when `conditionAllowsAt` allows it.
+ * @param {SlotCondition | null | undefined} condition Condition.
+ * @param {SlotsOn} slotsOn Slots of some schedules on a day.
+ * @param {string} date YYYY-MM-DD.
+ * @param {readonly ScheduleCase[]} [hours] Own hours of the item. Optional. Default = none (no limit).
+ * @returns {TimeWindow[] | null} Windows, in order, without overlap (none: never that day).
+ */
+export function itemWindowsOn(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, hours: readonly ScheduleCase[] = []): TimeWindow[] | null {
+  return allowedIntervals(condition, slotsOn, date, hours)?.map(windowOf) ?? null;
 }
 
 /**

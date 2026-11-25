@@ -9,7 +9,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Group, Select, Text } from '@mantine/core';
-import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type TaskInheritableField } from '@ordo/shared';
+import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type TaskInheritableField, isTaskOverdue } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { TaskGithubBadge } from '../../github/components/TaskGithubBadge';
 import { useState } from 'react';
@@ -52,7 +52,6 @@ import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
-import { isTaskOverdue } from '../lib/task-overdue';
 import { InheritedField } from '../../../components/inheritance/InheritedField';
 import { taskFieldState, taskParentName } from '../lib/task-inheritance';
 

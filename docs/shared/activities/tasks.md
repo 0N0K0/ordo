@@ -71,6 +71,17 @@ Champs de `taskFormSchema` :
 
 Le test « faisable » est `conditionAllowsAt(condition, slotsOn, date, time, hours)` (voir [calendar](calendar.md)).
 
+## `task-day.ts` — une tâche un jour : retard, agenda, « Ma journée »
+
+| Export | Rôle |
+| ------ | ---- |
+| `isTaskOverdue(task, today)` | En retard : « Échéance » suivie (`effectiveDeadline`, calculée avec `effectiveTask` : la sienne, celle de son parent, de son jalon ou de son premier sprint) strictement avant aujourd’hui, et tâche non fermée. La seule règle du retard (tableau, panneau, accueil, agenda, « Ma journée ») ; le lint du web refuse une comparaison `deadline < …` / `effectiveDeadline < …` écrite à la main. |
+| `TaskDates`, `TaskSpanKind`, `TaskSpan`, `TaskPlacement` | Dates d’une tâche pour l’agenda (`startDate`, `endDate`, `effectiveDeadline`) ; façon dont une période a été posée (`dates` : ses dates, `open` : jusqu’à aujourd’hui) ; période (jours compris) ; placement (`span`, `deadline` à part, `overdue`). |
+| `taskPlacement(task, today)` | Où une tâche s’affiche dans l’agenda (règle dans [Agenda](../../features/activities/calendar.md)) : début et fin, tous les jours de l’un à l’autre ; début passé sans fin, du début à aujourd’hui ; début futur sans fin, ce jour seul ; fin seule, ce jour-là ; échéance à part ce jour-là sauf si la période finit dessus ; en retard, aujourd’hui (portée par sa période quand elle atteint aujourd’hui). Utilisé par `CalendarPage` (web) et `taskDayReasons`. |
+| `TASK_DAY_REASONS`, `TaskDayReason` | Raisons d’une tâche dans « Ma journée », dans cet ordre : `late`, `due`, `inProgress`, `planned`, `open`, `done`, `cancelled`. |
+| `DayTask` | Tâche lue par « Ma journée » : `TaskDates`, `effectiveMinDate`, `statusCategory`, `closedAt`, `cancelled?`. |
+| `taskDayReasons(task, day, today)` | Raisons d’une tâche un jour (aucune : elle n’y est pas), voir [Ma journée](../../business-rules/activities/my-day.md#tâches-du-jour) : ouverte, `late` (aujourd’hui seulement, `isTaskOverdue`), `due` (« Échéance » suivie ce jour), `inProgress` (statut de catégorie « En cours »), `planned` (sa période de l’agenda, `taskPlacement`, couvre le jour), `open` (« Ouverture » et « Échéance » suivies, de l’une à l’autre, `taskRemindsOn`) ; fermée, seulement le jour de Paris de `closedAt` : `done`, ou `cancelled` fermée comme annulée. |
+
 ## `task-columns.ts` — colonnes, statuts, regroupements
 
 | Export                                            | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                 |

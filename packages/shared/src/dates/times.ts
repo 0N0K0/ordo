@@ -48,7 +48,7 @@ export function timeToMinutes(time: string): number {
 
 /**
  * Time of the day of minutes since midnight.
- * @param {number} minutes Minutes, within the day.
+ * @param {number} minutes Minutes, within the day (1440: "24:00", its end).
  * @returns {string} HH:MM.
  */
 export function minutesToTime(minutes: number): string {

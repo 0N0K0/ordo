@@ -1092,7 +1092,7 @@ const RESTRICTED_SYNTAX = [
   },
   {
     selector: "BinaryExpression[operator='<'][left.property.name=/^(deadline|effectiveDeadline)$/], BinaryExpression[operator='<'][left.name=/^(deadline|effectiveDeadline)$/]",
-    message: 'Utiliser isTaskOverdue(task, today) (features/tasks/lib/task-overdue) : une seule règle de retard.',
+    message: 'Utiliser isTaskOverdue(task, today) (@ordo/shared) : une seule règle de retard.',
   },
   {
     selector: "Literal[value=/^Réglée?$/]",

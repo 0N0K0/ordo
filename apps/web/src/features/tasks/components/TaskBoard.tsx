@@ -4,7 +4,7 @@ import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Group, Select, Switch, Text, Tooltip } from '@mantine/core';
-import { addDays, DATE_PERIOD_LABELS, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
+import { addDays, DATE_PERIOD_LABELS, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy, isTaskOverdue } from '@ordo/shared';
 import { AlarmIcon, CheckSquareOffsetIcon, GithubLogoIcon, PencilSimpleIcon, PlusIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 
@@ -52,7 +52,6 @@ import { AddTaskRow } from './table-extras';
 import classes from './TaskTable.module.css';
 import { countOf, plural } from '../../../lib/text';
 import { CommentCount } from '../../comments/components/CommentCount';
-import { isTaskOverdue } from '../lib/task-overdue';
 import { inheritedCells } from '../../../components/inheritance/inherited-cells';
 import { LocationText } from '../../geo/components/LocationText';
 import { TASK_CELL_FIELDS, taskParentName } from '../lib/task-inheritance';

@@ -1,6 +1,6 @@
 import { unarchived } from '../../../lib/archive';
 import { Badge, type MantineColor } from '@mantine/core';
-import { formatDuration, sumOf } from '@ordo/shared';
+import { formatDuration, sumOf, isTaskOverdue } from '@ordo/shared';
 import { countOf, plural } from '../../../lib/text';
 import { useToday } from '../../../lib/use-now';
 import { useHeldEvents, useHomeTasks, useMyTodayTasks, useWeekTime } from '../../home/lib/home-data';
@@ -9,7 +9,6 @@ import { useRunningTimers } from '../../time/api';
 import { useTreasuryAccounts } from '../../treasury/api';
 import { useRoutineDay } from '../../routines/hooks/use-routine-day';
 import { useNextRing } from '../../alarms/hooks/use-ring-sources';
-import { isTaskOverdue } from '../../tasks/lib/task-overdue';
 import * as fmt from '../../../lib/format';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 

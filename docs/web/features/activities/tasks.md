@@ -435,10 +435,9 @@ Héritage des sous-tâches à l’écran (règles : [Héritage](../../../busines
 
 - `leafEffort(task, context)` : effort compté dans une somme (le sien sans sous-tâches, 0 pour un parent). Utilisé par `SprintsPanel` et les tableaux de bord.
 
-### `lib/task-overdue.ts`
+### `lib/inherited-dates.ts`
 
-- `isTaskOverdue(task, today)` : « Échéance » suivie (`effectiveDeadline`, calculée par l’API avec `effectiveTask` : la sienne, celle de son parent, de son jalon ou de son premier sprint) passée et tâche non fermée.
-- `inheritedDateHint(task, field)` (`lib/inherited-dates.ts`) : « 12 nov. 2026 (parent) », « (jalon) », « (projet) » ou « (sprint) » quand la tâche n’a pas d’« Ouverture » ou d’« Échéance » à elle (`minDateSource`, `deadlineSource`, mots de `INHERIT_SOURCE_LABELS`), à la place du champ vide (tableau et panneau) ; `null` avec sa propre date ou sans date suivie. Remplace `sprintDateHint`.
+- `inheritedDateHint(task, field)` : « 12 nov. 2026 (parent) », « (jalon) », « (projet) » ou « (sprint) » quand la tâche n’a pas d’« Ouverture » ou d’« Échéance » à elle (`minDateSource`, `deadlineSource`, mots de `INHERIT_SOURCE_LABELS`), à la place du champ vide (tableau et panneau) ; `null` avec sa propre date ou sans date suivie. Remplace `sprintDateHint`.
 
 ### `lib/my-tasks.ts`
 

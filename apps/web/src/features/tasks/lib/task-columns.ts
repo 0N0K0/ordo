@@ -21,6 +21,7 @@ import {
   lineageOf,
   relativeSprintIds,
   sprintFilterValues,
+  isTaskOverdue,
 } from '@ordo/shared';
 import { BADGE_COLUMN, DURATION_COLUMN, LATE_GROUP_LABELS, WARNING_YES_ICONS, type ColumnChoice, type ColumnFilter, type DataColumn, type YesNoIcons, type YesNoLabels } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
@@ -36,7 +37,6 @@ import { eventCell, taskCell } from './export';
 import { eventSortValue, sortValue } from './task-rows';
 import { parisDay } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
-import { isTaskOverdue } from './task-overdue';
 import { taggedKey } from '../../../lib/tagged-key';
 import { documentsColumn } from '../../documents/lib/documents-column';
 

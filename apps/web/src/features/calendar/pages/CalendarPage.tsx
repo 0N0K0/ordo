@@ -18,13 +18,12 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { parisCalendarOptions } from '../lib/paris-calendar';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
-import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
+import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength, taskPlacement, type TaskSpanKind } from '@ordo/shared';
 import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
 import { parisMidnight, parisToday, parisParts } from '../../../lib/dates';
-import { taskPlacement, type TaskSpanKind } from '../lib/task-calendar';
 import { notifyError, notifyWarning, onMutationError } from '../../../lib/notify';
 import { useSlotRules } from '../hooks/use-slot-rules';
 import { useRoutineOccurrences, useRoutinesData } from '../../routines/api';
