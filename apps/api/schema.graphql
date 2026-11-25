@@ -2125,6 +2125,11 @@ type Mutation {
     """
     doneOn: Date
     ids: [ID!]!
+
+    """
+    Ticking: only these times of the day, each at the time it was done (the undo of an untick gives back those it unticked); by default every one of each occurrence.
+    """
+    ticks: [RoutineSlotTick!]
   ): Int!
 
   """
@@ -4493,6 +4498,17 @@ type RoutineSlot {
   Windows it can be done in that day, [{ fromTime, dueTime }] (several where slots cut it).
   """
   windows: JSON!
+}
+
+"""
+A time of the day of a routine ticked again at the time it was done (the undo of an untick).
+"""
+input RoutineSlotTick {
+  doneAt: DateTime!
+  id: ID!
+
+  """Time of the day (index)."""
+  slot: Int!
 }
 
 input SaveMailDraftInput {

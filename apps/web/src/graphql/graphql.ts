@@ -906,6 +906,14 @@ export type RoutineSameDayChoice =
   /** Merged into the occurrence of that day, with the ticks and comments of both. */
   | 'MERGE';
 
+/** A time of the day of a routine ticked again at the time it was done (the undo of an untick). */
+export type RoutineSlotTick = {
+  doneAt: string;
+  id: string | number;
+  /** Time of the day (index). */
+  slot: number;
+};
+
 export type SaveMailDraftInput = {
   accountId: string | number;
   attachments?: Array<File> | null | undefined;
@@ -3728,6 +3736,7 @@ export type BulkSetRoutinesDoneMutationVariables = Exact<{
   done: boolean;
   doneOn?: string | null | undefined;
   dates?: Array<string> | string | null | undefined;
+  ticks?: Array<RoutineSlotTick> | RoutineSlotTick | null | undefined;
 }>;
 
 
@@ -9361,8 +9370,14 @@ export const BulkSetRoutinesArchivedDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<BulkSetRoutinesArchivedMutation, BulkSetRoutinesArchivedMutationVariables>;
 export const BulkSetRoutinesDoneDocument = new TypedDocumentString(`
-    mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!, $doneOn: Date, $dates: [Date!]) {
-  bulkSetRoutinesDone(ids: $ids, done: $done, doneOn: $doneOn, dates: $dates)
+    mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!, $doneOn: Date, $dates: [Date!], $ticks: [RoutineSlotTick!]) {
+  bulkSetRoutinesDone(
+    ids: $ids
+    done: $done
+    doneOn: $doneOn
+    dates: $dates
+    ticks: $ticks
+  )
 }
     `) as unknown as TypedDocumentString<BulkSetRoutinesDoneMutation, BulkSetRoutinesDoneMutationVariables>;
 export const BulkDeleteRoutinesDocument = new TypedDocumentString(`

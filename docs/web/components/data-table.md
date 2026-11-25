@@ -410,8 +410,8 @@ Voir [Archivage](../../business-rules/cross-cutting/archiving.md) et [Dialogues]
 
 ### `SelectionBar.tsx` et `SelectionBar.module.css`
 
-- `SelectionAction` (interface) — `label`, `icon`, `onClick`, `destructive?` (`{ title, risks, confirmLabel? }` : rouge, après confirmation), `danger?` (rouge, avec son propre dialogue), `loading?`, `disabled?`.
-- `SelectionBar({ label, actions, onClear })` — barre des actions sur les lignes sélectionnées (région « Actions de la sélection »), collée en bas de la fenêtre, centrée : le libellé (« 3 tâches sélectionnées »), les actions, « Désélectionner ». Seules les actions que les colonnes ne font pas.
+- `SelectionAction` (interface) — `label`, `icon`, `onClick` (avec `closeOnChange?` : rend de quoi fermer ce qu'elle ouvre, un panneau latéral qui demande d'abord), `destructive?` (`{ title, risks, confirmLabel? }` : rouge, après confirmation), `danger?` (rouge, avec son propre dialogue), `loading?`, `disabled?`.
+- `SelectionBar({ label, actions, onClear, selectionKey? })` — barre des actions sur les lignes sélectionnées (région « Actions de la sélection »), collée en bas de la fenêtre, centrée : le libellé (« 3 tâches sélectionnées »), les actions, « Désélectionner ». Seules les actions que les colonnes ne font pas. Ce qu'une action `closeOnChange` a ouvert se ferme quand la sélection change (`selectionKey` : les clés des lignes, donné par `DataTable`) ou quand la barre disparaît : il s'appliquerait à d'autres lignes que celles sélectionnées.
 
 ### `selection-label.ts`
 

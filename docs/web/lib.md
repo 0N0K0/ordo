@@ -169,6 +169,7 @@ Tout jour et toute heure du web sont ceux de Paris, comme l'API, quel que soit l
 - `parisToday()` : aujourd'hui à Paris (`useToday()` de `use-now.ts` le suit au passage de minuit).
 - `parisParts(instant)` : `{ date: 'YYYY-MM-DD', time: 'HH:MM' }` à Paris d'un instant (date ou texte ISO).
 - `parisMidnight(day)` : minuit à Paris d'un jour, en date-heure ISO.
+- `untilNextParisDay()` : millisecondes jusqu'au prochain jour à Paris, plus une seconde (`refetchInterval` de `useRoutinesData` : rechargées au changement de jour).
 - `localDay` : `parisDay` sous son ancien nom, lu seulement par la bibliothèque de documents (à réécrire) ; eslint l'interdit ailleurs.
 - Réexports de `@ordo/shared` (seul chemin autorisé par eslint) : `monthOfDay`, `yearOfDay`, `parisInstant` (instant d'un jour et d'une heure de Paris : saisie d'un temps, envoi programmé, coche après coup…).
 

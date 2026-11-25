@@ -39,6 +39,7 @@ import {
   shiftedRoutinePiece,
   weekdayMovedCase,
   cutRoutineBefore,
+  caseAfterItsEnd,
   shiftedDates,
   type RoutineCategoryInput,
   routineCategorySchema,
@@ -1489,13 +1490,24 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
  * @param {boolean} done Target state.
  * @param {string | null} [doneOn] Day they were done (YYYY-MM-DD, not after today); ticking only. Optional. Default = now.
  * @param {string[] | null} [dates] Occurrence of each routine (same order as `ids`). Optional. Default = the current one of each (unticking: the one ticked last of two due the same day).
+ * @param {{ id: string, slot: number, doneAt: Date }[] | null} [ticks] Ticking: only these times of the day, each at the
+ * time it was done (the « Annuler » of an untick gives back those it unticked, `doneOn` aside). Optional. Default = every
+ * time of the day of each occurrence.
  * @returns {Promise<number>} Number of routines changed.
  */
-export async function bulkSetRoutinesDone(ids: string[], done: boolean, doneOn: string | null = null, dates: string[] | null = null): Promise<number> {
+export async function bulkSetRoutinesDone(
+  ids: string[],
+  done: boolean,
+  doneOn: string | null = null,
+  dates: string[] | null = null,
+  ticks: { id: string; slot: number; doneAt: Date }[] | null = null,
+): Promise<number> {
   const today = parisToday();
   if (done && doneOn && doneOn > today) throw fieldError('doneOn', 'Une routine ne peut pas être faite dans le futur.', 'Jour à venir.');
   if (dates && dates.length !== ids.length) throw clientError('BAD_USER_INPUT', 'Une occurrence par routine.');
   const dateOf = new Map(dates ? ids.map((id, index) => [id, dates[index]]) : []);
+  // The times of the day given, with when each was done.
+  const given = done && ticks ? new Map(ticks.map((tick) => [`${tick.id}:${tick.slot}`, tick.doneAt])) : null;
   const now = new Date();
   const context = await loadScheduleContext();
   const writes: { id: string; occurrence: string; index: number; doneAt: Date | null }[] = [];
@@ -1511,7 +1523,9 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean, doneOn: 
     const daySlots = slotsOf(routine, current, context);
     for (let slot = 0; slot < Math.max(1, daySlots.length); slot += 1) {
       if (done && ticked.has(slot)) continue;
-      const doneAt = done && doneOn ? routineBulkDoneAt(doneOn, daySlots[slot] ?? { fromTime: null, dueTime: null }, now) : null;
+      const at = given?.get(`${routine.id}:${slot}`);
+      if (given && !at) continue;
+      const doneAt = at ?? (done && doneOn ? routineBulkDoneAt(doneOn, daySlots[slot] ?? { fromTime: null, dueTime: null }, now) : null);
       writes.push({ id: routine.id, doneAt, ...checkableOccurrence(routine, context, current, slot, doneAt, done) });
     }
     count += 1;
@@ -2005,6 +2019,10 @@ export async function changeRoutineOccurrence(
       const listed = item.recurrence.frequency === 'WEEKLY' && item.recurrence.weekdays.length > 0;
       const from = delta === 0 || listed ? item.from && own : addDays(own, delta);
       pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false, movedRule).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? from), slots }));
+    }
+    // A piece starting past its end (its end held before the next case): its occurrences would be lost.
+    if ((split ? pieces.slice(1) : pieces).some((piece) => caseAfterItsEnd(piece, start))) {
+      throw fieldError('to', 'Ce jour est dans la période du cas suivant : choisissez « Cette occurrence » pour l’y déplacer seule.');
     }
     // Moved before its first time: the routine starts as much earlier, its other cases where they were.
     const earlier = earlierCases([...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)], new Set(split ? pieces.slice(1) : pieces), start);

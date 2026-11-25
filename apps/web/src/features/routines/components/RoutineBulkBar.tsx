@@ -18,7 +18,7 @@ import { isDone, movableOccurrence } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
 import { plural, copyName } from '../../../lib/text';
 import { inheritanceRowsAction } from '../../../components/inheritance/inheritance-action';
-import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
+import { notifyWithUndo, ON_ERROR, onMutationError } from '../../../lib/notify';
 import { ROUTINE_INHERITANCE_OPTIONS } from '../lib/routine-inheritance';
 
 /** Actions on routines that their columns cannot do. */
@@ -65,6 +65,8 @@ export function useRoutineRowsActions() {
     const shown = active.filter((routine) => routine.currentDate !== null && (allDone || !isDone(routine)));
     const shownIds = shown.map((routine) => routine.id);
     const shownDates = shown.map((routine) => routine.currentDate as string);
+    // Unticked, its « Annuler » ticks again each time of the day that was, at the time it was done.
+    const ticks = shown.flatMap((routine) => routine.slots.flatMap((slot) => (slot.done && slot.doneAt ? [{ id: routine.id, slot: slot.index, doneAt: slot.doneAt }] : [])));
     const doneSwitch = (doneOn: string | null) =>
       switchRowsAction({
         on: allDone,
@@ -73,13 +75,15 @@ export function useRoutineRowsActions() {
         loading: bulkDone.isPending,
         apply: (done) => bulkDone.mutateAsync({ ids: shownIds, done, doneOn: done ? doneOn : null, dates: shownDates }),
         done: (done) => `${routinesLabel(shownIds.length)} ${plural(shownIds.length, done ? 'cochée' : 'décochée')}.`,
+        undo: (done) => () => void bulkDone.mutateAsync({ ids: shownIds, done: !done, dates: shownDates, ...(!done && { ticks }) }).catch(onMutationError),
       });
     return {
       done: allDone
         ? { ...doneSwitch(null), disabled: shownIds.length === 0 }
         : {
             ...doneSwitch(null),
-            // Ticked « Faites le » a day, asked first.
+            // Ticked « Faites le » a day, asked first; the panel closes when the selection changes.
+            closeOnChange: true,
             onClick: () =>
               openFormPanel(`Cocher ${routinesLabel(shownIds.length)}`, (close) => (
                 <BulkTickForm

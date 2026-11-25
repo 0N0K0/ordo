@@ -914,7 +914,7 @@ export function DataTable<R>({
       <Stack gap="sm">
         {toolbar && <DataViewBar view={view} tree={Boolean(parentKey)} {...bar} />}
         {content()}
-        {selectionActions && checked.length > 0 && <SelectionBar label={selectionLabel(checked.length)} actions={selectionActions(checked, clear)} onClear={clear} />}
+        {selectionActions && checked.length > 0 && <SelectionBar label={selectionLabel(checked.length)} actions={selectionActions(checked, clear)} onClear={clear} selectionKey={checked.map(getKey).sort().join(' ')} />}
       </Stack>
     </BulkTableContext.Provider>
   );

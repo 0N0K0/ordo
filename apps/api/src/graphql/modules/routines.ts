@@ -441,6 +441,15 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
   }),
 });
 
+const RoutineSlotTickInput = builder.inputType('RoutineSlotTick', {
+  description: 'A time of the day of a routine ticked again at the time it was done (the undo of an untick).',
+  fields: (t) => ({
+    id: t.id({ required: true }),
+    slot: t.int({ required: true, description: 'Time of the day (index).' }),
+    doneAt: t.field({ type: 'DateTime', required: true }),
+  }),
+});
+
 const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
   description: 'Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, priorityId and typeId).',
   fields: (t) => ({
@@ -814,8 +823,12 @@ builder.mutationFields((t) => ({
       done: t.arg.boolean({ required: true }),
       doneOn: t.arg({ type: 'Date', description: 'Day they were done (ticking): each time of the day at its scheduled time that day (« jusqu’à », else « dès »; without any, now today, noon another day; never later than now). Now by default.' }),
       dates: t.arg({ type: ['Date'], description: 'Occurrence of each routine, in the order of ids (the day that identifies it: the one shown, the one an undo puts back); by default the current one of each.' }),
+      ticks: t.arg({
+        type: [RoutineSlotTickInput],
+        description: 'Ticking: only these times of the day, each at the time it was done (the undo of an untick gives back those it unticked); by default every one of each occurrence.',
+      }),
     },
-    resolve: (_root, { ids, done, doneOn, dates }) => routines.bulkSetRoutinesDone(ids, done, doneOn ?? null, dates ?? null),
+    resolve: (_root, { ids, done, doneOn, dates, ticks }) => routines.bulkSetRoutinesDone(ids, done, doneOn ?? null, dates ?? null, ticks ?? null),
   }),
   bulkDeleteRoutines: t.int({
     description: 'Deletes routines with their sub-routines, or alone (their sub-routines move up a level); returns how many of those given were deleted.',

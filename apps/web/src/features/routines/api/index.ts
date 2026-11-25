@@ -1,5 +1,6 @@
 import { routinesKey } from '../../../lib/query-keys';
 import { linkInputs } from '../../../lib/links';
+import { untilNextParisDay } from '../../../lib/dates';
 import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineBulkDoneAt, routineBulkValues, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
 import { ownedFields } from '../../../components/inheritance/inheritance';
 import { routineRow } from '../lib/routine-inheritance';
@@ -230,8 +231,8 @@ const BulkSetRoutinesArchivedDocument = graphql(`
 `);
 
 const BulkSetRoutinesDoneDocument = graphql(`
-  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!, $doneOn: Date, $dates: [Date!]) {
-    bulkSetRoutinesDone(ids: $ids, done: $done, doneOn: $doneOn, dates: $dates)
+  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!, $doneOn: Date, $dates: [Date!], $ticks: [RoutineSlotTick!]) {
+    bulkSetRoutinesDone(ids: $ids, done: $done, doneOn: $doneOn, dates: $dates, ticks: $ticks)
   }
 `);
 
@@ -358,12 +359,12 @@ async function fetchRoutinesData(): Promise<RoutinesDataQuery> {
 }
 
 /**
- * Routines and their categories. Refreshed when the window gets the focus back (the current occurrences move with the
- * day).
+ * Routines and their categories. Refreshed when the window gets the focus back and when the day changes in Paris
+ * (the current occurrences move with the day).
  * @returns {UseQueryResult<RoutinesDataQuery>} Query state.
  */
 export function useRoutinesData() {
-  return useQuery({ queryKey: routinesKey, queryFn: fetchRoutinesData, refetchOnWindowFocus: true });
+  return useQuery({ queryKey: routinesKey, queryFn: fetchRoutinesData, refetchOnWindowFocus: true, refetchInterval: untilNextParisDay, refetchIntervalInBackground: true });
 }
 
 /**
@@ -777,20 +778,29 @@ export function useRoutineMutations() {
     ),
     bulkDone: useRoutineMutation(
       // Ticked « Faites le » a day (doneOn): each time of the day at its scheduled time that day, as the API reads it;
-      // dates: the occurrence of each (the one shown).
-      async (variables: { ids: string[]; done: boolean; doneOn?: string | null; dates?: string[] | null }) => (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
-      (data, { ids, done, doneOn }) => {
+      // dates: the occurrence of each (the one shown); ticks: only those times of the day, each at the time it was done
+      // (the « Annuler » of an untick).
+      async (variables: { ids: string[]; done: boolean; doneOn?: string | null; dates?: string[] | null; ticks?: { id: string; slot: number; doneAt: string }[] }) =>
+        (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
+      (data, { ids, done, doneOn, ticks }) => {
         const now = new Date();
+        /**
+         * Time of the day given again to a routine, with when it was done.
+         * @param {string} id Routine.
+         * @param {number} index Time of the day.
+         * @returns {string | undefined} When it was done; none: not given.
+         */
+        const given = (id: string, index: number) => (done ? ticks?.find((tick) => tick.id === id && tick.slot === index)?.doneAt : undefined);
         return {
           ...data,
           routines: data.routines.map((routine) =>
             ids.includes(routine.id) && routine.currentDate
               ? withSlotsDone(
                   routine,
-                  // Those ticked already keep their time.
-                  routine.slots.filter((slot) => !done || !slot.done).map((slot) => slot.index),
+                  // Those ticked already keep their time; ticks given, only those.
+                  routine.slots.filter((slot) => (!done || !slot.done) && (!done || !ticks || given(routine.id, slot.index))).map((slot) => slot.index),
                   done,
-                  (slot) => (doneOn ? routineBulkDoneAt(doneOn, slot, now).toISOString() : null),
+                  (slot) => given(routine.id, slot.index) ?? (doneOn ? routineBulkDoneAt(doneOn, slot, now).toISOString() : null),
                 )
               : routine,
           ),

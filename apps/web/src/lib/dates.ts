@@ -4,7 +4,7 @@
  */
 
 // eslint-disable-next-line no-restricted-imports -- lib/dates itself.
-import { CALENDAR_DAY, dayIn, parisInstant, parisParts as parisPartsOf } from '@ordo/shared';
+import { addDays, CALENDAR_DAY, dayIn, parisInstant, parisParts as parisPartsOf } from '@ordo/shared';
 
 /**
  * Day of an instant in Paris, the day of the app's items (a time and the events of its day, as the API reads it); a
@@ -43,6 +43,14 @@ export function parisParts(instant: Date | string): { date: string; time: string
  */
 export function parisMidnight(day: string): string {
   return parisInstant(day).toISOString();
+}
+
+/**
+ * Time left until the next day starts in Paris, plus a second (a refresh then falls on the new day).
+ * @returns {number} Milliseconds.
+ */
+export function untilNextParisDay(): number {
+  return parisInstant(addDays(parisToday(), 1)).getTime() - Date.now() + 1000;
 }
 
 /** Instant of a Paris day and time (`parisInstant` of @ordo/shared, shared with the reminders). */
