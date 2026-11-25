@@ -112,6 +112,18 @@ Toujours : titre, description (corps), archivage (tâche archivée ↔ item arch
 
 Un champ d’issue de l’organisation n’a pas de valeur sur un brouillon : il est ignoré pour les brouillons. Le type par `ISSUE_TYPE` ne concerne que les issues.
 
+### Reflet exact et écarts gardés
+
+Les tâches d’une arborescence liée et les items de son tableau sont exactement le reflet les uns des autres, tâches archivées et liens avec elles compris. Seuls ces écarts restent, voulus :
+
+- Échéance prise d’un jalon, d’un projet ou d’un sprint : pas envoyée (voir « Valeurs héritées »).
+- Temps passé : d’Ordo vers GitHub seulement.
+- Tâches créées avant la liaison : envoyées seulement avec `pushExisting`, ou par « Envoyer sur GitHub ».
+- Tâche sortie de l’arborescence dans Ordo (transfert) : son item quitte le tableau, l’issue reste dans son dépôt, ouverte.
+- Tâche supprimée ou transformée en routine dans Ordo : son item quitte le tableau, l’issue est fermée (« non prévue », ou comme la tâche si elle est fermée), un brouillon est supprimé (voir « Suppressions côté Ordo »).
+- Sprints qui se chevauchent dans l’arborescence : pas envoyés, comptés dans le résumé (étape 1).
+- Sans équivalent possible de l’autre côté : issues hors du tableau (parent, « bloquée par », « relative à » vers elles), parent Ordo sans issue (brouillon, tâche pas sur GitHub), assignés sans login de contributeur, valeurs sans option ni itération, brouillons (sans champs d’issue ni liens), plusieurs sprints d’une tâche pour l’unique itération d’un item, étiquettes comparées par clé de nom, valeurs refusées par Ordo (laissées sur GitHub jusqu’au passage suivant, qui renvoie celles d’Ordo), délai de 10 minutes au plus entre deux synchronisations automatiques.
+
 ### Fusion à trois voies (`mergeFields`)
 
 Pour chaque champ, comparé à la valeur de la dernière synchronisation (instantané `githubSnapshot`) :
