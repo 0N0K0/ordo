@@ -9,6 +9,7 @@ import {
   scheduleCasesSchema,
   scheduleRuns,
   scheduleTypeContextError,
+  SPLIT_CASES_REFUSAL,
   slotMinutes,
   withinSlots,
   workScheduleSchema,
@@ -253,6 +254,23 @@ describe('changedScheduleSlot', () => {
       expect([changed.startDate, changed.endDate, changed.exceptions[0].from]).toEqual(['2026-11-05', '2027-01-03', '2026-11-19']);
       const before = slotDays(period, '2026-11-01', '2026-12-31');
       expect(slotDays({ ...period, ...changed }, '2026-11-01', '2027-01-03')).toEqual(before.map((date) => addDays(date, 3)));
+    });
+
+    it('moved whole, cases split beyond 20: refused with its reason, not « 20 cas au plus. » at the save', () => {
+      const days = { allDay: true, ranges: [] };
+      const whole = (date: string) => ({ date, start: '00:00', end: '24:00', allDay: true });
+      // Each Mon + Fri every 2 weeks case, +3 days, becomes two (Thursday the same week, Monday the next).
+      const cases = (count: number) => Array.from({ length: count }, () => scheduleCase({ weekdays: [1, 5], interval: 2 }, { times: days }));
+      const period = (count: number) => schedule(cases(count), { ephemeris: true, endDate: '2026-12-31' });
+      expect(() => changedScheduleSlot(period(11), whole('2026-11-02'), whole('2026-11-05'), 'ALL')).toThrow(SPLIT_CASES_REFUSAL);
+      // 10 cases make 20: accepted.
+      expect(changedScheduleSlot(period(10), whole('2026-11-02'), whole('2026-11-05'), 'ALL').cases).toHaveLength(20);
+      // The same in an exception of the period.
+      const exception = { from: '2026-11-09', to: '2026-11-22', label: '', cases: cases(11) };
+      expect(() => changedScheduleSlot({ ...period(1), exceptions: [exception] }, whole('2026-11-02'), whole('2026-11-05'), 'ALL')).toThrow(SPLIT_CASES_REFUSAL);
+      // Moved by whole weeks, nothing splits: 20 cases stay 20.
+      const full = schedule(cases(20), { ephemeris: true, endDate: '2026-12-31' });
+      expect(changedScheduleSlot(full, whole('2026-11-02'), whole('2026-11-16'), 'ALL').cases).toHaveLength(20);
     });
 
     it('several days with THIS: the day stays within the period (créneau rule)', () => {

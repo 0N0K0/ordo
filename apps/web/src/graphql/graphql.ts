@@ -4878,7 +4878,7 @@ export type LostOnDeleteQueryVariables = Exact<{
 }>;
 
 
-export type LostOnDeleteQuery = { lostOnDelete: { times: number, comments: number } };
+export type LostOnDeleteQuery = { lostOnDelete: { times: number, comments: number, checklists: number, links: number } };
 
 export type DeleteTimeEntryMutationVariables = Exact<{
   id: string | number;
@@ -11024,6 +11024,8 @@ export const LostOnDeleteDocument = new TypedDocumentString(`
   ) {
     times
     comments
+    checklists
+    links
   }
 }
     `) as unknown as TypedDocumentString<LostOnDeleteQuery, LostOnDeleteQueryVariables>;

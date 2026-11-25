@@ -36,7 +36,7 @@ const LOSS_TEXT: Record<ConversionLossKind, (count: number) => string> = {
   estimate: () => 'son temps à y consacrer',
   travel: () => 'ses trajets',
   comments: (count) => countWith(count, 'commentaire des autres occurrences', ['le', 'les'], 'commentaires des autres occurrences'),
-  checklists: (count) => countWith(count, 'autre liste à cocher', ['son', 'ses'], 'autres listes à cocher'),
+  checklists: (count) => countWith(count, 'autre liste à cocher commencée', ['son', 'ses'], 'autres listes à cocher commencées'),
 };
 
 /** Words of each way: what the item is, what it becomes, what follows it. */

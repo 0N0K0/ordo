@@ -9,6 +9,7 @@ import {
   recurrenceSchema,
   ruleCountsFromDay,
   ruleMovedTo,
+  seriesHolding,
   seriesOn,
   shiftedRulePieces,
   shiftedSeries,
@@ -479,5 +480,26 @@ describe('seriesOn', () => {
   it('the first one when none holds the weekday', () => {
     expect(weekdayOfDate('2026-11-18')).toBe(3);
     expect(seriesOn(series, '2026-11-18')).toBe(series[0]);
+  });
+});
+
+describe('seriesHolding', () => {
+  const series = shiftedSeries(MON_FRI_2W, '2026-11-02', 3);
+
+  it('the series that has an occurrence on the day, once moved', () => {
+    expect(seriesHolding(series, '2026-11-19')).toBe(series[0]);
+    expect(seriesHolding(series, '2026-11-23')).toBe(series[1]);
+  });
+
+  it('within the days an occurrence lasts: the series of the occurrence started before', () => {
+    expect(seriesHolding(series, '2026-11-20')).toBeUndefined();
+    expect(seriesHolding(series, '2026-11-20', 1)).toBe(series[0]);
+  });
+
+  it('an occurrence that no series has once moved: none (its comments, checklist and routine links go with it)', () => {
+    // Odd Mon + Fri from 12-14, +3 days: the Friday 2027-01-01 (week 53) becomes Monday 2027-01-04 (week 1), lost.
+    const odd = shiftedSeries(rule({ weekdays: [1, 5], weekParity: 'ODD', until: '2027-01-31' }), '2026-12-14', 3);
+    expect(seriesHolding(odd, addDays('2027-01-01', 3))).toBeUndefined();
+    expect(seriesHolding(odd, addDays('2026-12-28', 3))).toBeDefined();
   });
 });

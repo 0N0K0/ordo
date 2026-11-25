@@ -130,6 +130,8 @@ const LostOnDeleteDocument = graphql(`
     ) {
       times
       comments
+      checklists
+      links
     }
   }
 `);
@@ -248,10 +250,15 @@ export interface LostOnDeleteQuery {
   routineOccurrence?: { id: string; date: string; scope: CalendarEventScope };
 }
 
-/** What a deletion takes with it: times without project left with nothing attached, comments of what is deleted. */
+/**
+ * What a deletion takes with it: times without project left with nothing attached, comments, checklists started (one
+ * item ticked) and links between routines and events of what is deleted.
+ */
 export interface LostOnDelete {
   times: number;
   comments: number;
+  checklists: number;
+  links: number;
 }
 
 /**

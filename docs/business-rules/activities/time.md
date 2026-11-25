@@ -45,7 +45,7 @@ Source : `timeLeftEmpty`, `releaseSubjectTime` (`time-entries.ts`), appelés par
 - Les temps des occurrences supprimées d’un évènement récurrent (« cette occurrence », « celle-ci et les suivantes ») perdent ces occurrences.
 - Série coupée ou déplacée : les temps des occurrences suivantes (ou de toutes) suivent leur occurrence vers le nouvel évènement ou leur nouveau jour ; une occurrence reportée emmène ses temps vers son report (voir [Agenda](calendar.md)).
 - Une tâche transformée en routine, ou une routine en tâche, n'est pas une suppression pour ses temps : ils portent sur le nouvel élément au lieu de l'ancien, aucun n'est supprimé (voir [Tâches](tasks.md#transformer-en-routine), [Routines](routines.md#transformer-en-tâche)).
-- La confirmation de la suppression dit combien de temps seront supprimés, et combien de commentaires (requête `lostOnDelete`, mêmes arguments que la suppression).
+- La confirmation de la suppression dit combien de temps seront supprimés, et combien de commentaires, de listes à cocher commencées et de liens entre routines et évènements (requête `lostOnDelete`, mêmes arguments que la suppression).
 - **Exception :** un temps **facturé** (`documentId` posé, brouillon ou facture validée) n’est **jamais** supprimé, ni ainsi ni avec son projet : il fait partie de sa facture. Il reste, même sans rien de rattaché ; c’est le seul cas d’un temps sans projet, ni tâche, ni routine, ni évènement.
 
 ## Chrono
@@ -152,7 +152,7 @@ Source : `assertNotInvoiced` (`time-entries.ts`), `assertBillableTime` (`account
 Source : requêtes `timeEntries`, `runningTimeEntries`.
 
 - `timeEntries(projectId?, routineId?, since?)` : les temps du projet **et de ses sous-projets**, ou ceux qui portent sur une routine, ou tous ; avec `since`, ceux qui ne sont pas finis avant ce moment (commencés depuis, en cours, ou finis depuis : un chrono lancé la veille au soir compte) ; du plus récent au plus ancien. Les totaux par jour et par semaine de l’app comptent la part de chaque temps dans la période (`entrySecondsWithin`).
-- `lostOnDelete(taskIds?, routineIds?, withSubtree?, eventId?, scope?, occurrenceDate?, calendarId?, routineOccurrence?)` : `{ times, comments }`, ce qu’une suppression de tâches, de routines, d’occurrences d’une routine, d’un évènement ou d’un calendrier (tous ses évènements, `calendarEventsGone`) supprimera avec eux : les temps (voir plus haut) et les commentaires des routines, évènements et occurrences supprimés (`commentsLostOnDelete` ; les commentaires de tâche ne sont pas comptés).
+- `lostOnDelete(taskIds?, routineIds?, withSubtree?, eventId?, scope?, occurrenceDate?, calendarId?, routineOccurrence?)` : `{ times, comments, checklists, links }`, ce qu’une suppression de tâches, de routines, d’occurrences d’une routine, d’un évènement ou d’un calendrier (tous ses évènements, `calendarEventsGone`) supprimera avec eux : les temps (voir plus haut), les commentaires des routines, évènements et occurrences supprimés (`commentsLostOnDelete` ; les commentaires de tâche ne sont pas comptés), leurs listes à cocher commencées (au moins un élément coché ; les autres partent sans être comptées), tâches comprises (`startedChecklistsLost`), et leurs liens entre routines et évènements, chacun une fois (`routineLinksLost` ; ceux des occurrences d’un évènement : `routineLinksGoneWhere`, comme la suppression les retire).
 - `runningTimeEntries` : les chronos en cours, le premier démarré d’abord (liste vide : aucun).
 
 ## Commentaires d’un temps

@@ -106,8 +106,8 @@ import { checkLinkedDocuments, LINKED_DOCUMENTS_SELECT, linkedDocumentIds } from
 import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
-import { deleteGoneComments, placeLegacyComments, restoreComments, type CommentSnapshot, type GoneCommentOccurrences } from '../core/comments';
-import { assertLossConfirmed, lostOccurrences, occurrenceRowIds, putOccurrenceRows, remapOccurrenceRows, type AfterSave, type LostOccurrences } from '../core/occurrence-rows';
+import { placeLegacyComments, restoreComments, type CommentSnapshot, type GoneCommentOccurrences } from '../core/comments';
+import { assertLossConfirmed, deleteGoneOccurrenceRows, lostOccurrences, occurrenceRowIds, putOccurrenceRows, remapOccurrenceRows, type AfterSave, type LostOccurrences } from '../core/occurrence-rows';
 import {
   constrains,
   dayMoments,
@@ -471,8 +471,8 @@ export interface RoutineSaveOptions {
    */
   movedWith?: readonly string[];
   /**
-   * Occurrences its new rule makes disappear, with comments, confirmed (`assertLossConfirmed`): false
-   * refuses while some would be lost, true deletes those comments once it is saved. Optional. Default = not checked (internal changes).
+   * Occurrences its new rule makes disappear, with comments, started checklists or links with events, confirmed (`assertLossConfirmed`): false
+   * refuses while some would be lost, true deletes those comments, checklists and links with events once it is saved. Optional. Default = not checked (internal changes).
    */
   confirmLoss?: boolean;
   /**
@@ -944,7 +944,7 @@ function timingOf(
 
 /** What a change of the « quand » of routines does to their occurrences and to those of the sub-routines going by it. */
 interface OccurrenceChange {
-  /** Comments of the occurrences that disappear, routine by routine (asked once for all: `assertLossConfirmed`). */
+  /** Comments, checklists and links with events of the occurrences that disappear, routine by routine (asked once for all: `assertLossConfirmed`). */
   losses: LostOccurrences[];
   /** Moves the comments of the occurrence moved by the change, on the sub-routines it moves too. */
   follow: () => Promise<void>;
@@ -958,7 +958,7 @@ interface OccurrenceChange {
 }
 
 /**
- * What a change of the rule of routines takes: the comments of their occurrences that disappear with it (an
+ * What a change of the rule of routines takes: the comments, checklists and links with events of their occurrences that disappear with it (an
  * occurrence now that the new rule does not have), and of those of every sub-routine going by their « quand » or
  * condition (inherited, up the chain), whose occurrences change with them; a routine's times are not on its
  * occurrences. An occurrence moved by the change keeps its comments: on the routines changed, and on the sub-routines
@@ -1020,9 +1020,9 @@ async function occurrenceChange(nexts: readonly Routine[], moved?: { from: strin
  * kind archived, restored or set « Indisponible », a subscription to a kind of another workspace set « Indisponible »)
  * or of its people (a birthday changed, moved or gone: birth date, archiving, link of a relation to a contributor,
  * creation, deletion), the occurrences of the routines that it makes disappear (their condition, or the slots
- * « Indisponible », no longer leave them any moment; those ticked stay) lose their comments, as with a change of their
+ * « Indisponible », no longer leave them any moment; those ticked stay) lose their comments, checklists and links with events, as with a change of their
  * rule. Without `confirmLoss: true` while some would be lost, nothing changes
- * (CONFIRMATION_REQUIRED, asked once for all the routines); confirmed, those comments are deleted once the change is
+ * (CONFIRMATION_REQUIRED, asked once for all the routines); confirmed, those are deleted once the change is
  * saved (the caller runs what it returns after its save: a save refused loses nothing). Only the routines of
  * the workspace are looked at (not archived, with a condition or cases; every one when slots « Indisponible » may
  * count), and, for a change of schedules, those of the other workspaces naming them or setting a kind of this
@@ -2126,7 +2126,7 @@ export async function followingOccurrencesGone(id: string, date: string): Promis
 /**
  * Cancels an occurrence of a routine from the calendar: this one alone (an exception: it stays shown, struck through,
  * with its comments), or deletes it and the following ones (its repetitions end before it, their
- * comments deleted; archived with its sub-routines when nothing comes before). Ticked occurrences stay in the history.
+ * comments, checklists and links with events deleted; archived with its sub-routines when nothing comes before). Ticked occurrences stay in the history.
  * @param {string} id Routine id.
  * @param {string} date Occurrence (the day that identifies it: its day, or the day of its rule when kept apart).
  * @param {'THIS' | 'FOLLOWING'} scope Occurrences deleted.
@@ -2149,10 +2149,10 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
     await saveMoves(found, { before: moves, moves: next, dead }, date);
     return { archived: false, comments: [] };
   }
-  // The following ones go, with their comments (those written before placed first), deleted once it is saved; an
-  // occurrence that stays (one from before moved after the cut) keeps its own.
+  // The following ones go, with their comments (those written before placed first), checklists and links with events,
+  // deleted once it is saved; an occurrence that stays (one from before moved after the cut) keeps its own.
   await placeLegacyRoutineComments([id]);
-  const dropComments = () => deleteGoneComments({ routines: followingGone(routine, schedules, moves, date) });
+  const dropComments = () => deleteGoneOccurrenceRows({ routines: followingGone(routine, schedules, moves, date) });
   const origin = movedFrom(moves, date);
   const cut = followingCut(routine, origin);
   const pastMoves = withDead(dead, moves.filter((move) => move.from < origin));

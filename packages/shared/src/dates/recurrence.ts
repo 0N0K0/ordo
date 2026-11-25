@@ -577,6 +577,18 @@ export function seriesOn(series: readonly MovedSeries[], day: string): MovedSeri
 }
 
 /**
+ * The series, among those a series became once moved, that has an occurrence starting on a day or within the days
+ * before it an occurrence lasts; none when none has (an occurrence lost by the move: what it holds goes with it).
+ * @param {readonly S[]} series Series.
+ * @param {string} day Day, once moved.
+ * @param {number} [span=0] Days an occurrence lasts after its first. Optional. Default = 0 (the day an occurrence starts).
+ * @returns {S | undefined} Series, none.
+ */
+export function seriesHolding<S extends MovedSeries>(series: readonly S[], day: string, span = 0): S | undefined {
+  return series.find((item) => occurrenceDates(item.rule, item.start, addDays(day, -span), day).length > 0);
+}
+
+/**
  * Number of occurrences before a date (for the count of a series split at that date).
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.

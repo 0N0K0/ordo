@@ -22,8 +22,8 @@ Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label
 | `TimerStartValues` (interface)         | Démarrage d’un chrono : `projectId?`, `routineIds?`, `taskIds`, `description?`, `events?`. |
 | `TimeEventLink` (interface)            | Évènement d’un temps envoyé : `{ eventId, occurrenceDate }`. |
 | `LostOnDeleteQuery` (interface)        | Éléments sur le point d’être supprimés : `taskIds?`, `routineIds?`, `withSubtree?`, `eventId?`, `scope?`, `occurrenceDate?`, `calendarId?`, `routineOccurrence?` (`{ id, date, scope }` : occurrence de routine, ou elle et les suivantes). |
-| `LostOnDelete` (interface)             | `{ times, comments }` : temps sans projet laissés sans rattachement, commentaires de ce qui est supprimé. |
-| `fetchLostOnDelete(query)`             | Ce qu’une suppression emporte : temps sans projet et commentaires (requête `lostOnDelete`). Utilisé par `EventForm` (les trois portées d’un récurrent) et `useCalendarEdits` (suppression d’une occurrence de routine, deux portées). |
+| `LostOnDelete` (interface)             | `{ times, comments, checklists, links }` : temps sans projet laissés sans rattachement, commentaires, listes à cocher commencées et liens entre routines et évènements de ce qui est supprimé. |
+| `fetchLostOnDelete(query)`             | Ce qu’une suppression emporte : temps sans projet, commentaires, listes à cocher commencées et liens (requête `lostOnDelete`). Utilisé par `EventForm` (les trois portées d’un récurrent) et `useCalendarEdits` (suppression d’une occurrence de routine, deux portées). |
 | `useLostOnDelete(query)`               | La même chose en requête React Query. Utilisé par `LostOnDeleteRisk`. |
 | `useTimeMutations()`                   | `{ start, setPaused({ id, paused }), stop(id), stopAll, create, update, remove }` ; toutes invalident `['time']` et `['tasks']` (temps passé des tâches). `start` avertit ensuite si le chrono est hors des créneaux (`warnOutOfSlots`). |
 
@@ -129,13 +129,13 @@ Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`compo
 
 ### `components/LostOnDeleteRisk.tsx`
 
-- `LostOnDeleteRisk({ query })` : phrases de la confirmation d’une suppression de tâches, de routines, d’un évènement ou d’un calendrier : « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). » et « 3 commentaires seront aussi supprimés. » (`useLostOnDelete`, `lostOnDeleteText` ; rien sans aucun). Seule brique de ce rôle. Utilisé par `DeleteTasksDialog`, `DeleteRoutinesDialog`, `EventForm`, `CalendarsManager`.
+- `LostOnDeleteRisk({ query })` : phrases de la confirmation d’une suppression de tâches, de routines, d’un évènement ou d’un calendrier : « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). » , « 3 commentaires seront aussi supprimés. », « 2 listes à cocher commencées seront aussi supprimées. » et « 4 liens entre routines et évènements seront aussi supprimés. » (`useLostOnDelete`, `lostOnDeleteText` ; rien sans aucun). Seule brique de ce rôle. Utilisé par `DeleteTasksDialog`, `DeleteRoutinesDialog`, `EventForm`, `CalendarsManager`.
 
 ### `lib/lost-on-delete.ts`
 
-- `lostOnDeleteText(lost)` : les deux phrases ci-dessus (vide sans rien).
+- `lostOnDeleteText(lost)` : les phrases ci-dessus (vide sans rien ; listes et liens absents : aucun).
 - `withLossConfirmation(run, dialog?)` (`lib/confirm-loss.tsx`) : lance un changement sans confirmation (`run(false)`) ; si l'API répond `CONFIRMATION_REQUIRED`, demande la confirmation destructive faite de son extension `lost` — par défaut « Occurrences supprimées » (« Ce changement fait disparaître des occurrences qui ne reviendront pas. » puis `lostOnDeleteText(lost)`, bouton « Supprimer et enregistrer ») ; `dialog(lost)` en donne une autre (transformation tâche ↔ routine : `conversionDialog`)  — et relance confirmé (`run(true)`) ; une extension `lost.merge` (occurrence d'une routine déplacée sur un jour qui a la sienne) n'est pas une perte : l'erreur passe, pour `withSameDayChoice` (routines) ; refusé : `ActionDeclined`. Type `LossDialog` (options de `confirmedDestructive`). Utilisé par les mutations `update` des évènements, `update`, `patch`, `bulkUpdate`, `changeOccurrence`, `convertTask`, `convertToTask` des routines, et celles des créneaux.
-- `scopeLostNote(lost)` : note de la question de portée d’une suppression : « Temps sans projet supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3 (les temps facturés sont gardés). Commentaires supprimés avec : cette occurrence 1, … » (seulement les choix proposés ; rien sans aucun). Utilisé par `EventForm` et `useCalendarEdits`.
+- `scopeLostNote(lost)` : note de la question de portée d’une suppression : « Temps sans projet supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3 (les temps facturés sont gardés). Commentaires supprimés avec : cette occurrence 1, … », de même « Listes à cocher commencées supprimées avec » et « Liens entre routines et évènements supprimés avec » (seulement les choix proposés ; rien sans aucun). Utilisé par `EventForm` et `useCalendarEdits`.
 
 ## hooks/
 

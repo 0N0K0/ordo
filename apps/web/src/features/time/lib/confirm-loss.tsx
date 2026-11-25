@@ -7,8 +7,8 @@ import { lostOnDeleteText } from './lost-on-delete';
 export type LossDialog = Parameters<typeof confirmedDestructive>[0];
 
 /**
- * Question of a change that makes occurrences disappear: the loss of their comments and times, numbered as in a
- * deletion.
+ * Question of a change that makes occurrences disappear: the loss of their comments, times, checklists started and
+ * links between routines and events, numbered as in a deletion.
  * @param {LostOnDelete} lost Numbers.
  * @returns {LossDialog} Dialog.
  */
@@ -25,7 +25,7 @@ const occurrencesLost = (lost: LostOnDelete): LossDialog => ({
  * answer, then runs it again confirmed. Declined: `ActionDeclined` (silent in the error toasts; the caller puts back
  * what it showed).
  * @param {(confirm: boolean) => Promise<T>} run The change, with or without the confirmation.
- * @param {(lost: L) => LossDialog} [dialog] Question, from what is lost. Optional. Default = occurrences lost (`{ times, comments }`).
+ * @param {(lost: L) => LossDialog} [dialog] Question, from what is lost. Optional. Default = occurrences lost (`{ times, comments, checklists, links }`).
  * @returns {Promise<T>} Its result.
  */
 export async function withLossConfirmation<T, L = LostOnDelete>(run: (confirm: boolean) => Promise<T>, dialog?: (lost: L) => LossDialog): Promise<T> {

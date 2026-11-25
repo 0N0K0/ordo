@@ -1764,8 +1764,18 @@ type LinkedMailAttachment {
 
 """What a deletion takes with it, for its confirmation."""
 type LostOnDelete {
+  """
+  Checklists started (one item ticked at least) of the items and occurrences deleted; those not started go too, uncounted.
+  """
+  checklists: Int!
+
   """Comments of the items and occurrences deleted."""
   comments: Int!
+
+  """
+  Links between routines and events of the items and occurrences deleted.
+  """
+  links: Int!
 
   """Times without project, not billed, left with nothing attached."""
   times: Int!
@@ -2069,7 +2079,7 @@ type Mutation {
   """
   addTreasuryMember(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its own birthday applies (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its own birthday applies (slot conditions).
     """
     confirmLoss: Boolean
     contributorId: ID
@@ -2134,7 +2144,7 @@ type Mutation {
     changes: RoutineBulkChanges!
 
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     ids: [ID!]!
@@ -2164,7 +2174,7 @@ type Mutation {
   """
   changeRoutineOccurrence(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     date: Date!
@@ -2223,7 +2233,7 @@ type Mutation {
   createClientService(clientId: ID!, input: ClientServiceInput!): ClientService!
   createContributor(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday (slot conditions).
     """
     confirmLoss: Boolean
     input: ContributorInput!
@@ -2297,7 +2307,7 @@ type Mutation {
   """
   createWorkSchedule(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     input: WorkScheduleInput!
@@ -2324,7 +2334,7 @@ type Mutation {
   deleteComment(id: ID!): Boolean!
   deleteContributor(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday gone (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday gone (slot conditions).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2376,7 +2386,7 @@ type Mutation {
   """
   deleteScheduleType(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2424,7 +2434,7 @@ type Mutation {
   """
   deleteTreasuryRelation(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday gone (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday gone (slot conditions).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2435,7 +2445,7 @@ type Mutation {
   """
   deleteWorkSchedule(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2544,7 +2554,7 @@ type Mutation {
     categoryIds: [ID!]
 
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2604,7 +2614,7 @@ type Mutation {
   """
   patchRoutine(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2655,7 +2665,7 @@ type Mutation {
   """
   removeTreasuryMember(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday gone (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday gone (slot conditions).
     """
     confirmLoss: Boolean
     contributorId: ID!
@@ -2739,7 +2749,7 @@ type Mutation {
   """Creates a relation (without id) or changes one."""
   saveTreasuryRelation(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday moved or gone (birth date, contributor; slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday moved or gone (birth date, contributor; slot conditions).
     """
     confirmLoss: Boolean
     id: ID
@@ -2775,7 +2785,7 @@ type Mutation {
     archived: Boolean!
 
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Schedules, kinds of schedules, contributors, relations and contacts (with the people linked to them).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Schedules, kinds of schedules, contributors, relations and contacts (with the people linked to them).
     """
     confirmLoss: Boolean
     ids: [ID!]!
@@ -2864,7 +2874,7 @@ type Mutation {
   """
   setScheduleSubscriptionUnavailable(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     typeId: ID
@@ -2877,7 +2887,7 @@ type Mutation {
   """
   setScheduleTypeEphemeris(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     ephemeris: Boolean!
@@ -2927,7 +2937,7 @@ type Mutation {
   """
   setWorkScheduleEphemeris(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     ephemeris: Boolean!
@@ -3012,7 +3022,7 @@ type Mutation {
   """
   updateCalendarEvent(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -3035,7 +3045,7 @@ type Mutation {
   updateCompanyProfile(input: CompanyProfileInput!): CompanyProfile!
   updateContributor(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday moved or gone (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday moved or gone (slot conditions).
     """
     confirmLoss: Boolean
     id: ID!
@@ -3063,7 +3073,7 @@ type Mutation {
   """
   updateRoutine(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -3078,7 +3088,7 @@ type Mutation {
   updateSavedCountdown(id: ID!, input: SavedCountdownPatch!): SavedCountdown!
   updateScheduleType(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -3127,7 +3137,7 @@ type Mutation {
   """
   updateTreasuryMember(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday moved or gone (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday moved or gone (slot conditions).
     """
     confirmLoss: Boolean
     contributorId: ID!
@@ -3140,7 +3150,7 @@ type Mutation {
   """
   updateWorkSchedule(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -3496,7 +3506,7 @@ type Query {
   libraryDocuments: [LibraryDocument!]!
 
   """
-  What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the times without project, not billed, left with nothing attached, and the comments of the routines, events and occurrences deleted.
+  What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the times without project, not billed, left with nothing attached, and the comments, started checklists and links between routines and events of the tasks, routines, events and occurrences deleted.
   """
   lostOnDelete(
     """Calendar deleted with all its events."""
