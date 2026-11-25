@@ -6,6 +6,7 @@ import {
   snapshotIterationValue,
   mergeValues,
   commentToPublish,
+  REMOVED_FROM_BOARD,
   issueAddress,
   itemParentValue,
   mergeFields,
@@ -322,6 +323,20 @@ describe('comments published on an issue', () => {
   it('not a comment already sent, nor one of someone else whose issue was forgotten', () => {
     expect(commentToPublish({ githubCommentId: 'c1', githubAuthor: null })).toBe(false);
     expect(commentToPublish({ githubCommentId: null, githubAuthor: 'octo' })).toBe(false);
+  });
+
+  it('after an unlink: the comments of the account connected are published again, those of someone else are not', () => {
+    // The unlink clears the GitHub comment and the last synchronized body, and keeps the author.
+    const unlinked = (comment: { githubCommentId: string | null; githubBody: string | null; githubAuthor: string | null }) => ({ ...comment, githubCommentId: null, githubBody: null });
+    expect(commentToPublish(unlinked({ githubCommentId: 'c1', githubBody: 'Mine', githubAuthor: null }))).toBe(true);
+    expect(commentToPublish(unlinked({ githubCommentId: 'c2', githubBody: 'Theirs', githubAuthor: 'octo' }))).toBe(false);
+  });
+});
+
+describe('task removed from the board', () => {
+  it('is marked by its own GitHub content type (the value stored on tasks already marked), distinct from an item type', () => {
+    expect(REMOVED_FROM_BOARD).toBe('REMOVED');
+    expect(['ISSUE', 'DRAFT_ISSUE']).not.toContain(REMOVED_FROM_BOARD);
   });
 });
 

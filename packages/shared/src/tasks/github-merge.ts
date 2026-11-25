@@ -193,9 +193,15 @@ export function issueAddress(url: string | null): { owner: string; name: string;
 }
 
 /**
+ * GitHub content type of a task off the board (its item left the board, or its issue is linked to another task): it is
+ * not sent again, even restored, even after the project is unlinked and linked again (to this board or another one).
+ */
+export const REMOVED_FROM_BOARD = 'REMOVED';
+
+/**
  * Whether an Ordo comment is to be published on its issue: never sent, and written in Ordo (a comment pulled from
- * GitHub whose issue was forgotten keeps its author and stays in Ordo only, never published again under the account
- * connected).
+ * GitHub whose issue was forgotten, or whose project was unlinked or linked to another board, keeps its author and stays in Ordo only, never
+ * published again under the account connected).
  * @param {{ githubCommentId: string | null, githubAuthor: string | null }} comment Comment.
  * @returns {boolean} To publish.
  */

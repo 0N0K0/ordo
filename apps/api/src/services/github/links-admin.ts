@@ -1,4 +1,4 @@
-import { ancestorsOf, type GithubLinkInput, mapById, subtreeOf } from '@ordo/shared';
+import { ancestorsOf, type GithubLinkInput, mapById, REMOVED_FROM_BOARD, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound } from '../../graphql/errors';
@@ -129,18 +129,23 @@ export async function saveGithubLink(projectId: string, input: GithubLinkInput):
 }
 
 /**
- * Clears the GitHub links of the tasks and sprints of a project tree.
+ * Clears the GitHub links of the tasks, sprints and comments of a project tree. A task off the board keeps its mark (not
+ * sent again after a new link) and a comment of someone else its GitHub author (never published under the account
+ * connected).
  * @param {string} projectId Project.
  * @returns {Promise<void>}
  */
 async function forgetLinks(projectId: string): Promise<void> {
   const tree = [projectId, ...(await relatives(projectId)).descendants];
-  await prisma.task.updateMany({
-    where: { projectId: { in: tree } },
-    data: { githubItemId: null, githubContentId: null, githubContentType: null, githubUrl: null, githubNumber: null, githubSnapshot: Prisma.DbNull },
-  });
+  await prisma.$transaction([
+    prisma.task.updateMany({
+      where: { projectId: { in: tree } },
+      data: { githubItemId: null, githubContentId: null, githubUrl: null, githubNumber: null, githubSnapshot: Prisma.DbNull },
+    }),
+    prisma.task.updateMany({ where: { projectId: { in: tree }, githubContentType: { not: REMOVED_FROM_BOARD } }, data: { githubContentType: null } }),
+    prisma.taskComment.updateMany({ where: { task: { projectId: { in: tree } } }, data: { githubCommentId: null, githubBody: null } }),
+  ]);
   await forgetSprintLinks(tree);
-  await prisma.taskComment.updateMany({ where: { task: { projectId: { in: tree } } }, data: { githubCommentId: null, githubBody: null, githubAuthor: null } });
 }
 
 /**

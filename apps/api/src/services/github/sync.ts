@@ -18,6 +18,7 @@ import {
   readdedItemSnapshot,
   remoteChangeDate,
   removedFromBoardComment,
+  REMOVED_FROM_BOARD,
   wasReadded,
   alreadyLinkedComment,
   commentToPublish,
@@ -149,9 +150,6 @@ interface Maps {
   /** Issue field of each board field showing one (issues only: drafts have none). */
   issueFields: Map<string, string>;
 }
-
-/** Content type of a task whose item was removed from the board: not sent again. */
-const REMOVED = 'REMOVED';
 
 /**
  * Field value of an item as a synchronized value.
@@ -656,7 +654,7 @@ async function syncComments(token: string, taskId: string, item: RemoteItem, log
   let changes = 0;
   for (const comment of local) {
     if (!comment.githubCommentId) {
-      // A comment of someone else whose issue was forgotten stays in Ordo only.
+      // A comment of someone else whose issue was forgotten, or whose project was unlinked or linked to another board, stays in Ordo only.
       if (!commentToPublish(comment)) continue;
       const id = await addIssueComment(token, item.contentId, comment.body);
       await prisma.taskComment.update({ where: { id: comment.id }, data: { githubCommentId: id, githubBody: comment.body } });
@@ -831,7 +829,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
         const holder = await prisma.task.findUnique({ where: { githubItemId: itemId }, select: { id: true } });
         if (holder) {
           console.warn('Synchronisation GitHub : issue déjà liée à une autre tâche.', { taskId: task.id, holderId: holder.id });
-          await forgetIssue(task.id, { githubContentId: null, githubContentType: REMOVED });
+          await forgetIssue(task.id, { githubContentId: null, githubContentType: REMOVED_FROM_BOARD });
           await prisma.taskComment.create({ data: { taskId: task.id, body: alreadyLinkedComment(parisToday()) } });
           return;
         }
@@ -862,7 +860,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       await prisma.$transaction([
         prisma.task.updateMany({
           where: { id: { in: goneIds } },
-          data: { githubItemId: null, githubContentId: null, githubContentType: REMOVED, githubUrl: null, githubNumber: null, githubSnapshot: Prisma.DbNull },
+          data: { githubItemId: null, githubContentId: null, githubContentType: REMOVED_FROM_BOARD, githubUrl: null, githubNumber: null, githubSnapshot: Prisma.DbNull },
         }),
         prisma.taskComment.updateMany({ where: { taskId: { in: goneIds } }, data: { githubCommentId: null, githubBody: null } }),
         prisma.taskComment.createMany({ data: goneIds.map((taskId) => ({ taskId, body })) }),

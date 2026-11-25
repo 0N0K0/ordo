@@ -165,7 +165,8 @@ Fonctions pures de la synchronisation GitHub (`apps/api/src/services/github/sync
 | `ReaddedSnapshot`, `wasReadded(snapshot)` | Instantané d'une paire dont l'issue a été remise au tableau, marqué `readded` jusqu'à une fusion complète ; `wasReadded` lit la marque d'un instantané enregistré. |
 | `remoteChangeDate(item, readded)` | Date du dernier changement d'un item comparée à la tâche : celle de l'item ou de son contenu ; pour une issue tout juste remise au tableau, celle de l'issue seule (`contentUpdatedAt`). |
 | `issueAddress(url)` | Compte, dépôt et numéro d'une issue d'après son adresse (`…/<compte>/<dépôt>/issues/<n>`), sinon `null`. |
-| `commentToPublish(comment)` | Un commentaire Ordo est à publier sur son issue : jamais envoyé et écrit dans Ordo (pas celui d'un autre auteur venu de GitHub, `githubAuthor`, dont l'issue a été oubliée). |
+| `REMOVED_FROM_BOARD` | Type de contenu GitHub d'une tâche retirée du tableau (son item l'a quitté, ou son issue est liée à une autre tâche) : elle n'est plus envoyée, même restaurée, même après une déliaison et une nouvelle liaison. |
+| `commentToPublish(comment)` | Un commentaire Ordo est à publier sur son issue : jamais envoyé et écrit dans Ordo (pas celui d'un autre auteur venu de GitHub, `githubAuthor`, dont l'issue a été oubliée ou dont le projet a été délié ou lié à un autre tableau). |
 | `alreadyLinkedComment(day)` | Commentaire ajouté à une tâche revenue dont l'issue est déjà liée à une autre tâche : « Déliée de GitHub le JJ/MM/AAAA : son issue est déjà liée à une autre tâche. » (`printedDay`). |
 | `itemParentValue(parentIssueId, linked)` | Parent synchronisé d'une issue : son issue parente si elle est liée à une tâche, archivée ou non, sinon `gh:<id>` (hors du tableau). |
 
