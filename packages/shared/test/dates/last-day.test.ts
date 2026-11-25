@@ -264,11 +264,23 @@ describe('« Ouverture » on the last day of the month', () => {
     expect(readOpens({ mode: 'DAY', day: 0, month: null })).toBeNull();
   });
 
-  it('monthly: the last day of the month of the due day, that of the month before when it comes after the due day', () => {
+  it('monthly: always the last day of the month before the due day’s, a due last day included', () => {
     expect(routineOpenDate('2027-03-15', last(null), 'MONTHLY')).toBe('2027-02-28');
     expect(routineOpenDate('2028-03-10', last(null), 'MONTHLY')).toBe('2028-02-29');
-    expect(routineOpenDate('2027-03-31', last(null), 'MONTHLY')).toBe('2027-03-31');
+    expect(routineOpenDate('2027-03-31', last(null), 'MONTHLY')).toBe('2027-02-28');
+    expect(routineOpenDate('2028-03-31', last(null), 'MONTHLY')).toBe('2028-02-29');
     expect(routineOpenDate('2027-01-05', last(null), 'MONTHLY')).toBe('2026-12-31');
+    expect(routineOpenDate('2027-01-31', last(null), 'MONTHLY')).toBe('2026-12-31');
+  });
+
+  it('monthly on the 31st is unchanged: the due day itself when it is the 31st', () => {
+    expect(routineOpenDate('2027-03-31', { ...last(null), day: 31 }, 'MONTHLY')).toBe('2027-03-31');
+    expect(routineOpenDate('2027-03-15', { ...last(null), day: 31 }, 'MONTHLY')).toBe('2027-02-28');
+  });
+
+  it('monthly occurrences on the last day open from the last day of the month before', () => {
+    expect(routineOccurrences(MONTHLY_LAST, '2027-01-31', '2027-03-01', last(null))).toEqual({ current: '2027-03-31', next: '2027-04-30' });
+    expect(routineOccurrences(MONTHLY_LAST, '2027-01-31', '2027-02-27', last(null)).current).toBe('2027-02-28');
   });
 
   it('yearly: the last day of its month, of the year before when it comes after the due day', () => {
@@ -276,9 +288,9 @@ describe('« Ouverture » on the last day of the month', () => {
     expect(routineOpenDate('2027-01-10', last(2), 'YEARLY')).toBe('2026-02-28');
   });
 
-  it('the same day as the 31st, for every due day', () => {
+  it('monthly: the last day of the month before, for every due day; yearly: the same day as the 31st', () => {
     for (let due = '2026-01-01'; due <= '2028-12-31'; due = addDays(due, 3)) {
-      expect(routineOpenDate(due, last(null), 'MONTHLY')).toBe(routineOpenDate(due, { ...last(null), day: 31 }, 'MONTHLY'));
+      expect(routineOpenDate(due, last(null), 'MONTHLY')).toBe(addDays(`${due.slice(0, 7)}-01`, -1));
       expect(routineOpenDate(due, last(4), 'YEARLY')).toBe(routineOpenDate(due, { ...last(4), day: 31 }, 'YEARLY'));
     }
   });

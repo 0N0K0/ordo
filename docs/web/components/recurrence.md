@@ -60,7 +60,7 @@ Formulaire de la nouvelle règle d'une répétition le dernier jour du mois dép
 
 ### `MonthDayField`
 
-Jour du mois choisi, le même champ partout (répétition `RecurrenceEditor`, durée `DurationFields`, « Ouverture » `OpensOnInput`) : un nombre 1 à 31 (le dernier jour d'un mois plus court), ou la case « Le dernier jour du mois » (`LAST_DAY` : le nombre masqué ; décochée, `fallback`). Props : `value`, `onChange`, `fallback`, `onCommit` (après la case, ou le nombre quitté), `label`, `ariaLabel`, `prefix`, `size`, `w`, `month` (le choix du mois, placé entre le nombre et la case : durée, « Ouverture » annuelle). Garde eslint : un `NumberInput` `max={31}` écrit à la main est refusé (sauf la date de naissance, `BirthDateField`).
+Jour du mois choisi, le même champ partout (répétition `RecurrenceEditor`, durée `DurationFields`, « Ouverture » `OpensOnInput`) : un nombre 1 à 31 (le dernier jour d'un mois plus court), ou la case « Le dernier jour du mois » (`LAST_DAY` : le nombre masqué ; décochée, `fallback`). Props : `value`, `onChange`, `fallback`, `onCommit` (après la case, ou le nombre quitté), `label`, `ariaLabel`, `prefix`, `size`, `w`, `lastLabel` (libellé de la case, défaut « Le dernier jour du mois » ; « Le dernier jour du mois précédent » pour une « Ouverture » mensuelle), `month` (le choix du mois, placé entre le nombre et la case : durée, « Ouverture » annuelle). Garde eslint : un `NumberInput` `max={31}` écrit à la main est refusé (sauf la date de naissance, `BirthDateField`).
 
 ### `DurationFields`
 

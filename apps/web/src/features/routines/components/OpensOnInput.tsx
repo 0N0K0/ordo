@@ -106,7 +106,16 @@ export function OpensOnInput({ frequency, value, onChange, onCommit, error }: Op
         error={error}
       />
       {value?.mode === 'DAY' && mode === 'DAY' && (
-        <MonthDayField label="Jour" value={value.day} fallback={1} onChange={(day) => change({ day })} onCommit={onCommit} month={monthSelect} />
+        // Monthly, the last day is always that of the month before the due day's.
+        <MonthDayField
+          label="Jour"
+          value={value.day}
+          fallback={1}
+          onChange={(day) => change({ day })}
+          onCommit={onCommit}
+          month={monthSelect}
+          lastLabel={yearly ? undefined : 'Le dernier jour du mois précédent'}
+        />
       )}
       {value?.mode === 'WEEKDAY' && mode === 'WEEKDAY' && (
         <Group gap="sm" align="flex-start" grow>

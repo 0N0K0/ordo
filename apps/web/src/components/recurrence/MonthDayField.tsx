@@ -21,6 +21,8 @@ interface MonthDayFieldProps {
   size?: MantineSize;
   /** Width of the number field. Optional. */
   w?: number;
+  /** Label of the box. Optional. Default = « Le dernier jour du mois » (a monthly « Ouverture »: « … du mois précédent »). */
+  lastLabel?: string;
   /** Shown between the number and the box (the month of the day: « le dernier jour du mois [février] »). Optional. */
   month?: ReactNode;
 }
@@ -32,7 +34,7 @@ interface MonthDayFieldProps {
  * @param {MonthDayFieldProps} props Component props.
  * @returns {JSX.Element} Fields.
  */
-export function MonthDayField({ value, onChange, fallback, onCommit, label, ariaLabel, prefix, size, w, month }: MonthDayFieldProps) {
+export function MonthDayField({ value, onChange, fallback, onCommit, label, ariaLabel, prefix, size, w, month, lastLabel = 'Le dernier jour du mois' }: MonthDayFieldProps) {
   const last = value === LAST_DAY;
   return (
     <Group gap="xs" align="flex-end" wrap="wrap">
@@ -55,7 +57,7 @@ export function MonthDayField({ value, onChange, fallback, onCommit, label, aria
       {month}
       <Checkbox
         size={size}
-        label="Le dernier jour du mois"
+        label={lastLabel}
         checked={last}
         onChange={(event) => {
           onChange(event.currentTarget.checked ? LAST_DAY : fallback);

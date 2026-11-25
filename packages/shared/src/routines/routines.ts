@@ -315,7 +315,9 @@ function isoWeekDate(year: number, week: number, weekday: number): string {
 
 /**
  * Day an occurrence can be done from: its « Ouverture » in its period (its month, its year; the one before when
- * that day comes after its due day), or some days before its due day; its due day without « Ouverture ».
+ * that day comes after its due day), or some days before its due day; its due day without « Ouverture ». Monthly on
+ * the last day of the month (`LAST_DAY`): always the last day of the month before the due day's (« le dernier jour du
+ * mois précédent »), even when the due day is a last day itself.
  * @param {string} due Due day (YYYY-MM-DD).
  * @param {RoutineOpens | null} opens « Ouverture ».
  * @param {Recurrence['frequency']} frequency Frequency of its rule.
@@ -327,7 +329,9 @@ export function routineOpenDate(due: string, opens: RoutineOpens | null, frequen
   const year = yearOfDay(due);
   const month = monthOfYear(due);
   let open: string;
-  if (frequency === 'MONTHLY') {
+  if (frequency === 'MONTHLY' && opens.mode === 'DAY' && opens.day === LAST_DAY) {
+    open = month === 1 ? dayInMonth(year - 1, 12, 31) : dayInMonth(year, month - 1, 31);
+  } else if (frequency === 'MONTHLY') {
     open = opensInMonth(opens, year, month);
     if (open > due) open = month === 1 ? opensInMonth(opens, year - 1, 12) : opensInMonth(opens, year, month - 1);
   } else if (opens.mode === 'WEEK') {
