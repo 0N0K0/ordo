@@ -4,17 +4,21 @@ import { StopIcon } from '@phosphor-icons/react';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
 import type { TimeEntry } from '../api';
 import { useStopTimer } from '../hooks/use-stop-timer';
+import { useTaskContext } from '../../tasks/hooks/use-task-context';
+import { entrySubject } from '../lib/entry-subject';
 
 /** State of a running timer, the same everywhere. */
 export const TIMER_RUNNING = 'Chrono en cours';
 
 /**
- * Button stopping a running timer (the time saved), the same everywhere: « Arrêter le chrono », light red.
+ * Button stopping a running timer (the time saved), the same everywhere: « Arrêter le chrono », light red; stopped by
+ * the API after 24 hours just before, the notice tells what it was spent on.
  * @param {{ entry: TimeEntry, name?: string, size?: ActionIconProps['size'] }} props Running timer, the item timed (for the screen readers; optional) and the size of the button (optional).
  * @returns {JSX.Element} Button.
  */
 export function StopTimerButton({ entry, name, size }: { entry: TimeEntry; name?: string; size?: ActionIconProps['size'] }) {
-  const { stopTimer, isPending } = useStopTimer();
+  const { context } = useTaskContext();
+  const { stopTimer, isPending } = useStopTimer((item) => entrySubject(item, context));
   return (
     <IconAction
       label="Arrêter le chrono"

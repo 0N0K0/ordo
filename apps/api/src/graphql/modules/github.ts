@@ -56,9 +56,15 @@ builder.prismaObject('GithubProjectLink', {
     syncLabels: t.exposeBoolean('syncLabels'),
     repositoryName: t.exposeString('repositoryName', { nullable: true }),
     pushExisting: t.exposeBoolean('pushExisting'),
+    writeIterations: t.exposeBoolean('writeIterations', { description: 'Sprints written as iterations on GitHub (off: iterations only read and paired).' }),
+    iterationWriteRefusal: t.exposeString('iterationWriteRefusal', { nullable: true, description: 'Why GitHub refused the last iteration write (tried again at each sync).' }),
     enabled: t.exposeBoolean('enabled'),
     lastSyncAt: t.expose('lastSyncAt', { type: 'DateTime', nullable: true }),
     lastSyncError: t.exposeString('lastSyncError', { nullable: true }),
+    iterationWriteError: t.exposeString('iterationWriteError', {
+      nullable: true,
+      description: 'Why the iterations are no longer synchronized (GitHub did not keep a write as sent), until resumed (resumeGithubIterations).',
+    }),
     lastSyncSummary: t.field({ type: 'JSON', nullable: true, resolve: (link) => link.lastSyncSummary }),
     linkedTaskCount: t.int({
       resolve: async (link) => {
@@ -89,6 +95,7 @@ const LinkInput = builder.inputType('GithubLinkInput', {
     syncLabels: t.boolean({ required: true }),
     repositoryName: t.string({ description: 'owner/name: new tasks become issues of it; drafts without it.' }),
     pushExisting: t.boolean({ required: true }),
+    writeIterations: t.boolean({ description: 'Sprints written as iterations on GitHub. Default = false.' }),
     enabled: t.boolean({ required: true }),
   }),
 });
@@ -101,9 +108,13 @@ const SummaryRef = builder.objectRef<Awaited<ReturnType<typeof syncGithubProject
     pushed: t.exposeInt('pushed'),
     unlinked: t.exposeInt('unlinked'),
     sprints: t.exposeInt('sprints'),
-    sprintsSkipped: t.exposeInt('sprintsSkipped', { description: 'Ordo sprints without iteration: to be created on GitHub, where they are paired by name.' }),
+    sprintsPushed: t.exposeInt('sprintsPushed', { description: 'Iterations created or updated on GitHub from the sprints.' }),
+    sprintsSkipped: t.exposeInt('sprintsSkipped', { description: 'Sprints not sent: they share a day with another sprint of the project tree, or would with another iteration.' }),
+    sprintsBlocked: t.exposeInt('sprintsBlocked', { description: 'Sprints not sent: the iteration writes of the link are stopped (iterationWriteError) or refused by GitHub (iterationWriteRefusal).' }),
+    sprintsUnpaired: t.exposeInt('sprintsUnpaired', { description: 'Sprints without iteration while the iterations are not written (writeIterations off).' }),
     renumbered: t.exposeInt('renumbered'),
     comments: t.exposeInt('comments'),
+    failed: t.exposeInt('failed', { description: 'Tasks whose sync failed: left as they were, tried again at the next sync.' }),
   }),
 });
 
@@ -177,9 +188,15 @@ builder.mutationFields((t) => ({
           syncLabels: input.syncLabels,
           repositoryName: input.repositoryName ?? null,
           pushExisting: input.pushExisting,
+          writeIterations: input.writeIterations ?? false,
           enabled: input.enabled,
         }),
       ),
+  }),
+  resumeGithubIterations: t.boolean({
+    description: 'Resumes the iteration sync of a link stopped after a write GitHub did not keep as sent.',
+    args: { projectId: t.arg.id({ required: true }) },
+    resolve: (_root, { projectId }) => done(admin.resumeGithubIterations(projectId)),
   }),
   unlinkGithubProject: t.boolean({
     args: { projectId: t.arg.id({ required: true }) },

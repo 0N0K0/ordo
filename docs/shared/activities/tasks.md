@@ -121,6 +121,7 @@ Règles « quand … alors … » d'un espace (voir [Règles métier — Automat
 | `formatDuration(seconds)`                                | « 2 h 05 », « 45 min ».                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `formatClock(seconds)`                                   | Chronomètre « 1:05:09 ».                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `entrySeconds(entry, now?)`                              | Durée effective d'une saisie, pauses exclues : durée stockée une fois arrêtée, sinon calculée en direct jusqu'à la pause en cours, la fin ou maintenant.                                                                                                                                                                                                                                                                                                                                   |
+| `reachedDurationMax(entry, now?)` | Le chrono a atteint la durée maximale d’un temps (24 heures, pauses déduites, `entrySeconds`) : l’API l’arrête là. Un chrono mis en pause avant ne l’atteint pas. |
 | `entrySecondsWithin(entry, from, to, now?)` | Part d'une saisie entre deux instants (un jour, une semaine) : sa durée effective au prorata de ce qui tombe dans la période (ses pauses, dont les moments ne sont pas gardés, réparties sur tout le temps) ; un chrono qui passe minuit compte sur les deux jours. Utilisé par l'accueil (`useWeekTime`, pastille « Temps ») et « Prévu et réalisé » (`PlannedTime`). |
 | `ALARM_TYPES` / `AlarmType`                              | `REMINDER` (rappel), `NOT_TRACKING` (aucun suivi de temps en cours), `TRACKING_DURATION` (suivi en cours depuis une durée).                                                                                                                                                                                                                                                                                                                                                                |
 | `ALARM_FREQUENCIES` / `AlarmFrequency`                   | Fréquences de la forme lue par compatibilité (`frequency`) : `ONCE`, `DAILY`, `WEEKLY`, `MONTHLY`.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -138,3 +139,59 @@ Internes : `AlarmSchedule`, `ringsOnDay` (l'alarme sonne ce jour-là, jour de Pa
 | `GithubLinkInput` | Réglages du lien d'un projet avec un tableau GitHub Projects : `url` ; ids des champs synchronisés (`statusFieldId`, `priorityFieldId`, `iterationFieldId`, `startFieldId`, `endFieldId`, `effortFieldId`, `deadlineFieldId`, `timeSpentFieldId`) ; `typeSource` (`FIELD`, `ISSUE_TYPE` de l'organisation, ou `null`) et `typeFieldId` ; correspondances `statusOptions`, `priorityOptions`, `typeOptions` (id Ordo → option GitHub) ; `syncAssignees`, `syncLabels` ; `repositoryName` (« owner/name », `null` pour des brouillons) ; `pushExisting` ; `enabled`. Un type (pas une interface) : les valeurs d'un formulaire. Voir [GitHub](../../business-rules/cross-cutting/github.md). |
 | `REPOSITORY_FORMAT_ERROR` | « Forme attendue : compte/dépôt. » (sous le dépôt d'un lien ; aussi l'erreur de champ de l'API). |
 | `githubLinkFormSchema` | Réglages d'un lien dans son formulaire : `repositoryName` vide ou « compte/dépôt » (`REPOSITORY_FORMAT_ERROR`) ; le reste se choisit dans le tableau. |
+| `GithubFailure` | Appel à GitHub en échec : sans réponse (`network`), ou son statut HTTP (`status`, avec `rateLimited` quand GitHub dit un 403 dû à la limite) et les types de ses erreurs GraphQL (`graphqlTypes`). |
+| `goneIssueCloseReason(task)` | Fermeture de l'issue d'une tâche supprimée ou transformée en routine : aucune quand elle est déjà fermée sur GitHub (`closed` de son instantané : une issue terminée le reste), comme la tâche quand celle-ci est fermée (`closeReason`, `COMPLETED` par défaut), sinon « non prévue » (`NOT_PLANNED`). Testé dans `test/tasks/github.test.ts`. |
+| `goneOnGithub(failure)` | L'échec dit que ce qu'il nomme n'existe plus (erreur GraphQL `NOT_FOUND`) : une issue revenue qui n'existe plus est envoyée comme une tâche nouvelle. Testé dans `test/tasks/github.test.ts`. |
+| `stopsGithubSync(failure)` | L'échec arrête toute la synchronisation (chaque appel suivant échouerait de même) plutôt que la seule tâche synchronisée : GitHub injoignable, jeton refusé (401), limite de requêtes (429, 403 `rateLimited`, `RATE_LIMITED`), jeton sans les droits nécessaires (`INSUFFICIENT_SCOPES`) ; un `FORBIDDEN` ou un autre 403 ne concerne qu'une tâche. Utilisé par `services/github/client.ts` ; testé dans `test/tasks/github.test.ts`. Voir [GitHub](../../business-rules/cross-cutting/github.md#erreurs-dappel-github). |
+
+## `github-merge.ts` — fusion d'une tâche et de son item GitHub
+
+Fonctions pures de la synchronisation GitHub (`apps/api/src/services/github/sync.ts`), testées dans `test/tasks/github-merge.test.ts`. Voir [GitHub](../../business-rules/cross-cutting/github.md#fusion-à-trois-voies-mergefields).
+
+| Export | Rôle |
+| ------ | ---- |
+| `SyncFields` | Valeurs des champs synchronisés d'une tâche ou d'un item, sous une forme commune aux deux côtés (champ absent : non synchronisé). |
+| `isUnmapped(value, side)` | La valeur n'a pas d'équivalent de l'autre côté (préfixe `ordo:` ou `gh:`). |
+| `mergeFields(local, remote, snapshot, localNewer)` | Fusion à trois voies, champ par champ, contre l'instantané de la dernière synchronisation : ce qu'il faut écrire dans la tâche (`pull`), dans l'item (`push`), et le nouvel instantané. |
+| `mergeValues(fields, local, remote, snapshot, localNewer, options?)`, `MergedValues`, `SyncValue` | La même fusion pour les champs donnés (celle de `mergeFields`, et celle d'un sprint et de son itération, `mergeIteration`) ; `unmapped: false` : les préfixes `ordo:` / `gh:` sont des valeurs comme les autres (textes). |
+| `changedAfter(local, remote)` | Le côté Ordo a changé après le côté GitHub, les dates comparées comme des instants (GitHub les donne sans millisecondes ; date GitHub inconnue : vrai). |
+| `itemIterationValue(iterationId, paired)` | Itération synchronisée d'un item : elle-même si un sprint lui est apparié, sinon `gh:<id>` (sans équivalent). |
+| `snapshotIterationValue(value, onBoard, paired)` | Itération de l'instantané d'une paire lue comme aujourd'hui : disparue du tableau, ignorée (`undefined`) ; sur le tableau sans sprint, `gh:<id>`. |
+| `taskParentValue(parentId, parentIssueId)` | Parent synchronisé d'une tâche : l'issue de sa tâche parente, archivée ou non, sinon `ordo:<id>` (sans équivalent). |
+| `upgradedSnapshot(snapshot)` | Instantané d'une synchronisation précédente lu comme un d'aujourd'hui (copie) : fermé sans raison = terminé (`COMPLETED`), sans état d'archivage = non archivé. |
+| `removedFromBoardComment(day)` | Commentaire ajouté à une tâche dont l'item a quitté le tableau GitHub, quand elle est archivée : « Retirée du tableau GitHub le JJ/MM/AAAA : tâche archivée. » (`printedDay`). |
+| `GithubLinkFields` | Champs du tableau qu'un lien synchronise, par champ Ordo (`null` : non synchronisé), et `typeSource` / `typeFieldId`. |
+| `readdedItemSnapshot(snapshot, link, issueFieldIds, onItem?)` | Instantané d'une tâche dont l'issue est remise au tableau (copie) : ce que porte l'item lui-même (archivage ; champs du tableau, hors champs d'issue de l'organisation) prend les valeurs du nouvel item (`onItem`, une fois lu ; sinon vides, non archivé), pour qu'une valeur différente de la tâche soit envoyée (une valeur posée par le tableau ne l'emporte pas) ; ce que porte l'issue garde la dernière synchronisation ; marqué `readded`. |
+| `ReaddedSnapshot`, `wasReadded(snapshot)` | Instantané d'une paire dont l'issue a été remise au tableau, marqué `readded` jusqu'à une fusion complète ; `wasReadded` lit la marque d'un instantané enregistré. |
+| `remoteChangeDate(item, readded)` | Date du dernier changement d'un item comparée à la tâche : celle de l'item ou de son contenu ; pour une issue tout juste remise au tableau, celle de l'issue seule (`contentUpdatedAt`). |
+| `issueAddress(url)` | Compte, dépôt et numéro d'une issue d'après son adresse (`…/<compte>/<dépôt>/issues/<n>`), sinon `null`. |
+| `REMOVED_FROM_BOARD` | Type de contenu GitHub d'une tâche retirée du tableau (son item l'a quitté, ou son issue est liée à une autre tâche) : elle n'est plus envoyée, même restaurée, même après une déliaison et une nouvelle liaison. |
+| `commentToPublish(comment)` | Un commentaire Ordo est à publier sur son issue : jamais envoyé et écrit dans Ordo (pas celui d'un autre auteur venu de GitHub, `githubAuthor`, dont l'issue a été oubliée ou dont le projet a été délié ou lié à un autre tableau). |
+| `alreadyLinkedComment(day)` | Commentaire ajouté à une tâche revenue dont l'issue est déjà liée à une autre tâche : « Déliée de GitHub le JJ/MM/AAAA : son issue est déjà liée à une autre tâche. » (`printedDay`). |
+| `itemParentValue(parentIssueId, linked)` | Parent synchronisé d'une issue : son issue parente si elle est liée à une tâche, archivée ou non, sinon `gh:<id>` (hors du tableau). |
+
+Internes : `sameValue` (même valeur, listes sans ordre), `isEmpty` (valeur vide).
+
+## `github-iterations.ts` — reflet des sprints et des itérations GitHub
+
+Fonctions pures du reflet des sprints et des itérations d'un tableau (`apps/api/src/services/github/iterations.ts`), testées dans `test/tasks/github-iterations.test.ts`. Voir [GitHub](../../business-rules/cross-cutting/github.md#étapes).
+
+| Export | Rôle |
+| ------ | ---- |
+| `IterationValues`, `BoardIteration`, `SentIteration` | Titre, premier jour (AAAA-MM-JJ) et durée en jours ; une itération du champ (avec son id) ; une itération envoyée (avec son id si elle existe). |
+| `sprintIterationValues(sprint)` | Valeurs qu'un sprint donne à son itération : libellé, début, durée (les deux jours comptés). |
+| `iterationEndDate(iteration)` | Dernier jour d'une itération (début + durée - 1). |
+| `sameIterationValues(a, b)` | Mêmes titre, premier jour et durée. |
+| `REMOVED_ITERATION_SNAPSHOT`, `iterationRemoved(stored)` | Marque d'un sprint dont l'itération a été supprimée sur GitHub (plus envoyé) ; la lit dans un instantané enregistré. |
+| `iterationSnapshot(iteration)` | Instantané d'une itération telle que GitHub l'a : titre coupé à 250 caractères, comme le libellé du sprint. |
+| `iterationSnapshotOf(stored)` | Valeurs de la dernière synchronisation enregistrées sur un sprint, sinon `null`. |
+| `mergeIteration(local, remote, snapshot, localNewer)`, `IterationMerge` | Fusion à trois voies d'un sprint et de son itération (`mergeValues` sans valeurs sans équivalent, titre de l'itération comparé coupé ; la synchronisation la dit toujours plus récente côté Ordo) : valeurs reçues (`pull`, titre refusé par la règle des sprints laissé), envoyées (`push`), valeurs une fois fusionnées des deux côtés (`sprint`, `iteration`), instantané à écrire une fois l'envoi fait (`snapshot`) ou s'il ne l'est pas (`kept`). |
+| `overlappingSprints(sprints)` | Sprints qui partagent un jour avec un autre (les deux sont rendus). |
+| `planIterations(current, changes)`, `IterationChange`, `IterationPlan` | Liste entière à écrire (toutes les itérations avec leur id, les changements appliqués, par premier jour) ; un changement qui partagerait un jour avec une autre itération n'est pas envoyé (`skipped`). |
+| `iterationConfiguration(iterations, duration)` | Configuration écrite : itérations par premier jour, premier jour de la première comme début, durée du champ inchangée. |
+| `sameIterations(a, b)` | Deux lectures du champ montrent les mêmes itérations (ids et valeurs). |
+| `IterationReading`, `checkIterationWrite(sent, before, after)`, `IterationWriteCheck` | Compare le champ relu après l'écriture à l'envoi : écarts en mots (titre, début, durée, itération disparue, ajoutée, non créée telle quelle, plus terminée) et ids des nouvelles itérations. |
+| `iterationWriteError(problems)` | Message enregistré sur la liaison quand la synchronisation des itérations s'arrête (trois premiers écarts). |
+| `iterationRefusal(message)` | Message gardé sur la liaison quand GitHub refuse une écriture sans changer le champ. |
+
+Internes : `ITERATION_FIELDS` (champs fusionnés), `valuesOf`, `overlaps`, `byStart` (tri par premier jour puis titre).

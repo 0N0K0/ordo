@@ -1111,6 +1111,9 @@ model Sprint {
   endDate           DateTime  @db.Date
   /// Iteration of a GitHub board the sprint mirrors.
   githubIterationId String?   @unique
+  /// Title, first day and length of the iteration at the last sync ({ title, startDate, duration }), or { removed: true }
+  /// once its iteration was deleted on GitHub (the sprint is then no longer sent).
+  githubSnapshot    Json?
   /// Archived: hidden by default and read only until restored.
   archivedAt        DateTime?
   createdAt         DateTime  @default(now())
@@ -1137,47 +1140,59 @@ model GithubConnection {
 
 /// Project synchronized with a GitHub Projects (v2) board, both ways.
 model GithubProjectLink {
-  id               String    @id @default(cuid())
-  projectId        String    @unique
-  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id                    String    @id @default(cuid())
+  projectId             String    @unique
+  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   /// Node id, URL and title of the board.
-  githubProjectId  String
-  url              String
-  label            String
+  githubProjectId       String
+  url                   String
+  label                 String
   /// Fields of the board synchronized (null: not synchronized).
-  statusFieldId    String?
-  priorityFieldId  String?
-  iterationFieldId String?
-  startFieldId     String?
-  endFieldId       String?
-  effortFieldId    String?
-  deadlineFieldId  String?
+  statusFieldId         String?
+  priorityFieldId       String?
+  iterationFieldId      String?
+  startFieldId          String?
+  endFieldId            String?
+  effortFieldId         String?
+  deadlineFieldId       String?
   /// Number field receiving the tracked time of the tasks, in hours (Ordo → GitHub only).
-  timeSpentFieldId String?
+  timeSpentFieldId      String?
   /// Task types: FIELD (single select field typeFieldId), ISSUE_TYPE (issue types of the organization), or null.
-  typeSource       String?
-  typeFieldId      String?
+  typeSource            String?
+  typeFieldId           String?
   /// Option of the board for each Ordo status / priority / type: { [ordoId]: optionId } (issue type id for ISSUE_TYPE).
-  statusOptions    Json      @default("{}")
-  priorityOptions  Json      @default("{}")
-  typeOptions      Json      @default("{}")
+  statusOptions         Json      @default("{}")
+  priorityOptions       Json      @default("{}")
+  typeOptions           Json      @default("{}")
   /// Assignees and tags synchronized with the assignees and labels of GitHub.
-  syncAssignees    Boolean   @default(true)
-  syncLabels       Boolean   @default(true)
+  syncAssignees         Boolean   @default(true)
+  syncLabels            Boolean   @default(true)
   /// New Ordo tasks become issues of this repository, or draft issues without one.
-  repositoryId     String?
-  repositoryName   String?
+  repositoryId          String?
+  repositoryName        String?
   /// Ordo tasks created before the link are sent too.
-  pushExisting     Boolean   @default(false)
-  enabled          Boolean   @default(true)
-  lastSyncAt       DateTime?
-  lastSyncError    String?
+  pushExisting          Boolean   @default(false)
+  enabled               Boolean   @default(true)
+  lastSyncAt            DateTime?
+  lastSyncError         String?
+  /// Iterations of the field paired with a sprint at the last sync (string ids): one without sprint since was
+  /// deleted in Ordo, and is not made a sprint again.
+  iterationIds          Json      @default("[]")
+  /// Sprints written as iterations on GitHub (off: iterations are only read, as sprints, and paired).
+  writeIterations       Boolean   @default(false)
+  /// Iteration write sent but not checked yet ({ sent, before, changes }): the next sync checks the field first.
+  iterationWritePending Json?
+  /// Why GitHub refused the last iteration write (the field unchanged): tried again at each sync.
+  iterationWriteRefusal String?
+  /// Set when GitHub did not keep an iteration write as sent: iterations are no longer synchronized until resumed
+  /// (« Reprendre »).
+  iterationWriteError   String?
   /// Counts of the last sync (created, updated… on each side).
-  lastSyncSummary  Json?
-  createdAt        DateTime  @default(now())
+  lastSyncSummary       Json?
+  createdAt             DateTime  @default(now())
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId      String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId           String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
 }
@@ -3495,4 +3510,6 @@ model RoutineCheck {
 
   @@id([routineId, date, slot])
   @@index([workspaceId])
+  /// The history of a day: the ticks done within it.
+  @@index([workspaceId, doneAt])
 }

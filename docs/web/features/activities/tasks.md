@@ -295,7 +295,7 @@ Classe `recurring` (dans la couche `app`) : les petites icônes devant le libell
 
 - `TaskContext` (interface) : données et fonctions partagées des écrans de tâches : `tasks`, `contributors`, `statuses`, `priorities`, `types`, `tags`, `projects`, `milestones` (dans l’ordre choisi), `milestoneOrder`, `milestoneRank`, `sprints`, `meId`, index `taskById`, `statusById`, `priorityById`, `typeById`, `tagById`, `contributorById`, `projectById`, `milestoneById`, `sprintById`, et :
   - `taskLabel(task, fromProjectId?)` : chemin complet « Client › Projet › #3 Parent › #12 Titre » ;
-  - `milestoneLabel`, `sprintLabel` : « Client › Projet › Nom » ;
+  - `milestoneLabel`, `sprintLabel` : le nom seul, sans le chemin du projet ;
   - `projectLabel(projectId)` : chemin du projet, « Sans projet » ;
   - `projectOptions(projects)`, `taskOptions(tasks)` : options d’arbre pour les sélecteurs ;
   - `rootOf(projectId)` : projet racine (`null` sans projet) ;
@@ -428,7 +428,8 @@ Héritage des sous-tâches à l’écran (règles : [Héritage](../../../busines
 - `inProjectTree(context, projectId)` : dit si un élément (tâche, routine) d'un projet est dans l'arborescence de projets d'un autre (sans projet : avec ceux sans projet). Utilisé aussi par `linkableRoutine` (routines) et par le champ « Documents » des tâches, routines et évènements.
 - `hasTreeLinks(task)` : la tâche a des liens qu'un passage dans une autre arborescence retire (parent, blocages, relations, jalon, sprints, documents de projet) ; décide de la confirmation « Changer de projet » du panneau (`TaskPanel`) et de la cellule « Projet » (`inline-cells`).
 - `linkableTasks(context, projectId, taskId, extra?)` : tâches liables (même arborescence, non archivées, pas elle-même).
-- `countSubtasks(context, taskId)` : nombre de sous-tâches à toute profondeur.
+- `subtasksOf(context, taskId)` : sous-tâches à toute profondeur (la confirmation de suppression y lit les items GitHub supprimés avec elles).
+- `countSubtasks(context, taskId)` : nombre de sous-tâches à toute profondeur (`subtasksOf`).
 
 ### `lib/task-effort.ts`
 

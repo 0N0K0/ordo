@@ -273,16 +273,21 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     save: occurrence
       ? async (_changes, input) => {
           const now = saveTarget.current;
-          const eventId = await update.mutateAsync({ id: now.eventId, input, scope: now.scope, occurrenceDate: now.occurrenceDate });
+          const { id: eventId, movedRule } = await update.mutateAsync({ id: now.eventId, input, scope: now.scope, occurrenceDate: now.occurrenceDate });
           if (now.scope === 'THIS') return;
           const split = now.scope === 'FOLLOWING' && eventId !== now.eventId;
-          // A series moved keeps its days of the week, of the month or of the year (as the API moves its rule).
+          // A series moved keeps its days of the week, of the month or of the year (as the API moves its rule); on the
+          // last day of the month, it takes the new rule chosen.
           const shift = daysBetween(now.occurrenceDate ?? input.startDate, input.startDate);
           const rule = input.recurrence as Recurrence | null | undefined;
           // The series the API saved the occurrence in: moved with the series (its weekdays changing week apart from
           // the others make series of their own), and, after a cut, its number of occurrences reduced by those before
           // it; the next saves start from it.
-          const series = rule ? (split && now.rule && now.occurrenceDate ? cutSeries(rule, now.rule, now.ruleStart, now.occurrenceDate, shift) : shiftedSeries(rule, now.ruleStart, shift)) : null;
+          const series = rule
+            ? split && now.rule && now.occurrenceDate
+              ? cutSeries(rule, now.rule, now.ruleStart, now.occurrenceDate, shift, movedRule)
+              : shiftedSeries(rule, now.ruleStart, shift, movedRule, input.startDate)
+            : null;
           const saved = series && seriesOn(series, input.startDate);
           if (saved && saved.rule !== rule) form.setFieldValue('recurrence', saved.rule);
           saveTarget.current = {

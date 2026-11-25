@@ -1,4 +1,4 @@
-import { ancestorsOf, type GithubLinkInput, mapById, subtreeOf } from '@ordo/shared';
+import { ancestorsOf, type GithubLinkInput, mapById, REMOVED_FROM_BOARD, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound } from '../../graphql/errors';
@@ -115,26 +115,57 @@ export async function saveGithubLink(projectId: string, input: GithubLinkInput):
     repositoryName: repository?.nameWithOwner ?? null,
     pushExisting: input.pushExisting,
     enabled: input.enabled,
+    writeIterations: input.writeIterations,
   };
   const current = await prisma.githubProjectLink.findUnique({ where: { projectId } });
-  // Another board: the tasks of the previous one are no longer linked.
+  // Another board: the tasks of the previous one are no longer linked. Another iteration field: the sprints are paired
+  // again with its iterations, by name. Either way, what the link knew of the iteration writes concerned the former field.
   if (current && current.githubProjectId !== board.id) await forgetLinks(projectId);
-  return current ? prisma.githubProjectLink.update({ where: { projectId }, data }) : prisma.githubProjectLink.create({ data: { ...data, projectId } });
+  else if (current && current.iterationFieldId !== input.iterationFieldId) await forgetSprintLinks([projectId, ...descendants]);
+  const forgotten = current && (current.githubProjectId !== board.id || current.iterationFieldId !== input.iterationFieldId);
+  return current
+    ? prisma.githubProjectLink.update({ where: { projectId }, data: { ...data, ...(forgotten && { iterationIds: [], iterationWritePending: Prisma.DbNull, iterationWriteRefusal: null, iterationWriteError: null }) } })
+    : prisma.githubProjectLink.create({ data: { ...data, projectId } });
 }
 
 /**
- * Clears the GitHub links of the tasks and sprints of a project tree.
+ * Clears the GitHub links of the tasks, sprints and comments of a project tree. A task off the board keeps its mark (not
+ * sent again after a new link) and a comment of someone else its GitHub author (never published under the account
+ * connected).
  * @param {string} projectId Project.
  * @returns {Promise<void>}
  */
 async function forgetLinks(projectId: string): Promise<void> {
   const tree = [projectId, ...(await relatives(projectId)).descendants];
-  await prisma.task.updateMany({
-    where: { projectId: { in: tree } },
-    data: { githubItemId: null, githubContentId: null, githubContentType: null, githubUrl: null, githubNumber: null, githubSnapshot: Prisma.DbNull },
-  });
-  await prisma.sprint.updateMany({ where: { projectId: { in: tree } }, data: { githubIterationId: null } });
-  await prisma.taskComment.updateMany({ where: { task: { projectId: { in: tree } } }, data: { githubCommentId: null, githubBody: null, githubAuthor: null } });
+  await prisma.$transaction([
+    prisma.task.updateMany({
+      where: { projectId: { in: tree } },
+      data: { githubItemId: null, githubContentId: null, githubUrl: null, githubNumber: null, githubSnapshot: Prisma.DbNull },
+    }),
+    prisma.task.updateMany({ where: { projectId: { in: tree }, githubContentType: { not: REMOVED_FROM_BOARD } }, data: { githubContentType: null } }),
+    prisma.taskComment.updateMany({ where: { task: { projectId: { in: tree } } }, data: { githubCommentId: null, githubBody: null } }),
+  ]);
+  await forgetSprintLinks(tree);
+}
+
+/**
+ * Resumes the iteration sync of a link stopped after a write GitHub did not keep as sent (« Reprendre »): it goes on at
+ * the next sync. Saving the settings does not resume it.
+ * @param {string} projectId Linked project.
+ * @returns {Promise<void>}
+ */
+export async function resumeGithubIterations(projectId: string): Promise<void> {
+  await orNotFound(prisma.githubProjectLink.findUnique({ where: { projectId } }), 'Lien GitHub');
+  await prisma.githubProjectLink.update({ where: { projectId }, data: { iterationWriteError: null } });
+}
+
+/**
+ * Clears the iterations of the sprints of a project tree and their snapshots.
+ * @param {string[]} tree Projects of the tree.
+ * @returns {Promise<void>}
+ */
+async function forgetSprintLinks(tree: string[]): Promise<void> {
+  await prisma.sprint.updateMany({ where: { projectId: { in: tree } }, data: { githubIterationId: null, githubSnapshot: Prisma.DbNull } });
 }
 
 /**

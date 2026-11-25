@@ -115,14 +115,16 @@ export async function extendCountdown(userId: string, id: string, minutes: numbe
 /**
  * Records that the end of a timer rang (its ring goes on as an `AlarmRing`): it no longer shows. Only a timer that
  * runs and has ended is recorded (a few seconds of clock gap between the device and the server allowed): one paused
- * or given more minutes elsewhere meanwhile, already rung or cancelled: nothing.
+ * or given more minutes elsewhere meanwhile, already rung or cancelled: nothing. Whether it was recorded is returned:
+ * a device whose clock is ahead rang it early, and records it again once its end has passed for the server.
  * @param {string} userId User.
  * @param {string} id Timer.
- * @returns {Promise<void>} Done.
+ * @returns {Promise<boolean>} Recorded now.
  */
-export async function ringCountdown(userId: string, id: string): Promise<void> {
+export async function ringCountdown(userId: string, id: string): Promise<boolean> {
   const now = Date.now();
-  await prisma.countdown.updateMany({ where: { id, userId, rungAt: null, endsAt: { lte: new Date(now + RING_CLOCK_GAP_MS) } }, data: { rungAt: new Date(now) } });
+  const { count } = await prisma.countdown.updateMany({ where: { id, userId, rungAt: null, endsAt: { lte: new Date(now + RING_CLOCK_GAP_MS) } }, data: { rungAt: new Date(now) } });
+  return count > 0;
 }
 
 /**

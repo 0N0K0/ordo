@@ -89,3 +89,21 @@ export function movedTo<T>(others: readonly T[], moved: T, index: number): T[] {
  * @returns {string} Key.
  */
 export const joinedKey = (...parts: readonly (string | number | null | undefined)[]): string => parts.join('|');
+
+/**
+ * Which of some items, each held under one key at most (a single row per key: a checklist per occurrence, a link per
+ * event and occurrence), may go from one key to another, in order: one whose new key is held (by an item staying, or
+ * one moved there before) stays where it is; one that goes frees its former key for the next ones.
+ * @param {readonly { before: string, after: string }[]} moves Keys of each item, before and after, in the order they go.
+ * @param {Iterable<string>} held Keys held by the items that do not move.
+ * @returns {boolean[]} Whether each one goes (same order).
+ */
+export function placedWithoutClash(moves: readonly { before: string; after: string }[], held: Iterable<string>): boolean[] {
+  const taken = new Set(held);
+  return moves.map(({ before, after }) => {
+    if (taken.has(after)) return false;
+    taken.delete(before);
+    taken.add(after);
+    return true;
+  });
+}

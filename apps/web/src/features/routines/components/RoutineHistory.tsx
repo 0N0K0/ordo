@@ -99,7 +99,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
               ? routineId
                 ? `Rien de prévu pour « ${byId.get(routineId)?.label ?? 'cette routine'} » ${label}.`
                 : `Aucune routine prévue ${label}.`
-              : `${countOf(doneCount, 'faite')} sur ${countOf(items.length, 'prévue')}. Cliquez sur une routine pour la cocher (à l’heure prévue par défaut) ou la décocher.`}
+              : `${countOf(doneCount, 'faite')} sur ${countOf(items.length, 'prévue')}. Une routine faite s’affiche le jour où elle a été cochée, une routine à faire chaque jour de son ouverture. Cliquez sur une routine pour la cocher, changer son heure de réalisation ou la décocher.`}
           </Text>
           <Paper withBorder radius="md" p="xs">
             <RoutineDayAgenda day={day} today={today} items={items} byId={byId} layers={layers} />

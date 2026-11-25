@@ -3,7 +3,7 @@ import { optionalText, readStoredList, requiredText, shortTextSchema } from '../
 import { labelFormSchema } from '../core/workspace';
 import { durationSchema, durationTextSchema, formatDuration } from '../tasks/time';
 import { daySchema } from './times';
-import { isRingtone, RING_KEY_MAX, type RingtoneId } from './ringing';
+import { isRingtone, RING_KEY_MAX, RING_LATE_MS, type RingtoneId } from './ringing';
 
 /**
  * Timers (« minuteurs », countdowns) and dead times (« temps morts ») of the tasks and routines:
@@ -156,6 +156,21 @@ export interface CountdownTiming {
 export function countdownRemaining(countdown: CountdownTiming, now: number = Date.now()): number {
   if (countdown.endsAt === null) return Math.max(0, countdown.remainingSeconds ?? 0);
   return Math.max(0, Math.ceil((new Date(countdown.endsAt).getTime() - now) / 1000));
+}
+
+/**
+ * Whether the ring of a timer the API did not record (its end not passed yet for the server: rung by a device whose
+ * clock is ahead) is to be recorded again: the timer still shows with the end it rang at (not paused, given more
+ * minutes, rung or cancelled elsewhere meanwhile), ended 6 hours ago at most (`RING_LATE_MS`).
+ * @param {CountdownTiming} rang Timer as it rang.
+ * @param {CountdownTiming | undefined} current Timer as it shows now (undefined: no longer shown).
+ * @param {number} [now] Now (ms). Optional. Default = Date.now().
+ * @returns {boolean} To record again.
+ */
+export function recordRingAgain(rang: CountdownTiming, current: CountdownTiming | undefined, now: number = Date.now()): boolean {
+  if (rang.endsAt === null || !current?.endsAt) return false;
+  const end = new Date(rang.endsAt).getTime();
+  return new Date(current.endsAt).getTime() === end && now - end <= RING_LATE_MS;
 }
 
 /** Name of a timer without one. */

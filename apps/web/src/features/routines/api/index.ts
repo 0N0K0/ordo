@@ -1,6 +1,6 @@
 import { routinesKey } from '../../../lib/query-keys';
 import { linkInputs } from '../../../lib/links';
-import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineBulkValues, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
+import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineBulkDoneAt, routineBulkValues, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
 import { ownedFields } from '../../../components/inheritance/inheritance';
 import { routineRow } from '../lib/routine-inheritance';
 import type { Reminder, RoutineBulkChanges } from '@ordo/shared';
@@ -20,10 +20,11 @@ import { useQuery, type QueryClient, type QueryKey } from '@tanstack/react-query
 import { tasksQueryKey } from '../../tasks/api';
 import { moveInTree } from '../../../components/tree/category-tree';
 import { graphql } from '../../../graphql';
-import type { CalendarEventScope, DeleteRoutineOccurrenceMutation, RoutineChecksQuery, RoutineOccurrencesQuery, RoutineSameDayChoice, RoutinesDataQuery } from '../../../graphql/graphql';
+import type { CalendarEventScope, DeleteRoutineOccurrenceMutation, RoutineOccurrencesQuery, RoutineSameDayChoice, RoutinesDataQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
 import { withSameDayChoice } from '../lib/same-day';
+import { withMovedRuleChoice } from '../../../components/recurrence/ask-moved-rule';
 import { timeQueryKey } from '../../time/api';
 import { conversionDialog } from '../lib/conversion-loss';
 import type { ConversionLoss } from '@ordo/shared';
@@ -85,6 +86,7 @@ const RoutinesDataDocument = graphql(`
         dueTime
         optional
         done
+        doneAt
         windows
       }
       windowFrom
@@ -228,8 +230,8 @@ const BulkSetRoutinesArchivedDocument = graphql(`
 `);
 
 const BulkSetRoutinesDoneDocument = graphql(`
-  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {
-    bulkSetRoutinesDone(ids: $ids, done: $done)
+  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!, $doneOn: Date, $dates: [Date!]) {
+    bulkSetRoutinesDone(ids: $ids, done: $done, doneOn: $doneOn, dates: $dates)
   }
 `);
 
@@ -262,8 +264,20 @@ const ChangeRoutineOccurrenceDocument = graphql(`
     $dueTime: String
     $confirmLoss: Boolean
     $sameDay: RoutineSameDayChoice
+    $movedRule: JSON
   ) {
-    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss, sameDay: $sameDay)
+    changeRoutineOccurrence(
+      id: $id
+      date: $date
+      scope: $scope
+      to: $to
+      slot: $slot
+      fromTime: $fromTime
+      dueTime: $dueTime
+      confirmLoss: $confirmLoss
+      sameDay: $sameDay
+      movedRule: $movedRule
+    )
   }
 `);
 
@@ -286,45 +300,12 @@ const RemoveRoutineMoveDocument = graphql(`
   }
 `);
 
-const RoutineChecksDocument = graphql(`
-  query RoutineChecks($from: Date!, $to: Date!) {
-    routineChecks(from: $from, to: $to) {
-      routineId
-      date
-      slot
-      doneAt
-      fromTime
-      dueTime
-    }
-  }
-`);
-
-export type RoutineCheck = RoutineChecksQuery['routineChecks'][number];
-
 /** Comment deleted with an occurrence, given back by « Annuler ». */
 export type CommentSnapshot = DeleteRoutineOccurrenceMutation['deleteRoutineOccurrence']['comments'][number];
 
-/**
- * Times of the day ticked in a period.
- * @param {string} from First day (YYYY-MM-DD).
- * @param {string} to Last day (YYYY-MM-DD).
- * @returns {Promise<RoutineCheck[]>} Ticks, latest first.
- */
-const fetchChecks = async (from: string, to: string): Promise<RoutineCheck[]> => (await execute(RoutineChecksDocument, { from, to })).routineChecks;
-
-/**
- * Times of the day ticked as done in a period (both days included), latest first: refreshed with the routines.
- * @param {string} from First day (YYYY-MM-DD).
- * @param {string} to Last day (YYYY-MM-DD).
- * @returns {UseQueryResult<RoutineCheck[]>} Query state.
- */
-export function useRoutineChecks(from: string, to: string) {
-  return useQuery({ queryKey: [...routinesKey, 'checks', from, to], queryFn: () => fetchChecks(from, to) });
-}
-
 const RoutineOccurrencesDocument = graphql(`
-  query RoutineOccurrences($from: Date!, $to: Date!) {
-    routineOccurrences(from: $from, to: $to) {
+  query RoutineOccurrences($from: Date!, $to: Date!, $doneInPeriod: Boolean) {
+    routineOccurrences(from: $from, to: $to, doneInPeriod: $doneInPeriod) {
       routineId
       date
       dueDate
@@ -339,6 +320,7 @@ const RoutineOccurrencesDocument = graphql(`
         dueTime
         optional
         done
+        doneAt
         windows
       }
     }
@@ -348,17 +330,19 @@ const RoutineOccurrencesDocument = graphql(`
 export type RoutineOccurrence = RoutineOccurrencesQuery['routineOccurrences'][number];
 
 /**
- * Occurrences of the routines in a period, with their times of the day ticked: refreshed with the routines. The
- * cancelled ones are there too (`cancelled`, shown struck through) and, for an archived routine, those due before its
- * archiving (`archived`, read only).
- * @param {{ from: string, to: string } | null} range Period (both days included), or null: none.
+ * Occurrences of the routines in a period, with their times of the day ticked (and when): refreshed with the routines.
+ * The cancelled ones are there too (`cancelled`, shown struck through) and, for an archived routine, those due before
+ * its archiving (`archived`, read only); with `doneInPeriod`, those outside the period with a time of the day done
+ * within it too (the history of a day).
+ * @param {{ from: string, to: string, doneInPeriod?: boolean } | null} range Period (both days included), or null: none.
  * @param {boolean} [enabled] Loaded. Optional. Default = true.
  * @returns {UseQueryResult<RoutineOccurrence[]>} Query state.
  */
-export function useRoutineOccurrences(range: { from: string; to: string } | null, enabled = true) {
+export function useRoutineOccurrences(range: { from: string; to: string; doneInPeriod?: boolean } | null, enabled = true) {
+  const doneInPeriod = range?.doneInPeriod ?? false;
   return useQuery({
-    queryKey: [...routinesKey, 'occurrences', range?.from, range?.to],
-    queryFn: async (): Promise<RoutineOccurrence[]> => (await execute(RoutineOccurrencesDocument, { from: range!.from, to: range!.to })).routineOccurrences,
+    queryKey: [...routinesKey, 'occurrences', range?.from, range?.to, ...(doneInPeriod ? ['done'] : [])],
+    queryFn: async (): Promise<RoutineOccurrence[]> => (await execute(RoutineOccurrencesDocument, { from: range!.from, to: range!.to, doneInPeriod })).routineOccurrences,
     enabled: enabled && range !== null,
   });
 }
@@ -508,11 +492,18 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
  * @param {Routine} routine Routine.
  * @param {number[]} indexes Times of the day.
  * @param {boolean} done Ticked.
+ * @param {string | null | ((slot: Routine['slots'][number]) => string | null)} [doneAt] When they were done (ticked), or for each; null: now. Optional. Default = now.
  * @returns {Routine} Changed routine.
  */
-function withSlotsDone(routine: Routine, indexes: number[], done: boolean): Routine {
+function withSlotsDone(routine: Routine, indexes: number[], done: boolean, doneAt: string | null | ((slot: Routine['slots'][number]) => string | null) = null): Routine {
   if (!routine.currentDate) return routine;
-  const slots = routine.slots.map((slot) => (indexes.includes(slot.index) ? { ...slot, done } : slot));
+  /**
+   * When a time of the day ticked was done: the time given (for it), else now.
+   * @param {Routine['slots'][number]} slot Time of the day.
+   * @returns {string | null} Instant (ISO); null: unticked.
+   */
+  const at = (slot: Routine['slots'][number]) => (done ? ((typeof doneAt === 'function' ? doneAt(slot) : doneAt) ?? new Date().toISOString()) : null);
+  const slots = routine.slots.map((slot) => (indexes.includes(slot.index) ? { ...slot, done, doneAt: at(slot) } : slot));
   const day = routine.currentDate;
   const others = routine.doneDates.filter((value) => value !== day);
   const any = slots.some((slot) => slot.done);
@@ -747,7 +738,7 @@ export function useRoutineMutations() {
     ),
     setDone: useRoutineMutation(
       async (variables: { id: string; done: boolean; date?: string | null; slot?: number | null; doneAt?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
-      (data, { id, done, date, slot }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done))),
+      (data, { id, done, date, slot, doneAt }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done, doneAt))),
     ),
     // Onto a day that has its own occurrence: keeping both or merging them is asked first (unless given); cancelled,
     // nothing moves. Gives the day that identifies the occurrence now, and whether it was merged into that day's.
@@ -759,10 +750,13 @@ export function useRoutineMutations() {
       });
       return { key, merged: chosen === 'MERGE' };
     }),
+    // A rule on the last day of the month moved to another day: its new rule is asked first (`withMovedRuleChoice`).
     changeOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope; to: string; slot: number; fromTime: string | null; dueTime: string | null }) =>
-        withLossConfirmation(async (confirmLoss) =>
-          withSameDayChoice(async (sameDay) => (await execute(ChangeRoutineOccurrenceDocument, { ...variables, confirmLoss, sameDay } as never)).changeRoutineOccurrence),
+        withMovedRuleChoice((movedRule) =>
+          withLossConfirmation(async (confirmLoss) =>
+            withSameDayChoice(async (sameDay) => (await execute(ChangeRoutineOccurrenceDocument, { ...variables, confirmLoss, sameDay, movedRule } as never)).changeRoutineOccurrence),
+          ),
         ),
     ),
     deleteOccurrence: useRoutineMutation(
@@ -782,19 +776,26 @@ export function useRoutineMutations() {
       (data, { ids, archived }) => archiveInCache(data, ids, archived),
     ),
     bulkDone: useRoutineMutation(
-      async (variables: { ids: string[]; done: boolean }) => (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
-      (data, { ids, done }) => ({
-        ...data,
-        routines: data.routines.map((routine) =>
-          ids.includes(routine.id) && routine.currentDate
-            ? withSlotsDone(
-                routine,
-                routine.slots.map((slot) => slot.index),
-                done,
-              )
-            : routine,
-        ),
-      }),
+      // Ticked « Faites le » a day (doneOn): each time of the day at its scheduled time that day, as the API reads it;
+      // dates: the occurrence of each (the one shown).
+      async (variables: { ids: string[]; done: boolean; doneOn?: string | null; dates?: string[] | null }) => (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
+      (data, { ids, done, doneOn }) => {
+        const now = new Date();
+        return {
+          ...data,
+          routines: data.routines.map((routine) =>
+            ids.includes(routine.id) && routine.currentDate
+              ? withSlotsDone(
+                  routine,
+                  // Those ticked already keep their time.
+                  routine.slots.filter((slot) => !done || !slot.done).map((slot) => slot.index),
+                  done,
+                  (slot) => (doneOn ? routineBulkDoneAt(doneOn, slot, now).toISOString() : null),
+                )
+              : routine,
+          ),
+        };
+      },
     ),
     bulkRemove: useRoutineMutation(
       async (variables: { ids: string[]; deleteSubRoutines: boolean }) => (await execute(BulkDeleteRoutinesDocument, variables)).bulkDeleteRoutines,

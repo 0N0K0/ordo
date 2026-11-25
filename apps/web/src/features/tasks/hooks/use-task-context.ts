@@ -39,9 +39,9 @@ export interface TaskContext {
    * seen from elsewhere (its number is only unique in its project), "Titre" alone for a task of no project.
    */
   taskLabel: (task: Task, fromProjectId?: string | null) => string;
-  /** Full path of a milestone: "Client › Projet › Jalon". */
+  /** Label of a milestone, its name alone (« Jalon »), without the path of its project. */
   milestoneLabel: (milestone: { projectId: string; label: string }) => string;
-  /** Full path of a sprint: "Client › Projet › Sprint". */
+  /** Label of a sprint, its name alone (« Sprint »), without the path of its project. */
   sprintLabel: (sprint: { projectId: string; label: string }) => string;
   statusById: Map<string, TaskStatus>;
   priorityById: Map<string, TaskLabel>;
@@ -207,8 +207,8 @@ export function useTaskContext() {
       contributorName: personName,
       taskById: mapById(tasks),
       taskLabel: taskPath,
-      milestoneLabel: (milestone) => `${placeOf(milestone.projectId)}${LEVEL}${milestone.label}`,
-      sprintLabel: (sprint) => `${placeOf(sprint.projectId)}${LEVEL}${sprint.label}`,
+      milestoneLabel: (milestone) => milestone.label,
+      sprintLabel: (sprint) => sprint.label,
       statusById,
       priorityById: mapById(data.taskPriorities),
       typeById: mapById(data.taskTypes),

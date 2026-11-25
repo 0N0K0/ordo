@@ -2,7 +2,7 @@ import { calendarQueryKey, SLOT_DEPENDENT_KEYS, birthdaysQueryKey, tasksQueryKey
 import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
-import { countedSchedules, reminderDayRange, readScheduleCases, readScheduleExceptions, slotSchedules, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
+import { countedSchedules, reminderDayRange, readScheduleCases, readScheduleExceptions, slotSchedules, type Recurrence, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
 import type {
   BirthdaysQuery,
   CalendarEventInput,
@@ -15,6 +15,7 @@ import type {
 } from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
+import { withMovedRuleChoice } from '../../../components/recurrence/ask-moved-rule';
 import { treasuryKey } from '../../treasury/api';
 import { archivedIds, unarchived, useSetArchived } from '../../../lib/archive';
 
@@ -457,8 +458,8 @@ const CreateCalendarEventDocument = graphql(`
 `);
 
 const UpdateCalendarEventDocument = graphql(`
-  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {
-    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)
+  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean, $movedRule: JSON) {
+    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss, movedRule: $movedRule)
   }
 `);
 
@@ -624,9 +625,17 @@ export function useCalendarCategoryMutations() {
 export function useCalendarEventMutations() {
   return {
     create: useCalendarMutation(async (input: CalendarEventInput) => (await execute(CreateCalendarEventDocument, { input })).createCalendarEvent),
+    // A series on the last day of the month moved to another day: its new rule is asked first (`withMovedRuleChoice`);
+    // gives the event saved and that rule (none: not asked).
     update: useCalendarMutation(
-      async (variables: { id: string; input: CalendarEventInput; scope: CalendarEventScope; occurrenceDate: string | null }) =>
-        withLossConfirmation(async (confirmLoss) => (await execute(UpdateCalendarEventDocument, { ...variables, confirmLoss })).updateCalendarEvent),
+      async (variables: { id: string; input: CalendarEventInput; scope: CalendarEventScope; occurrenceDate: string | null }) => {
+        const asked: { rule: Recurrence | null } = { rule: null };
+        const id = await withMovedRuleChoice((movedRule) => {
+          asked.rule = movedRule;
+          return withLossConfirmation(async (confirmLoss) => (await execute(UpdateCalendarEventDocument, { ...variables, confirmLoss, movedRule })).updateCalendarEvent);
+        });
+        return { id, movedRule: asked.rule };
+      },
       // A change of project attaches the contributors to it: the contributors (task data) are refreshed too.
       [tasksQueryKey],
     ),

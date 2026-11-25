@@ -3,7 +3,7 @@ import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema, UserError } from '../core/rules';
 import { addDays, daysBetween, monthOfDay, weekdayOfDate, yearOfDay } from '../dates/days';
-import { DEFAULT_RECURRENCE, movedWeekdays, ONE_DAY, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
+import { DEFAULT_RECURRENCE, isLastDayRule, movedWeekdays, ONE_DAY, proposedMovedRule, RuleChoiceRequired, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
@@ -739,15 +739,18 @@ const sameHours = (a: ScheduleSlotTime, b: ScheduleSlotTime) => a.allDay === b.a
 
 /**
  * Case of a slot moved from a day to another (or its hours changed), keeping the rhythm of its case: weekly on the
- * new weekday, monthly and yearly on the new day of the month, every n days and weeks counted from the new day.
+ * new weekday, monthly and yearly on the new day of the month, every n days and weeks counted from the new day. On the
+ * last day of the month: the new rule chosen; none chosen, refused with the rule proposed for the new day
+ * (`RuleChoiceRequired`).
  * @param {ScheduleCase} item Case of the slot.
  * @param {string} periodStart Start of the period of the case.
  * @param {string} date Day of the slot.
  * @param {ScheduleSlotTime} change New day and hours.
  * @param {string | null} since First day the case applies.
+ * @param {Recurrence | null} chosen New rule chosen for a rule on the last day of the month.
  * @returns {ScheduleCase} Case.
  */
-function movedCase(item: ScheduleCase, periodStart: string, date: string, change: ScheduleSlotTime, since: string | null): ScheduleCase {
+function movedCase(item: ScheduleCase, periodStart: string, date: string, change: ScheduleSlotTime, since: string | null, chosen: Recurrence | null): ScheduleCase {
   const to = change.date;
   const result: ScheduleCase = { ...item, times: { allDay: change.allDay, ranges: change.allDay ? [] : [{ start: change.start, end: change.end }] }, since };
   if (to === date || !item.rule) return result;
@@ -762,6 +765,10 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
     return { ...result, anchor: moved.anchor, rule: moved.rule };
   }
   if (rule.frequency === 'DAILY') return { ...result, anchor };
+  if (isLastDayRule(rule)) {
+    if (!chosen) throw new RuleChoiceRequired(proposedMovedRule(rule, to), to);
+    return { ...result, anchor, rule: chosen };
+  }
   return { ...result, anchor, rule: ruleMovedTo(rule, to) };
 }
 
@@ -774,14 +781,15 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
  * @param {string} periodStart First day of its period (before the move).
  * @param {string | null} periodEnd Last day of its period (before the move), none: open.
  * @param {number} days Days moved (negative: earlier).
+ * @param {Recurrence | null} chosen New rule chosen for a rule on the last day of the month (`shiftedRulePieces`).
  * @returns {ScheduleCase[]} Case, or its pieces.
  */
-function shiftedCases(item: ScheduleCase, periodStart: string, periodEnd: string | null, days: number): ScheduleCase[] {
+function shiftedCases(item: ScheduleCase, periodStart: string, periodEnd: string | null, days: number, chosen: Recurrence | null): ScheduleCase[] {
   const shift = (day: string | null) => day && addDays(day, days);
   const result: ScheduleCase = { ...item, since: shift(item.since), until: shift(item.until), anchor: shift(item.anchor) };
   if (!item.rule) return [result];
   const needsFirst = item.rule.frequency === 'MONTHLY' || item.rule.frequency === 'YEARLY' || (item.rule.frequency === 'WEEKLY' && !item.rule.weekdays.length);
-  const pieces = shiftedRulePieces(item.rule, needsFirst ? caseFirstDay(item, periodStart, periodEnd) : null, days, item.anchor ?? item.since ?? periodStart);
+  const pieces = shiftedRulePieces(item.rule, needsFirst ? caseFirstDay(item, periodStart, periodEnd) : null, days, item.anchor ?? item.since ?? periodStart, chosen);
   return pieces.map((piece) => ({ ...result, rule: piece.rule, anchor: piece.anchor ?? result.anchor }));
 }
 
@@ -799,22 +807,30 @@ function caseFirstDay(item: ScheduleCase, periodStart: string, periodEnd: string
   return null;
 }
 
+/** Refusal of a schedule moved whole with several cases on the last day of the month: one new rule cannot do for all. */
+export const LAST_DAY_CASES_REFUSAL = 'Plusieurs cas tombent le dernier jour du mois : changez leur règle avant de déplacer toute la période.';
+
 /**
- * Schedule moved with its whole period by a number of days: its start and end, its cases and its exceptions.
+ * Schedule moved with its whole period by a number of days: its start and end, its cases and its exceptions. A case on
+ * the last day of the month takes the new rule chosen (refused without it, `shiftedRulePieces`); several such cases are
+ * refused (`LAST_DAY_CASES_REFUSAL`).
  * @param {WorkScheduleRule} schedule Schedule.
  * @param {number} days Days moved (negative: earlier).
+ * @param {Recurrence | null} chosen New rule chosen for its case on the last day of the month.
  * @returns {ChangedSchedule} Period, cases and exceptions.
  */
-function shiftedSchedule(schedule: WorkScheduleRule, days: number): ChangedSchedule {
+function shiftedSchedule(schedule: WorkScheduleRule, days: number, chosen: Recurrence | null): ChangedSchedule {
+  const lastDayCases = [...schedule.cases, ...schedule.exceptions.flatMap((exception) => exception.cases)].filter((item) => isLastDayRule(item.rule));
+  if (days !== 0 && lastDayCases.length > 1) throw new UserError(LAST_DAY_CASES_REFUSAL);
   return {
     startDate: addDays(schedule.startDate, days),
     endDate: schedule.endDate && addDays(schedule.endDate, days),
-    cases: schedule.cases.flatMap((item) => shiftedCases(item, schedule.startDate, schedule.endDate, days)),
+    cases: schedule.cases.flatMap((item) => shiftedCases(item, schedule.startDate, schedule.endDate, days, chosen)),
     exceptions: schedule.exceptions.map((exception) => ({
       ...exception,
       from: addDays(exception.from, days),
       to: addDays(exception.to, days),
-      cases: exception.cases.flatMap((item) => shiftedCases(item, exception.from, exception.to, days)),
+      cases: exception.cases.flatMap((item) => shiftedCases(item, exception.from, exception.to, days, chosen)),
     })),
   };
 }
@@ -833,19 +849,22 @@ export interface ChangedSchedule {
  * following ones (its case ends the day before, a new one follows with the change), or every day of its case. An
  * éphéméride moved to another day moves with its whole period by as many days when its period is a single day
  * (whatever the scope) or for every day (`ALL`); otherwise the day stays within the period. Refusals in the words of
- * the schedule (`slotWords`).
+ * the schedule (`slotWords`). A case on the last day of the month moved to another day takes the new rule chosen
+ * (`movedRule`); none chosen, refused with the rule proposed (`RuleChoiceRequired`): the web asks it, then runs the
+ * change again with it.
  * @param {WorkScheduleRule} schedule Schedule.
  * @param {ScheduleSlotTime} slot Slot changed.
  * @param {ScheduleSlotTime | null} change New day and hours (null: deleted).
  * @param {ScheduleSlotScope} scope Days changed.
+ * @param {Recurrence | null} [movedRule] New rule chosen for a case on the last day of the month. Optional. Default = none.
  * @returns {ChangedSchedule} New period, cases and exceptions.
  */
-export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSlotTime, change: ScheduleSlotTime | null, scope: ScheduleSlotScope): ChangedSchedule {
+export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSlotTime, change: ScheduleSlotTime | null, scope: ScheduleSlotScope, movedRule: Recurrence | null = null): ChangedSchedule {
   if (change && !change.allDay && change.end <= change.start) throw new UserError(END_AFTER_START);
   const words = slotWords(schedule.ephemeris);
   const period = { startDate: schedule.startDate, endDate: schedule.endDate };
   if (change && change.date !== slot.date && schedule.ephemeris && (schedule.startDate === schedule.endDate || scope === 'ALL')) {
-    const moved = shiftedSchedule(schedule, daysBetween(slot.date, change.date));
+    const moved = shiftedSchedule(schedule, daysBetween(slot.date, change.date), movedRule);
     const there = { ...slot, date: change.date };
     return sameHours(there, change) ? moved : changedScheduleSlot({ ...schedule, ...moved }, there, change, 'ALL');
   }
@@ -884,7 +903,7 @@ export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSl
       since,
     });
   }
-  if (change) pieces.push(movedCase(item, periodStart, slot.date, change, split && change.date < slot.date ? change.date : since));
+  if (change) pieces.push(movedCase(item, periodStart, slot.date, change, split && change.date < slot.date ? change.date : since, movedRule));
   const nextCases = [...cases.slice(0, caseIndex), ...pieces, ...cases.slice(caseIndex + 1)];
   if (exception) {
     return { ...period, cases: [...schedule.cases], exceptions: schedule.exceptions.map((other) => (other === exception ? { ...other, cases: nextCases } : other)) };

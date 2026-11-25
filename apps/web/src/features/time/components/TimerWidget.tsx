@@ -1,7 +1,6 @@
 import { Group, Stack, Text } from '@mantine/core';
-import { DURATION_MAX_SECONDS, entrySeconds, formatClock } from '@ordo/shared';
+import { DURATION_MAX_SECONDS, entrySeconds, formatClock, reachedDurationMax } from '@ordo/shared';
 import { useEffect, useRef } from 'react';
-import { notifyInfo } from '../../../lib/notify';
 import { StopIcon } from '@phosphor-icons/react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RunningPill } from '../../../components/feedback/RunningPill';
@@ -11,7 +10,7 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { timeQueryKey, useRunningTimers, type TimeEntry } from '../api';
 import { tasksQueryKey } from '../../tasks/api';
 import { useQueryClient } from '@tanstack/react-query';
-import { useStopTimer, wasStoppedByHand } from '../hooks/use-stop-timer';
+import { notifyTimerCap, useStopTimer, wasStoppedByHand } from '../hooks/use-stop-timer';
 import { entrySubject } from '../lib/entry-subject';
 import { RunningTimer } from './TimerCard';
 import { TimerControls } from './TimerControls';
@@ -68,7 +67,8 @@ function RunningRow({ entry }: { entry: TimeEntry }) {
  * @returns {JSX.Element} Pill.
  */
 function SeveralRunning({ entries }: { entries: TimeEntry[] }) {
-  const { stopAll, isPending } = useStopTimer();
+  const { context } = useTaskContext();
+  const { stopAll, isPending } = useStopTimer((entry) => entrySubject(entry, context));
   const paused = entries.every((entry) => entry.pausedAt !== null);
   const now = useNow(!paused);
   return (
@@ -106,8 +106,8 @@ function useTimerCapNotice(entries: readonly TimeEntry[]): void {
     const now = Date.now();
     for (const entry of previous.current) {
       // Stopped by hand in this tab: its own toast tells the time recorded.
-      if (entries.some((item) => item.id === entry.id) || wasStoppedByHand(entry.id) || entrySeconds(entry, now) < DURATION_MAX_SECONDS) continue;
-      notifyInfo({ id: `timer-cap-${entry.id}`, title: 'Chrono arrêté après 24 heures', lines: [entrySubject(entry, context), 'Sa durée est de 24 heures, le maximum d’un temps.'] });
+      if (entries.some((item) => item.id === entry.id) || wasStoppedByHand(entry.id) || !reachedDurationMax(entry, now)) continue;
+      notifyTimerCap(entry.id, entrySubject(entry, context));
     }
     previous.current = entries;
   }, [entries, context]);

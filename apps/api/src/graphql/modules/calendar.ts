@@ -14,7 +14,7 @@ import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
 import { BIRTH_DATE_DESCRIPTION } from '../person-fields';
 import * as birthdays from '../../services/calendar/birthdays';
-import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
+import { chosenRule, CONFIRM_LOSS_DESCRIPTION, MOVED_RULE_DESCRIPTION } from '../occurrence-fields';
 import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
@@ -106,6 +106,15 @@ const ownFields = (t: PothosSchemaTypes.ObjectFieldBuilder<BuilderTypes, events.
 const EventSeriesFields = builder.objectRef<events.EventSeriesFields>('CalendarEventSeriesFields').implement({
   description: 'Fields of an occurrence changed on its own as its series has them on its date.',
   fields: (t) => ownFields(t),
+});
+
+const EventRoutineLinkRef = builder.objectRef<{ routineId: string; date: string; shownDate: string }>('EventRoutineLink').implement({
+  description: 'Occurrence of a routine (its day) an event is about.',
+  fields: (t) => ({
+    routineId: t.exposeID('routineId'),
+    date: t.exposeString('date', { description: 'Day that identifies the occurrence (YYYY-MM-DD): its due day, or the day of its rule when moved onto a day that has its own and kept apart.' }),
+    shownDate: t.exposeString('shownDate', { description: 'Day the occurrence shows on (a day of the event; YYYY-MM-DD).' }),
+  }),
 });
 
 const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEventOccurrence').implement({
@@ -235,15 +244,6 @@ const BirthdayLookInput = builder.inputType('BirthdayLookInput', {
 const ScheduleSubscriptionLookInput = builder.inputType('ScheduleSubscriptionLookInput', {
   description: 'Color and display of a kind of schedules subscribed to, in this workspace; null: those of the kind.',
   fields: (t) => ({ color: t.string(), dayDisplay: t.string(), dayBar: t.boolean(), monthDisplay: t.string() }),
-});
-
-const EventRoutineLinkRef = builder.objectRef<{ routineId: string; date: string; shownDate: string }>('EventRoutineLink').implement({
-  description: 'Occurrence of a routine (its day) an event is about.',
-  fields: (t) => ({
-    routineId: t.exposeID('routineId'),
-    date: t.exposeString('date', { description: 'Day that identifies the occurrence (YYYY-MM-DD): its due day, or the day of its rule when moved onto a day that has its own and kept apart.' }),
-    shownDate: t.exposeString('shownDate', { description: 'Day the occurrence shows on (a day of the event; YYYY-MM-DD).' }),
-  }),
 });
 
 const EventRoutineLinkInput = builder.inputType('EventRoutineLinkInput', {
@@ -546,8 +546,10 @@ builder.mutationFields((t) => ({
       scope: t.arg({ type: EventScope, required: true }),
       occurrenceDate: t.arg({ type: 'Date' }),
       confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
+      movedRule: t.arg({ type: 'JSON', description: MOVED_RULE_DESCRIPTION }),
     },
-    resolve: async (_root, { id, input, scope, occurrenceDate, confirmLoss }) => (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate, confirmLoss ?? false)).id,
+    resolve: async (_root, { id, input, scope, occurrenceDate, confirmLoss, movedRule }) =>
+      (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate, confirmLoss ?? false, chosenRule(movedRule))).id,
   }),
   setCalendarEventCalledOff: t.boolean({
     description: 'Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.',

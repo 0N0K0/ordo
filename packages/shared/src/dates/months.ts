@@ -18,6 +18,14 @@ export function ofMonth(month: number): string {
 }
 
 /**
+ * The last day of the month in words, without article: « dernier jour du mois », or of a month: « dernier jour de
+ * février », « dernier jour d’avril ».
+ * @param {number | null} month Month (1 to 12), or null: every month.
+ * @returns {string} Words.
+ */
+export const lastDayWords = (month: number | null): string => `dernier jour ${month === null ? 'du mois' : ofMonth(month)}`;
+
+/**
  * Ordinal of a number in French, the same everywhere: « 1er », « 2e », « 3e ».
  * @param {number} value Number (1 or more).
  * @returns {string} Ordinal.

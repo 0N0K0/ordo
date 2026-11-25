@@ -206,16 +206,25 @@ function stoppedAt(entry: TimeEntry, now: number): { endedAt: Date; duration: nu
 }
 
 /**
- * Condition of a write on a running entry: only while it still runs as read (stopped, paused, resumed or discarded
- * meanwhile, elsewhere or after 24 hours: nothing is written on stale values).
+ * Condition of a write on a running entry: only while it still runs as read (stopped, paused, resumed, its start
+ * changed or discarded meanwhile, elsewhere or after 24 hours: nothing is written on stale values).
  * @param {TimeEntry} entry Running entry, as read.
  * @returns {Prisma.TimeEntryWhereInput} Prisma `where`.
  */
-const stillAsRead = (entry: TimeEntry): Prisma.TimeEntryWhereInput => ({ id: entry.id, endedAt: null, pausedAt: entry.pausedAt, pausedSeconds: entry.pausedSeconds });
+const stillAsRead = (entry: TimeEntry): Prisma.TimeEntryWhereInput => ({
+  id: entry.id,
+  endedAt: null,
+  startedAt: entry.startedAt,
+  pausedAt: entry.pausedAt,
+  pausedSeconds: entry.pausedSeconds,
+});
+
+/** Refusal of a stop that lost twice to a change of the timer made meanwhile (it still runs). */
+const TIMER_CHANGED = 'Ce chrono vient d’être modifié : réessayez.';
 
 /**
- * Stops a running entry (`stoppedAt`: at most 24 hours), unless it was stopped, paused, resumed or discarded meanwhile
- * (elsewhere, or after 24 hours).
+ * Stops a running entry (`stoppedAt`: at most 24 hours), unless it was stopped, paused, resumed, its start changed or
+ * discarded meanwhile (elsewhere, or after 24 hours).
  * @param {TimeEntry} entry Running entry, as read.
  * @returns {Promise<TimeEntry | null>} Stopped entry, null when it no longer ran as read.
  */
@@ -226,9 +235,23 @@ async function stopEntry(entry: TimeEntry): Promise<TimeEntry | null> {
 }
 
 /**
+ * Stops a running entry asked by hand (« Arrêter », « Arrêter tout »): changed meanwhile (paused, resumed, its start
+ * changed elsewhere) but still running, it is read again and stopped once more from its fresh values.
+ * @param {TimeEntry} entry Running entry, as read.
+ * @returns {Promise<TimeEntry | null>} Stopped entry, null when it does not run any more or was changed again meanwhile.
+ */
+async function stopByHand(entry: TimeEntry): Promise<TimeEntry | null> {
+  const stopped = await stopEntry(entry);
+  if (stopped) return stopped;
+  const fresh = await runningEntry(entry.id);
+  return fresh ? stopEntry(fresh) : null;
+}
+
+/**
  * Stops the timers of the workspace that have run 24 hours (pauses left out, the longest time): each ends once its 24
  * hours are reached, its duration 24 hours, even when the app is closed (`scheduleTimerCap`). Each is written only
- * while it still runs as read: one stopped, paused or discarded meanwhile is left as it is.
+ * while it still runs as read: one stopped, paused, resumed, its start changed or discarded meanwhile is left as it is
+ * (the next pass sees it again).
  * @returns {Promise<number>} Timers stopped.
  */
 export async function capRunningTimers(): Promise<number> {
@@ -247,22 +270,26 @@ export function scheduleTimerCap(): void {
 }
 
 /**
- * Stops a running timer (a paused timer ends when its pause started); the others keep running.
+ * Stops a running timer (a paused timer ends when its pause started); the others keep running. Changed meanwhile, it
+ * is read again (`stopByHand`); changed again and still running: « Ce chrono vient d’être modifié : réessayez. ».
  * @param {string} id Time entry id.
  * @returns {Promise<TimeEntry | null>} Stopped entry, or null when it does not run (any more).
  */
 export async function stopTimer(id: string): Promise<TimeEntry | null> {
   const entry = await runningEntry(id);
-  return entry ? stopEntry(entry) : null;
+  if (!entry) return null;
+  const stopped = await stopByHand(entry);
+  if (stopped || !(await runningEntry(id))) return stopped;
+  throw clientError('BAD_USER_INPUT', TIMER_CHANGED);
 }
 
 /**
- * « Arrêter tout »: stops every running timer of the workspace.
+ * « Arrêter tout »: stops every running timer of the workspace (each changed meanwhile read again, `stopByHand`).
  * @returns {Promise<TimeEntry[]>} Entries this call stopped (not those stopped elsewhere meanwhile).
  */
 export async function stopAllTimers(): Promise<TimeEntry[]> {
   const running = await prisma.timeEntry.findMany({ where: { endedAt: null } });
-  return (await Promise.all(running.map(stopEntry))).filter((entry): entry is TimeEntry => entry !== null);
+  return (await Promise.all(running.map(stopByHand))).filter((entry): entry is TimeEntry => entry !== null);
 }
 
 /**
@@ -300,12 +327,14 @@ export const startTimer = automated(async function startTimer(input: Omit<TimeEn
 
 /**
  * Pauses or resumes a running timer, only while it still runs as read (changed meanwhile: read again; stopped
- * meanwhile: « Ce chrono ne tourne plus. », a finished time never keeps a pause).
+ * meanwhile: « Ce chrono ne tourne plus. », a finished time never keeps a pause). The timers past their 24 hours are
+ * stopped first (`capRunningTimers`): one of them is no longer running.
  * @param {string} id Time entry id.
  * @param {boolean} paused Target state.
  * @returns {Promise<TimeEntry>} Running entry.
  */
 export async function setTimerPaused(id: string, paused: boolean): Promise<TimeEntry> {
+  await capRunningTimers();
   const entry = await runningEntry(id);
   if (!entry) throw clientError('BAD_USER_INPUT', 'Ce chrono ne tourne plus.');
   if (paused === (entry.pausedAt !== null)) return entry;
@@ -355,13 +384,17 @@ export async function createTimeEntry(input: TimeEntryInput & { startedAt: Date;
 }
 
 /**
- * Updates a time entry. A running one keeps running (its duration is not editable).
+ * Updates a time entry. A running one keeps running (its duration is not editable), written only while it still runs
+ * as read (`stillAsRead`): paused, resumed or its start changed meanwhile, it is read again; stopped meanwhile, « Ce
+ * chrono ne tourne plus. ».
  * @param {string} id Entry id.
  * @param {TimeEntryInput} input Changes; undefined (or null for a list) leaves a field unchanged.
+ * @param {boolean} [wasRunning=false] Read again after a change of a running timer: stopped by now, refused. Optional. Default = false.
  * @returns {Promise<TimeEntry>} Updated entry.
  */
-export async function updateTimeEntry(id: string, input: TimeEntryInput): Promise<TimeEntry> {
+export async function updateTimeEntry(id: string, input: TimeEntryInput, wasRunning = false): Promise<TimeEntry> {
   const entry = await findEntry(id);
+  if (wasRunning && entry.endedAt !== null) throw clientError('BAD_USER_INPUT', 'Ce chrono ne tourne plus.');
   assertNotInvoiced(entry);
   const running = entry.endedAt === null;
   const { description, duration } = parseInput(z.object({ description: timeDescriptionSchema.optional(), duration: durationSchema.optional() }), {
@@ -388,18 +421,26 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
 
   const startedAt = input.startedAt ?? entry.startedAt;
   const seconds = duration ?? entry.duration;
-  return prisma.timeEntry.update({
-    where: { id },
-    data: {
-      projectId: checked.projectId,
-      description,
-      startedAt,
-      ...(!running && seconds !== null && { duration: seconds, endedAt: new Date(startedAt.getTime() + seconds * 1000) }),
-      tasks: { set: connectIds(subjects.taskIds) },
-      routines: { set: connectIds(subjects.routineIds) },
-      ...((input.events || otherDay) && { events: { deleteMany: {}, create: checked.events } }),
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    // Running: written only while it still runs as read (stopped meanwhile, its end and duration were counted from the
+    // former start; paused, resumed or its start changed, its rules are checked again).
+    if (running && !(await tx.timeEntry.updateMany({ where: stillAsRead(entry), data: { startedAt } })).count) return null;
+    return tx.timeEntry.update({
+      where: { id },
+      data: {
+        projectId: checked.projectId,
+        description,
+        startedAt,
+        ...(!running && seconds !== null && { duration: seconds, endedAt: new Date(startedAt.getTime() + seconds * 1000) }),
+        tasks: { set: connectIds(subjects.taskIds) },
+        routines: { set: connectIds(subjects.routineIds) },
+        ...((input.events || otherDay) && { events: { deleteMany: {}, create: checked.events } }),
+      },
+    });
   });
+  if (updated) return updated;
+  // Changed meanwhile: read again; stopped (or discarded) meanwhile, nothing is written.
+  return updateTimeEntry(id, input, true);
 }
 
 /**

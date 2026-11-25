@@ -1,32 +1,8 @@
-import { StateButton } from '../../../components/data-table/cells/StateButton';
 import { Group } from '@mantine/core';
 import { ROUTINE_DONE_STATES } from '../lib/routine-columns';
-import { ON_ERROR } from '../../../lib/notify';
-import { useRoutineMutations, type Routine } from '../api';
+import type { Routine } from '../api';
 import { windowText } from '../lib/routine-format';
-
-interface DoneToggleProps {
-  /** What it is, read after its state ("Se brosser les dents", "…, midi"). */
-  label: string;
-  /** Tooltip instead of what a click does (why it is disabled, its date, its time of the day). Optional. */
-  hint?: string;
-  done: boolean;
-  /** Not needed for the day to be done (shown dashed). */
-  optional?: boolean;
-  disabled?: boolean;
-  size?: 'xs' | 'sm';
-  onChange: (done: boolean) => void;
-}
-
-/**
- * State button marking a routine (or one of its times of the day) as done: an empty square while to do, green with a
- * check once done, outlined dashed when optional.
- * @param {DoneToggleProps} props Component props.
- * @returns {JSX.Element} Button.
- */
-function DoneToggle({ label, hint, done, optional = false, disabled = false, size = 'sm', onChange }: DoneToggleProps) {
-  return <StateButton {...ROUTINE_DONE_STATES} value={done} label={label} hint={done ? undefined : hint} dashed={optional} size={size} readOnly={disabled} onChange={onChange} />;
-}
+import { RoutineTickButton } from './RoutineTick';
 
 interface RoutineDoneTogglesProps {
   routine: Routine;
@@ -37,22 +13,32 @@ interface RoutineDoneTogglesProps {
 
 /**
  * Done state buttons of the current occurrence of a routine: one, or one per time of the day (brushing teeth morning, noon and
- * evening; the optional ones dashed), each ticked apart. Disabled before the routine starts.
+ * evening; the optional ones dashed), each ticked apart through the « Faite le » form (`RoutineTickButton`), its time
+ * changed from the clock beside it once done. Disabled before the routine starts.
  * @param {RoutineDoneTogglesProps} props Component props.
  * @returns {JSX.Element} Toggles.
  */
 export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: RoutineDoneTogglesProps) {
-  const { setDone } = useRoutineMutations();
   const started = routine.currentDate !== null;
-  const save = (slot: number, done: boolean) => setDone.mutate({ id: routine.id, done, slot }, ON_ERROR);
+  const dueDate = routine.currentDueDate ?? routine.currentDate ?? '';
+  // Each ticks, unticks or changes the occurrence shown (its current one, by the day that identifies it, even when two
+  // are due the same day), proposed at its time once past, else now.
+  const common = { disabled: disabled || !started };
   if (routine.slots.length <= 1) {
+    const slot = routine.slots[0];
     return (
-      <DoneToggle
+      <RoutineTickButton
+        {...common}
+        tick={{ id: routine.id, date: routine.currentDate, slot: 0 }}
         label={routine.label}
         hint={!started ? 'Pas encore commencée' : dateLabel ? `${ROUTINE_DONE_STATES.toggleLabels.yes} (${dateLabel})` : undefined}
         done={routine.done}
-        disabled={disabled || !started}
-        onChange={(done) => save(0, done)}
+        doneAt={slot?.doneAt ?? null}
+        target={{
+          dueDate,
+          fromTime: slot?.fromTime ?? null,
+          dueTime: slot?.dueTime ?? null,
+        }}
       />
     );
   }
@@ -61,15 +47,17 @@ export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: Rou
       {routine.slots.map((slot) => {
         const when = windowText(slot) || `fois ${slot.index + 1}`;
         return (
-          <DoneToggle
+          <RoutineTickButton
+            {...common}
             key={slot.index}
+            tick={{ id: routine.id, date: routine.currentDate, slot: slot.index }}
             size="xs"
             label={`${routine.label}, ${when}`}
             hint={!started ? 'Pas encore commencée' : `${ROUTINE_DONE_STATES.toggleLabels.yes} (${when}${slot.optional ? ', facultatif' : ''})`}
             done={started && slot.done}
+            doneAt={slot.doneAt ?? null}
             optional={slot.optional}
-            disabled={disabled || !started}
-            onChange={(done) => save(slot.index, done)}
+            target={{ dueDate, fromTime: slot.fromTime, dueTime: slot.dueTime }}
           />
         );
       })}

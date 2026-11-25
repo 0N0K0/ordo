@@ -202,6 +202,7 @@ Le moteur commun de l’héritage des sous-tâches et sous-routines (`effectiveT
 | `sumOf(items, valueOf)`               | Somme (0 pour une liste vide).                                                                           |
 | `movedTo(others, moved, index)`       | Liste avec un élément inséré à un index borné (réordonnancement).                                        |
 | `joinedKey(...parts)`                 | Clé composite « a\|b » (partie absente : vide).                                                          |
+| `placedWithoutClash(moves, held)`     | Éléments tenus sous une clé au plus (une ligne par clé) déplacés dans l'ordre : celui dont la nouvelle clé est tenue reste où il est, celui qui part libère la sienne. Utilisé par `remapOccurrenceRows` (API : liste à cocher, lien avec un évènement par occurrence). |
 
 ## `tagged-key.ts` — clés à sorte
 

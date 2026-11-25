@@ -167,6 +167,9 @@ const base = new PrismaClient({
 /** Transaction the current work runs in (`inTransaction`): every query of `prisma` goes through it. */
 const ambient = new AsyncLocalStorage<Prisma.TransactionClient>();
 
+/** Jobs to start once the current `inTransaction` is committed (`afterCommit`). */
+const committed = new AsyncLocalStorage<(() => void)[]>();
+
 /** Raw SQL methods, run in the current transaction when there is one. */
 const RAW = new Set(['$queryRaw', '$queryRawUnsafe', '$executeRaw', '$executeRawUnsafe']);
 
@@ -231,13 +234,37 @@ export const prisma = new Proxy(extended, {
  * Runs a piece of work in one database transaction: every query of `prisma` made during it (in the services it calls
  * too) is part of it, all written or none (a failure rolls everything back). Inside another one, it is part of it.
  * A query of `unscopedPrisma` made during it runs outside the transaction (it does not see its writes not yet committed,
- * and is not rolled back): only reads may go through it there, never writes.
+ * and is not rolled back): only reads may go through it there, never writes. The jobs given to `afterCommit` during
+ * it start once it is committed, never if it fails.
  * @param {() => Promise<T>} work Work.
  * @returns {Promise<T>} What it returns.
  */
-export function inTransaction<T>(work: () => Promise<T>): Promise<T> {
+export async function inTransaction<T>(work: () => Promise<T>): Promise<T> {
   if (ambient.getStore()) return work();
-  return base.$transaction((tx) => ambient.run(tx, work), { maxWait: 10_000, timeout: 60_000 });
+  const jobs: (() => void)[] = [];
+  const result = await base.$transaction((tx) => ambient.run(tx, () => committed.run(jobs, work)), { maxWait: 10_000, timeout: 60_000 });
+  // Committed: the jobs start now, outside the transaction (none if it failed).
+  for (const job of jobs) {
+    try {
+      job();
+    } catch (error) {
+      // Written already: a job that fails does not fail the work.
+      console.warn('Tâche après validation non lancée.', error);
+    }
+  }
+  return result;
+}
+
+/**
+ * Starts a job (a background call to another service, which a rollback could not undo) once the current work is
+ * written: at once outside `inTransaction`; inside it, after its commit, and never if it fails.
+ * @param {() => void} job Job (it handles its own errors).
+ * @returns {void}
+ */
+export function afterCommit(job: () => void): void {
+  const jobs = committed.getStore();
+  if (jobs) jobs.push(job);
+  else job();
 }
 
 /** Client without the workspace limits: for the workspaces themselves (and their deletion). */

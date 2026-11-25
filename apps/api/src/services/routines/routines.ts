@@ -3,6 +3,7 @@ import {
   caseStart,
   changedList,
   crossedWeeks,
+  dayTakenByMoves,
   daysBetween,
   movedWeekdays,
   weeksChange,
@@ -12,9 +13,13 @@ import {
   isUnderOrSelf,
   mapById,
   MAX_ROUTINE_MOVES,
+  mergedAway,
   movedFrom,
   movedOccurrences,
   moveKey,
+  designatesOccurrence,
+  followedOccurrence,
+  mergeRefusal,
   occurrenceDueDay,
   occurrenceDates,
   occurrencesBefore,
@@ -27,6 +32,14 @@ import {
   type RoutineBulkChanges as SharedBulkChanges,
   type RoutineCase,
   routineCaseOn,
+  shiftedRoutineRule,
+  shiftMovesAll,
+  earlierCases,
+  shiftedCaseUntil,
+  shiftedRoutinePiece,
+  weekdayMovedCase,
+  cutRoutineBefore,
+  shiftedDates,
   type RoutineCategoryInput,
   routineCategorySchema,
   type RoutineInput,
@@ -45,6 +58,7 @@ import {
   type RoutineMoveJoin,
   routineMoveSchema,
   type RoutineMoveTimes,
+  routineBulkDoneAt,
   routineMoveTimesSchema,
   routineSchema,
   type RoutineSlot,
@@ -54,6 +68,7 @@ import {
   withMove,
   withMovedTimes,
   joinedKey,
+  lastTicked,
   normalizedReminders,
   REMINDER_LOOKAHEAD_DAYS,
   readReminders,
@@ -127,8 +142,9 @@ import { changedRoutineInheritance, clearedRoutineInput, effectiveRoutineOf, fre
  * Each is given by the day that identifies it (`moveKey`). Two due the same day (one moved there and kept apart): the
  * current one is the first not done yet, in the order of their days (the last once both are done), as its ticks tell
  * when the routine comes with its latest ones (`checks`, with those of its occurrences kept apart: `ticksOf`); else the
- * first. To take a tick away, the current one among them is the last ticked (the one a tick was just given to).
- * @param {RoutineTiming & { checks?: { date: Date, slot: number }[] }} routine Routine (with its latest ticks, optional).
+ * first. To take a tick away, the current one among them is the one ticked last (by when it was done: the one a tick
+ * was just given to).
+ * @param {RoutineTiming & { checks?: readonly RoutineTick[] }} routine Routine (with its latest ticks, optional).
  * @param {string} [today] Today. Optional. Default = today in Paris.
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
  * @param {boolean} [unticking] For a tick taken away. Optional. Default = false.
@@ -163,10 +179,10 @@ export function occurrencesOf(
       if (found.next === null && found.current !== null && found.current < day) found = { ...found, current: null };
       return found;
     };
-    // Several due the same day: the first not done yet (their ticks), else the last; to take a tick away, the last ticked.
-    const ticked = (date: string) => Boolean(checks?.some((check) => formatDay(check.date) === date));
+    // Several due the same day: the first not done yet (their ticks), else the last; to take a tick away, the one ticked last.
+    const ticks = checks?.map((check) => ({ date: formatDay(check.date), doneAt: check.doneAt?.getTime() })) ?? [];
     const pick = (dates: string[]) =>
-      checks ? ((unticking ? dates.filter(ticked).at(-1) : undefined) ?? dates.find((date) => !occurrenceDone(routine, date, checks, schedules)) ?? dates.at(-1)!) : dates[0];
+      checks ? ((unticking ? lastTicked(dates, ticks) : undefined) ?? dates.find((date) => !occurrenceDone(routine, date, checks, schedules)) ?? dates.at(-1)!) : dates[0];
     return movedOccurrences(compute, liveMoves(routine, schedules), today, pick);
   });
 }
@@ -934,6 +950,11 @@ interface OccurrenceChange {
   follow: () => Promise<void>;
   /** Sub-routines whose occurrence moves along. */
   following: string[];
+  /**
+   * Sub-routines whose occurrence the change takes off its day without bringing it to its new day (merged there into an
+   * occurrence they do not have): it would disappear.
+   */
+  stranded: string[];
 }
 
 /**
@@ -956,23 +977,38 @@ async function occurrenceChange(nexts: readonly Routine[], moved?: { from: strin
   const after: ScheduleContext = { ...before, memo: new Map(), routines: afterRoutines };
   const ids = [...new Set([...timingHeirs([...changed.keys()], stored), ...timingHeirs([...changed.keys()], afterRoutines)])].filter((id) => stored.has(id));
   const on = (routine: Routine, schedules: ScheduleContext, day: string) => hasOccurrence(routine, day, schedules);
+  // Identified by a day, cancelled or not (a cancelled occurrence keeps its rows on the day of its rule).
+  const held = (routine: Routine, schedules: ScheduleContext, day: string) => {
+    const due = occurrenceDueDayOf(routine, day, schedules);
+    return occurrenceSpansBetween(routine, due, due, schedules, true).some((span) => span.date === day);
+  };
   const following: string[] = [];
+  const stranded: string[] = [];
   const losses = await Promise.all(
     ids.map((id) => {
       // A routine changed is computed as active (its occurrences after an undo of its archiving); a sub-routine as it is.
       const now = changed.has(id) ? { ...stored.get(id)!, archivedAt: null } : stored.get(id)!;
       const then = changed.get(id) ?? afterRoutines.get(id)!;
-      const follows = moved !== undefined && (changed.has(id) || (on(now, before, moved.from) && moved.to !== null && on(then, after, moved.to) && !on(then, after, moved.from)));
-      if (follows && !changed.has(id)) following.push(id);
+      const fate =
+        moved && !changed.has(id)
+          ? followedOccurrence(
+              { before: () => held(now, before, moved.from), afterOnDay: () => held(then, after, moved.from), afterOnNewDay: () => held(then, after, moved.to!) },
+              moved.to,
+            )
+          : 'STAYS';
+      const follows = moved !== undefined && (changed.has(id) || fate === 'FOLLOWS');
+      if (fate === 'FOLLOWS') following.push(id);
+      if (fate === 'STRANDED') stranded.push(id);
       return lostOccurrences('routineId', id, (day) => !(follows && day === moved!.from) && on(now, before, day) && !on(then, after, day));
     }),
   );
   if (moved && following.length && (await prisma.routineCheck.count({ where: { routineId: { in: following }, date: parseDay(moved.from) } }))) {
-    throw clientError('BAD_USER_INPUT', 'Une sous-routine a déjà coché cette occurrence : décochez-la pour la déplacer.');
+    throw clientError('BAD_USER_INPUT', 'Une sous-routine a déjà coché cette occurrence : décochez-la pour la déplacer, l’annuler ou la rétablir.');
   }
   return {
     losses,
     following,
+    stranded,
     follow: async () => {
       if (moved) for (const id of following) await followOccurrence(id, moved.from, moved.to);
     },
@@ -1192,12 +1228,22 @@ export async function momentOf(id: string): Promise<RoutineSlot> {
  * @returns {Promise<number>} Links removed because they left its project tree.
  */
 export async function patchRoutine(id: string, changes: Partial<RoutineInput>, options: Pick<RoutineSaveOptions, 'confirmLoss'> & RoutineInheritanceChange = {}): Promise<number> {
-  const current = await inputOf(id);
+  return updateRoutine(id, patchedInput(await inputOf(id), changes, options), options);
+}
+
+/**
+ * Input of a routine with some fields changed (`patchRoutine`), its inheritance with them.
+ * @param {RoutineInput} current Its current form as an input (`inputOf`).
+ * @param {Partial<RoutineInput>} changes Changes.
+ * @param {RoutineInheritanceChange} [inheritance] Fields made inherited again or emptied on purpose. Optional.
+ * @returns {RoutineInput} Input.
+ */
+function patchedInput(current: RoutineInput, changes: Partial<RoutineInput>, { inherit, clear }: RoutineInheritanceChange = {}): RoutineInput {
   // A repetition of its own: it no longer follows cases (its own ones may be former values while it inherited them).
-  const patched = { ...current, ...(changes.recurrence !== undefined && changes.cases === undefined && { cases: [] }), ...changes, ...clearedRoutineInput(options.clear) };
+  const patched = { ...current, ...(changes.recurrence !== undefined && changes.cases === undefined && { cases: [] }), ...changes, ...clearedRoutineInput(clear) };
   // A field given a value or emptied is its own; those set to inherit again are inherited.
-  const inheritedFields = changedRoutineInheritance(current.inheritedFields ?? [], { inherit: options.inherit, clear: options.clear, input: changes, hasParent: Boolean(patched.parentId) });
-  return updateRoutine(id, { ...patched, inheritedFields }, options);
+  const inheritedFields = changedRoutineInheritance(current.inheritedFields ?? [], { inherit, clear, input: changes, hasParent: Boolean(patched.parentId) });
+  return { ...patched, inheritedFields };
 }
 
 /** Fields of routines made inherited again (« Rétablir l'héritage ») or emptied on purpose (« Vider »). */
@@ -1370,9 +1416,12 @@ function hasOpened(routine: Routine, occurrence: string, today: string, schedule
   return due <= today || (span !== undefined && span.start <= today);
 }
 
+/** Refusal of a day given that designates no occurrence of the routine. */
+const NO_OCCURRENCE = 'Cette routine n’a pas d’occurrence ce jour-là.';
+
 /**
  * Checks that a time of the day of an occurrence of a routine can be ticked or unticked, nothing written.
- * @param {Routine & { checks?: { date: Date, slot: number }[] }} routine Routine (with its latest ticks: the current occurrence among two due the same day).
+ * @param {Routine & { checks?: readonly RoutineTick[] }} routine Routine (with its latest ticks: the current occurrence among two due the same day).
  * @param {ScheduleContext} slots Schedules.
  * @param {string | null} [date] Occurrence date. Optional. Default = the current occurrence.
  * @param {number | null} [slot] Time of the day (index). Optional. Default = 0.
@@ -1380,14 +1429,14 @@ function hasOpened(routine: Routine, occurrence: string, today: string, schedule
  * @param {boolean} [ticking] Ticked (true) or unticked. Optional. Default = true.
  * @returns {{ occurrence: string, index: number }} Occurrence and time of the day.
  */
-function checkableOccurrence(routine: Routine & { checks?: { date: Date; slot: number }[] }, slots: ScheduleContext, date?: string | null, slot?: number | null, doneAt?: Date | null, ticking = true): { occurrence: string; index: number } {
+function checkableOccurrence(routine: Routine & { checks?: readonly RoutineTick[] }, slots: ScheduleContext, date?: string | null, slot?: number | null, doneAt?: Date | null, ticking = true): { occurrence: string; index: number } {
   refuseArchived(routine);
   const occurrence = date ?? occurrencesOf(routine, undefined, slots, !ticking).current;
   if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');
   // A tick is always taken away (nothing else to check: an untick that finds none changes nothing).
   if (!ticking) return { occurrence, index: slot ?? 0 };
   // A day given is one of its occurrences (not called off, not before its start, on its rule or moved there).
-  if (date && !hasOccurrence(routine, date, slots)) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas d’occurrence ce jour-là.');
+  if (date && !hasOccurrence(routine, date, slots)) throw clientError('BAD_USER_INPUT', NO_OCCURRENCE);
   // During its « Ouverture » an occurrence due later is ticked like the one due today.
   if (!hasOpened(routine, occurrence, parisToday(), slots)) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
   const index = slot ?? 0;
@@ -1430,28 +1479,44 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
 }
 
 /**
- * Ticks or unticks the current occurrence of several routines (those not started yet are left aside); all are checked
- * before the first is written, then written together.
+ * Ticks or unticks the current occurrence of several routines (those not started yet are left aside), or the
+ * occurrence given for each (`dates`, the day that identifies it: the one a screen shows, and the one an « Annuler »
+ * puts back); all are checked before the first is written, then written together. Ticked « Faites le » a day, each time
+ * of the day not ticked yet is done that day at its scheduled time (`routineBulkDoneAt`: its « jusqu’à », else its
+ * « dès »; without any, now today and noon another day; never later than now), else now; one already ticked keeps the
+ * time it was done at.
  * @param {string[]} ids Routine ids.
  * @param {boolean} done Target state.
+ * @param {string | null} [doneOn] Day they were done (YYYY-MM-DD, not after today); ticking only. Optional. Default = now.
+ * @param {string[] | null} [dates] Occurrence of each routine (same order as `ids`). Optional. Default = the current one of each (unticking: the one ticked last of two due the same day).
  * @returns {Promise<number>} Number of routines changed.
  */
-export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise<number> {
+export async function bulkSetRoutinesDone(ids: string[], done: boolean, doneOn: string | null = null, dates: string[] | null = null): Promise<number> {
   const today = parisToday();
+  if (done && doneOn && doneOn > today) throw fieldError('doneOn', 'Une routine ne peut pas être faite dans le futur.', 'Jour à venir.');
+  if (dates && dates.length !== ids.length) throw clientError('BAD_USER_INPUT', 'Une occurrence par routine.');
+  const dateOf = new Map(dates ? ids.map((id, index) => [id, dates[index]]) : []);
+  const now = new Date();
   const context = await loadScheduleContext();
-  const writes: { id: string; occurrence: string; index: number }[] = [];
+  const writes: { id: string; occurrence: string; index: number; doneAt: Date | null }[] = [];
   let count = 0;
   // An archived routine is read only: not ticked.
   for (const routine of await prisma.routine.findMany({ where: { id: { in: ids }, archivedAt: null }, include: { checks: LATEST_CHECKS } })) {
-    // Unticked: the occurrence last ticked among two due the same day (the one a bulk tick just did).
-    const current = occurrencesOf(routine, today, context, !done).current;
+    // Unticked without a day given: the occurrence last ticked among two due the same day.
+    const current = dateOf.get(routine.id) ?? occurrencesOf(routine, today, context, !done).current;
     if (!current) continue;
+    // Ticked already: kept as it is, with the time it was done at.
+    const ticked = new Set((ticksOf(routine, context) ?? []).filter((check) => formatDay(check.date) === current).map((check) => check.slot));
     // Every time of the day, or none of them.
-    const slots = Math.max(1, slotsOf(routine, current, context).length);
-    for (let slot = 0; slot < slots; slot += 1) writes.push({ id: routine.id, ...checkableOccurrence(routine, context, current, slot, null, done) });
+    const daySlots = slotsOf(routine, current, context);
+    for (let slot = 0; slot < Math.max(1, daySlots.length); slot += 1) {
+      if (done && ticked.has(slot)) continue;
+      const doneAt = done && doneOn ? routineBulkDoneAt(doneOn, daySlots[slot] ?? { fromTime: null, dueTime: null }, now) : null;
+      writes.push({ id: routine.id, doneAt, ...checkableOccurrence(routine, context, current, slot, doneAt, done) });
+    }
     count += 1;
   }
-  await prisma.$transaction(writes.map((write) => checkWrite(write.id, done, write.occurrence, write.index)));
+  await prisma.$transaction(writes.map((write) => checkWrite(write.id, done, write.occurrence, write.index, write.doneAt)));
   return count;
 }
 
@@ -1501,7 +1566,8 @@ const withDead = (dead: readonly RoutineMove[], moves: readonly RoutineMove[]): 
 /**
  * Whether a day identifies another occurrence of a routine than the one coming from a day of its rule (its ticks,
  * comments, checklist and links with events are on that day): one moved there, one kept apart or cancelled from it,
- * or the occurrence of its rule there while it stays on it. One merged into another has no day of its own.
+ * or the occurrence of its rule there while it stays on it, or one merged from it into another occurrence (the day of
+ * its rule stays its own until the merge is undone; not the day it went into) (`dayTakenByMoves`).
  * @param {RoutineTiming} routine Routine (its « quand » as it goes).
  * @param {ScheduleContext} schedules Schedules.
  * @param {readonly RoutineMove[]} moves Exceptions that apply.
@@ -1510,10 +1576,21 @@ const withDead = (dead: readonly RoutineMove[], moves: readonly RoutineMove[]): 
  * @returns {boolean} Taken by another one.
  */
 function identifiesAnother(routine: RoutineTiming, schedules: ScheduleContext, moves: readonly RoutineMove[], from: string, day: string): boolean {
-  const others = moves.filter((move) => move.from !== from && !move.merged);
-  if (others.some((move) => moveKey(move) === day)) return true;
-  if (day === from || others.some((move) => move.from === day)) return false;
-  return ruleSpans(routine, day, day, schedules, true).some((span) => span.end === day);
+  return dayTakenByMoves(moves, from, day) ?? ruleSpans(routine, day, day, schedules, true).some((span) => span.end === day);
+}
+
+/**
+ * Refuses a write on an occurrence (move, change, cancel) given by a day that no longer designates one (`NO_OCCURRENCE`):
+ * its exception took it away (merged into another occurrence, moved to another day: a stale tab), or neither an
+ * exception nor its rule has it that day (its doability aside: a day of its rule left without a moment still counts).
+ * @param {RoutineTiming} routine Routine (its « quand » as it goes).
+ * @param {ScheduleContext} schedules Schedules.
+ * @param {readonly RoutineMove[]} moves Exceptions that apply.
+ * @param {string} date Day given (the day that identifies the occurrence).
+ * @returns {void}
+ */
+function assertDesignated(routine: RoutineTiming, schedules: ScheduleContext, moves: readonly RoutineMove[], date: string): void {
+  if (!designatesOccurrence(moves, date, (day) => ruleSpans(routine, day, day, schedules, true).some((span) => span.end === day))) throw clientError('BAD_USER_INPUT', NO_OCCURRENCE);
 }
 
 /** Refusal of a move that would give an occurrence the day another one is identified by. */
@@ -1553,7 +1630,11 @@ function sameDayJoin(routine: RoutineTiming, schedules: ScheduleContext, moves: 
   const originTaken = identifiesAnother(routine, schedules, moves, from, from);
   if (!others.length) {
     if (!identifiesAnother(routine, schedules, moves, from, to)) return 'OWN';
-    if (originTaken) throw clientError('BAD_USER_INPUT', 'Ce jour et son jour d’origine désignent déjà d’autres occurrences : choisissez un autre jour.');
+    if (originTaken) {
+      // The day of an occurrence merged into another one stays its own until the merge is undone.
+      const reason = mergedAway(moves, to) ? 'Ce jour reste celui d’une occurrence fusionnée avec une autre et son jour d’origine désigne déjà une autre occurrence' : 'Ce jour et son jour d’origine désignent déjà d’autres occurrences';
+      throw clientError('BAD_USER_INPUT', `${reason} : choisissez un autre jour.`);
+    }
     return 'APART';
   }
   if (!choice) throw clientError('CONFIRMATION_REQUIRED', 'Ce jour a déjà son occurrence : choisissez de garder les deux ou de les fusionner.', { lost: { merge: to } });
@@ -1584,6 +1665,7 @@ export async function moveRoutineOccurrence(id: string, date: string, to: string
   // Its « quand » as it goes: its exceptions, inherited, are the base of its own from then on.
   const routine = occurrenceTiming(found, schedules);
   const { live: stored, dead } = writeMoves(routine, schedules);
+  assertDesignated(routine, schedules, stored, date);
   let changed: RoutineMoveTimes | undefined;
   if (times !== undefined) {
     // Only the times that differ from those of its rule are kept.
@@ -1621,11 +1703,18 @@ async function saveMoves(routine: Routine, { before, moves, dead = [] }: { befor
   const key = move ? moveKey(move) : from;
   const moved = { from: date, to: key };
   const draft = withOwnMoves(routine, withDead(dead, moves));
-  const { follow, following } = await occurrenceChange([{ ...routine, ...draft, moves: draft.moves as Routine['moves'] }], { from: date, to: move?.to === null ? null : key });
+  // Cancelled too: the sub-routines taking its exceptions have their rows back on the day of its rule with it.
+  const { follow, following, stranded } = await occurrenceChange([{ ...routine, ...draft, moves: draft.moves as Routine['moves'] }], moved);
   // Merged into another occurrence: the rows it brings are noted, to give them back if the merge is undone.
   const prior = before.find((item) => item.from === from);
   const merging = move?.merged && !prior?.merged;
+  // A sub-routine taking its exceptions without an occurrence on that day would lose its own (and its rows); more rows
+  // than a merge notes could not be given back.
+  const strandedRefusal = merging ? mergeRefusal(stranded.length) : null;
+  if (strandedRefusal) throw clientError('BAD_USER_INPUT', strandedRefusal);
   const mergedRows = merging ? await occurrenceRowIds('routineId', [routine.id, ...following], date) : [];
+  const rowsRefusal = merging ? mergeRefusal(0, mergedRows.length) : null;
+  if (rowsRefusal) throw clientError('BAD_USER_INPUT', rowsRefusal);
   // Cancelled or merged: the exception it had before is kept, given back when that is undone.
   const previous = move && previousMove(prior, move);
   const saved = moves.map((item) => (item === move && (merging || previous) ? { ...item, ...(merging && { mergedRows }), ...(previous && { previous }) } : item));
@@ -1751,56 +1840,58 @@ const endedBefore = (rule: Recurrence, start: string, date: string): Recurrence 
   rule.count !== null ? { ...rule, count: Math.max(1, occurrencesBefore(rule, start, date)) } : { ...rule, until: addDays(date, -1) };
 
 /**
- * Rule going on from an occurrence moved to another day: weekly on the new weekday instead of the former one, the
- * occurrences left (when counted), and the dates left out after it.
- * @param {Recurrence} rule Rule.
- * @param {string} start First day it counts from.
- * @param {string} date Occurrence.
- * @param {string} to New day.
- * @param {boolean} split The rule goes on from the occurrence (the former one ends before it).
- * @returns {Recurrence} Rule.
+ * A piece of the rule of a routine going on from an occurrence moved: its rule, the day it counts from (none: as
+ * before), the days the last day of its case moves by (its occurrences all moved; 0: they stay), and whether one
+ * weekday of a weekly rule on several listed weekdays moved alone (its case's end then goes as far as it does).
  */
-function shiftedRule(rule: Recurrence, start: string, date: string, to: string, split: boolean): Recurrence {
-  const weekdays =
-    rule.frequency === 'WEEKLY' && rule.weekdays.length && to !== date ? [...new Set(rule.weekdays.map((day) => (day === weekdayOf(date) ? weekdayOf(to) : day)))].sort() : rule.weekdays;
-  const count = split && rule.count !== null ? Math.max(1, rule.count - occurrencesBefore(rule, start, date)) : rule.count;
-  return { ...rule, weekdays, count, exceptions: split ? rule.exceptions.filter((day) => day >= date) : rule.exceptions };
-}
-
-/** A piece of the rule of a routine going on from an occurrence moved: its rule, and the day it counts from (none: as before). */
 interface ShiftedPiece {
   recurrence: Recurrence;
   from: string | null;
+  shift: number;
+  weekdayAlone: boolean;
 }
 
 /**
- * Rule going on from an occurrence moved to another day (`shiftedRule`), as one piece or two. Weekly with its weeks
+ * Rule going on from an occurrence moved to another day (`shiftedRoutineRule`), as one piece or two. Weekly with its weeks
  * counted (every n weeks, even or odd weeks), the weekday of the occurrence moved into a week counted otherwise takes
  * its weeks along: it becomes a piece of its own (its even or odd weeks swapped, its rhythm counted from its first
  * day moved: `movedWeekdays`), its other weekdays another one on their former weeks (from the occurrence when split);
  * a number of occurrences then becomes the day of the last one (moved for the weekday moved), so that the pieces keep
- * the same occurrences together. A rule without weekdays moves its rhythm with the occurrence.
+ * the same occurrences together. A rule without weekdays moves its rhythm with the occurrence. The end, excluded dates
+ * and pauses of a piece whose occurrences all move move with them (`shiftedDates`), those of the weekdays that stay do not.
  * @param {Recurrence} rule Rule.
  * @param {string} start First day it counts from.
  * @param {string} date Occurrence.
  * @param {string} to New day.
  * @param {boolean} split The rule goes on from the occurrence (the former one ends before it).
+ * @param {Recurrence | null} chosen New rule chosen for a rule on the last day of the month (`shiftedRoutineRule`).
  * @returns {ShiftedPiece[]} Pieces.
  */
-function shiftedPieces(rule: Recurrence, start: string, date: string, to: string, split: boolean): ShiftedPiece[] {
-  const same = shiftedRule(rule, start, date, to, split);
+function shiftedPieces(rule: Recurrence, start: string, date: string, to: string, split: boolean, chosen: Recurrence | null): ShiftedPiece[] {
   const days = daysBetween(date, to);
-  if (rule.frequency !== 'WEEKLY' || !weeksChange(rule, crossedWeeks(weekdayOf(date), days))) return [{ recurrence: same, from: null }];
   const weekday = weekdayOf(date);
+  if (rule.frequency !== 'WEEKLY' || !weeksChange(rule, crossedWeeks(weekday, days))) {
+    // Listed weekdays: as much earlier when its first one moves before its first day; one weekday alone: exact.
+    const { recurrence, start: first } = shiftedRoutinePiece(rule, start, date, to, split, chosen);
+    return [
+      {
+        recurrence,
+        from: split || first === start ? null : first,
+        shift: shiftMovesAll(rule) ? days : 0,
+        weekdayAlone: !shiftMovesAll(rule),
+      },
+    ];
+  }
   const others = rule.weekdays.filter((day) => day !== weekday);
-  let base: Recurrence = { ...same, weekdays: rule.weekdays };
+  // Its occurrences left (counted) and its excluded dates from the occurrence (cut), nothing moved yet.
+  let base = shiftedRoutineRule(rule, start, date, date, split);
   if (others.length && base.count !== null) {
     const last = occurrenceDates(rule, start, start, addDays(start, 36_600)).at(-1);
     if (last) base = { ...base, count: null, until: last };
   }
-  const moved = movedWeekdays(base, split ? date : start, [weekday], days);
-  const pieces: ShiftedPiece[] = others.length ? [{ recurrence: { ...base, weekdays: others }, from: split ? date : null }] : [];
-  return [...pieces, { recurrence: { ...moved.rule, until: base.until && others.length ? addDays(base.until, days) : base.until }, from: moved.anchor }];
+  const moved = movedWeekdays(shiftedDates(base, days), split ? date : start, [weekday], days);
+  const pieces: ShiftedPiece[] = others.length ? [{ recurrence: { ...base, weekdays: others }, from: split ? date : null, shift: 0, weekdayAlone: false }] : [];
+  return [...pieces, { recurrence: moved.rule, from: moved.anchor, shift: days, weekdayAlone: false }];
 }
 
 /**
@@ -1838,6 +1929,9 @@ async function changeableOccurrence(id: string, date: string) {
  * @param {boolean} [confirmLoss] Other occurrences made to disappear, with comments, confirmed. Optional.
  * @param {SameDayChoice} [sameDay] This occurrence alone onto a day that has its own: both kept apart, or merged
  * (unanswered: CONFIRMATION_REQUIRED, nothing changes; `sameDayJoin`). Optional.
+ * @param {Recurrence | null} [movedRule] New rule of a rule (or of a case) on the last day of the month moved to another
+ * day, chosen by the user; none there: refused with the rule proposed (RULE_CHOICE_REQUIRED, `shiftedRoutineRule`).
+ * Optional.
  * @returns {Promise<string>} Day that identifies the occurrence now (its new day, or the day of its rule when kept apart).
  */
 export async function changeRoutineOccurrence(
@@ -1849,6 +1943,7 @@ export async function changeRoutineOccurrence(
   times: { fromTime: string | null; dueTime: string | null },
   confirmLoss?: boolean,
   sameDay?: SameDayChoice,
+  movedRule: Recurrence | null = null,
 ): Promise<string> {
   const found = await changeableOccurrence(id, date);
   await placeLegacyRoutineComments([id]);
@@ -1860,6 +1955,7 @@ export async function changeRoutineOccurrence(
   const window = parseInput(routineSlotSchema, { ...times, optional: false });
   if (parsedTo < start) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
   const { live: moves, dead } = writeMoves(routine, schedules);
+  assertDesignated(routine, schedules, moves, date);
   const origin = movedFrom(moves, date);
   const base = ruleSlotsOn(routine, origin, schedules);
   if (slot < 0 || slot >= Math.max(1, base.length)) throw clientError('BAD_USER_INPUT', 'Moment introuvable ce jour-là.');
@@ -1887,23 +1983,32 @@ export async function changeRoutineOccurrence(
     const item = routineCaseOn(cases, start, origin);
     if (!item) throw clientError('BAD_USER_INPUT', 'Occurrence introuvable.');
     const index = cases.indexOf(item);
+    const others = cases.filter((other) => other !== item);
     const own = caseStart(item, start);
     const slots = item.slots.map((other, position) => (position === slot ? { ...other, fromTime: window.fromTime, dueTime: window.dueTime } : other));
     const split = scope === 'FOLLOWING' && hasBefore(item.recurrence, own, origin);
+    // End and rule of the case for a piece: its end moved with its occurrences, or as far as a weekday moved alone goes.
+    const pieceCase = (piece: ShiftedPiece, from: string | null) => {
+      if (!piece.weekdayAlone) return { from, until: shiftedCaseUntil(item.until, piece.shift, others, start), recurrence: piece.recurrence };
+      const counted = from && from < start ? from : caseStart({ from }, start);
+      return { from, ...weekdayMovedCase(item, piece.recurrence, own, counted, origin, parsedTo, others, start, split) };
+    };
     let pieces: RoutineCase[];
     if (split) {
       pieces = [
-        { ...item, recurrence: endedBefore(item.recurrence, own, origin) },
-        ...shiftedPieces(item.recurrence, own, origin, parsedTo, true).map((piece) => ({ ...item, from: piece.from ?? parsedTo, recurrence: piece.recurrence, slots })),
+        { ...item, recurrence: cutRoutineBefore(item.recurrence, own, origin, parsedTo) ?? endedBefore(item.recurrence, own, origin) },
+        ...shiftedPieces(item.recurrence, own, origin, parsedTo, true, movedRule).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? parsedTo), slots })),
       ];
     } else {
-      // Weekly on listed days: the weekday changes; else its repetition counts from as much later or earlier.
+      // Weekly on listed days: the weekday changes; else its repetition counts from as much later or earlier (its own
+      // day never before the routine's first time, as it counted).
       const listed = item.recurrence.frequency === 'WEEKLY' && item.recurrence.weekdays.length > 0;
-      const from = delta === 0 || listed ? item.from : addDays(own, delta);
-      pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false).map((piece) => ({ ...item, from: piece.from ?? from, recurrence: piece.recurrence, slots }));
-      if (pieces.some((piece) => piece.from && piece.from < start)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
+      const from = delta === 0 || listed ? item.from && own : addDays(own, delta);
+      pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false, movedRule).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? from), slots }));
     }
-    changes = { cases: [...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)] };
+    // Moved before its first time: the routine starts as much earlier, its other cases where they were.
+    const earlier = earlierCases([...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)], new Set(split ? pieces.slice(1) : pieces), start);
+    changes = { cases: earlier.cases, ...(earlier.startDate !== start && { startDate: earlier.startDate }) };
   } else {
     if (!rule) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas de répétition.');
     // Its moments, the one changed with its new times.
@@ -1917,22 +2022,24 @@ export async function changeRoutineOccurrence(
       // Its repetition becomes cases: the former one up to the occurrence, the new one (or its pieces) from it.
       changes = {
         cases: [
-          { from: null, until: null, recurrence: endedBefore(rule, start, origin), slots: storedMoments(routine), ...kept },
-          ...shiftedPieces(rule, start, origin, parsedTo, true).map((piece) => ({ from: piece.from ?? parsedTo, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept })),
+          { from: null, until: null, recurrence: cutRoutineBefore(rule, start, origin, parsedTo) ?? endedBefore(rule, start, origin), slots: storedMoments(routine), ...kept },
+          ...shiftedPieces(rule, start, origin, parsedTo, true, movedRule).map((piece) => ({ from: piece.from ?? parsedTo, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept })),
         ],
         slotCondition: null,
         opensOn: null,
       };
     } else {
       const listed = rule.frequency === 'WEEKLY' && rule.weekdays.length > 0;
-      const pieces = shiftedPieces(rule, start, origin, parsedTo, false);
+      const pieces = shiftedPieces(rule, start, origin, parsedTo, false, movedRule);
       if (pieces.length === 1) {
         const startDate = pieces[0].from ?? (delta === 0 || listed ? start : addDays(start, delta));
         changes = { startDate, recurrence: pieces[0].recurrence, moments: changedMoments, cases: [] };
       } else {
-        // Its weekdays on weeks of their own: its repetition becomes a case for each.
-        if (pieces.some((piece) => piece.from && piece.from < start)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
-        changes = { cases: pieces.map((piece) => ({ from: piece.from, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept })), slotCondition: null, opensOn: null };
+        // Its weekdays on weeks of their own: its repetition becomes a case for each (one moved before its first time:
+        // the routine starts as much earlier, the other one where it was).
+        const made = pieces.map((piece) => ({ from: piece.from, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept }));
+        const earlier = earlierCases(made, new Set(made), start);
+        changes = { cases: earlier.cases, ...(earlier.startDate !== start && { startDate: earlier.startDate }), slotCondition: null, opensOn: null };
       }
     }
   }
@@ -1969,20 +2076,51 @@ function followingGone(routine: RoutineTiming & { id: string }, schedules: Sched
   const ruled = origin > date ? ruleSpans(routine, date, addDays(origin, -1), schedules, true).map((span) => span.end).filter((day) => !movedDays.has(day)) : [];
   const except = [...new Set([...ruled, ...moves.filter((move) => move.from < origin && !move.merged).map(moveKey)])].filter((day) => day >= date);
   const earlier = moves.filter((move) => move.from >= origin && !move.merged && moveKey(move) < date).map((move) => ({ id: routine.id, on: moveKey(move) }));
-  return [{ id: routine.id, from: date, except }, ...earlier];
+  // Postponed past days of its rule: those days, from the cut on, go too (not moved: still identified there).
+  const skipped = origin < date ? ruleSpans(routine, addDays(origin, 1), addDays(date, -1), schedules, true).map((span) => span.end).filter((day) => day > origin && day < date && !movedDays.has(day)) : [];
+  return [{ id: routine.id, from: date, except }, ...earlier, ...skipped.map((on) => ({ id: routine.id, on }))];
 }
 
 /**
- * Occurrences of a routine whose comments « Supprimer celle-ci et les suivantes » from an occurrence deletes
- * (`followingGone`), to count them before.
+ * Repetition of a routine once « Supprimer celle-ci et les suivantes » ends it before an occurrence: its cases that
+ * have occurrences before it, each ending before it, or its rule ending before it; null when nothing comes before (the
+ * routine is archived instead).
+ * @param {RoutineTiming} routine Routine (its « quand » as it goes).
+ * @param {string} origin Day of the rule of the occurrence the deletion starts at.
+ * @returns {Partial<RoutineInput> | null} Changes of its repetition, or null.
+ */
+function followingCut(routine: RoutineTiming, origin: string): Partial<RoutineInput> | null {
+  const start = formatDay(routine.startDate);
+  const cases = storedCases(routine.cases);
+  if (cases.length) {
+    const kept = cases
+      .filter((item) => hasBefore(item.recurrence, caseStart(item, start), origin))
+      .map((item) => ({ ...item, recurrence: endedBefore(item.recurrence, caseStart(item, start), origin) }));
+    return kept.length ? { cases: kept } : null;
+  }
+  const rule = storedRule(routine);
+  return rule && hasBefore(rule, start, origin) ? { recurrence: endedBefore(rule, start, origin) } : null;
+}
+
+/**
+ * Occurrences of a routine whose comments « Supprimer celle-ci et les suivantes » from an occurrence deletes, to count
+ * them before: those of `followingGone`, and, when its repetition ends before it (not archived), those that disappear
+ * with that change, on it and on the sub-routines going by its « quand » (as `patchRoutine` deletes them: the days of
+ * its rule between the day it comes from and the day of an occurrence postponed past it, those of the sub-routines).
  * @param {string} id Routine id.
  * @param {string} date Occurrence the deletion starts at (the day that identifies it).
- * @returns {Promise<GoneCommentOccurrences[]>} Occurrences whose comments go.
+ * @returns {Promise<GoneCommentOccurrences[]>} Occurrences whose comments go (one may be named twice).
  */
 export async function followingOccurrencesGone(id: string, date: string): Promise<GoneCommentOccurrences[]> {
   const schedules = await loadScheduleContext();
-  const routine = occurrenceTiming(await findRoutine(id), schedules);
-  return followingGone(routine, schedules, writeMoves(routine, schedules).live, date);
+  const found = await findRoutine(id);
+  const routine = occurrenceTiming(found, schedules);
+  const moves = writeMoves(routine, schedules).live;
+  const gone = followingGone(routine, schedules, moves, date);
+  const cut = followingCut(routine, movedFrom(moves, date));
+  if (!cut) return gone;
+  const { losses } = await occurrenceChange([timingOf(found, patchedInput(await inputOf(id), cut))]);
+  return [...gone, ...losses.flatMap((loss) => loss.occurrences)];
 }
 
 /**
@@ -2001,6 +2139,7 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
   // Its « quand » as it goes (its parent's, inherited): what the deletion starts from, its own from then on.
   const routine = occurrenceTiming(found, schedules);
   const { live: moves, dead } = writeMoves(routine, schedules);
+  assertDesignated(routine, schedules, moves, date);
   // Cancelled, it stays shown struck through on the day of its rule, with its comments (moved there with it):
   // « Annuler » removes the exception.
   if (scope === 'THIS') {
@@ -2014,16 +2153,10 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
   // occurrence that stays (one from before moved after the cut) keeps its own.
   await placeLegacyRoutineComments([id]);
   const dropComments = () => deleteGoneComments({ routines: followingGone(routine, schedules, moves, date) });
-  const start = formatDay(routine.startDate);
   const origin = movedFrom(moves, date);
-  const cases = storedCases(routine.cases);
-  const rule = storedRule(routine);
-  const kept = cases
-    .filter((item) => hasBefore(item.recurrence, caseStart(item, start), origin))
-    .map((item) => ({ ...item, recurrence: endedBefore(item.recurrence, caseStart(item, start), origin) }));
-  const nothingLeft = cases.length ? !kept.length : !rule || !hasBefore(rule, start, origin);
+  const cut = followingCut(routine, origin);
   const pastMoves = withDead(dead, moves.filter((move) => move.from < origin));
-  if (nothingLeft) {
+  if (!cut) {
     // Archived as by hand, its sub-routines with it; its past occurrences stay, archived.
     await prisma.routine.update({ where: { id }, data: withOwnMoves(found, pastMoves) });
     await archiveTree<Routine>('routine', id, true, 'Routine');
@@ -2031,7 +2164,7 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
     return { archived: true, comments: [] };
   }
   // The sub-routines going by its repetition lose those occurrences too, with their comments (the deletion is confirmed).
-  await patchRoutine(id, cases.length ? { cases: kept } : { recurrence: endedBefore(rule!, start, origin) }, { confirmLoss: true });
+  await patchRoutine(id, cut, { confirmLoss: true });
   await prisma.routine.update({ where: { id }, data: withOwnMoves(await findRoutine(id), pastMoves) });
   await dropComments();
   return { archived: false, comments: [] };

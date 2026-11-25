@@ -4,9 +4,9 @@ import { inTransaction, prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
 import { BY_POSITION, moveBefore, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
-import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput, rethrowTimeout } from '../../graphql/errors';
 import { assertProjectContributors, attachAssignees } from '../projects/contributors';
-import { forgetGithubComment, forgetGithubItems } from '../github/links';
+import { forgetGithubComment, forgetGithubItems, githubItemsLeaving } from '../github/links';
 import { releaseSubjectTime } from './time-entries';
 import { assertAllExist, assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
 import { assertNoneArchived, type ArchivableModel, assertActive, refuseArchived, archiveTree, findActive } from '../core/archive';
@@ -38,7 +38,7 @@ async function assertProject(projectId: string): Promise<void> {
  * @param {string} parentId Parent candidate.
  * @param {string | null} projectId Project of the child (none: the parent has none either).
  * @param {string | null} childId Child task, or null for a new task.
- * @param {boolean} [restoring=false] Undo giving back the parent the task had: an archived one accepted. Optional.
+ * @param {boolean} [restoring=false] Undo giving back the parent the task had, or the GitHub sync writing the parent of the issue: an archived one accepted. Optional.
  * @returns {Promise<void>}
  */
 export async function assertParent(parentId: string, projectId: string | null, childId: string | null, restoring = false): Promise<void> {
@@ -370,6 +370,15 @@ export const updateTask = automated(async function updateTask(id: string, input:
   return savedTask(found, input, restoring);
 });
 
+/** Ids of the people, tags and sprints of a task, as its writes check and copy them. */
+export const TASK_PEOPLE_LINKS = {
+  assignees: { select: { id: true } },
+  beneficiaries: { select: { id: true } },
+  beneficiaryRelations: { select: { id: true } },
+  tags: { select: { id: true } },
+  sprints: { select: { id: true } },
+} as const;
+
 /**
  * Checks and saves the changes of a task (`updateTask`).
  * @param {Task} task Task as it is (made top-level: its inheritance already made its own).
@@ -450,7 +459,8 @@ export const setTaskArchived = automated(async function setTaskArchived(id: stri
 
 /**
  * Moves tasks with their sub-tasks to a project, where they take the next numbers (given by the database), or out of
- * any project (they lose their numbers, milestones, sprints and GitHub items). Links leaving the new tree are removed:
+ * any project (they lose their numbers, milestones and sprints). Leaving their GitHub board (out of any project, or to
+ * a tree with another board or none), they lose their items. Links leaving the new tree are removed:
  * blocks and relations with the tasks left behind, the parent left behind (and, without the sub-tasks, the sub-tasks
  * left behind lose their moved parent), milestones and sprints of another tree. The assignees follow into the target
  * project. No archive check: the callers make theirs.
@@ -509,8 +519,9 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     .map((item) => ({ id: item.id, resources: outOfTree(rootOf, projectId, item.projectResources).map((id) => ({ id })) }))
     .filter((item) => item.resources.length > 0);
 
-  // Out of any project: their GitHub items go (the link is through the project).
-  if (!projectId) await forgetGithubItems(moved);
+  // Out of their board (out of any project, or into a tree with another board or none): their GitHub items go (the
+  // link is through the project), once the move is written; a later sync of a board they come back to adds them again.
+  const leavingBoard = await githubItemsLeaving(moved, projectId);
   const blocksWhere = {
     OR: [
       { blockerId: { in: moved }, blockedId: { in: outsideIds } },
@@ -531,12 +542,14 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     prisma.taskBlock.deleteMany({ where: blocksWhere }),
     prisma.taskRelation.deleteMany({ where: relationsWhere }),
     // With the sub-tasks, a sub-task of a moved task is moved too; without them, those of another tree lose their parent.
-    prisma.task.updateMany({ where: { id: { in: moved } }, data: projectId ? { projectId } : { projectId: null, githubItemId: null } }),
+    prisma.task.updateMany({ where: { id: { in: moved } }, data: { projectId } }),
+    prisma.task.updateMany({ where: { id: { in: leavingBoard.ids } }, data: { githubItemId: null } }),
     prisma.task.updateMany({ where: { id: { in: parentOutside } }, data: { parentId: null } }),
     prisma.task.updateMany({ where: { id: { in: losingMilestone } }, data: { milestoneId: null } }),
     ...losingSprints.map((item) => prisma.task.update({ where: { id: item.id }, data: { sprints: { disconnect: item.sprints } } })),
     ...losingResources.map((item) => prisma.task.update({ where: { id: item.id }, data: { projectResources: { disconnect: item.resources } } })),
   ]);
+  leavingBoard.remove();
   // The assignees follow their tasks into the target project.
   const assignees = await prisma.contributor.findMany({ where: { tasks: { some: { id: { in: moved } } } }, select: { id: true } });
   if (projectId) await attachAssignees([{ projectId, contributorIds: assignees.map((assignee) => assignee.id) }]);
@@ -571,15 +584,6 @@ export async function releaseProjectTasks(projectIds: string[]): Promise<void> {
   const tasks = await prisma.task.findMany({ where: { projectId: { in: projectIds } }, select: { id: true } });
   await moveTaskTrees(tasks.map((task) => task.id), null, false);
 }
-
-/** Ids of the people, tags and sprints of a task, as its writes check and copy them. */
-export const TASK_PEOPLE_LINKS = {
-  assignees: { select: { id: true } },
-  beneficiaries: { select: { id: true } },
-  beneficiaryRelations: { select: { id: true } },
-  tags: { select: { id: true } },
-  sprints: { select: { id: true } },
-} as const;
 
 /** People, tags and sprints a cloned task (and each cloned sub-task) keeps. */
 const CLONED_LINKS = {
@@ -723,7 +727,7 @@ async function blocksPath(from: string, to: string): Promise<boolean> {
  * Records that a task blocks another one (cycles refused).
  * @param {string} blockerId Blocking task.
  * @param {string} blockedId Blocked task.
- * @param {boolean} [restoring=false] Undo giving back the link: archived tasks accepted. Optional.
+ * @param {boolean} [restoring=false] Undo giving back the link, or the GitHub sync writing the link of the issue: archived tasks accepted. Optional.
  * @returns {Promise<void>}
  */
 export async function addTaskBlock(blockerId: string, blockedId: string, restoring = false): Promise<void> {
@@ -739,13 +743,14 @@ export async function addTaskBlock(blockerId: string, blockedId: string, restori
 }
 
 /**
- * Removes a "blocks" link (neither task archived).
+ * Removes a "blocks" link (neither task archived, except for the GitHub sync).
  * @param {string} blockerId Blocking task.
  * @param {string} blockedId Blocked task.
+ * @param {boolean} [restoring=false] The GitHub sync writing the links of the issue: archived tasks accepted. Optional.
  * @returns {Promise<void>}
  */
-export async function removeTaskBlock(blockerId: string, blockedId: string): Promise<void> {
-  await assertNoneArchived('task', [blockerId, blockedId]);
+export async function removeTaskBlock(blockerId: string, blockedId: string, restoring = false): Promise<void> {
+  if (!restoring) await assertNoneArchived('task', [blockerId, blockedId]);
   await prisma.taskBlock.deleteMany({ where: { blockerId, blockedId } });
 }
 
@@ -764,7 +769,7 @@ function relationPair(a: string, b: string) {
  * Records that two tasks are related.
  * @param {string} taskId First task.
  * @param {string} otherId Second task.
- * @param {boolean} [restoring=false] Undo giving back the link: archived tasks accepted. Optional.
+ * @param {boolean} [restoring=false] Undo giving back the link, or the GitHub sync writing the link of the issue: archived tasks accepted. Optional.
  * @returns {Promise<void>}
  */
 export async function addTaskRelation(taskId: string, otherId: string, restoring = false): Promise<void> {
@@ -774,13 +779,14 @@ export async function addTaskRelation(taskId: string, otherId: string, restoring
 }
 
 /**
- * Removes a "related to" link (neither task archived).
+ * Removes a "related to" link (neither task archived, except for the GitHub sync).
  * @param {string} taskId First task.
  * @param {string} otherId Second task.
+ * @param {boolean} [restoring=false] The GitHub sync writing the links of the issue: archived tasks accepted. Optional.
  * @returns {Promise<void>}
  */
-export async function removeTaskRelation(taskId: string, otherId: string): Promise<void> {
-  await assertNoneArchived('task', [taskId, otherId]);
+export async function removeTaskRelation(taskId: string, otherId: string, restoring = false): Promise<void> {
+  if (!restoring) await assertNoneArchived('task', [taskId, otherId]);
   await prisma.taskRelation.deleteMany({ where: relationPair(taskId, otherId) });
 }
 
@@ -1161,6 +1167,9 @@ async function linksOfStayedSubtasks(lost: TaskLinksLost, stayed: readonly strin
   };
 }
 
+/** Undo of a transfer whose transaction ran out of time (rolled back). */
+const UNDO_TIMEOUT_ERROR = 'L’annulation a pris trop de temps : rien n’a été changé. Réessayez avec moins de tâches.';
+
 /**
  * Undo of a transfer (« Annuler » of a transfer, or of a rule that changed the project of one or several tasks), in
  * one transaction: all of it or nothing. The tasks go back to their project in the order given (the moved ones with
@@ -1168,7 +1177,8 @@ async function linksOfStayedSubtasks(lost: TaskLinksLost, stayed: readonly strin
  * level by level), each in its own project (those already there are left; one whose project was deleted since stays
  * with its parent, its project inherited again, without the milestone, sprints and documents of that project), archived ones and archived projects accepted, as an undo; then the links the transfer removed come
  * back (`restoreTaskLinks`), with those the groups lost between them while going back one after the other (blocks,
- * relations, parents of tasks back in the same tree). The tasks deleted since are passed over.
+ * relations, parents of tasks back in the same tree). The tasks deleted since are passed over. A transaction that runs
+ * out of time changes nothing and tells so.
  * @param {readonly TaskProjectMove[]} moves Tasks and the project each group goes back to, in order.
  * @param {unknown} links Links removed, as the transfer told them.
  * @returns {Promise<void>}
@@ -1192,7 +1202,7 @@ export const undoTaskTransfer = automated(async function undoTaskTransfer(moves:
       if (off.length) between.push(await moveTaskTrees(await topmostIds('task', off.map((task) => task.id)), projectId));
     }
     await restoreTaskLinks(mergeTaskLinksLost([await linksOfStayedSubtasks(lost, stayed), await linksBackInOneTree(mergeTaskLinksLost(between))]));
-  });
+  }).catch((error: unknown) => rethrowTimeout(error, UNDO_TIMEOUT_ERROR));
 });
 
 /**
@@ -1206,6 +1216,9 @@ export const bulkSetTasksArchived = automated(async function bulkSetTasksArchive
   for (const id of await topmostIds('task', ids)) await setTaskArchived(id, archived);
 });
 
+/** Deletion of tasks whose transaction ran out of time (rolled back). */
+const DELETE_TIMEOUT_ERROR = 'La suppression a pris trop de temps : rien n’a été supprimé. Réessayez avec moins de tâches.';
+
 /**
  * Deletes several tasks; their unselected sub-tasks are deleted too, or moved up. The times they leave with nothing
  * attached (no project, no other task, routine or event; not billed) are deleted with them.
@@ -1215,13 +1228,15 @@ export const bulkSetTasksArchived = automated(async function bulkSetTasksArchive
  */
 export const bulkDeleteTasks = automated(async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): Promise<void> {
   await assertTasks(ids);
-  // Their GitHub items are taken off the board first.
-  await deleteTreeItems('task', ids, deleteSubtasks, async (gone) => {
-    // Sub-tasks left by their deleted parent keep, as their own, what they inherited.
-    await freezeTaskInheritance((await prisma.task.findMany({ where: { parentId: { in: gone }, id: { notIn: gone } }, select: { id: true } })).map((task) => task.id));
-    await forgetGithubItems(gone);
-    await releaseSubjectTime({ taskIds: gone });
-  });
+  // One transaction: their GitHub items leave the board (their issues closed) once it is committed, never if it fails.
+  await inTransaction(() =>
+    deleteTreeItems('task', ids, deleteSubtasks, async (gone) => {
+      // Sub-tasks left by their deleted parent keep, as their own, what they inherited.
+      await freezeTaskInheritance((await prisma.task.findMany({ where: { parentId: { in: gone }, id: { notIn: gone } }, select: { id: true } })).map((task) => task.id));
+      await forgetGithubItems(gone);
+      await releaseSubjectTime({ taskIds: gone });
+    }),
+  ).catch((error: unknown) => rethrowTimeout(error, DELETE_TIMEOUT_ERROR));
 });
 
 // The actions of the automations go through the same writes (same checks).
