@@ -10,7 +10,7 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Group, Select, Text } from '@mantine/core';
 import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type TaskInheritableField, isTaskOverdue } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
+import { ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { TaskGithubBadge } from '../../github/components/TaskGithubBadge';
 import { useState } from 'react';
 
@@ -49,7 +49,7 @@ import { SavedCountdownsField } from '../../countdowns/components/SavedCountdown
 import { tasksQueryKey } from '../../../lib/query-keys';
 import { inheritedDateHint } from '../lib/inherited-dates';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
-import { ActionButton } from '../../../components/actions/ActionButton';
+import { TaskDoneButton } from './TaskDoneButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { InheritedField } from '../../../components/inheritance/InheritedField';
@@ -113,8 +113,8 @@ interface TaskDetailProps {
 }
 
 /**
- * Detail of a task, laid out as the routine and event panels (`DetailLayout`): its state, number, label, « Fermer la
- * tâche » / « Rouvrir » and « … » menu, then its project and mentions; on the left its description, « Relations »
+ * Detail of a task, laid out as the routine and event panels (`DetailLayout`): its state button (`TaskDoneButton`, the
+ * padlock of a blocked open task), number, label and « … » menu, then its project and mentions; on the left its description, « Relations »
  * (parent, sub-tasks, « Dépend de », « Bloque », « Relative à ») and its comments; on the right « Classement »,
  * « Parties prenantes », « Charge », « Périodes », « Alarmes » (reminders, saved timers), its place and « Ressources »
  * (links, documents, shopping lists, sheets). Each field saved as soon as it changes (its label and effort on leaving them). An
@@ -129,7 +129,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const taskRelation = useTaskRelation();
   const actions = useTaskActions(context);
   const locked = task.archived;
-  const closeAction = actions.close(task);
 
   /**
    * Saves a change right away.
@@ -221,7 +220,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         readOnly={locked}
         status={
           <Group gap={6} wrap="nowrap" h={36}>
-            <TaskStateIcon closed={task.closed} cancelled={task.cancelled} blocked={context.isBlocked(task)} />
+            {/* As the routine panel: its state button, one click closes it as done or reopens it (toast with « Annuler »); cancelling is in the menu. */}
+            <TaskDoneButton task={task} context={context} />
+            {!task.closed && context.isBlocked(task) && <TaskStateIcon closed={false} blocked />}
             <Text c="dimmed" fw={600}>
               {taskNumber(task)}
             </Text>
@@ -229,18 +230,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         }
         // Cancelled: struck through.
         title={{ ...text.form.getInputProps('label'), styles: task.cancelled ? { input: { textDecoration: 'line-through' } } : undefined }}
-        actions={
-          <ActionButton
-            priority="secondary"
-            size="xs"
-            icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
-            // As the selection and the menu: told in a toast with « Annuler ». Cancelling is in the menu.
-            loading={closeAction.loading}
-            onClick={closeAction.onClick}
-          >
-            {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
-          </ActionButton>
-        }
         menu={<ActionsMenu about="la tâche" items={actions.menu(task)} variant="light" size="input-xs" />}
         project={
           <InheritedField {...inherited('PROJECT')}>

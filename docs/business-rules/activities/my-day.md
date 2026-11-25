@@ -1,8 +1,8 @@
 # Règles de « Ma journée »
 
-Règles de la page « Ma journée » (menu Activités) : quelles tâches y sont un jour, et où chaque élément du jour se range. « Ma journée » est une liste du jour, pas une vue d’agenda : les routines, tâches et évènements du jour de l’espace courant, avec leurs horaires. Sources : `packages/shared/src/tasks/task-day.ts` (`taskDayReasons`, `isTaskOverdue`, `taskPlacement`), `packages/shared/src/calendar/my-day.ts` (`myDayRows`), `packages/shared/src/calendar/slot-conditions.ts` (`itemWindowsOn`). Tout est lu en jours et heures de Paris.
+Règles de la page « Ma journée » (menu Activités) : quelles tâches y sont un jour, où chaque élément du jour se range, et ses réglages. « Ma journée » est une liste du jour, pas une vue d’agenda : les routines, tâches et évènements du jour de l’espace courant, avec leurs horaires. Sources : `packages/shared/src/tasks/task-day.ts` (`taskDayReasons`, `isTaskOverdue`, `taskPlacement`), `packages/shared/src/calendar/my-day.ts` (`myDayRows`), `packages/shared/src/calendar/slot-conditions.ts` (`itemWindowsOn`), `packages/shared/src/calendar/my-day-settings.ts` (`readMyDaySettings`, `myDaySettingsSchema`), `apps/api/src/services/calendar/my-day-settings.ts`, `apps/api/src/graphql/modules/my-day.ts`. Tout est lu en jours et heures de Paris.
 
-Voir aussi : [Tâches](tasks.md), [Routines](routines.md), [Agenda](calendar.md), [Dates](../cross-cutting/dates.md).
+Voir aussi : [Tâches](tasks.md), [Routines](routines.md), [Agenda](calendar.md), [Dates](../cross-cutting/dates.md), [Espaces et accès](../cross-cutting/workspaces-and-access.md).
 
 ## Tâches du jour
 
@@ -46,3 +46,22 @@ Les éléments du jour se rangent en quatre blocs (`myDayRows`), dans cet ordre 
 Une tâche ou une routine qui ne peut pas se faire ce jour (aucune fenêtre) n’est pas dans « Ma journée » ce jour-là, même en retard, à son échéance ou liée à un évènement ; faite ou annulée ce jour, elle reste en bas. Ses horaires et sa condition de créneaux disent quand elle se fait : une tâche des heures de travail n’apparaît pas un jour sans travail, une tâche de la maison ne se range jamais pendant les heures de travail (et pas du tout un jour où elle n’a aucune fenêtre), qu’elle soit en retard ou non.
 
 Une tâche ou une routine liée à un évènement affiché ce jour se range sous cet évènement (de ses évènements liés affichés ce jour, le premier dans l’ordre où ils lui sont liés), et nulle part ailleurs, même en retard ou faite : sous l’évènement, les éléments liés suivent l’ordre des heures, faits et annulés en dernier. Liée à un évènement qui n’est pas affiché ce jour, elle se range seule.
+
+## Réglages
+
+Les filtres et choix d'affichage de « Ma journée » sont enregistrés sur le serveur, **par utilisateur et par espace** : un seul jeu de réglages (pas de vues multiples), le même dans tous les onglets et appareils de l'utilisateur, différent d'un espace à l'autre (`UserWorkspaceSettings.myDay`, champ JSON, une ligne par utilisateur et par espace). Ce sont des filtres de la page : ils ne changent ni les tâches du jour ni le placement ci-dessus.
+
+| Réglage | Champ | Par défaut |
+| ------- | ----- | ---------- |
+| Types d'éléments affichés : routines, tâches, évènements, éphémérides | `showRoutines`, `showTasks`, `showEvents`, `showEphemerides` | tous affichés |
+| Projets | `projectIds` | vide : tous les éléments, avec ou sans projet |
+| « À moi / sans assigné » | `mineOrUnassigned` | non : ceux de tout le monde |
+| Faits affichés | `showDone` | oui |
+| Annulés affichés | `showCancelled` | oui |
+| Créneaux de l'espace masqués, un par un | `hiddenSlotIds` | aucun : tous affichés |
+
+- Les créneaux sont enregistrés par ceux qui sont **masqués** : un créneau créé ensuite est affiché.
+- Jamais choisis : les valeurs par défaut. Lecture (`readMyDaySettings`) : un champ absent ou invalide prend sa valeur par défaut, une clé inconnue est ignorée ; dans les listes d'ids, seuls les textes de forme d'id sont gardés (1 à 64 caractères), chacun une fois, dans leur ordre, 500 au plus.
+- Un projet ou un créneau supprimé depuis n'est pas une erreur : son id reste enregistré (le serveur garde les ids qu'il reçoit) ; la page l'ignore en lisant les réglages avec les ids encore connus de l'espace (`readMyDaySettings`), et ne le renvoie donc plus au prochain enregistrement, et un filtre de projets dont tous les projets ont été supprimés montre de nouveau tous les éléments.
+- Enregistrement : tout le jeu à la fois (`updateMyDaySettings`), validé par `myDaySettingsSchema` : chaque champ requis, de son type, ids de 1 à 64 caractères (« Id invalide. »), 500 projets au plus (« 500 projets maximum. ») et 500 créneaux au plus (« 500 créneaux maximum. ») ; sinon « Certains champs sont invalides. » (`BAD_USER_INPUT`, voir [Erreurs](../cross-cutting/errors.md#erreurs-rattachées-à-un-champ)). Les ids ne sont pas comparés aux projets et créneaux de l'espace.
+- Accès : un utilisateur ne lit et n'écrit que **ses** réglages (l'utilisateur de la session, jamais un id envoyé), et seulement dans l'espace de la requête dont il est membre (il y a son profil « Moi », voir [Personnes](../cross-cutting/people.md#-moi-)) ; sinon « Espace introuvable. » (`NOT_FOUND`). Supprimer l'espace ou l'utilisateur supprime ses réglages.

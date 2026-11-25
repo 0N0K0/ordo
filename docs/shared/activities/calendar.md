@@ -127,6 +127,21 @@ Calcul pur : les éléments du jour, déjà choisis et filtrés par l'app, sont 
 
 Internes : `Block`, `Placement`, `placementOf` (où va un élément ce jour, `null` : il n'y est pas), `wholeDay` (créneau de toute la journée : colore les heures affichées sans les faire afficher), `hourStart`, `hourOf`, `byTime` (heure, type, ordre donné), `byDone` (faits dans l'ordre où ils l'ont été, puis annulés), `finished`.
 
+## `my-day-settings.ts` — réglages de « Ma journée »
+
+Réglages de la page, par utilisateur et par espace (règles dans [Ma journée](../../business-rules/activities/my-day.md#réglages)). Lus par l'API (`apps/api/src/services/calendar/my-day-settings.ts`) et par la page.
+
+| Export | Rôle |
+| ------ | ---- |
+| `MyDaySettings` | Réglages : `showRoutines`, `showTasks`, `showEvents`, `showEphemerides`, `projectIds` (vide : tous), `mineOrUnassigned` (« à moi / sans assigné »), `showDone`, `showCancelled`, `hiddenSlotIds` (créneaux masqués : un créneau créé ensuite est affiché). |
+| `DEFAULT_MY_DAY_SETTINGS` | Réglages jamais choisis (figés) : tout affiché, tous les projets, tout le monde, aucun créneau masqué. |
+| `MY_DAY_IDS_MAX` | 500 : ids au plus dans `projectIds` et dans `hiddenSlotIds`. |
+| `myDaySettingsSchema` | Réglages envoyés (zod) : chaque champ requis, clés inconnues retirées, listes d'ids de 1 à 64 caractères (« Id invalide. »), 500 au plus (« 500 projets maximum. », « 500 créneaux maximum. »). |
+| `MyDayKnownIds` | Ids encore connus de l'espace (`projectIds?`, `slotIds?`), pour écarter ceux supprimés depuis. |
+| `readMyDaySettings(value, known?)` | Réglages lus d'une valeur enregistrée : valeur par défaut pour un champ absent ou invalide, clés inconnues ignorées, ids de forme valide une fois chacun, dans leur ordre, 500 au plus ; avec `known`, les ids inconnus de l'espace écartés (un filtre de projets vidé ainsi montre tous les éléments). |
+
+Internes : `MY_DAY_ID_MAX` (64), `MY_DAY_FLAGS` (les réglages oui / non), `idList` (liste d'ids du schéma), `readIds`.
+
 ## `slot-kinds.ts` — références des types de créneaux
 
 | Export                                     | Rôle                                                                                                                              |

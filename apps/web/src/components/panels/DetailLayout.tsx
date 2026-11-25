@@ -10,7 +10,7 @@ interface DetailLayoutProps {
   title: TextInputProps;
   /** The title takes the focus when the panel opens (a creation form). Optional. Default = false. */
   focusTitle?: boolean;
-  /** Buttons after the title, before the menu (« Fermer la tâche »). Optional. */
+  /** Buttons after the title, before the menu. Optional. */
   actions?: ReactNode;
   /** « … » menu of the item (`ActionsMenu`): kept usable when the item is read only. Optional. */
   menu?: ReactNode;

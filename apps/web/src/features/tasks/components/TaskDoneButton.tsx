@@ -20,9 +20,10 @@ interface TaskDoneButtonProps {
 }
 
 /**
- * State button of a task in a row: « À faire » (an empty gray round) or « Faite » (a green check), a cancelled one
- * « Annulée » (a gray crossed circle); one click closes it as done or reopens it (« Fermer » / « Rouvrir » of its menu
- * and of the selection: told in a toast with « Annuler », `close` of `useTaskRowsActions`, as `useTaskActions().close`). An archived task is shown only.
+ * State button of a task, in a row or in the header of its panel: « À faire » (an empty gray round) or « Faite » (a
+ * green check), a cancelled one « Annulée » (a gray crossed circle); one click closes it as done or reopens it (as
+ * « Fermer » / « Rouvrir » of the selection: told in a toast with « Annuler », `close` of `useTaskRowsActions`). An
+ * archived task is shown only.
  * @param {TaskDoneButtonProps} props Component props.
  * @returns {JSX.Element} Button.
  */

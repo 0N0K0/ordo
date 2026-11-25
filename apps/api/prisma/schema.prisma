@@ -78,6 +78,7 @@ model Workspace {
   timeEntries               TimeEntry[]
   timeEntryEvents           TimeEntryEvent[]
   alarms                    Alarm[]
+  userSettings              UserWorkspaceSettings[]
   mailAccounts              MailAccount[]
   mailMessages              MailMessage[]
   mailLabels                MailLabel[]
@@ -158,16 +159,16 @@ enum WorkspaceKind {
 }
 
 model User {
-  id                String             @id @default(cuid())
+  id                String                  @id @default(cuid())
   /// Lowercase, unique login name.
-  username          String             @unique
+  username          String                  @unique
   /// Lowercase, unique email address.
-  email             String             @unique
+  email             String                  @unique
   /// New email address awaiting confirmation.
   pendingEmail      String?
   passwordHash      String
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
   sessions          Session[]
   authTokens        AuthToken[]
   /// Contributor profile of the user in each workspace ("Moi"): tasks can be assigned to them like to anyone else.
@@ -179,6 +180,26 @@ model User {
   countdowns        Countdown[]
   /// Devices receiving the push notifications of the user.
   pushSubscriptions PushSubscription[]
+  /// Settings of the user in each workspace (« Ma journée »…).
+  workspaceSettings UserWorkspaceSettings[]
+}
+
+/// Settings of a user in a workspace, one row per user and workspace: read and written by that user only.
+model UserWorkspaceSettings {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Settings of the page « Ma journée »: { showRoutines, showTasks, showEvents, showEphemerides, projectIds,
+  /// mineOrUnassigned, showDone, showCancelled, hiddenSlotIds }, read by the shared `readMyDaySettings`; none: the defaults.
+  myDay       Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
 }
 
 /// A ring of an alarm or a reminder of the user, one per ring key: what its toast shows, when it rings

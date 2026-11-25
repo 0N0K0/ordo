@@ -11,6 +11,7 @@ import './modules/comments';
 import './modules/time';
 import './modules/mail';
 import './modules/calendar';
+import './modules/my-day';
 import './modules/geo';
 import './modules/accounting';
 import './modules/accounting-documents';

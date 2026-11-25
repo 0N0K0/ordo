@@ -1,7 +1,6 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
-import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import type { Task } from '../api';
 import { TaskCreateForm } from '../components/TaskCreateForm';
 import type { TaskContext } from './use-task-context';
@@ -44,14 +43,6 @@ export function useTaskActions(context: TaskContext | null) {
         ...countdownEntries(task, taskCountdownItem(task, context)),
       ];
     },
-
-    /**
-     * « Fermer » / « Rouvrir » of a task alone, as the selection does: the toast tells it, with « Annuler » (a task
-     * reopened is closed again as it was, done or cancelled, `useBulkUndo().closed`).
-     * @param {Task} task Task.
-     * @returns {SelectionAction} Action (its click and its loading).
-     */
-    close: (task: Task): SelectionAction => actionsOf([task]).close,
 
     /**
      * Opens the new task form.

@@ -3064,6 +3064,11 @@ type Mutation {
   updateMailLabel(id: ID!, input: LabelColorPatch!): MailLabel!
   updateMailSearch(id: ID!, input: MailSearchInput!): Boolean!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
+
+  """
+  Saves the settings of « Ma journée » of the user in the current workspace.
+  """
+  updateMyDaySettings(input: MyDaySettingsInput!): MyDaySettings!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
   updateProjectCategory(id: ID!, input: LabelColorPatch!): ProjectCategory!
   updateProjectResource(id: ID!, label: String!, note: String, url: String): Boolean!
@@ -3174,6 +3179,58 @@ type Mutation {
   Uses a sheet (times a multiplier): its items used up that are references are taken from the stock.
   """
   useSheet(id: ID!, multiplier: Float!): SheetUse!
+}
+
+"""
+Settings of the page « Ma journée » of the user in the current workspace (one set, saved on the server).
+"""
+type MyDaySettings {
+  """
+  Slots hidden one by one (a slot created later is shown). A slot deleted since may stay listed.
+  """
+  hiddenSlotIds: [String!]!
+
+  """Only the items assigned to « Moi » or to nobody; false: everyone’s."""
+  mineOrUnassigned: Boolean!
+
+  """
+  Projects whose items are shown; empty: every item. A project deleted since may stay listed.
+  """
+  projectIds: [String!]!
+
+  """Items cancelled shown."""
+  showCancelled: Boolean!
+
+  """Items done shown."""
+  showDone: Boolean!
+
+  """Éphémérides shown."""
+  showEphemerides: Boolean!
+
+  """Events shown."""
+  showEvents: Boolean!
+
+  """Routines shown."""
+  showRoutines: Boolean!
+
+  """Tasks shown."""
+  showTasks: Boolean!
+}
+
+"""Settings of « Ma journée », saved as a whole."""
+input MyDaySettingsInput {
+  """500 at most."""
+  hiddenSlotIds: [String!]!
+  mineOrUnassigned: Boolean!
+
+  """500 at most."""
+  projectIds: [String!]!
+  showCancelled: Boolean!
+  showDone: Boolean!
+  showEphemerides: Boolean!
+  showEvents: Boolean!
+  showRoutines: Boolean!
+  showTasks: Boolean!
 }
 
 """Kind of notification a workspace can give while another one is open."""
@@ -3578,6 +3635,11 @@ type Query {
   mailSearches: [MailSearch!]!
   me: User
   milestones: [Milestone!]!
+
+  """
+  Settings of « Ma journée » of the user in the current workspace (the defaults when none were saved).
+  """
+  myDaySettings: MyDaySettings!
 
   """
   Fields of a new document of a client (company terms and mentions, dates).

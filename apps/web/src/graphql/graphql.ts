@@ -634,6 +634,21 @@ export type MilestoneUpdateInput = {
   label?: string | null | undefined;
 };
 
+/** Settings of « Ma journée », saved as a whole. */
+export type MyDaySettingsInput = {
+  /** 500 at most. */
+  hiddenSlotIds: Array<string>;
+  mineOrUnassigned: boolean;
+  /** 500 at most. */
+  projectIds: Array<string>;
+  showCancelled: boolean;
+  showDone: boolean;
+  showEphemerides: boolean;
+  showEvents: boolean;
+  showRoutines: boolean;
+  showTasks: boolean;
+};
+
 /** Kind of notification a workspace can give while another one is open. */
 export type NotificationSource =
   | 'MAILS';
@@ -3464,6 +3479,20 @@ export type WatchedUnreadMailsQueryVariables = Exact<{
 
 export type WatchedUnreadMailsQuery = { mailMessages: { messages: Array<{ uid: number, subject: string, from: Array<{ name: string | null, address: string }> }> } };
 
+export type MyDaySettingsFieldsFragment = { showRoutines: boolean, showTasks: boolean, showEvents: boolean, showEphemerides: boolean, projectIds: Array<string>, mineOrUnassigned: boolean, showDone: boolean, showCancelled: boolean, hiddenSlotIds: Array<string> };
+
+export type MyDaySettingsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MyDaySettingsQuery = { myDaySettings: { showRoutines: boolean, showTasks: boolean, showEvents: boolean, showEphemerides: boolean, projectIds: Array<string>, mineOrUnassigned: boolean, showDone: boolean, showCancelled: boolean, hiddenSlotIds: Array<string> } };
+
+export type UpdateMyDaySettingsMutationVariables = Exact<{
+  input: MyDaySettingsInput;
+}>;
+
+
+export type UpdateMyDaySettingsMutation = { updateMyDaySettings: { showRoutines: boolean, showTasks: boolean, showEvents: boolean, showEphemerides: boolean, projectIds: Array<string>, mineOrUnassigned: boolean, showDone: boolean, showCancelled: boolean, hiddenSlotIds: Array<string> } };
+
 export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
 
 export type LabelFieldsFragment = { id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null };
@@ -5768,6 +5797,19 @@ export const LinkedMailFieldsFragmentDoc = new TypedDocumentString(`
   }
 }
     `, {"fragmentName":"LinkedMailFields"}) as unknown as TypedDocumentString<LinkedMailFieldsFragment, unknown>;
+export const MyDaySettingsFieldsFragmentDoc = new TypedDocumentString(`
+    fragment MyDaySettingsFields on MyDaySettings {
+  showRoutines
+  showTasks
+  showEvents
+  showEphemerides
+  projectIds
+  mineOrUnassigned
+  showDone
+  showCancelled
+  hiddenSlotIds
+}
+    `, {"fragmentName":"MyDaySettingsFields"}) as unknown as TypedDocumentString<MyDaySettingsFieldsFragment, unknown>;
 export const ClientFieldsFragmentDoc = new TypedDocumentString(`
     fragment ClientFields on Client {
   id
@@ -8828,6 +8870,40 @@ export const WatchedUnreadMailsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<WatchedUnreadMailsQuery, WatchedUnreadMailsQueryVariables>;
+export const MyDaySettingsDocument = new TypedDocumentString(`
+    query MyDaySettings {
+  myDaySettings {
+    ...MyDaySettingsFields
+  }
+}
+    fragment MyDaySettingsFields on MyDaySettings {
+  showRoutines
+  showTasks
+  showEvents
+  showEphemerides
+  projectIds
+  mineOrUnassigned
+  showDone
+  showCancelled
+  hiddenSlotIds
+}`) as unknown as TypedDocumentString<MyDaySettingsQuery, MyDaySettingsQueryVariables>;
+export const UpdateMyDaySettingsDocument = new TypedDocumentString(`
+    mutation UpdateMyDaySettings($input: MyDaySettingsInput!) {
+  updateMyDaySettings(input: $input) {
+    ...MyDaySettingsFields
+  }
+}
+    fragment MyDaySettingsFields on MyDaySettings {
+  showRoutines
+  showTasks
+  showEvents
+  showEphemerides
+  projectIds
+  mineOrUnassigned
+  showDone
+  showCancelled
+  hiddenSlotIds
+}`) as unknown as TypedDocumentString<UpdateMyDaySettingsMutation, UpdateMyDaySettingsMutationVariables>;
 export const ProjectTreeDocument = new TypedDocumentString(`
     query ProjectTree {
   clients {
