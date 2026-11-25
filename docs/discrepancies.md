@@ -5,7 +5,6 @@
 ## Incohérences entre le web et l’API
 
 - **Éditeur d’un texte selon sa taille :** un texte imprimé ou affiché en markdown se saisit dans l’éditeur markdown ; l’introduction et la conclusion d’un document comptable et la description d’un projet ou d’un produit du catalogue sont pourtant saisies dans une zone de texte simple. Voir [Nommage](business-rules/cross-cutting/naming.md). _A aligner avec le reste_
-- **Dossier de recherche créé depuis un projet :** l’entrée GraphQL `MailSearchInput` n’a pas de `projectId` ; il n’est pas sûr que le dossier garde la limite au projet. Voir [Règles des mails](business-rules/resources/mail.md). _À corriger_
 - **Date de péremption d’un produit :** la description GraphQL de `ShoppingProduct.expiresAt` dit qu’une fois la date passée le produit est marqué manquant ; aucun code ni tâche de fond ne le fait. Voir [Règles des achats](business-rules/supplies/shopping.md). _il faut enlever la doc, un produit périmé n'est pas forcément manquant_
 
 ## Formulaires de données hors de la disposition commune

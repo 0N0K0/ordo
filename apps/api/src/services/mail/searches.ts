@@ -1,12 +1,13 @@
-import { addDays, collator, EMPTY_MAIL_SEARCH, type MailSearchCriteria, mailSearchCriteriaSchema, type MailSearchSortBy, type MailSearchInput, mailSearchSchema, parseDay } from '@ordo/shared';
+import { addDays, collator, compareMailDates, EMPTY_MAIL_SEARCH, type MailSearchCriteria, mailSearchCriteriaSchema, type MailSearchSortBy, type MailSearchInput, mailSearchSchema, parseDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import type { MailSearch } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { folderLabel, isInbox, selectableFolders, withImap, withMailbox } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
-import { PAGE_SIZE, SUMMARY_FETCH, toSummary, type MailSummary } from './reader';
-import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
+import { PAGE_SIZE, sortedUids, SUMMARY_FETCH, toSummary, type MailSummary } from './reader';
+import { assertActive } from '../core/archive';
+import { deleteOrNotFound, findOrNotFound } from '../core/lookup';
 
 /** Folders a search does not look into, with "every folder". */
 const SKIPPED = new Set(['\\Trash', '\\Junk', '\\Drafts', '\\Sent']);
@@ -51,25 +52,28 @@ function parseSearch(input: MailSearchInput): { label: string; criteria: MailSea
 }
 
 /**
- * Creates a search folder at the end of the list.
+ * Creates a search folder at the end of the list; its project, if any, must exist and not be archived.
  * @param {MailSearchInput} input Search.
  * @returns {Promise<MailSearch>} Search.
  */
 export async function createSearch(input: MailSearchInput): Promise<MailSearch> {
   const { label, criteria } = parseSearch(input);
+  await assertActive(prisma.project, criteria.projectId, 'Projet');
   const position = await nextPositionIn('mailSearch');
   return prisma.mailSearch.create({ data: { label, criteria, position } });
 }
 
 /**
- * Updates a search folder.
+ * Updates a search folder; a project newly chosen must exist and not be archived.
  * @param {string} id Search id.
  * @param {MailSearchInput} input Search.
  * @returns {Promise<MailSearch>} Search.
  */
 export async function updateSearch(id: string, input: MailSearchInput): Promise<MailSearch> {
   const { label, criteria } = parseSearch(input);
-  await assertExists(prisma.mailSearch, id, 'Dossier de recherche');
+  const current = await findOrNotFound(prisma.mailSearch, id, 'Dossier de recherche');
+  // The project it already had stays valid, even archived or deleted.
+  if (criteria.projectId !== searchCriteria(current).projectId) await assertActive(prisma.project, criteria.projectId, 'Projet');
   return prisma.mailSearch.update({ where: { id }, data: { label, criteria } });
 }
 
@@ -133,7 +137,8 @@ async function searchFolder(
         const matching = await search({ or: [{ subject: text }, { from: text }, { to: text }, { body: text }] });
         uids = new Set([...uids].filter((uid) => matching.has(uid)));
       }
-      let latest = [...uids].sort((a, b) => b - a);
+      // Latest first by date (not by UID: a mail moved or copied into the folder gets a new one).
+      let latest = await sortedUids(client, [...uids], { by: 'date', ascending: false });
       // Without keywords, the state and flags from the marks kept in Ordo.
       if (!keywords && (criteria.state !== 'all' || criteria.labelIds.length)) {
         const ids = await messageIdsOf(client, latest.slice(0, PER_FOLDER * 5));
@@ -229,9 +234,12 @@ async function runSearch(criteria: MailSearchCriteria, page: number, sort: Searc
       }
     }),
   );
+  const dateKey = (hit: MailSearchHit) => ({ time: hit.date.getTime(), uid: hit.uid });
+  // Latest first between equals.
   const all = found.flat().sort((a, b) => {
-    const order = sort.by === 'date' ? a.date.getTime() - b.date.getTime() : collator.compare(sortText(a, sort.by), sortText(b, sort.by));
-    return sort.ascending ? order : -order;
+    if (sort.by === 'date') return compareMailDates(dateKey(a), dateKey(b), sort.ascending);
+    const order = collator.compare(sortText(a, sort.by), sortText(b, sort.by));
+    return (sort.ascending ? order : -order) || compareMailDates(dateKey(a), dateKey(b));
   });
   return { messages: all.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), total: all.length };
 }

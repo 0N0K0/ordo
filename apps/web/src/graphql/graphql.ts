@@ -606,6 +606,8 @@ export type MailSearchInput = {
   from?: string | null | undefined;
   label: string;
   labelIds: Array<string | number>;
+  /** Only the mails linked to this project (the sent ones too). */
+  projectId?: string | number | null | undefined;
   /** inbox, all or folder. */
   scope: string;
   since?: string | null | undefined;

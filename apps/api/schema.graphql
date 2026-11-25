@@ -1891,7 +1891,9 @@ type MailPage {
 
 """Search folder, kept in Ordo (not on the mail server)."""
 type MailSearch {
-  """accountIds, scope, state, labelIds, unread, text."""
+  """
+  accountIds, scope, folder, state, labelIds, unread, text, from, to, subject, body, since, until, attachments, projectId.
+  """
   criteria: JSON!
   id: ID!
   label: String!
@@ -1929,6 +1931,9 @@ input MailSearchInput {
   from: String
   label: String!
   labelIds: [ID!]!
+
+  """Only the mails linked to this project (the sent ones too)."""
+  projectId: ID
 
   """inbox, all or folder."""
   scope: String!

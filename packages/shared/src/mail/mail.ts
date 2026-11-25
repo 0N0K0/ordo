@@ -28,6 +28,58 @@ export function mailSearchSortBy(sort: string | null | undefined): MailSearchSor
   return by === 'size' ? 'date' : by;
 }
 
+/** Date and UID a mail is sorted on by date. */
+export interface MailDateKey {
+  /** Date of the mail in milliseconds (`mailTime`). */
+  time: number;
+  uid: number;
+}
+
+/**
+ * Milliseconds of a date given as a date or a text; null when missing or not a date.
+ * @param {Date | string | null | undefined} value Date.
+ * @returns {number | null} Milliseconds.
+ */
+function validTime(value: Date | string | null | undefined): number | null {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+/**
+ * Date of a mail, the one shown and the one its mails are sorted on: its Date header (when it was sent), else when
+ * the server received it (IMAP INTERNALDATE); 0 without either.
+ * @param {Date | string | null | undefined} header Date header.
+ * @param {Date | string | null | undefined} received Date the server received it.
+ * @returns {number} Milliseconds.
+ */
+export function mailTime(header: Date | string | null | undefined, received: Date | string | null | undefined): number {
+  return validTime(header) ?? validTime(received) ?? 0;
+}
+
+/**
+ * Value of the Date header in raw headers (« Date: … », folded lines joined).
+ * @param {string | null | undefined} headers Raw headers.
+ * @returns {string | null} Value, or null without the header.
+ */
+export function dateHeader(headers: string | null | undefined): string | null {
+  const match = /^date:[ \t]*(.*(?:\r?\n[ \t].*)*)/im.exec(headers ?? '');
+  const value = match?.[1]?.replace(/\r?\n[ \t]+/g, ' ').trim();
+  return value || null;
+}
+
+/**
+ * Order of two mails by date: latest first (the highest UID first between equals), or the exact reverse.
+ * @param {MailDateKey} a Mail.
+ * @param {MailDateKey} b Mail.
+ * @param {boolean} [ascending] Oldest first. Optional. Default = false.
+ * @returns {number} Negative when a comes first.
+ */
+export function compareMailDates(a: MailDateKey, b: MailDateKey, ascending = false): number {
+  const order = a.time - b.time || a.uid - b.uid;
+  return ascending ? order : -order;
+}
+
 /** Subject shown for a mail without one. */
 export const NO_SUBJECT = '(sans objet)';
 
