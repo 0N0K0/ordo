@@ -63,6 +63,8 @@ La règle unique d'un filtre sur une ligne, la même dans l'app (tableaux, table
 | `tableViewConfigSchema` / `TableViewConfig` | Configuration d'une vue (tableau ci-dessous). Les champs invalides retombent sur leur défaut (`catch`) au lieu de refuser la vue.                                                       |
 | `emptyTableFilter()`                        | Groupe racine vide `{ id: 'root', combinator: 'and' }` (toutes les lignes).                                                                                                             |
 | `tableViewConfig(config?)`                  | Configuration complète à partir de réglages partiels.                                                                                                                                   |
+| `newTableViewConfig(columns, config?)`      | Configuration d'une nouvelle vue : les colonnes de départ du tableau dans l'espace (`TableColumnDefaults`, aucune : celles de l'application), puis ses propres réglages. Lue par les vues créées, les premières vues et « Colonnes par défaut » des options d'une vue. |
+| `viewColumnLayout(config)`                  | `ColumnLayout` d'une vue (ordre, colonnes masquées, largeurs), vide sans vue.                                                                                                           |
 | `viewLabelSchema`                           | Libellé d'une vue : requis, 250 caractères max.                                                                                                                                         |
 
 Champs de `tableViewConfigSchema` :

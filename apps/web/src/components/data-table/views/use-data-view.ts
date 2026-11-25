@@ -1,12 +1,15 @@
 import {
   legacyLabelColumn,
+  newTableViewConfig,
   tableViewConfig,
   tableViewConfigSchema,
+  viewColumnLayout,
   withFilterValues,
   withLabelColumn,
   type ColumnLayout,
   type LegacyFilterValues,
   type TableFilterGroup,
+  type TableColumnDefaults,
   type TableSort,
   type TableViewConfig,
 } from '@ordo/shared';
@@ -99,6 +102,8 @@ export interface DataView<R> {
   columns: readonly DataColumn<R>[];
   shown: ShownColumn<R>[];
   layout: ColumnLayout;
+  /** Layout a new view of the table starts with (« Colonnes des nouvelles vues », else the app's): « Colonnes par défaut » of its options; null while they are read (or could not be). */
+  newViewLayout: ColumnLayout | null;
   sorting: TableSort[];
   /** Rows kept by the search and the filter, sorted. */
   rows: R[];
@@ -165,13 +170,13 @@ export function useTableViews({ tableKey, projectId = null, first, ready = true 
   const firstKey = JSON.stringify(first ?? null);
   const defaultsKey = JSON.stringify(defaults ?? {});
   // A new view: what the table starts with, then its own.
-  const blank = useCallback(() => tableViewConfig(JSON.parse(defaultsKey) as Partial<TableViewConfig>), [defaultsKey]);
+  const blank = useCallback(() => newTableViewConfig(JSON.parse(defaultsKey) as TableColumnDefaults), [defaultsKey]);
   // Stable while the first views do not change: the hook makes them once.
   const firstViews = useCallback(
     () =>
       ((JSON.parse(firstKey) as FirstTableView[] | null) ?? [{ label: 'Toutes' }]).map((view) => ({
         label: view.label,
-        config: tableViewConfig({ ...(JSON.parse(defaultsKey) as Partial<TableViewConfig>), ...view.config }),
+        config: newTableViewConfig(JSON.parse(defaultsKey) as TableColumnDefaults, view.config),
       })),
     [firstKey, defaultsKey],
   );
@@ -209,7 +214,9 @@ export function useDataView<R>({
   const own = useTableViews({ tableKey, projectId, first, ready: !given });
   const views = given ?? own;
   const { config } = views;
-  const layout = { columnOrder: config?.columnOrder ?? [], hiddenColumns: config?.hiddenColumns ?? [], columnSizing: config?.columnSizing ?? {} };
+  const layout = viewColumnLayout(config);
+  // The same query as its views (cached): what a new view of the table starts with.
+  const { data: columnDefaults, isSuccess: columnDefaultsRead } = useTableColumnDefaults(tableKey);
   const sorting = config?.sorting ?? [];
   // The archived rows, once asked.
   const { shown: pool, toggle } = useArchivedToggle(rows, archived ?? NEVER_ARCHIVED);
@@ -228,6 +235,7 @@ export function useDataView<R>({
     columns,
     shown: shownColumns(columns, layout),
     layout,
+    newViewLayout: columnDefaultsRead ? viewColumnLayout(newTableViewConfig(columnDefaults)) : null,
     sorting,
     rows: kept,
     total: rows.length,
