@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { caseAfterItsEnd, cutRoutineBefore, shiftedRoutinePiece, shiftMovesAll, weekdayMovedCase } from '../../src/routines/routines';
+import { caseAfterItsEnd, cutRoutineBefore, INEXACT_MOVE_REFUSAL, NEXT_CASE_REFUSAL, shiftedRoutinePiece, shiftMovesAll, weekdayMovedCase } from '../../src/routines/routines';
 import { crossedWeeks, occurrenceDates, occurrencesBefore, weeksChange, type Recurrence } from '../../src/dates/recurrence';
 import { addDays, daysBetween, weekdayOfDate } from '../../src/dates/days';
 import { rule } from '../rules';
@@ -161,31 +161,53 @@ describe('weekday moves, more generated moves', () => {
     }
   });
 
-  it('not exact (excluded dates already at their most), not counted: its other weekdays gain nothing', () => {
+  it('excluded dates already at their most: exactly the former occurrences, or refused (never inexact)', () => {
+    /**
+     * Result of a move, or null when it is refused as it cannot be exact.
+     * @param {() => T} compute Move.
+     * @returns {T | null} Result.
+     */
+    const exactOrRefused = <T,>(compute: () => T): T | null => {
+      try {
+        return compute();
+      } catch (error) {
+        expect((error as Error).message).toBe(INEXACT_MOVE_REFUSAL);
+        return null;
+      }
+    };
+    let refused = 0;
+    let exact = 0;
     for (const move of movesOf(6, 120)) {
-      // Counted, a day its weekday moved gains takes the place of the last one (accepted, see the docs).
-      if (move.weekly.count !== null) continue;
       // 5 000 excluded dates in all, years before it, on a weekday it never has.
       const free = [1, 2, 3, 4, 5, 6, 7].find((day) => !move.weekly.weekdays.includes(day) && day !== weekdayOfDate(move.to))!;
       const first = addDays('1990-01-01', (free - weekdayOfDate('1990-01-01') + 7) % 7);
       const padding = Array.from({ length: 5000 - move.weekly.exceptions.length }, (_, index) => addDays(first, 7 * index));
       const crowded: Move = { ...move, weekly: { ...move.weekly, exceptions: [...padding, ...move.weekly.exceptions] } };
-      const piece = shiftedRoutinePiece(crowded.weekly, crowded.start, crowded.date, crowded.to, false);
-      const actual = occurrenceDates(piece.recurrence, piece.start, piece.start, SEEN);
-      const expected = expectedOf(crowded, false);
-      const moved = (day: string) => weekdayOfDate(day) === weekdayOfDate(crowded.to);
-      expect(actual.filter((day) => !moved(day)), JSON.stringify(move)).toEqual(expected.filter((day) => !moved(day)));
-      expect(piece.recurrence.exceptions.length).toBeLessThanOrEqual(5000);
-      // In a case with its own end: nothing gained past it either.
+      const all = exactOrRefused(() => shiftedRoutinePiece(crowded.weekly, crowded.start, crowded.date, crowded.to, false));
+      if (all) expect(occurrenceDates(all.recurrence, all.start, all.start, SEEN), JSON.stringify(move)).toEqual(expectedOf(crowded, false));
+      if (all) exact += 1;
+      else refused += 1;
+      // Cut: the rule before and the one going on, both exact, or refused.
+      if (occurrenceDates(crowded.weekly, crowded.start, crowded.start, addDays(crowded.date, -1)).length) {
+        const cut = exactOrRefused(() => ({ before: ruleBefore(crowded), piece: shiftedRoutinePiece(crowded.weekly, crowded.start, crowded.date, crowded.to, true) }));
+        if (cut) {
+          const actual = [...occurrenceDates(cut.before, crowded.start, crowded.start, SEEN), ...occurrenceDates(cut.piece.recurrence, cut.piece.start, cut.piece.start, SEEN)].sort();
+          expect(actual, JSON.stringify(move)).toEqual(expectedOf(crowded, true));
+        }
+      }
+      // In a case with its own end.
       const until = addDays(crowded.start, 90);
-      if (crowded.date > until) continue;
-      const made = weekdayMovedCase({ until, recurrence: crowded.weekly }, piece.recurrence, crowded.start, piece.start, crowded.date, crowded.to, [], crowded.start, false);
+      if (!all || crowded.date > until) continue;
+      const made = exactOrRefused(() => weekdayMovedCase({ until, recurrence: crowded.weekly }, all.recurrence, crowded.start, all.start, crowded.date, crowded.to, [], crowded.start, false));
+      if (!made) continue;
       const end = made.recurrence.until && made.recurrence.until < made.until! ? made.recurrence.until : made.until!;
-      const inCase = occurrenceDates({ ...made.recurrence, until: end }, piece.start, piece.start, SEEN);
       const former = expectedOf({ ...crowded, weekly: { ...crowded.weekly, until: crowded.weekly.until && crowded.weekly.until < until ? crowded.weekly.until : until } }, false);
-      expect(inCase.filter((day) => !moved(day)), JSON.stringify(move)).toEqual(former.filter((day) => !moved(day)));
+      expect(occurrenceDates({ ...made.recurrence, until: end }, all.start, all.start, SEEN), JSON.stringify(move)).toEqual(former);
     }
-  });
+    // Both happen: the refusal is reached, and a move that fits stays exact.
+    expect(refused).toBeGreaterThan(0);
+    expect(exact).toBeGreaterThan(0);
+  }, 60_000);
 
   it('« Celle-ci et les suivantes » in a case followed by another one: its piece holds the occurrence moved, or starts past its end (refused)', () => {
     const random = randomOf(70);
@@ -215,6 +237,15 @@ describe('one weekday of several moved alone: the cases found', () => {
     expect(occurrenceDates(before, move.start, move.start, SEEN)).toEqual(['2026-10-05', '2026-10-12']);
     expect(piece.recurrence.exceptions).toEqual([]);
     expect(occurrenceDates(piece.recurrence, piece.start, piece.start, SEEN)).toEqual(['2026-10-13', '2026-10-19', '2026-10-20', '2026-10-26', '2026-10-27', '2026-11-02', '2026-11-03']);
+  });
+
+  it('a case whose only occurrence left moves into the next case (« Toutes »): refused with the next case message', () => {
+    // Thursdays and Fridays ×385 from Tuesday 2026-11-10, the case until Thursday 11-12, the next one from 11-13.
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [4, 5], count: 385 });
+    const piece = shiftedRoutinePiece(weekly, '2026-11-10', '2026-11-12', '2026-11-17', false);
+    expect(() => weekdayMovedCase({ until: '2026-11-12', recurrence: weekly }, piece.recurrence, '2026-11-10', piece.start, '2026-11-12', '2026-11-17', [{ from: '2026-11-13' }], '2026-11-10', false)).toThrow(
+      NEXT_CASE_REFUSAL,
+    );
   });
 
   it('a ten-year pause holding a moved occurrence: cut at that day, not a thousand excluded dates', () => {

@@ -40,6 +40,7 @@ import {
   weekdayMovedCase,
   cutRoutineBefore,
   caseAfterItsEnd,
+  NEXT_CASE_REFUSAL,
   shiftedDates,
   type RoutineCategoryInput,
   routineCategorySchema,
@@ -2022,7 +2023,7 @@ export async function changeRoutineOccurrence(
     }
     // A piece starting past its end (its end held before the next case): its occurrences would be lost.
     if ((split ? pieces.slice(1) : pieces).some((piece) => caseAfterItsEnd(piece, start))) {
-      throw fieldError('to', 'Ce jour est dans la période du cas suivant : choisissez « Cette occurrence » pour l’y déplacer seule.');
+      throw fieldError('to', NEXT_CASE_REFUSAL);
     }
     // Moved before its first time: the routine starts as much earlier, its other cases where they were.
     const earlier = earlierCases([...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)], new Set(split ? pieces.slice(1) : pieces), start);
