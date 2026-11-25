@@ -146,7 +146,7 @@ Internes : `AlarmSchedule`, `ringsOnDay` (l'alarme sonne ce jour-là, jour de Pa
 | `GITHUB_NOT_CONNECTED` | « Connectez d’abord GitHub (Paramètres › GitHub). » : toute action GitHub sans connexion. |
 | `GITHUB_TASK_STATES`, `GithubTaskState`, `GITHUB_TASK_STATE_LABELS` | État GitHub d'une tâche d'une arborescence liée : `SYNCED` « Sur GitHub », `NOT_SENT` « Pas sur GitHub », `REMOVED` « Retirée du tableau GitHub ». |
 | `githubTaskState(task, linked)` | État GitHub d'une tâche (`githubItemId`, `githubContentType`) : `null` hors d'une arborescence liée ; liée à un item : `SYNCED` ; marquée `REMOVED_FROM_BOARD` : `REMOVED` ; sinon `NOT_SENT`. |
-| `GITHUB_SEND_REFUSALS`, `githubSendRefusal(task, link, connected)` | Pourquoi « Envoyer sur GitHub » est refusé pour une tâche (`null` : proposé) : hors d'une arborescence liée, déjà sur GitHub, archivée, liaison en synchronisation manuelle, GitHub non connecté. Testé dans `test/tasks/github.test.ts`. |
+| `GITHUB_SEND_REFUSALS`, `githubSendRefusal(task, connected)` | Pourquoi « Envoyer sur GitHub » est refusé pour une tâche (`null` : proposé) : hors d'une arborescence liée (`state` nul), déjà sur GitHub, archivée, GitHub non connecté ; une liaison en synchronisation manuelle est acceptée. Testé dans `test/tasks/github.test.ts`. |
 
 ## `github-merge.ts` — fusion d'une tâche et de son item GitHub
 

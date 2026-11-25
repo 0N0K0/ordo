@@ -14,7 +14,7 @@ Route `/settings?tab=github`. Composant `GithubSettings`.
 - Aide : « Ordo se connecte avec un jeton d’accès personnel : jeton « classic » avec les droits `project` et `repo`, ou jeton « fine-grained » avec l’accès aux projets et aux issues des dépôts concernés. Il est chiffré en base. » (lien vers la page des jetons de GitHub).
 - Champ « Jeton » (« Remplacer le jeton » une fois connecté), texte d’exemple « ghp_… ou github_pat_… ».
 - Bouton « Connecter » / « Remplacer » : le jeton est vérifié auprès de GitHub ; toast « GitHub connecté : @login. » ; une erreur s’affiche sous le champ.
-- Bouton « Déconnecter » : confirmation « Déconnecter GitHub » — « Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton. ». Toast « GitHub déconnecté. ».
+- Bouton « Déconnecter » : confirmation « Déconnecter GitHub » — « Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton. ». Toast « GitHub déconnecté. ». Le login est gardé comme dernier compte connu : ses commentaires restent sans « @login sur GitHub ».
 
 ### « Contributeurs sur GitHub »
 
@@ -78,7 +78,7 @@ Une synchronisation en échec pour une seule tâche n’est pas gardée sur la t
 
 ### Envoyer sur GitHub
 
-Menu d’une tâche (ligne du tableau, panneau) et barre de sélection : « Envoyer sur GitHub » (icône GitHub), proposé pour une tâche active pas sur GitHub (jamais envoyée, créée avant la liaison, ou retirée du tableau) d’une arborescence liée dont la synchronisation automatique est activée, GitHub connecté ; la barre de sélection ne l’affiche que si l’une des tâches cochées peut l’être, et n’envoie que celles-là. L’envoi lance une synchronisation de la liaison (après celle en cours) : toast « Tâche envoyée sur GitHub. » (« 3 tâches envoyées sur GitHub. »), la sélection vidée ; une tâche non envoyée est dite dans un toast d’erreur (son message ; plusieurs : « 2 tâches non envoyées : <premier message> »). Règles : [Envoyer sur GitHub](../../business-rules/cross-cutting/github.md#envoyer-sur-github).
+Menu d’une tâche (ligne du tableau, panneau) et barre de sélection : « Envoyer sur GitHub » (icône GitHub), proposé pour une tâche active pas sur GitHub (jamais envoyée, créée avant la liaison, ou retirée du tableau) d’une arborescence liée (en synchronisation automatique ou manuelle), GitHub connecté ; la barre de sélection ne l’affiche que si l’une des tâches cochées peut l’être, et n’envoie que celles-là. L’envoi lance une synchronisation de la liaison (après celle en cours) : toast « Envoi sur GitHub… » avec une roue d’attente, sans bouton de fermeture, changé sur place en « Tâche envoyée sur GitHub. » (« 3 tâches envoyées sur GitHub. »), la sélection vidée ; une tâche non envoyée est dite dans un toast d’erreur (son message ; plusieurs : « 2 tâches non envoyées : <premier message> ») : celui d’attente quand aucune n’est envoyée, un autre sinon. Règles : [Envoyer sur GitHub](../../business-rules/cross-cutting/github.md#envoyer-sur-github).
 
 ## Tâche de fond
 

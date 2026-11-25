@@ -213,7 +213,7 @@ export function sameGithubLogin(a: string | null, b: string | null): boolean {
  * GitHub author of a comment as shown in Ordo: its author when it is someone else than the account connected (« @x sur
  * GitHub »); none for a comment of the account connected, or written in Ordo and never sent.
  * @param {string | null} author Author recorded on the comment.
- * @param {string | null} login Login of the account connected (null: not connected).
+ * @param {string | null} login Login of the account connected, or of the last one once its token is forgotten (null: never connected).
  * @returns {string | null} Author shown.
  */
 export function shownGithubAuthor(author: string | null, login: string | null): string | null {

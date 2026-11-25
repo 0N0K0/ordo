@@ -1130,7 +1130,9 @@ model Sprint {
 /// GitHub access of the app: a personal access token (encrypted), single row.
 model GithubConnection {
   id          String    @id @default(cuid())
+  /// Encrypted token; empty once forgotten (« Déconnecter »): the row keeps the last login.
   token       String
+  /// Login of the token's owner (the last one once the token is forgotten; replaced by the next token's).
   login       String
   updatedAt   DateTime  @updatedAt
   /// Workspace the row belongs to (always given by the app; the default fails outside one).

@@ -81,18 +81,15 @@ describe('GitHub state of a task', () => {
 });
 
 describe('« Envoyer sur GitHub »', () => {
-  const link = { enabled: true };
-
   it('offered for an active task not on GitHub, removed from the board included', () => {
-    expect(githubSendRefusal({ archived: false, state: 'NOT_SENT' }, link, true)).toBeNull();
-    expect(githubSendRefusal({ archived: false, state: 'REMOVED' }, link, true)).toBeNull();
+    expect(githubSendRefusal({ archived: false, state: 'NOT_SENT' }, true)).toBeNull();
+    expect(githubSendRefusal({ archived: false, state: 'REMOVED' }, true)).toBeNull();
   });
 
-  it('refused outside a linked tree, on GitHub already, archived, link disabled, GitHub not connected', () => {
-    expect(githubSendRefusal({ archived: false, state: null }, null, true)).toBe(GITHUB_SEND_REFUSALS.unlinked);
-    expect(githubSendRefusal({ archived: false, state: 'SYNCED' }, link, true)).toBe(GITHUB_SEND_REFUSALS.synced);
-    expect(githubSendRefusal({ archived: true, state: 'REMOVED' }, link, true)).toBe(GITHUB_SEND_REFUSALS.archived);
-    expect(githubSendRefusal({ archived: false, state: 'NOT_SENT' }, { enabled: false }, true)).toBe(GITHUB_SEND_REFUSALS.disabled);
-    expect(githubSendRefusal({ archived: false, state: 'NOT_SENT' }, link, false)).toBe(GITHUB_SEND_REFUSALS.disconnected);
+  it('refused outside a linked tree, on GitHub already, archived, GitHub not connected (a link in manual sync accepted)', () => {
+    expect(githubSendRefusal({ archived: false, state: null }, true)).toBe(GITHUB_SEND_REFUSALS.unlinked);
+    expect(githubSendRefusal({ archived: false, state: 'SYNCED' }, true)).toBe(GITHUB_SEND_REFUSALS.synced);
+    expect(githubSendRefusal({ archived: true, state: 'REMOVED' }, true)).toBe(GITHUB_SEND_REFUSALS.archived);
+    expect(githubSendRefusal({ archived: false, state: 'NOT_SENT' }, false)).toBe(GITHUB_SEND_REFUSALS.disconnected);
   });
 });

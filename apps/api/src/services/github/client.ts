@@ -108,12 +108,25 @@ export async function githubRestPost<T extends object>(token: string, url: strin
   return { response, body };
 }
 
+/** Token of a connection forgotten (« Déconnecter »): its row stays, with the last login. */
+export const FORGOTTEN_TOKEN = '';
+
 /**
- * GitHub connection of the current workspace, if any.
+ * GitHub connection of the current workspace, if any: none once its token is forgotten (the row then keeps only the
+ * last login, `knownGithubLogin`).
  * @returns {Promise<{ login: string } | null>} Connection (its token and login).
  */
 export function currentGithubConnection() {
-  return prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } });
+  return prisma.githubConnection.findFirst({ where: { workspaceId: currentWorkspaceId(), token: { not: FORGOTTEN_TOKEN } } });
+}
+
+/**
+ * Login of the account connected, or of the last one once the token is forgotten (null: never connected): the
+ * comments of that account show no author.
+ * @returns {Promise<string | null>} Login.
+ */
+export async function knownGithubLogin(): Promise<string | null> {
+  return (await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { login: true } }))?.login ?? null;
 }
 
 /**

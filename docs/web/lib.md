@@ -99,7 +99,8 @@ Toasts (en haut à droite, `Notifications` de `main.tsx`) : une erreur reste jus
 - `notifyFailure(error, fallback?, actions?)` : échec d'une action quelconque en toast d'erreur : son message, ou « Une erreur inattendue est survenue. » ; une session expirée (`UNAUTHENTICATED`) reste silencieuse (retour à la connexion), une action refusée à sa confirmation (`ActionDeclined`) aussi.
 - `ActionDeclined` (classe) : erreur d'une action que l'utilisateur a refusée à sa confirmation (« Action annulée. ») ; elle s'arrête sans toast. Lancée par `withLossConfirmation`.
 - `notifyWithUndo(message, onUndo)` : succès avec bouton « Annuler » (8 s).
-- Interne : `toastBody` (lignes de texte et boutons `tertiary`).
+- `notifyProgress(message)` → `ProgressToast` `{ success, error, failure }` : toast avec roue d’attente, sans bouton de fermeture, pendant une action longue (« Envoi sur GitHub… »), changé sur place en toast de succès ou d’erreur (`failure` : règles de `notifyFailure`, fermé quand l’échec est silencieux) ; écarté entre-temps (glissé), l’issue est montrée dans un nouveau toast.
+- Internes : `toastBody` (lignes de texte et boutons `tertiary`), `successToast`, `errorToast` (les toasts de succès et d’erreur, partagés avec `notifyProgress`), `failureMessage` (message d’un échec, `null` quand il est silencieux).
 
 eslint interdit `notifications.show` / `update` hors de ce fichier, `notifySuccess` seul dans un `onSuccess`, `{ onError: onMutationError }` écrit à la main, et `notifyError(error.message)`.
 

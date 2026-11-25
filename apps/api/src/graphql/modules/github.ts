@@ -1,4 +1,4 @@
-import { currentGithubConnection } from '../../services/github/client';
+import { currentGithubConnection, knownGithubLogin } from '../../services/github/client';
 import { done } from '../errors';
 import { prisma } from '../../db';
 import { sendTasksToGithub, syncGithubProject } from '../../services/github/sync';
@@ -10,8 +10,11 @@ import type { Board, BoardField } from '../../services/github/board';
 import { builder } from '../builder';
 import { subtreeIds } from '../../services/core/trees';
 
-/** Login of the account connected (null: not connected), loaded once per request. */
-const loginOf = perRequest(async () => (await currentGithubConnection())?.login ?? null);
+/** Login of the account connected, or of the last one once its token is forgotten, loaded once per request. */
+const loginOf = perRequest(knownGithubLogin);
+
+/** GitHub is connected (a token kept), read once per request. */
+const connectedOf = perRequest(async () => Boolean(await currentGithubConnection()));
 
 /** GitHub links of the projects, loaded once per request. */
 const linksOf = perRequest(linksByProject);
@@ -29,11 +32,10 @@ builder.prismaObjectFields('Task', (t) => ({
     resolve: async (task, _args, ctx) => githubTaskState(task, Boolean(task.projectId && (await linksOf(ctx)).has(task.projectId))),
   }),
   githubSendable: t.boolean({
-    description: '« Envoyer sur GitHub » is offered (sendTasksToGithub): active, not on GitHub, in a linked tree whose sync is enabled, GitHub connected.',
+    description: '« Envoyer sur GitHub » is offered (sendTasksToGithub): active, not on GitHub, in a linked tree (automatic or manual sync), GitHub connected.',
     resolve: async (task, _args, ctx) => {
-      const [links, login] = await Promise.all([linksOf(ctx), loginOf(ctx)]);
-      const link = task.projectId ? (links.get(task.projectId) ?? null) : null;
-      return githubSendRefusal({ archived: task.archivedAt !== null, state: githubTaskState(task, Boolean(link)) }, link, login !== null) === null;
+      const [links, connected] = await Promise.all([linksOf(ctx), connectedOf(ctx)]);
+      return githubSendRefusal({ archived: task.archivedAt !== null, state: githubTaskState(task, Boolean(task.projectId && links.has(task.projectId))) }, connected) === null;
     },
   }),
 }));
@@ -41,7 +43,7 @@ builder.prismaObjectFields('Task', (t) => ({
 builder.prismaObjectFields('TaskComment', (t) => ({
   githubAuthor: t.string({
     nullable: true,
-    description: 'Author on GitHub, when someone else than the connected account.',
+    description: 'Author on GitHub, when someone else than the connected account (or the last one, once its token is forgotten).',
     resolve: async (comment, _args, ctx) => shownGithubAuthor(comment.githubAuthor, await loginOf(ctx)),
   }),
 }));

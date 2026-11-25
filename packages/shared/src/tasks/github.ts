@@ -127,24 +127,21 @@ export const GITHUB_SEND_REFUSALS = {
   unlinked: 'Le projet de cette tâche n’est lié à aucun tableau GitHub.',
   synced: 'Cette tâche est déjà sur GitHub.',
   archived: 'Une tâche archivée n’est pas envoyée sur GitHub : restaurez-la d’abord.',
-  disabled: 'La synchronisation automatique de ce projet avec GitHub est désactivée : activez-la dans Projet › Paramètres › GitHub.',
   disconnected: GITHUB_NOT_CONNECTED,
 } as const;
 
 /**
  * Why a task cannot be sent to GitHub on request (« Envoyer sur GitHub »), or null when it can: its project tree linked
- * to a board whose sync is enabled, GitHub connected, the task active and not on GitHub (never sent, created before the
- * link, or removed from the board).
- * @param {{ archived: boolean, state: GithubTaskState | null }} task Task, with its GitHub state.
- * @param {{ enabled: boolean } | null} link Link of its project tree.
+ * to a board (in automatic or manual sync), GitHub connected, the task active and not on GitHub (never sent, created
+ * before the link, or removed from the board).
+ * @param {{ archived: boolean, state: GithubTaskState | null }} task Task, with its GitHub state (null: outside a linked tree).
  * @param {boolean} connected GitHub is connected.
  * @returns {string | null} Refusal, or null.
  */
-export function githubSendRefusal(task: { archived: boolean; state: GithubTaskState | null }, link: { enabled: boolean } | null, connected: boolean): string | null {
-  if (!link || task.state === null) return GITHUB_SEND_REFUSALS.unlinked;
+export function githubSendRefusal(task: { archived: boolean; state: GithubTaskState | null }, connected: boolean): string | null {
+  if (task.state === null) return GITHUB_SEND_REFUSALS.unlinked;
   if (task.state === 'SYNCED') return GITHUB_SEND_REFUSALS.synced;
   if (task.archived) return GITHUB_SEND_REFUSALS.archived;
-  if (!link.enabled) return GITHUB_SEND_REFUSALS.disabled;
   if (!connected) return GITHUB_SEND_REFUSALS.disconnected;
   return null;
 }

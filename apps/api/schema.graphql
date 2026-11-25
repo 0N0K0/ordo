@@ -5335,7 +5335,7 @@ type Task {
   githubNumber: Int
 
   """
-  « Envoyer sur GitHub » is offered (sendTasksToGithub): active, not on GitHub, in a linked tree whose sync is enabled, GitHub connected.
+  « Envoyer sur GitHub » is offered (sendTasksToGithub): active, not on GitHub, in a linked tree (automatic or manual sync), GitHub connected.
   """
   githubSendable: Boolean!
 
@@ -5509,7 +5509,9 @@ type TaskComment {
   body: String!
   createdAt: DateTime!
 
-  """Author on GitHub, when someone else than the connected account."""
+  """
+  Author on GitHub, when someone else than the connected account (or the last one, once its token is forgotten).
+  """
   githubAuthor: String
   id: ID!
 }

@@ -11,7 +11,7 @@ import type { TaskContext } from '../hooks/use-task-context';
 import { useBulkUndo } from '../lib/bulk-undo';
 import { tasksLabel } from '../lib/bulk-label';
 import { inheritanceRowsAction } from '../../../components/inheritance/inheritance-action';
-import { notifyError, notifyFailure, notifySuccess, notifyWithUndo } from '../../../lib/notify';
+import { notifyError, notifyProgress, notifyWithUndo } from '../../../lib/notify';
 import { useSendTasksToGithub } from '../../github/api';
 import { TASK_INHERITANCE_OPTIONS } from '../lib/task-inheritance';
 
@@ -136,13 +136,19 @@ export function useTaskRowsActions(context: TaskContext | null) {
             label: 'Envoyer sur GitHub',
             icon: <GithubLogoIcon aria-hidden />,
             loading: sendToGithub.isPending,
-            onClick: () =>
+            onClick: () => {
+              // A sync of the link: a toast with a spinner, turned into its outcome.
+              const progress = notifyProgress('Envoi sur GitHub…');
               void sendToGithub.mutateAsync(toSend.map((task) => task.id)).then(({ sent, errors }) => {
-                if (sent) notifySuccess(toSend.length > 1 ? `${tasksLabel(sent)} ${plural(sent, 'envoyée')} sur GitHub.` : 'Tâche envoyée sur GitHub.');
                 // The tasks not sent told with the first reason (an error stays until closed).
-                if (errors.length) notifyError(sent || errors.length > 1 ? `${tasksLabel(errors.length)} non ${plural(errors.length, 'envoyée')} : ${errors[0]}` : errors[0]);
-                if (sent) onClear?.();
-              }, notifyFailure),
+                const failed = errors.length ? (sent || errors.length > 1 ? `${tasksLabel(errors.length)} non ${plural(errors.length, 'envoyée')} : ${errors[0]}` : errors[0]) : null;
+                if (sent) {
+                  progress.success(toSend.length > 1 ? `${tasksLabel(sent)} ${plural(sent, 'envoyée')} sur GitHub.` : 'Tâche envoyée sur GitHub.');
+                  if (failed) notifyError(failed);
+                  onClear?.();
+                } else progress.error(failed ?? 'Aucune tâche envoyée sur GitHub.');
+              }, progress.failure);
+            },
           }
         : undefined,
       remove: { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => open(several ? 'Supprimer les tâches' : 'Supprimer la tâche', DeleteTasksDialog) },

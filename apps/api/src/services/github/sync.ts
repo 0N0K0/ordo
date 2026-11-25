@@ -798,7 +798,7 @@ async function isolated(summary: SyncSummary, work: () => Promise<void>, failed?
  * sub-issues with sub-tasks, the archive of a task with the archive of its item), then the comments of issues;
  * archived tasks too. A task whose item left the board is kept, unlinked, not sent again, and archived with a
  * comment saying so. Tasks asked for (« Envoyer sur GitHub ») are also sent when not on GitHub, created before the
- * link or removed from the board (unless the link is in manual sync by then). One sync at a time per link: refused
+ * link or removed from the board, the link in automatic or manual sync. One sync at a time per link: refused
  * while another one runs (`sendWhenFree` waits for it).
  * @param {string} projectId Linked project.
  * @param {ReadonlySet<string>} [send] Tasks to send on request. Optional. Default = none.
@@ -809,8 +809,6 @@ async function runGithubSync(projectId: string, send: ReadonlySet<string> = new 
   const link = await orNotFound(prisma.githubProjectLink.findUnique({ where: { projectId } }), 'Lien GitHub');
   // Nothing waits between this check and the start: two syncs of a link never run together.
   if (running.has(link.id)) throw clientError('BAD_USER_INPUT', SYNC_RUNNING);
-  // Turned to a manual sync while the send waited: nothing is sent on request.
-  if (send.size && !link.enabled) throw clientError('BAD_USER_INPUT', GITHUB_SEND_REFUSALS.disabled);
   let finish = () => {};
   running.set(link.id, new Promise<void>((resolve) => (finish = resolve)));
   const failures = new Map<string, string>();
@@ -1163,8 +1161,9 @@ async function sendWhenFree(projectId: string, send: ReadonlySet<string>): Promi
  * becomes an item as a new task of the sync does (an issue of the repository of the link, or a draft), its mark of
  * removal cleared, then sends its parent, links and comments as any push; a task whose issue is to be added to the
  * board again (back in the tree with it) is by the same sync, as the sync does it. Refused, task by task
- * (`githubSendRefusal`): a task archived, on GitHub already, outside a linked tree, a link whose sync is disabled,
- * GitHub not connected. A sync that fails as a whole gives its error to each task of its link.
+ * (`githubSendRefusal`): a task archived, on GitHub already, outside a linked tree, GitHub not connected (a link in
+ * manual sync accepted). A sync that fails as a whole (its link deleted or GitHub disconnected while waiting
+ * included) gives its error to each task of its link.
  * @param {string[]} ids Tasks.
  * @returns {Promise<GithubSendResult>} Tasks sent, and the errors of the others.
  */
@@ -1177,7 +1176,7 @@ export async function sendTasksToGithub(ids: string[]): Promise<GithubSendResult
   const byProject = new Map<string, { asked: string[]; send: Set<string> }>();
   for (const task of tasks) {
     const link = task.projectId ? (links.get(task.projectId) ?? null) : null;
-    const refusal = githubSendRefusal({ archived: task.archivedAt !== null, state: githubTaskState(task, Boolean(link)) }, link, connected);
+    const refusal = githubSendRefusal({ archived: task.archivedAt !== null, state: githubTaskState(task, Boolean(link)) }, connected);
     if (refusal || !link) {
       errors.push(refusal ?? GITHUB_SEND_REFUSALS.unlinked);
       continue;
