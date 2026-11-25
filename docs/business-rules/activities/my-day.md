@@ -12,7 +12,7 @@ Une tâche est dans « Ma journée » d’un jour pour au moins une de ces raiso
 | ------ | ----- |
 | En retard (`late`) | Le jour affiché est aujourd’hui et la tâche est en retard (`isTaskOverdue` : « Échéance » suivie passée, tâche ouverte ; voir [Dates et retard](tasks.md#dates-et-retard)). Un autre jour, une tâche en retard n’y est pas par son retard. |
 | Échéance (`due`) | Son « Échéance » suivie (la sienne, sinon celle de son parent, de son jalon ou de son premier sprint : [Dates suivies](tasks.md#dates-suivies)) est ce jour. |
-| En cours (`inProgress`) | Son statut est de la catégorie « En cours » (`IN_PROGRESS`, voir [Catégories de statut](tasks.md#catégories-de-statut)). |
+| En cours (`inProgress`) | Son statut est de la catégorie « En cours » (`IN_PROGRESS`, voir [Catégories de statut](tasks.md#catégories-de-statut)) : aujourd’hui ; un jour passé, seulement si l’un de ses temps (chrono ou temps saisi, voir [Temps passé](time.md)) a tourné pendant ce jour de Paris (`entryMeets`, un chrono en cours jusqu’à maintenant) ; jamais un jour à venir. |
 | Prévue (`planned`) | Ses dates (« Début » – « Fin ») la placent ce jour dans l’agenda (`taskPlacement`) : tous les jours du début à la fin ; un début passé sans fin, du début à aujourd’hui ; un début seul à venir, ce jour ; une fin seule, ce jour. |
 | Période d’ouverture (`open`) | Elle a une « Ouverture » et une « Échéance » suivies, et le jour est de l’une à l’autre (bornes comprises). Une « Ouverture » seule, ou une « Échéance » seule, n’ouvre pas de période ; une « Ouverture » suivie après l’« Échéance » suivie (dates héritées, non comparées) ne couvre que le jour de l’échéance. |
 | Faite (`done`) | Fermée comme terminée, le jour de Paris de sa fermeture (`closedAt`). |
@@ -26,15 +26,15 @@ Une tâche est dans « Ma journée » d’un jour pour au moins une de ces raiso
 Les fenêtres d’un jour où une tâche ou une routine peut se faire (`itemWindowsOn`) : dans ses horaires propres s’il en a (les « Horaires » d’une tâche, voir [Horaires](tasks.md#horaires)), permises par sa condition de créneaux, hors des créneaux « Indisponible » de l’espace (voir [Condition de créneaux](calendar.md#condition-de-créneaux-des-tâches-et-routines)). C’est exactement ce que permet le test « faisable » (`conditionAllowsAt`), minute par minute :
 
 - rien ne la limite (ni horaires, ni condition, ou un groupe vide, ni créneau indisponible ce jour) : aucune fenêtre, n’importe quand ;
-- aucune fenêtre ce jour (horaires d’autres jours, type sans créneau, créneau indisponible toute la journée) : elle ne peut pas se faire ce jour ;
+- aucune fenêtre ce jour (horaires d’autres jours, type sans créneau, créneau indisponible toute la journée) : elle ne peut pas se faire ce jour, et n’est pas dans « Ma journée » ce jour-là (voir [Placement](#placement)) ;
 - les fenêtres se suivent dans l’ordre, sans se toucher ; un créneau jusqu’à 23:59 va jusqu’à la fin du jour, la fin d’une fenêtre est exclue.
 
 ## Placement
 
 Les éléments du jour se rangent en quatre blocs (`myDayRows`), dans cet ordre :
 
-1. **En tête** : éphémérides, évènements de toute la journée, jours du milieu d’un évènement sur plusieurs jours, anniversaires, puis routines en retard (« Depuis … », aujourd’hui seulement ; un autre jour, une routine se range à son heure).
-2. **Sans horaire** : les éléments sans heure et sans limite (une tâche, ou une routine sans horaire, que rien ne limite ce jour, une seule fenêtre de toute la journée comprise), puis ceux qui ne peuvent pas se faire ce jour (aucune fenêtre).
+1. **En tête** : éphémérides, évènements de toute la journée, jours du milieu d’un évènement sur plusieurs jours, anniversaires, puis routines en retard (« Depuis … »), puis tâches en retard, aujourd’hui seulement (un autre jour, une routine se range à son heure, une tâche à sa place).
+2. **Sans horaire** : les éléments sans heure et sans limite (une tâche, ou une routine sans horaire, que rien ne limite ce jour, une seule fenêtre de toute la journée comprise).
 3. **Par heure** :
    - un évènement à son heure de début ; sur plusieurs jours, son premier jour à son heure de début, son dernier jour à son heure de fin (un évènement qui finit à minuit a fini la veille : il n’est pas le jour de sa fin) ;
    - un moment de routine à son heure « dès », sinon à son heure « jusqu’à » ;
@@ -42,5 +42,7 @@ Les éléments du jour se rangent en quatre blocs (`myDayRows`), dans cet ordre 
    - à heure égale : évènements, puis routines, puis tâches, puis l’ordre donné ;
    - seules les heures qui ont un élément ou un créneau s’affichent, et l’heure de maintenant aujourd’hui (marquée) ; chaque heure porte les créneaux rencontrés pendant elle (fond coloré) et dit si l’un est « Indisponible » (grisé) ; un créneau de toute la journée colore les heures affichées sans les faire toutes afficher.
 4. **En bas** : les faits, dans l’ordre où ils l’ont été (routines « faite à HH:MM »), puis les tâches et routines annulées, même en retard. Un évènement annulé reste à sa place, barré.
+
+Une tâche ou une routine qui ne peut pas se faire ce jour (aucune fenêtre) n’est pas dans « Ma journée » ce jour-là, même en retard, à son échéance ou liée à un évènement ; faite ou annulée ce jour, elle reste en bas.
 
 Une tâche ou une routine liée à un évènement affiché ce jour se range sous cet évènement (de ses évènements liés affichés ce jour, le premier dans l’ordre où ils lui sont liés), et nulle part ailleurs, même en retard ou faite : sous l’évènement, les éléments liés suivent l’ordre des heures, faits et annulés en dernier. Liée à un évènement qui n’est pas affiché ce jour, elle se range seule.

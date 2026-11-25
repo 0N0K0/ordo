@@ -142,7 +142,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
             onChange={(projectId) => form.setValues({ projectId: projectId ?? '', taskIds: [], routineIds: [] })}
           />
           <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-            <DateTimeField label="Début" required {...formDateTime(form, 'date', 'start')} />
+            <DateTimeField label="Début" required maxDate={parisToday()} {...formDateTime(form, 'date', 'start')} />
             <TextInput label="Durée" required placeholder="1:30" description="1:30, 1h30, 90 ou 1,5h" {...form.getInputProps('duration')} />
           </SimpleGrid>
           <TimeSubjectsFields

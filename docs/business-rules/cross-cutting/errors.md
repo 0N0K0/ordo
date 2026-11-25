@@ -39,6 +39,7 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 - Archivé : un seul message, « Élément archivé : restaurez-le pour le modifier. » (voir [Archivage](archiving.md)).
 - Doublon : « Un statut porte déjà ce libellé. », etc. (voir [Nommage](naming.md)).
 - Espace personnel : « Indisponible dans un espace personnel (X). » (voir [Espaces et accès](workspaces-and-access.md)).
+- Temps passé : « Le début ne peut pas être dans le futur. » (`TIME_START_IN_FUTURE`), « Un temps ne peut pas finir dans le futur. » (`TIME_END_IN_FUTURE`), sous le début ou la durée (voir [Temps passé](../activities/time.md#temps-saisi-à-la-main)).
 - Cartographie : « Le service de cartographie ne répond pas. », « Le service de cartographie a répondu N. », « Aucun itinéraire trouvé entre ces deux points. » (`apps/api/src/services/core/geo.ts`).
 
 ## Utilitaires

@@ -442,7 +442,8 @@ export async function seedPersonal({
   await routine('Vitamine D', rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }), { categoryIds: [healthCategory], dueTime: '09:00', reminders: [{ before: 0 }] });
   const checks = await tickRoutines(today);
   const gardenRoutine = await prisma.routine.findFirst({ where: { label: 'Arroser le jardin' } });
-  for (const check of checks.filter((item) => item.routineId === gardenRoutine?.id).slice(0, 6)) {
+  // A time is over by now: only ticks already past.
+  for (const check of checks.filter((item) => item.routineId === gardenRoutine?.id && item.doneAt.getTime() <= Date.now()).slice(0, 6)) {
     await createTimeEntry({ routineIds: [check.routineId], projectId: garden.id, startedAt: new Date(check.doneAt.getTime() - 10 * 60_000), duration: 10 * 60 });
   }
 

@@ -212,6 +212,8 @@ interface EditableDateProps {
   nullable?: boolean;
   /** Earliest day. Optional. */
   minDate?: string;
+  /** Latest day. Optional. */
+  maxDate?: string;
   readOnly?: boolean;
   onSave: (value: string | null) => void;
 }
@@ -221,7 +223,7 @@ interface EditableDateProps {
  * @param {EditableDateProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditableDate({ value, label, nullable = false, minDate, readOnly = false, onSave }: EditableDateProps) {
+export function EditableDate({ value, label, nullable = false, minDate, maxDate, readOnly = false, onSave }: EditableDateProps) {
   return (
     <DateField
       {...stoppedCellField}
@@ -230,6 +232,7 @@ export function EditableDate({ value, label, nullable = false, minDate, readOnly
       readOnly={readOnly}
       clearable={nullable && !readOnly}
       minDate={minDate}
+      maxDate={maxDate}
       popoverProps={{ withinPortal: true }}
       value={value}
       onChange={(next) => (next || nullable) && (next ?? null) !== value && onSave(next ?? null)}

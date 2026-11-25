@@ -1,6 +1,7 @@
-import { dayIn } from '../dates/days';
-import { taskRemindsOn } from '../dates/reminders';
+import { addDays, dayIn } from '../dates/days';
+import { parisInstant, taskRemindsOn } from '../dates/reminders';
 import type { TaskStatusCategory } from './task-columns';
+import { entryMeets, type TimeSpanEntry } from './time';
 
 /**
  * Whether a task is overdue: the « Échéance » it goes by (its own, else its parent's, its milestone's or its first sprint's:
@@ -90,31 +91,36 @@ export interface DayTask extends TaskDates {
   closedAt: Date | string | null;
   /** Closed as cancelled (`NOT_PLANNED`). Optional. Default = false. */
   cancelled?: boolean;
+  /** Its times (chronos and times added by hand): « en cours » on a past day only with one that day. Optional. Default = none. */
+  times?: readonly TimeSpanEntry[];
 }
 
 /**
  * Why a task shows on a day of « Ma journée » (`TASK_DAY_REASONS`, in that order; none: it does not show). An open
  * task: late (`isTaskOverdue`) when the day is today, due when its « Échéance » (the one it goes by) is that day, in
- * progress when its status is of the category « En cours », planned when its dates place it that day in the calendar
+ * progress when its status is of the category « En cours », today, or a past day when one of its times (`entryMeets`)
+ * ran that day in Paris (never a day to come), planned when its dates place it that day in the calendar
  * (`taskPlacement`), open when it has both an « Ouverture » and an « Échéance » (those it goes by) and the period from the one to the
  * other covers the day (`taskRemindsOn`). A closed task only on the day it was closed, in Paris:
  * done, or cancelled when closed as cancelled.
  * @param {DayTask} task Task.
  * @param {string} day Day shown (YYYY-MM-DD).
  * @param {string} today Today in Paris (YYYY-MM-DD).
+ * @param {number} [now] Now (ms): a running timer runs until it. Optional. Default = Date.now().
  * @returns {TaskDayReason[]} Reasons, in the order of `TASK_DAY_REASONS`.
  */
-export function taskDayReasons(task: DayTask, day: string, today: string): TaskDayReason[] {
+export function taskDayReasons(task: DayTask, day: string, today: string, now: number = Date.now()): TaskDayReason[] {
   if (task.closedAt !== null) {
     const closedOn = dayIn(typeof task.closedAt === 'string' ? new Date(task.closedAt) : task.closedAt);
     if (closedOn !== day) return [];
     return [task.cancelled ? 'cancelled' : 'done'];
   }
   const { span } = taskPlacement(task, today);
+  const [from, to] = [parisInstant(day).getTime(), parisInstant(addDays(day, 1)).getTime()];
   const reasons: Record<Exclude<TaskDayReason, 'done' | 'cancelled'>, boolean> = {
     late: day === today && isTaskOverdue(task, today),
     due: task.effectiveDeadline === day,
-    inProgress: task.statusCategory === 'IN_PROGRESS',
+    inProgress: task.statusCategory === 'IN_PROGRESS' && (day === today || (day < today && (task.times ?? []).some((time) => entryMeets(time, from, to, now)))),
     planned: span !== null && span.start <= day && day <= span.end,
     open: task.effectiveMinDate !== null && taskRemindsOn({ minDate: task.effectiveMinDate, deadline: task.effectiveDeadline }, day),
   };

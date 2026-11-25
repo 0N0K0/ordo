@@ -27,16 +27,17 @@ const keys = (layout: MyDayLayout<MyDayItem, MyDaySlot>) => ({
 });
 
 describe('myDayRows: the blocks of a day', () => {
-  it('head: éphémérides, events of the whole day, birthdays, late routines (today only)', () => {
+  it('head: éphémérides, events of the whole day, birthdays, late routines then tasks (today only)', () => {
     const items = [
+      item('late-task', 'task', { late: true }),
       item('late', 'routine', { late: true, time: { start: '08:00', end: null } }),
       item('birthday', 'birthday'),
       item('holiday', 'event', { allDay: true }),
       item('ephemeris', 'ephemeris'),
     ];
-    expect(keys(myDayRows(items, { day: TODAY, now: NOW })).header).toEqual(['ephemeris', 'holiday', 'birthday', 'late']);
-    // Another day, a late routine is at its time.
-    expect(keys(myDayRows(items, { day: '2026-11-24', now: NOW }))).toMatchObject({ header: ['ephemeris', 'holiday', 'birthday'], hours: ['8: late'] });
+    expect(keys(myDayRows(items, { day: TODAY, now: NOW })).header).toEqual(['ephemeris', 'holiday', 'birthday', 'late', 'late-task']);
+    // Another day, a late routine is at its time, a late task in its place.
+    expect(keys(myDayRows(items, { day: '2026-11-24', now: NOW }))).toMatchObject({ header: ['ephemeris', 'holiday', 'birthday'], unscheduled: ['late-task'], hours: ['8: late'] });
   });
 
   it('an event over several days: at its start the first day, in the head the middle days, at its end the last day', () => {
@@ -53,10 +54,17 @@ describe('myDayRows: the blocks of a day', () => {
     expect(keys(myDayRows([trip], { day: '2026-11-27', now: NOW }))).toEqual({ header: [], unscheduled: [], hours: [], finished: [] });
   });
 
-  it('without hours nor limit at the top; no window that day at the top too', () => {
+  it('without hours nor limit at the top; no window that day: left out', () => {
     const layout = myDayRows([item('free', 'task'), item('never', 'task', { windows: [] }), item('routine', 'routine')], { day: TODAY, now: NOW });
-    expect(keys(layout).unscheduled).toEqual(['routine', 'free', 'never']);
-    expect(keys(myDayRows([item('never', 'task', { windows: [] }), item('free', 'task')], { day: TODAY, now: NOW })).unscheduled).toEqual(['free', 'never']);
+    expect(keys(layout).unscheduled).toEqual(['routine', 'free']);
+    // No window that day: not in the day, even late or linked to an event; done that day, at the bottom.
+    const never = { windows: [] };
+    const left = myDayRows(
+      [item('meeting', 'event', { time: { start: '14:00', end: null } }), item('late', 'task', { ...never, late: true }), item('linked', 'task', { ...never, eventKeys: ['meeting'] }), item('done', 'task', { ...never, done: true })],
+      { day: TODAY, now: NOW },
+    );
+    expect(keys(left)).toEqual({ header: [], unscheduled: [], hours: ['10:', '14: meeting'], finished: ['done'] });
+    expect(left.hours[1].rows[0].children).toEqual([]);
     // A single window of the whole day: nothing limits it.
     expect(keys(myDayRows([item('whole', 'task', { windows: [{ fromTime: null, dueTime: null }] })], { day: TODAY, now: NOW })).unscheduled).toEqual(['whole']);
   });

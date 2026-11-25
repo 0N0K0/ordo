@@ -172,7 +172,8 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
 
   // --- Time spent on some ticked routines (with the project of the routine, if any) -----------------------------
   const timed = routines.filter((routine) => routine.estimate && routine.estimate >= 15 && !routine.parentId);
-  for (const check of checks.filter((item) => timed.some((routine) => routine.id === item.routineId)).slice(0, 25)) {
+  // A time is over by now: only ticks already past.
+  for (const check of checks.filter((item) => item.doneAt.getTime() <= Date.now() && timed.some((routine) => routine.id === item.routineId)).slice(0, 25)) {
     const routine = timed.find((item) => item.id === check.routineId)!;
     if (!faker.datatype.boolean(0.6)) continue;
     const minutes = Math.max(5, routine.estimate! + faker.number.int({ min: -5, max: 10 }));

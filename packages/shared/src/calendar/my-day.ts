@@ -27,10 +27,10 @@ export interface MyDayItem {
   time?: MyDayTime | null;
   /**
    * Windows of the day it can be done in (`itemWindowsOn`, or the windows of a moment of a routine): placed by them
-   * rather than by its times; null: no limit. Optional. Default = null.
+   * rather than by its times; null: no limit; none: it cannot be done that day and is not in it. Optional. Default = null.
    */
   windows?: readonly TimeWindow[] | null;
-  /** Late (a routine whose occurrence is past due): at the head of the day, today only. Optional. Default = false. */
+  /** Late (a routine whose occurrence is past due, a task past its « Échéance »): at the head of the day, today only. Optional. Default = false. */
   late?: boolean;
   /** Done (a task, a moment of a routine): at the bottom. Optional. Default = false. */
   done?: boolean;
@@ -81,9 +81,9 @@ export interface MyDayHour<T extends MyDayItem, S extends MyDaySlot> {
 
 /** « Ma journée » in blocks: its head, the items without hours, the hours, those done or cancelled. */
 export interface MyDayLayout<T extends MyDayItem, S extends MyDaySlot> {
-  /** Éphémérides, events of the whole day (and middle days of those over several days), birthdays, late routines (today only). */
+  /** Éphémérides, events of the whole day (and middle days of those over several days), birthdays, late routines and tasks (today only). */
   header: MyDayRow<T>[];
-  /** Items without hours and without limit (and those that cannot be done that day: no window). */
+  /** Items without hours and without limit. */
   unscheduled: MyDayRow<T>[];
   /** Hours with a row or a slot (not of the whole day), and the hour of now, in order. */
   hours: MyDayHour<T, S>[];
@@ -160,11 +160,12 @@ function placementOf(item: MyDayItem, day: string, today: string, nowTime: strin
   const part = day < endDate ? 'start' : null;
   if (item.done) return { block: 'finished', ...none, time: item.doneAt ?? null };
   if (finished(item)) return { block: 'finished', ...none };
-  if (item.kind === 'routine' && item.late && day === today) return { block: 'header', ...none };
   const windows = item.windows ?? null;
+  // No window that day: it cannot be done, it is not in the day.
+  if (windows && !windows.length) return null;
+  if ((item.kind === 'routine' || item.kind === 'task') && item.late && day === today) return { block: 'header', ...none };
   // A single window of the whole day: nothing limits it that day.
   if (windows && !(windows.length === 1 && windows[0].fromTime === null && windows[0].dueTime === null)) {
-    if (!windows.length) return { block: 'unscheduled', ...none };
     // The next window still to come today (the last one once all are past), the first one another day; one under
     // way today is placed at the time of now.
     const next = day === today ? windows.findIndex((window) => (window.dueTime ?? '24:00') > nowTime) : 0;
@@ -211,8 +212,9 @@ function finished(item: MyDayItem): boolean {
 /**
  * « Ma journée » of a day in blocks (pure: the items, already chosen and filtered, are only placed):
  * - head: éphémérides, events of the whole day and the middle days of an event over several days (its first day at
- *   its start, its last day at its end), birthdays, routines late (today only);
- * - without hours: items with neither times nor windows (no limit), and those with no window that day;
+ *   its start, its last day at its end), birthdays, routines then tasks late (today only);
+ * - without hours: items with neither times nor windows (no limit); those with no window that day are left out (done
+ *   or cancelled that day, they stay at the bottom);
  * - hours: an item at its time (a time « jusqu’à » alone: at it), or in one of its windows: the next one still to
  *   come today (one under way at the time of now; the last one once all are past), the first one another day, its
  *   other windows told with it (a single window of the whole day: without hours); only the hours with a row or a slot
@@ -277,10 +279,7 @@ export function myDayRows<T extends MyDayItem, S extends MyDaySlot = MyDaySlot>(
   const header = of('header').sort((a, b) => MY_DAY_KINDS.indexOf(a.row.item.kind) - MY_DAY_KINDS.indexOf(b.row.item.kind) || a.index - b.index);
   return {
     header: header.map(({ row }) => row),
-    // Those without limit first, then those with no window that day.
-    unscheduled: of('unscheduled')
-      .sort((a, b) => Number(a.row.item.windows?.length === 0) - Number(b.row.item.windows?.length === 0) || byTime(a, b))
-      .map(({ row }) => row),
+    unscheduled: of('unscheduled').sort(byTime).map(({ row }) => row),
     hours,
     finished: of('finished').sort(byDone).map(({ row }) => row),
   };

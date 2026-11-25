@@ -44,6 +44,16 @@ describe('taskDayReasons: why a task shows on a day of « Ma journée »', () =>
 
   it('in progress by the category of its status', () => {
     expect(taskDayReasons(task({ statusCategory: 'IN_PROGRESS' }), TODAY, TODAY)).toEqual(['inProgress']);
+    // Never a day to come; a past day only with one of its times that day, in Paris.
+    expect(taskDayReasons(task({ statusCategory: 'IN_PROGRESS' }), '2026-11-26', TODAY)).toEqual([]);
+    const time = { startedAt: '2026-11-23T23:30:00.000Z', endedAt: '2026-11-24T00:30:00.000Z', pausedAt: null, pausedSeconds: 0, duration: 3600 };
+    const worked = task({ statusCategory: 'IN_PROGRESS', times: [time] });
+    expect(taskDayReasons(worked, '2026-11-24', TODAY)).toEqual(['inProgress']);
+    expect(taskDayReasons(worked, '2026-11-23', TODAY)).toEqual([]);
+    expect(taskDayReasons({ ...worked, statusCategory: 'TODO' }, '2026-11-24', TODAY)).toEqual([]);
+    // A timer still running since yesterday evening: yesterday too.
+    const running = { ...time, startedAt: '2026-11-24T20:00:00.000Z', endedAt: null, duration: null };
+    expect(taskDayReasons(task({ statusCategory: 'IN_PROGRESS', times: [running] }), '2026-11-24', TODAY, Date.parse('2026-11-25T08:00:00.000Z'))).toEqual(['inProgress']);
     expect(taskDayReasons(task({ statusCategory: 'TODO' }), TODAY, TODAY)).toEqual([]);
   });
 
