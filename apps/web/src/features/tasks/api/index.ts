@@ -518,7 +518,7 @@ export function useSetTasksClosed() {
     optimistic: (queryClient, { ids, closed, reason = 'COMPLETED' }) =>
       patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => ({
         ...data,
-        tasks: data.tasks.map((task) => (ids.includes(task.id) ? { ...task, closed, closeReason: closed ? reason : null, cancelled: closed && reason === 'NOT_PLANNED' } : task)),
+        tasks: data.tasks.map((task) => (ids.includes(task.id) ? { ...task, closed, closeReason: closed ? reason : null, cancelled: closed && reason === 'NOT_PLANNED', closedAt: closed ? new Date().toISOString() : null } : task)),
       })),
   });
 }

@@ -1,10 +1,7 @@
-import { PeriodNav } from '../../../components/page/PeriodNav';
-import { PICKER_FORMATS } from '../../../lib/format';
+import { DayNav } from '../../../components/page/DayNav';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { Group, Paper, Select, Stack, Text } from '@mantine/core';
-import { DateField } from '../../../components/inputs/DateField';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays } from '@ordo/shared';
 import { useState } from 'react';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { parisToday } from '../../../lib/dates';
@@ -37,24 +34,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
   return (
     <Stack gap="lg">
       <Group justify="space-between" gap="sm">
-        <PeriodNav
-          current={day === today}
-          last={day >= today}
-          labels={{ previous: 'Jour précédent', next: 'Jour suivant' }}
-          onToday={() => setDay(today)}
-          onPrevious={() => setDay(addDays(day, -1))}
-          onNext={() => setDay(addDays(day, 1))}
-        >
-          <DateField
-            aria-label="Jour"
-            value={day}
-            onChange={(value) => value && setDay(value)}
-            maxDate={today}
-            valueFormat={PICKER_FORMATS.weekday}
-            w={240}
-            styles={{ input: { textAlign: 'center', textTransform: 'capitalize' } }}
-          />
-        </PeriodNav>
+        <DayNav day={day} onChange={setDay} maxDate={today} />
         <Select
           aria-label="Routine"
           placeholder="Toutes les routines"

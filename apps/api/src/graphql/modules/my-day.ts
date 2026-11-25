@@ -11,11 +11,18 @@ const MyDaySettingsRef = builder.objectRef<MyDaySettings>('MyDaySettings').imple
     showTasks: t.exposeBoolean('showTasks', { description: 'Tasks shown.' }),
     showEvents: t.exposeBoolean('showEvents', { description: 'Events shown.' }),
     showEphemerides: t.exposeBoolean('showEphemerides', { description: 'Éphémérides shown.' }),
-    projectIds: t.exposeStringList('projectIds', { description: 'Projects whose items are shown; empty: every item. A project deleted since may stay listed.' }),
+    showBirthdays: t.exposeBoolean('showBirthdays', { description: 'Birthdays shown.' }),
+    projectIds: t.exposeStringList('projectIds', { description: 'Projects whose items are shown; empty (and withoutProject false): every item. A project deleted since may stay listed.' }),
+    withoutProject: t.exposeBoolean('withoutProject', { description: '« Sans projet » chosen in the projects filter: the items of no project are shown too.' }),
     mineOrUnassigned: t.exposeBoolean('mineOrUnassigned', { description: 'Only the items assigned to « Moi » or to nobody; false: everyone’s.' }),
     showDone: t.exposeBoolean('showDone', { description: 'Items done shown.' }),
     showCancelled: t.exposeBoolean('showCancelled', { description: 'Items cancelled shown.' }),
-    hiddenSlotIds: t.exposeStringList('hiddenSlotIds', { description: 'Slots hidden one by one (a slot created later is shown). A slot deleted since may stay listed.' }),
+    hiddenSlotIds: t.exposeStringList('hiddenSlotIds', {
+      description: 'Slots hidden one by one, of this workspace or of a kind of another one it subscribes to (a slot created later is shown). A slot deleted since may stay listed.',
+    }),
+    hiddenSlotKinds: t.exposeStringList('hiddenSlotKinds', {
+      description: 'Kinds of slots of other workspaces subscribed to (ws:<workspaceId>:<typeId | default>) hidden as a whole, their slots added later too. One no longer subscribed to may stay listed.',
+    }),
   }),
 });
 
@@ -26,11 +33,14 @@ const MyDaySettingsInput = builder.inputType('MyDaySettingsInput', {
     showTasks: t.boolean({ required: true }),
     showEvents: t.boolean({ required: true }),
     showEphemerides: t.boolean({ required: true }),
+    showBirthdays: t.boolean({ required: true }),
     projectIds: t.stringList({ required: true, description: `${MY_DAY_IDS_MAX} at most.` }),
+    withoutProject: t.boolean({ required: true }),
     mineOrUnassigned: t.boolean({ required: true }),
     showDone: t.boolean({ required: true }),
     showCancelled: t.boolean({ required: true }),
     hiddenSlotIds: t.stringList({ required: true, description: `${MY_DAY_IDS_MAX} at most.` }),
+    hiddenSlotKinds: t.stringList({ required: true, description: `${MY_DAY_IDS_MAX} at most.` }),
   }),
 });
 

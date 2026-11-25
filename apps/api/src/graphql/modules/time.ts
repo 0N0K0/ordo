@@ -185,9 +185,10 @@ const alarmInput = (input: typeof AlarmInput.$inferInput) => ({
 builder.queryFields((t) => ({
   timeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description: 'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since). Timers past their 24 hours are stopped first.',
-    args: { projectId: t.arg.id(), routineId: t.arg.id(), since: t.arg({ type: 'DateTime' }) },
-    resolve: async (query, _root, { projectId, routineId, since }) => {
+    description:
+      'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since), and only those started before a moment (until). Timers past their 24 hours are stopped first.',
+    args: { projectId: t.arg.id(), routineId: t.arg.id(), since: t.arg({ type: 'DateTime' }), until: t.arg({ type: 'DateTime', description: 'Only those started before this moment (with since: those meeting the period).' }) },
+    resolve: async (query, _root, { projectId, routineId, since, until }) => {
       // The timers past their 24 hours are stopped first: read stopped, without waiting for the background task.
       await timeEntries.capRunningTimers();
       const projectIds = projectId ? await subtreeIds('project', projectId) : undefined;
@@ -198,6 +199,7 @@ builder.queryFields((t) => ({
           ...(routineId ? { routines: { some: { id: routineId } } } : {}),
           // Those crossing the moment too (a timer running past midnight, started the evening before).
           ...(since ? { OR: [{ startedAt: { gte: since } }, { endedAt: null }, { endedAt: { gte: since } }] } : {}),
+          ...(until ? { startedAt: { lt: until } } : {}),
         },
         orderBy: { startedAt: 'desc' },
       });

@@ -638,15 +638,19 @@ export type MilestoneUpdateInput = {
 export type MyDaySettingsInput = {
   /** 500 at most. */
   hiddenSlotIds: Array<string>;
+  /** 500 at most. */
+  hiddenSlotKinds: Array<string>;
   mineOrUnassigned: boolean;
   /** 500 at most. */
   projectIds: Array<string>;
+  showBirthdays: boolean;
   showCancelled: boolean;
   showDone: boolean;
   showEphemerides: boolean;
   showEvents: boolean;
   showRoutines: boolean;
   showTasks: boolean;
+  withoutProject: boolean;
 };
 
 /** Kind of notification a workspace can give while another one is open. */
@@ -2397,7 +2401,7 @@ export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspac
 export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeLabel: string | null, typeId: string | null, ephemeris: boolean, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, workspaceId: string, workspaceLabel: string }> };
+export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeLabel: string | null, typeId: string | null, ephemeris: boolean, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, unavailable: boolean, workspaceId: string, workspaceLabel: string }> };
 
 export type OtherWorkspaceSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -3479,19 +3483,19 @@ export type WatchedUnreadMailsQueryVariables = Exact<{
 
 export type WatchedUnreadMailsQuery = { mailMessages: { messages: Array<{ uid: number, subject: string, from: Array<{ name: string | null, address: string }> }> } };
 
-export type MyDaySettingsFieldsFragment = { showRoutines: boolean, showTasks: boolean, showEvents: boolean, showEphemerides: boolean, projectIds: Array<string>, mineOrUnassigned: boolean, showDone: boolean, showCancelled: boolean, hiddenSlotIds: Array<string> };
+export type MyDaySettingsFieldsFragment = { showRoutines: boolean, showTasks: boolean, showEvents: boolean, showEphemerides: boolean, showBirthdays: boolean, projectIds: Array<string>, withoutProject: boolean, mineOrUnassigned: boolean, showDone: boolean, showCancelled: boolean, hiddenSlotIds: Array<string>, hiddenSlotKinds: Array<string> };
 
 export type MyDaySettingsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MyDaySettingsQuery = { myDaySettings: { showRoutines: boolean, showTasks: boolean, showEvents: boolean, showEphemerides: boolean, projectIds: Array<string>, mineOrUnassigned: boolean, showDone: boolean, showCancelled: boolean, hiddenSlotIds: Array<string> } };
+export type MyDaySettingsQuery = { myDaySettings: { showRoutines: boolean, showTasks: boolean, showEvents: boolean, showEphemerides: boolean, showBirthdays: boolean, projectIds: Array<string>, withoutProject: boolean, mineOrUnassigned: boolean, showDone: boolean, showCancelled: boolean, hiddenSlotIds: Array<string>, hiddenSlotKinds: Array<string> } };
 
 export type UpdateMyDaySettingsMutationVariables = Exact<{
   input: MyDaySettingsInput;
 }>;
 
 
-export type UpdateMyDaySettingsMutation = { updateMyDaySettings: { showRoutines: boolean, showTasks: boolean, showEvents: boolean, showEphemerides: boolean, projectIds: Array<string>, mineOrUnassigned: boolean, showDone: boolean, showCancelled: boolean, hiddenSlotIds: Array<string> } };
+export type UpdateMyDaySettingsMutation = { updateMyDaySettings: { showRoutines: boolean, showTasks: boolean, showEvents: boolean, showEphemerides: boolean, showBirthdays: boolean, projectIds: Array<string>, withoutProject: boolean, mineOrUnassigned: boolean, showDone: boolean, showCancelled: boolean, hiddenSlotIds: Array<string>, hiddenSlotKinds: Array<string> } };
 
 export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
 
@@ -4852,6 +4856,7 @@ export type TimeEntryFieldsFragment = { id: string, projectId: string | null, de
 export type TimeEntriesQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
   since?: string | null | undefined;
+  until?: string | null | undefined;
 }>;
 
 
@@ -5803,11 +5808,14 @@ export const MyDaySettingsFieldsFragmentDoc = new TypedDocumentString(`
   showTasks
   showEvents
   showEphemerides
+  showBirthdays
   projectIds
+  withoutProject
   mineOrUnassigned
   showDone
   showCancelled
   hiddenSlotIds
+  hiddenSlotKinds
 }
     `, {"fragmentName":"MyDaySettingsFields"}) as unknown as TypedDocumentString<MyDaySettingsFieldsFragment, unknown>;
 export const ClientFieldsFragmentDoc = new TypedDocumentString(`
@@ -7385,6 +7393,7 @@ export const SubscribedWorkSchedulesDocument = new TypedDocumentString(`
     dayDisplay
     dayBar
     monthDisplay
+    unavailable
     workspaceId
     workspaceLabel
   }
@@ -8881,11 +8890,14 @@ export const MyDaySettingsDocument = new TypedDocumentString(`
   showTasks
   showEvents
   showEphemerides
+  showBirthdays
   projectIds
+  withoutProject
   mineOrUnassigned
   showDone
   showCancelled
   hiddenSlotIds
+  hiddenSlotKinds
 }`) as unknown as TypedDocumentString<MyDaySettingsQuery, MyDaySettingsQueryVariables>;
 export const UpdateMyDaySettingsDocument = new TypedDocumentString(`
     mutation UpdateMyDaySettings($input: MyDaySettingsInput!) {
@@ -8898,11 +8910,14 @@ export const UpdateMyDaySettingsDocument = new TypedDocumentString(`
   showTasks
   showEvents
   showEphemerides
+  showBirthdays
   projectIds
+  withoutProject
   mineOrUnassigned
   showDone
   showCancelled
   hiddenSlotIds
+  hiddenSlotKinds
 }`) as unknown as TypedDocumentString<UpdateMyDaySettingsMutation, UpdateMyDaySettingsMutationVariables>;
 export const ProjectTreeDocument = new TypedDocumentString(`
     query ProjectTree {
@@ -11002,8 +11017,8 @@ export const DeleteSprintDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteSprintMutation, DeleteSprintMutationVariables>;
 export const TimeEntriesDocument = new TypedDocumentString(`
-    query TimeEntries($projectId: ID, $since: DateTime) {
-  timeEntries(projectId: $projectId, since: $since) {
+    query TimeEntries($projectId: ID, $since: DateTime, $until: DateTime) {
+  timeEntries(projectId: $projectId, since: $since, until: $until) {
     ...TimeEntryFields
   }
 }

@@ -1,0 +1,104 @@
+@layer app {
+  /* Blocks of the day: head, without hours, done and cancelled. */
+  .block {
+    /* Espacement */
+    padding: calc(var(--onoko-vertical-step) / 2) var(--mantine-spacing-md);
+  }
+
+  /* An hour: its time on the left, its rows on the right, its slots as its background. */
+  .hour {
+    /* Agencement */
+    display: grid;
+    grid-template-columns: 4rem 1fr;
+
+    /* Dimension */
+    min-height: calc(var(--onoko-vertical-step) * 2);
+
+    /* Espacement */
+    gap: var(--mantine-spacing-sm);
+    padding: 0 var(--mantine-spacing-md);
+
+    /* Arrière-Plan */
+    background-color: var(--slot-color, transparent);
+
+    &[data-unavailable] {
+      background-color: var(--mantine-color-gray-light);
+    }
+
+    /* Bordures */
+    border-top: 1px solid var(--mantine-color-default-border);
+
+    /* Effets */
+    &[data-current] {
+      box-shadow: inset 3px 0 0 var(--mantine-primary-color-filled);
+    }
+  }
+
+  .hourLabel {
+    /* Espacement */
+    padding-top: calc(var(--onoko-vertical-step) / 2);
+
+    /* Typographie */
+    line-height: var(--onoko-vertical-step);
+  }
+
+  /* A line of the day: as tall as two steps. */
+  .row {
+    /* Dimension */
+    min-height: calc(var(--onoko-vertical-step) * 2);
+
+    /* Typographie */
+    &[data-finished='cancelled'] .open {
+      text-decoration: line-through;
+    }
+
+    /* Effets */
+    &[data-finished] {
+      opacity: var(--onoko-muted-opacity);
+    }
+
+    /* Animation */
+    transition: opacity var(--onoko-transition);
+  }
+
+  .state {
+    /* Agencement */
+    display: inline-flex;
+    flex-shrink: 0;
+    justify-content: center;
+
+    /* Dimension */
+    width: 2rem;
+  }
+
+  .time {
+    /* Agencement */
+    flex-shrink: 0;
+
+    /* Dimension */
+    width: 3rem;
+  }
+
+  .label {
+    /* Agencement */
+    flex: 1;
+
+    /* Dimension */
+    min-width: 0;
+  }
+
+  .open {
+    /* Typographie */
+    text-align: left;
+  }
+
+  /* Tasks and routines linked to an event, under it. */
+  .children {
+    /* Espacement */
+    margin-left: calc(var(--mantine-spacing-md) * 2);
+    padding-left: var(--mantine-spacing-sm);
+
+    /* Bordures */
+    border-left: 2px solid var(--mantine-color-default-border);
+  }
+}

@@ -103,7 +103,7 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Activités',
     icon: <SquaresFourIcon aria-hidden />,
-    links: [pageLink('tasks', <TasksNavBadge />), pageLink('routines', <RoutinesNavBadge />), pageLink('calendar', <AgendaNavBadge />), pageLink('time', <TimeNavBadge />), pageLink('alarms', <AlarmsNavBadge />)],
+    links: [pageLink('myDay'), pageLink('tasks', <TasksNavBadge />), pageLink('routines', <RoutinesNavBadge />), pageLink('calendar', <AgendaNavBadge />), pageLink('time', <TimeNavBadge />), pageLink('alarms', <AlarmsNavBadge />)],
   },
   {
     label: 'Économat',

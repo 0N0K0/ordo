@@ -3186,17 +3186,25 @@ Settings of the page « Ma journée » of the user in the current workspace (one
 """
 type MyDaySettings {
   """
-  Slots hidden one by one (a slot created later is shown). A slot deleted since may stay listed.
+  Slots hidden one by one, of this workspace or of a kind of another one it subscribes to (a slot created later is shown). A slot deleted since may stay listed.
   """
   hiddenSlotIds: [String!]!
+
+  """
+  Kinds of slots of other workspaces subscribed to (ws:<workspaceId>:<typeId | default>) hidden as a whole, their slots added later too. One no longer subscribed to may stay listed.
+  """
+  hiddenSlotKinds: [String!]!
 
   """Only the items assigned to « Moi » or to nobody; false: everyone’s."""
   mineOrUnassigned: Boolean!
 
   """
-  Projects whose items are shown; empty: every item. A project deleted since may stay listed.
+  Projects whose items are shown; empty (and withoutProject false): every item. A project deleted since may stay listed.
   """
   projectIds: [String!]!
+
+  """Birthdays shown."""
+  showBirthdays: Boolean!
 
   """Items cancelled shown."""
   showCancelled: Boolean!
@@ -3215,22 +3223,32 @@ type MyDaySettings {
 
   """Tasks shown."""
   showTasks: Boolean!
+
+  """
+  « Sans projet » chosen in the projects filter: the items of no project are shown too.
+  """
+  withoutProject: Boolean!
 }
 
 """Settings of « Ma journée », saved as a whole."""
 input MyDaySettingsInput {
   """500 at most."""
   hiddenSlotIds: [String!]!
+
+  """500 at most."""
+  hiddenSlotKinds: [String!]!
   mineOrUnassigned: Boolean!
 
   """500 at most."""
   projectIds: [String!]!
+  showBirthdays: Boolean!
   showCancelled: Boolean!
   showDone: Boolean!
   showEphemerides: Boolean!
   showEvents: Boolean!
   showRoutines: Boolean!
   showTasks: Boolean!
+  withoutProject: Boolean!
 }
 
 """Kind of notification a workspace can give while another one is open."""
@@ -3813,9 +3831,18 @@ type Query {
   tasks: [Task!]!
 
   """
-  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since). Timers past their 24 hours are stopped first.
+  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since), and only those started before a moment (until). Timers past their 24 hours are stopped first.
   """
-  timeEntries(projectId: ID, routineId: ID, since: DateTime): [TimeEntry!]!
+  timeEntries(
+    projectId: ID
+    routineId: ID
+    since: DateTime
+
+    """
+    Only those started before this moment (with since: those meeting the period).
+    """
+    until: DateTime
+  ): [TimeEntry!]!
 
   """
   Mails to do (not marked as done) of every account, in every folder but drafts, sent, archive, junk and trash.

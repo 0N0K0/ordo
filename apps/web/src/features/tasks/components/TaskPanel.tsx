@@ -27,7 +27,7 @@ import { DocumentsField } from '../../documents/components/DocumentsField';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskComments } from './TaskComments';
 import { hasTreeLinks, inProjectTree, linkableTasks } from '../lib/task-links';
-import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
+import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
 
 import { type TaskContext, taskName, taskNumber, useTaskContext } from '../hooks/use-task-context';
@@ -113,8 +113,8 @@ interface TaskDetailProps {
 }
 
 /**
- * Detail of a task, laid out as the routine and event panels (`DetailLayout`): its state button (`TaskDoneButton`, the
- * padlock of a blocked open task), number, label and « … » menu, then its project and mentions; on the left its description, « Relations »
+ * Detail of a task, laid out as the routine and event panels (`DetailLayout`): its state button (`TaskDoneButton`),
+ * number, label and « … » menu, then its project and mentions; on the left its description, « Relations »
  * (parent, sub-tasks, « Dépend de », « Bloque », « Relative à ») and its comments; on the right « Classement »,
  * « Parties prenantes », « Charge », « Périodes », « Alarmes » (reminders, saved timers), its place and « Ressources »
  * (links, documents, shopping lists, sheets). Each field saved as soon as it changes (its label and effort on leaving them). An
@@ -222,7 +222,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           <Group gap={6} wrap="nowrap" h={36}>
             {/* As the routine panel: its state button, one click closes it as done or reopens it (toast with « Annuler »); cancelling is in the menu. */}
             <TaskDoneButton task={task} context={context} />
-            {!task.closed && context.isBlocked(task) && <TaskStateIcon closed={false} blocked />}
             <Text c="dimmed" fw={600}>
               {taskNumber(task)}
             </Text>

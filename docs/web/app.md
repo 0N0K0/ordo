@@ -29,6 +29,7 @@ Zone connectée : garde `RequireAuth` (`features/auth/pages/guards`), puis `AppL
 | Route                      | Page                   | Remarque                               |
 | -------------------------- | ---------------------- | -------------------------------------- |
 | `/`                        | `HomePage`             | Accueil                                |
+| `/my-day`                  | `MyDayPage`            | Ma journée                             |
 | `/tasks`                   | `TasksPage`            |                                        |
 | `/tasks/automations`       | `TaskAutomationsPage`  | Automatisations des tâches             |
 | `/time`                    | `TimePage`             | Chronos                                |
@@ -63,7 +64,7 @@ Toute autre adresse : `NotFoundPage`. Voir [Fonctionnalités : authentification]
 
 ## Registre des pages et adresses (`pages.ts`)
 
-- `PAGES` : pages de l'application, un seul endroit pour leur adresse, leur nom (menu, en-tête, titre) et leur icône (menu) : `home` « Accueil » `/`, `tasks` « Tâches », `routines` « Routines », `calendar` « Agenda », `time` « Chronos », `alarms` « Alarmes », `shopping` « Achats », `sheets` « Fiches », `stock` « Inventaire », `accounting` « Facturation », `treasury` « Trésorerie », `mail` « Mails », `documents` « Documents », `dashboards` « Tableaux de bord », `settings` « Paramètres », `account` « Mon compte ». Clients et projets affichent leur propre nom. Les adresses de l’accueil, des tâches, des routines, de l’agenda, des alarmes et du compte viennent de `APP_PATHS` (`@ordo/shared` : ce sont aussi les liens des sonneries poussées par le serveur).
+- `PAGES` : pages de l'application, un seul endroit pour leur adresse, leur nom (menu, en-tête, titre) et leur icône (menu) : `home` « Accueil » `/`, `myDay` « Ma journée » `/my-day` (icône soleil), `tasks` « Tâches », `routines` « Routines », `calendar` « Agenda », `time` « Chronos », `alarms` « Alarmes », `shopping` « Achats », `sheets` « Fiches », `stock` « Inventaire », `accounting` « Facturation », `treasury` « Trésorerie », `mail` « Mails », `documents` « Documents », `dashboards` « Tableaux de bord », `settings` « Paramètres », `account` « Mon compte ». Clients et projets affichent leur propre nom. Les adresses de l’accueil, des tâches, des routines, de l’agenda, des alarmes et du compte viennent de `APP_PATHS` (`@ordo/shared` : ce sont aussi les liens des sonneries poussées par le serveur).
 - `PageKey` (type) : clé d'une page.
 - `AUTH_PATHS` : `login`, `forgotPassword`, `resetPassword`, `confirmEmail`.
 - `OVERDUE_INVOICES_PATH` (`/accounting?tab=overdue`), `TASK_AUTOMATIONS_PATH` (`/tasks/automations`), `GITHUB_SETTINGS_PATH` (`/settings?tab=github`), `SHOPPING_LISTS_PATH` (`/shopping?tab=lists`).

@@ -194,6 +194,11 @@ const RESTRICTED_SYNTAX = [
     selector: "Literal[value=/^Voir (l’agenda|les routines)$/], TemplateElement[value.raw=/^Voir (l’agenda|les routines) de « $/]",
     message: 'Utiliser calendarRingPage(espace) / routinesRingPage(espace) (@ordo/shared, dates/reminder-rings) : les liens des sonneries.',
   },
+  // A page of one day moves from day to day the same way everywhere.
+  {
+    selector: "Literal[value='Jour précédent']",
+    message: 'Utiliser DayNav (components/page/DayNav) : « Aujourd’hui », jour précédent, le jour dans un sélecteur de date, jour suivant.',
+  },
   {
     selector: "CallExpression[callee.name=/^(occurrenceReminders|taskReminders|remindersAt|remindersBefore)$/]",
     message: 'Utiliser eventRings / taskRings / routineRings / ephemerisRings / birthdayRings (@ordo/shared, dates/reminder-rings) : les mêmes clés, instants et textes que le serveur (push).',

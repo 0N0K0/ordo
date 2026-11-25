@@ -186,6 +186,7 @@ const SubscribedSchedulesDocument = graphql(`
       dayDisplay
       dayBar
       monthDisplay
+      unavailable
       workspaceId
       workspaceLabel
     }

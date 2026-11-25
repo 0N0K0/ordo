@@ -20,7 +20,7 @@ Les règles métier calculées par le code partagé (`packages/shared`) ont des 
 
 Ce que l’utilisateur peut faire, écran par écran : pages, tableaux, formulaires, actions, différences PRO / PERSO.
 
-- **Activités** : [Alarmes](features/activities/alarms.md) · [Agenda](features/activities/calendar.md) · [Routines](features/activities/routines.md) · [Tâches](features/activities/tasks.md) · [Temps passé et chrono](features/activities/time.md)
+- **Activités** : [Alarmes](features/activities/alarms.md) · [Agenda](features/activities/calendar.md) · [Ma journée](features/activities/my-day.md) · [Routines](features/activities/routines.md) · [Tâches](features/activities/tasks.md) · [Temps passé et chrono](features/activities/time.md)
 - **Économat** : [Fiches](features/supplies/sheets.md) · [Achats](features/supplies/shopping.md) · [Inventaire](features/supplies/stock.md)
 - **Finances** : [Facturation](features/finances/accounting.md) · [Trésorerie](features/finances/treasury.md)
 - **Ressources** : [Tableaux de bord](features/resources/dashboards.md) · [Documents (bibliothèque)](features/resources/library.md) · [Mails](features/resources/mail.md)

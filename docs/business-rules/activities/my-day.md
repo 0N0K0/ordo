@@ -1,6 +1,6 @@
 # Règles de « Ma journée »
 
-Règles de la page « Ma journée » (menu Activités) : quelles tâches y sont un jour, où chaque élément du jour se range, et ses réglages. « Ma journée » est une liste du jour, pas une vue d’agenda : les routines, tâches et évènements du jour de l’espace courant, avec leurs horaires. Sources : `packages/shared/src/tasks/task-day.ts` (`taskDayReasons`, `isTaskOverdue`, `taskPlacement`), `packages/shared/src/calendar/my-day.ts` (`myDayRows`), `packages/shared/src/calendar/slot-conditions.ts` (`itemWindowsOn`), `packages/shared/src/calendar/my-day-settings.ts` (`readMyDaySettings`, `myDaySettingsSchema`), `apps/api/src/services/calendar/my-day-settings.ts`, `apps/api/src/graphql/modules/my-day.ts`. Tout est lu en jours et heures de Paris.
+Règles de la page « Ma journée » (menu Activités) : quelles tâches y sont un jour, où chaque élément du jour se range, et ses réglages. « Ma journée » est une liste du jour, pas une vue d’agenda : les routines, tâches et évènements du jour de l’espace courant, avec leurs horaires. Sources : `packages/shared/src/tasks/task-day.ts` (`taskDayReasons`, `isTaskOverdue`, `taskPlacement`), `packages/shared/src/calendar/my-day.ts` (`myDayRows`), `packages/shared/src/calendar/slot-conditions.ts` (`itemWindowsOn`), `packages/shared/src/calendar/my-day-settings.ts` (`readMyDaySettings`, `myDaySettingsSchema`, `myDayShows`, `myDayShowsSlot`), `apps/web/src/features/my-day/hooks/use-my-day.ts` (`useMyDay`), `apps/api/src/services/calendar/my-day-settings.ts`, `apps/api/src/graphql/modules/my-day.ts`. Tout est lu en jours et heures de Paris.
 
 Voir aussi : [Tâches](tasks.md), [Routines](routines.md), [Agenda](calendar.md), [Dates](../cross-cutting/dates.md), [Espaces et accès](../cross-cutting/workspaces-and-access.md).
 
@@ -29,6 +29,18 @@ Les fenêtres d’un jour où une tâche ou une routine peut se faire (`itemWind
 - aucune fenêtre ce jour (horaires d’autres jours, type sans créneau, créneau indisponible toute la journée) : elle ne peut pas se faire ce jour, et n’est pas dans « Ma journée » ce jour-là (voir [Placement](#placement)) ;
 - les fenêtres se suivent dans l’ordre, sans se toucher ; un créneau jusqu’à 23:59 va jusqu’à la fin du jour, la fin d’une fenêtre est exclue.
 
+## Éléments de la page
+
+La page « Ma journée » (menu Activités, espace courant) montre aujourd'hui à son ouverture, puis le jour choisi (jour précédent / suivant, ou une date). Elle rassemble pour ce jour (`useMyDay`) :
+
+- **Tâches** : toutes les tâches non archivées de l'espace qui ont une raison ce jour (voir [Tâches du jour](#tâches-du-jour)) ; un jour passé, leurs temps de ce jour sont chargés (requête `timeEntries` sur le jour), pour « En cours ». Elles se rangent par leurs fenêtres (`itemWindowsOn` : leurs « Horaires », leur condition de créneaux, les créneaux « Indisponible »).
+- **Routines** : chaque moment d'une occurrence ouverte ce jour (de son premier jour à son échéance) ; fait, le jour où il a été fait seulement ; une occurrence annulée, le jour de son échéance ; aujourd'hui, en plus, les moments non faits et non facultatifs de l'occurrence en cours d'une routine en retard (échéance passée, « Depuis … »), réduits aux heures que sa condition de créneaux et les créneaux « Indisponible » permettent aujourd'hui (aucune : pas dans la page). Un jour passé, un moment non fait d'une occurrence dont l'échéance est passée est « Non faite » (un moment facultatif non : comme l'historique des routines). Une routine parente ne s'y voit que par ses sous-routines ; une routine archivée n'y est pas. Un moment coupé par des créneaux (plusieurs fenêtres) se range à l'une d'elles ; sinon à son heure « dès », sinon « jusqu'à ».
+- **Évènements** : les occurrences des calendriers de l'espace ce jour (pas celles des calendriers abonnés, ni les archivées), annulées comprises (barrées), celles sur plusieurs jours chacun de leurs jours.
+- **Éphémérides** de l'espace et des types abonnés d'un autre espace ce jour, et **anniversaires** des personnes de l'espace (archivées exclues), en tête.
+- **Créneaux des heures** : ceux de l'espace et des types abonnés d'un autre espace (ni archivés, ni d'un type archivé), « Indisponible » tel que l'espace le règle.
+
+Chaque ligne a son bouton d'état (une tâche : faite / à faire ; un moment de routine : « Faite le » ; aucun pour un évènement, qui s'annule ou se reporte par son menu), son chrono (un évènement prend son projet et ses tâches liées), son nom qui ouvre son panneau, et son menu (celui de la tâche, de l'occurrence de la routine ou de l'occurrence de l'évènement). Les réglages ci-dessous filtrent ces éléments avant le placement.
+
 ## Placement
 
 Les éléments du jour se rangent en quatre blocs (`myDayRows`), dans cet ordre :
@@ -53,15 +65,17 @@ Les filtres et choix d'affichage de « Ma journée » sont enregistrés sur le s
 
 | Réglage | Champ | Par défaut |
 | ------- | ----- | ---------- |
-| Types d'éléments affichés : routines, tâches, évènements, éphémérides | `showRoutines`, `showTasks`, `showEvents`, `showEphemerides` | tous affichés |
-| Projets | `projectIds` | vide : tous les éléments, avec ou sans projet |
+| Types d'éléments affichés : routines, tâches, évènements, éphémérides, anniversaires | `showRoutines`, `showTasks`, `showEvents`, `showEphemerides`, `showBirthdays` | tous affichés |
+| Projets, et « Sans projet » | `projectIds`, `withoutProject` | aucun projet ni « Sans projet » : tous les éléments, avec ou sans projet |
 | « À moi / sans assigné » | `mineOrUnassigned` | non : ceux de tout le monde |
 | Faits affichés | `showDone` | oui |
 | Annulés affichés | `showCancelled` | oui |
-| Créneaux de l'espace masqués, un par un | `hiddenSlotIds` | aucun : tous affichés |
+| Créneaux masqués, un par un : de l'espace, ou des types abonnés d'un autre espace | `hiddenSlotIds` | aucun : tous affichés |
+| Types de créneaux d'un autre espace (abonnements) masqués en entier | `hiddenSlotKinds` (`ws:<espace>:<type \| default>`, `foreignSlotKind`) | aucun |
 
-- Les créneaux sont enregistrés par ceux qui sont **masqués** : un créneau créé ensuite est affiché.
+- Les créneaux sont enregistrés par ceux qui sont **masqués** : un créneau créé ensuite est affiché ; un type abonné masqué masque tous ses créneaux, ceux ajoutés ensuite compris. Un créneau d'un autre espace se reconnaît à son espace (`workspaceId` de `subscribedWorkSchedules`) ; son id est unique comme celui d'un créneau de l'espace.
+- Application (`myDayShows`, `myDayShowsSlot`) : un élément d'un type masqué, fait (`showDone`) ou annulé (`showCancelled`, un évènement annulé aussi) masqué n'est pas dans la page ; avec des projets choisis, seuls leurs éléments (tâches, routines, évènements ; le projet de l'élément, sans ses sous-projets), et ceux sans projet avec « Sans projet » ; « Sans projet » seul : seulement les éléments sans projet. Les éphémérides et les anniversaires n'ont pas de projet : le filtre des projets les laisse. Un créneau masqué ne colore plus les heures, mais compte toujours pour les fenêtres (le placement ne change pas) ; les éphémérides suivent `showEphemerides` seul. « À moi / sans assigné » est enregistré mais pas encore appliqué.
 - Jamais choisis : les valeurs par défaut. Lecture (`readMyDaySettings`) : un champ absent ou invalide prend sa valeur par défaut, une clé inconnue est ignorée ; dans les listes d'ids, seuls les textes de forme d'id sont gardés (1 à 64 caractères), chacun une fois, dans leur ordre, 500 au plus.
-- Un projet ou un créneau supprimé depuis n'est pas une erreur : son id reste enregistré (le serveur garde les ids qu'il reçoit) ; la page l'ignore en lisant les réglages avec les ids encore connus de l'espace (`readMyDaySettings`), et ne le renvoie donc plus au prochain enregistrement, et un filtre de projets dont tous les projets ont été supprimés montre de nouveau tous les éléments.
-- Enregistrement : tout le jeu à la fois (`updateMyDaySettings`), validé par `myDaySettingsSchema` : chaque champ requis, de son type, ids de 1 à 64 caractères (« Id invalide. »), 500 projets au plus (« 500 projets maximum. ») et 500 créneaux au plus (« 500 créneaux maximum. ») ; sinon « Certains champs sont invalides. » (`BAD_USER_INPUT`, voir [Erreurs](../cross-cutting/errors.md#erreurs-rattachées-à-un-champ)). Les ids ne sont pas comparés aux projets et créneaux de l'espace.
+- Un projet, un créneau ou un abonnement supprimé depuis n'est pas une erreur : son id reste enregistré (le serveur garde les ids qu'il reçoit) ; la page l'ignore en lisant les réglages avec les ids encore connus de l'espace (`readMyDaySettings` : projets, créneaux de l'espace et des types abonnés, types abonnés), et ne le renvoie donc plus au prochain enregistrement, et un filtre de projets dont tous les projets ont été supprimés montre de nouveau tous les éléments (seulement ceux sans projet avec « Sans projet »).
+- Enregistrement : tout le jeu à la fois (`updateMyDaySettings`), validé par `myDaySettingsSchema` : chaque champ requis, de son type, ids de 1 à 64 caractères (« Id invalide. »), 500 projets au plus (« 500 projets maximum. »), 500 créneaux au plus (« 500 créneaux maximum. ») et 500 types au plus (« 500 types de créneaux maximum. ») ; sinon « Certains champs sont invalides. » (`BAD_USER_INPUT`, voir [Erreurs](../cross-cutting/errors.md#erreurs-rattachées-à-un-champ)). Les ids ne sont pas comparés aux projets, créneaux et abonnements de l'espace.
 - Accès : un utilisateur ne lit et n'écrit que **ses** réglages (l'utilisateur de la session, jamais un id envoyé), et seulement dans l'espace de la requête dont il est membre (il y a son profil « Moi », voir [Personnes](../cross-cutting/people.md#-moi-)) ; sinon « Espace introuvable. » (`NOT_FOUND`). Supprimer l'espace ou l'utilisateur supprime ses réglages.

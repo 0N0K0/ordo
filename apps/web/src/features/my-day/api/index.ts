@@ -10,11 +10,14 @@ graphql(`
     showTasks
     showEvents
     showEphemerides
+    showBirthdays
     projectIds
+    withoutProject
     mineOrUnassigned
     showDone
     showCancelled
     hiddenSlotIds
+    hiddenSlotKinds
   }
 `);
 

@@ -34,6 +34,7 @@ import { FormDescription } from '../../../components/markdown/DescriptionSection
 import { DetailLayout, PanelGroup } from '../../../components/panels/DetailLayout';
 import { PANEL_GROUPS } from '../../../components/panels/panel-groups';
 import { TrackedTime } from '../../time/components/TrackedTime';
+import { onRoutine } from '../../time/api';
 import { RoutineDoneToggles } from './DoneToggle';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { AssigneesSelect, LabelSelect, ProjectSelect } from '../../tasks/components/task-ui';
@@ -546,7 +547,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
               {current && (
                 <TrackedTime
                   seconds={current.trackedSeconds}
-                  on={(entry) => entry.routines.some((item) => item.id === current.id)}
+                  on={onRoutine(current.id)}
                   start={{ projectId: current.projectId, routineIds: [current.id], taskIds: [] }}
                   disabled={readOnly}
                 />

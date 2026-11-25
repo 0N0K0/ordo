@@ -133,14 +133,17 @@ Réglages de la page, par utilisateur et par espace (règles dans [Ma journée](
 
 | Export | Rôle |
 | ------ | ---- |
-| `MyDaySettings` | Réglages : `showRoutines`, `showTasks`, `showEvents`, `showEphemerides`, `projectIds` (vide : tous), `mineOrUnassigned` (« à moi / sans assigné »), `showDone`, `showCancelled`, `hiddenSlotIds` (créneaux masqués : un créneau créé ensuite est affiché). |
-| `DEFAULT_MY_DAY_SETTINGS` | Réglages jamais choisis (figés) : tout affiché, tous les projets, tout le monde, aucun créneau masqué. |
-| `MY_DAY_IDS_MAX` | 500 : ids au plus dans `projectIds` et dans `hiddenSlotIds`. |
-| `myDaySettingsSchema` | Réglages envoyés (zod) : chaque champ requis, clés inconnues retirées, listes d'ids de 1 à 64 caractères (« Id invalide. »), 500 au plus (« 500 projets maximum. », « 500 créneaux maximum. »). |
-| `MyDayKnownIds` | Ids encore connus de l'espace (`projectIds?`, `slotIds?`), pour écarter ceux supprimés depuis. |
-| `readMyDaySettings(value, known?)` | Réglages lus d'une valeur enregistrée : valeur par défaut pour un champ absent ou invalide, clés inconnues ignorées, ids de forme valide une fois chacun, dans leur ordre, 500 au plus ; avec `known`, les ids inconnus de l'espace écartés (un filtre de projets vidé ainsi montre tous les éléments). |
+| `MyDaySettings` | Réglages : `showRoutines`, `showTasks`, `showEvents`, `showEphemerides`, `showBirthdays`, `projectIds` (vide et sans `withoutProject` : tous), `withoutProject` (« Sans projet » choisi dans le filtre des projets), `mineOrUnassigned` (« à moi / sans assigné »), `showDone`, `showCancelled`, `hiddenSlotIds` (créneaux masqués, de l'espace ou des types abonnés d'un autre espace : un créneau créé ensuite est affiché), `hiddenSlotKinds` (types d'un autre espace abonnés masqués en entier, `foreignSlotKind`). |
+| `DEFAULT_MY_DAY_SETTINGS` | Réglages jamais choisis (figés) : tout affiché (anniversaires compris), tous les projets, tout le monde, aucun créneau ni type masqué. |
+| `MY_DAY_IDS_MAX` | 500 : ids au plus dans `projectIds`, `hiddenSlotIds` et `hiddenSlotKinds`. |
+| `myDaySettingsSchema` | Réglages envoyés (zod) : chaque champ requis, clés inconnues retirées, listes d'ids de 1 à 64 caractères (« Id invalide. »), 500 au plus (« 500 projets maximum. », « 500 créneaux maximum. », « 500 types de créneaux maximum. »). |
+| `MyDayKnownIds` | Ids encore connus de l'espace (`projectIds?`, `slotIds?` : créneaux de l'espace et des types abonnés, `slotKinds?` : types abonnés), pour écarter ceux supprimés depuis. |
+| `readMyDaySettings(value, known?)` | Réglages lus d'une valeur enregistrée : valeur par défaut pour un champ absent ou invalide, clés inconnues ignorées, ids de forme valide une fois chacun, dans leur ordre, 500 au plus ; avec `known`, les ids inconnus de l'espace écartés (un filtre de projets vidé ainsi montre tous les éléments, ou ceux sans projet seuls avec `withoutProject`). |
+| `MyDayFilterItem` | Élément tel que les réglages le filtrent : `kind`, `projectId?` (absent : pas filtré par projet, une éphéméride, un anniversaire), `done?`, `cancelled?`. |
+| `myDayShows(settings, item)` | Si les réglages montrent un élément : son type affiché, faits et annulés affichés ou non, filtre des projets (aucun choisi et pas « Sans projet » : tous ; sinon ceux des projets choisis, et ceux sans projet avec « Sans projet ») ; « à moi / sans assigné » n'y est pas appliqué. |
+| `myDayShowsSlot(settings, slot)` | Si les réglages montrent les créneaux d'un horaire sur les heures (`scheduleId`, `kind?` : `foreignSlotKind` d'un horaire d'un autre espace) : ni masqué un par un, ni d'un type abonné masqué. |
 
-Internes : `MY_DAY_ID_MAX` (64), `MY_DAY_FLAGS` (les réglages oui / non), `idList` (liste d'ids du schéma), `readIds`.
+Internes : `MY_DAY_ID_MAX` (64), `MY_DAY_FLAGS` (les réglages oui / non), `idList` (liste d'ids du schéma), `readIds`, `KIND_SETTINGS` (le réglage qui montre chaque type d'éléments).
 
 ## `slot-kinds.ts` — références des types de créneaux
 
