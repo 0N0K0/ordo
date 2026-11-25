@@ -3,7 +3,8 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { ringBirthdayReminders, ringEphemerisReminders } from '../lib/ring-calendar';
 import { usePersonOpener } from '../../calendar/hooks/use-person-opener';
-import { useRoutineMutations } from '../../routines/api';
+import { openRoutineTick } from '../../routines/lib/open-routine-tick';
+import type { Routine } from '../../routines/api';
 import { useAlarmMutations, type Alarm } from '../api';
 import { useRingSources } from '../hooks/use-ring-sources';
 import { configureRinging, loadRings, refreshRestoredRings, type KeptRing } from '../lib/ringing';
@@ -14,7 +15,6 @@ import { switchWorkspace } from '../../workspaces/lib/switch';
 import { unlockAudioOnGesture } from '../../../lib/alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, ringTaskReminders, type RingLink } from './ring';
 import { markDoneAction, ringRoutineReminders } from '../lib/ring-routines';
-import { ON_ERROR } from '../../../lib/notify';
 import { alarmTarget } from '../lib/alarm-labels';
 import { useCountdownRinger } from '../../countdowns/hooks/use-countdown-ringer';
 
@@ -34,7 +34,6 @@ const RINGS_MS = 60_000;
 export function AlarmCenter() {
   const { alarms, running, tasksData, workspace, routinesData, schedules, birthdays, occurrences, deferRoutine } = useRingSources();
   const { markFired } = useAlarmMutations();
-  const { setDone } = useRoutineMutations();
   const openPerson = usePersonOpener();
   const { data: me } = useMe();
   const { data: spaces } = useWorkspaces();
@@ -42,11 +41,20 @@ export function AlarmCenter() {
   // Tracking alarms: last rung step per alarm and timer, so a reload does not ring past steps again.
   const trackingSteps = useRef(new Map<string, number>());
   const navigate = useNavigate();
-  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, deferRoutine, schedules, birthdays, openPerson, occurrences });
+  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate, routinesData, deferRoutine, schedules, birthdays, openPerson, occurrences });
 
   useEffect(() => {
-    latest.current = { alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, deferRoutine, schedules, birthdays, openPerson, occurrences };
+    latest.current = { alarms, running, tasksData, workspace, markFired, navigate, routinesData, deferRoutine, schedules, birthdays, openPerson, occurrences };
   });
+
+  /**
+   * « Faite le » of a time of the day from a toast, on the routine as it is when clicked (ticked meanwhile elsewhere, its
+   * time is changed, not ticked again).
+   * @param {Routine} routine Routine as it was when it rang.
+   * @param {number} slot Time of the day.
+   * @returns {void}
+   */
+  const tickLatest = (routine: Routine, slot: number) => openRoutineTick(latest.current.routinesData?.routines.find((item) => item.id === routine.id) ?? routine, slot);
 
   useEffect(() => unlockAudioOnGesture(), []);
   // What the service worker tells: a ring pushed while visible, a ring stopped or snoozed from a notification.
@@ -64,13 +72,13 @@ export function AlarmCenter() {
      */
     const restore = ({ key, workspaceId }: KeptRing): RingLink[] => {
       if (workspaceId && workspaceId !== currentWorkspaceId) return [];
-      const { routinesData: data, birthdays: people, setDone: done, openPerson: open } = latest.current;
+      const { routinesData: data, birthdays: people, openPerson: open } = latest.current;
       const reminded = routineRingOf(key);
       const routine = reminded && data?.routines.find((item) => item.id === reminded.routineId);
       if (reminded && routine && routine.currentDate === reminded.date) {
         // A reminder « À HH:MM » ticks the first time of the day not ticked, as when it rang.
         const slot = reminded.slot ?? routine.slots.find((item) => !item.done)?.index ?? 0;
-        return [markDoneAction(() => done.mutate({ id: routine.id, done: true, slot }, ON_ERROR))];
+        return [markDoneAction(() => tickLatest(routine, slot))];
       }
       const birthday = birthdayRingOf(key, people ?? []);
       return birthday ? [{ label: 'Ouvrir la fiche', onClick: () => open(birthday) }] : [];
@@ -129,8 +137,8 @@ export function AlarmCenter() {
         latest.current.routinesData?.routines ?? [],
         now,
         [link(routinesRingPage())],
-        // eslint-disable-next-line no-restricted-syntax -- « Marquer comme faite » of a ringing reminder: done now, from its toast.
-        (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, ON_ERROR),
+        // « Faite le » in the side panel, as everywhere a routine is ticked.
+        (routine, slot) => tickLatest(routine, slot),
         (routine, at) => latest.current.deferRoutine(routine, at),
       );
       const { tasksData: data, workspace: space } = latest.current;

@@ -21,14 +21,15 @@ interface RoutineDoneTogglesProps {
 export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: RoutineDoneTogglesProps) {
   const started = routine.currentDate !== null;
   const dueDate = routine.currentDueDate ?? routine.currentDate ?? '';
-  // Each ticks the current occurrence (as the API reads it), proposed at its time once past, else now.
+  // Each ticks, unticks or changes the occurrence shown (its current one, by the day that identifies it, even when two
+  // are due the same day), proposed at its time once past, else now.
   const common = { disabled: disabled || !started };
   if (routine.slots.length <= 1) {
     const slot = routine.slots[0];
     return (
       <RoutineTickButton
         {...common}
-        tick={{ id: routine.id, date: null, slot: 0 }}
+        tick={{ id: routine.id, date: routine.currentDate, slot: 0 }}
         label={routine.label}
         hint={!started ? 'Pas encore commencée' : dateLabel ? `${ROUTINE_DONE_STATES.toggleLabels.yes} (${dateLabel})` : undefined}
         done={routine.done}
@@ -49,7 +50,7 @@ export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: Rou
           <RoutineTickButton
             {...common}
             key={slot.index}
-            tick={{ id: routine.id, date: null, slot: slot.index }}
+            tick={{ id: routine.id, date: routine.currentDate, slot: slot.index }}
             size="xs"
             label={`${routine.label}, ${when}`}
             hint={!started ? 'Pas encore commencée' : `${ROUTINE_DONE_STATES.toggleLabels.yes} (${when}${slot.optional ? ', facultatif' : ''})`}

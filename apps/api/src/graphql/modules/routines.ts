@@ -818,8 +818,13 @@ builder.mutationFields((t) => ({
   }),
   bulkSetRoutinesDone: t.int({
     description: 'Ticks or unticks the current occurrence of several routines; returns how many changed.',
-    args: { ids: t.arg.idList({ required: true }), done: t.arg.boolean({ required: true }) },
-    resolve: (_root, { ids, done }) => routines.bulkSetRoutinesDone(ids, done),
+    args: {
+      ids: t.arg.idList({ required: true }),
+      done: t.arg.boolean({ required: true }),
+      doneOn: t.arg({ type: 'Date', description: 'Day they were done (ticking): each time of the day at its scheduled time that day (« jusqu’à », else « dès »; without any, now today, noon another day; never later than now). Now by default.' }),
+      dates: t.arg({ type: ['Date'], description: 'Occurrence of each routine, in the order of ids (the day that identifies it: the one shown, the one an undo puts back); by default the current one of each.' }),
+    },
+    resolve: (_root, { ids, done, doneOn, dates }) => routines.bulkSetRoutinesDone(ids, done, doneOn ?? null, dates ?? null),
   }),
   bulkDeleteRoutines: t.int({
     description: 'Deletes routines with their sub-routines, or alone (their sub-routines move up a level); returns how many of those given were deleted.',

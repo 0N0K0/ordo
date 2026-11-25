@@ -60,3 +60,21 @@ export function inRoutineHistoryOn(occurrence: RoutineHistoryOccurrence, doneAt:
   if (doneAt) return dayIn(typeof doneAt === 'string' ? new Date(doneAt) : doneAt) === day;
   return occurrence.startDate <= day && day <= occurrence.dueDate;
 }
+
+/** Time of the day given to a time of the day ticked on a day without a time of its own, when that day is not today. */
+export const ROUTINE_BULK_DEFAULT_TIME = '12:00';
+
+/**
+ * When a time of the day ticked in bulk « Faites le » a day was done: that day at its scheduled time (its
+ * « jusqu’à », else its « dès »); without any, now on today and noon (`ROUTINE_BULK_DEFAULT_TIME`) another day; never
+ * later than now (a time still to come is now). Every day and time is read in Paris.
+ * @param {string} day Day chosen (YYYY-MM-DD).
+ * @param {{ fromTime: string | null, dueTime: string | null }} slot Its times that day.
+ * @param {Date} now Now.
+ * @returns {Date} When it was done.
+ */
+export function routineBulkDoneAt(day: string, { fromTime, dueTime }: { fromTime: string | null; dueTime: string | null }, now: Date): Date {
+  const scheduled = dueTime ?? fromTime;
+  const at = scheduled ? parisInstant(day, scheduled) : day === parisParts(now).date ? now : parisInstant(day, ROUTINE_BULK_DEFAULT_TIME);
+  return at.getTime() > now.getTime() ? now : at;
+}

@@ -1,6 +1,6 @@
 import { routinesKey } from '../../../lib/query-keys';
 import { linkInputs } from '../../../lib/links';
-import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineBulkValues, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
+import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineBulkDoneAt, routineBulkValues, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
 import { ownedFields } from '../../../components/inheritance/inheritance';
 import { routineRow } from '../lib/routine-inheritance';
 import type { Reminder, RoutineBulkChanges } from '@ordo/shared';
@@ -229,8 +229,8 @@ const BulkSetRoutinesArchivedDocument = graphql(`
 `);
 
 const BulkSetRoutinesDoneDocument = graphql(`
-  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {
-    bulkSetRoutinesDone(ids: $ids, done: $done)
+  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!, $doneOn: Date, $dates: [Date!]) {
+    bulkSetRoutinesDone(ids: $ids, done: $done, doneOn: $doneOn, dates: $dates)
   }
 `);
 
@@ -479,13 +479,18 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
  * @param {Routine} routine Routine.
  * @param {number[]} indexes Times of the day.
  * @param {boolean} done Ticked.
- * @param {string | null} [doneAt] When they were done (ticked); null: now. Optional. Default = now.
+ * @param {string | null | ((slot: Routine['slots'][number]) => string | null)} [doneAt] When they were done (ticked), or for each; null: now. Optional. Default = now.
  * @returns {Routine} Changed routine.
  */
-function withSlotsDone(routine: Routine, indexes: number[], done: boolean, doneAt: string | null = null): Routine {
+function withSlotsDone(routine: Routine, indexes: number[], done: boolean, doneAt: string | null | ((slot: Routine['slots'][number]) => string | null) = null): Routine {
   if (!routine.currentDate) return routine;
-  const at = done ? (doneAt ?? new Date().toISOString()) : null;
-  const slots = routine.slots.map((slot) => (indexes.includes(slot.index) ? { ...slot, done, doneAt: at } : slot));
+  /**
+   * When a time of the day ticked was done: the time given (for it), else now.
+   * @param {Routine['slots'][number]} slot Time of the day.
+   * @returns {string | null} Instant (ISO); null: unticked.
+   */
+  const at = (slot: Routine['slots'][number]) => (done ? ((typeof doneAt === 'function' ? doneAt(slot) : doneAt) ?? new Date().toISOString()) : null);
+  const slots = routine.slots.map((slot) => (indexes.includes(slot.index) ? { ...slot, done, doneAt: at(slot) } : slot));
   const day = routine.currentDate;
   const others = routine.doneDates.filter((value) => value !== day);
   const any = slots.some((slot) => slot.done);
@@ -755,19 +760,26 @@ export function useRoutineMutations() {
       (data, { ids, archived }) => archiveInCache(data, ids, archived),
     ),
     bulkDone: useRoutineMutation(
-      async (variables: { ids: string[]; done: boolean }) => (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
-      (data, { ids, done }) => ({
-        ...data,
-        routines: data.routines.map((routine) =>
-          ids.includes(routine.id) && routine.currentDate
-            ? withSlotsDone(
-                routine,
-                routine.slots.map((slot) => slot.index),
-                done,
-              )
-            : routine,
-        ),
-      }),
+      // Ticked « Faites le » a day (doneOn): each time of the day at its scheduled time that day, as the API reads it;
+      // dates: the occurrence of each (the one shown).
+      async (variables: { ids: string[]; done: boolean; doneOn?: string | null; dates?: string[] | null }) => (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
+      (data, { ids, done, doneOn }) => {
+        const now = new Date();
+        return {
+          ...data,
+          routines: data.routines.map((routine) =>
+            ids.includes(routine.id) && routine.currentDate
+              ? withSlotsDone(
+                  routine,
+                  // Those ticked already keep their time.
+                  routine.slots.filter((slot) => !done || !slot.done).map((slot) => slot.index),
+                  done,
+                  (slot) => (doneOn ? routineBulkDoneAt(doneOn, slot, now).toISOString() : null),
+                )
+              : routine,
+          ),
+        };
+      },
     ),
     bulkRemove: useRoutineMutation(
       async (variables: { ids: string[]; deleteSubRoutines: boolean }) => (await execute(BulkDeleteRoutinesDocument, variables)).bulkDeleteRoutines,

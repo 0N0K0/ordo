@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inRoutineHistoryOn, routineTickPrefill } from '../../src/routines/routine-history';
+import { inRoutineHistoryOn, routineBulkDoneAt, routineTickPrefill } from '../../src/routines/routine-history';
 
 /** 25 Nov 2026, 14:30 in Paris (UTC+1 in winter). */
 const NOW = new Date('2026-11-25T13:30:00Z');
@@ -76,5 +76,26 @@ describe('inRoutineHistoryOn', () => {
   it('never shows a cancelled occurrence', () => {
     expect(inRoutineHistoryOn({ ...open, cancelled: true }, null, '2026-11-05')).toBe(false);
     expect(inRoutineHistoryOn({ ...open, cancelled: true }, '2026-11-05T09:00:00Z', '2026-11-05')).toBe(false);
+  });
+});
+
+describe('routineBulkDoneAt', () => {
+  it('takes the day chosen at its scheduled time (« jusqu’à », else « dès »)', () => {
+    expect(routineBulkDoneAt('2026-11-20', { fromTime: '07:00', dueTime: '09:00' }, NOW).toISOString()).toBe('2026-11-20T08:00:00.000Z');
+    expect(routineBulkDoneAt('2026-11-20', { fromTime: '07:00', dueTime: null }, NOW).toISOString()).toBe('2026-11-20T06:00:00.000Z');
+  });
+
+  it('takes now today and noon another day without any time', () => {
+    expect(routineBulkDoneAt('2026-11-25', { fromTime: null, dueTime: null }, NOW)).toEqual(NOW);
+    expect(routineBulkDoneAt('2026-11-20', { fromTime: null, dueTime: null }, NOW).toISOString()).toBe('2026-11-20T11:00:00.000Z');
+  });
+
+  it('never gives a time still to come: now instead', () => {
+    expect(routineBulkDoneAt('2026-11-25', { fromTime: null, dueTime: '18:00' }, NOW)).toEqual(NOW);
+    expect(routineBulkDoneAt('2026-11-26', { fromTime: null, dueTime: null }, NOW)).toEqual(NOW);
+  });
+
+  it('reads the day and its time in Paris (summer time)', () => {
+    expect(routineBulkDoneAt('2026-07-01', { fromTime: null, dueTime: '08:00' }, NOW).toISOString()).toBe('2026-07-01T06:00:00.000Z');
   });
 });

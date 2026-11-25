@@ -58,6 +58,7 @@ import {
   type RoutineMoveJoin,
   routineMoveSchema,
   type RoutineMoveTimes,
+  routineBulkDoneAt,
   routineMoveTimesSchema,
   routineSchema,
   type RoutineSlot,
@@ -1478,28 +1479,44 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
 }
 
 /**
- * Ticks or unticks the current occurrence of several routines (those not started yet are left aside); all are checked
- * before the first is written, then written together.
+ * Ticks or unticks the current occurrence of several routines (those not started yet are left aside), or the
+ * occurrence given for each (`dates`, the day that identifies it: the one a screen shows, and the one an « Annuler »
+ * puts back); all are checked before the first is written, then written together. Ticked « Faites le » a day, each time
+ * of the day not ticked yet is done that day at its scheduled time (`routineBulkDoneAt`: its « jusqu’à », else its
+ * « dès »; without any, now today and noon another day; never later than now), else now; one already ticked keeps the
+ * time it was done at.
  * @param {string[]} ids Routine ids.
  * @param {boolean} done Target state.
+ * @param {string | null} [doneOn] Day they were done (YYYY-MM-DD, not after today); ticking only. Optional. Default = now.
+ * @param {string[] | null} [dates] Occurrence of each routine (same order as `ids`). Optional. Default = the current one of each (unticking: the one ticked last of two due the same day).
  * @returns {Promise<number>} Number of routines changed.
  */
-export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise<number> {
+export async function bulkSetRoutinesDone(ids: string[], done: boolean, doneOn: string | null = null, dates: string[] | null = null): Promise<number> {
   const today = parisToday();
+  if (done && doneOn && doneOn > today) throw fieldError('doneOn', 'Une routine ne peut pas être faite dans le futur.', 'Jour à venir.');
+  if (dates && dates.length !== ids.length) throw clientError('BAD_USER_INPUT', 'Une occurrence par routine.');
+  const dateOf = new Map(dates ? ids.map((id, index) => [id, dates[index]]) : []);
+  const now = new Date();
   const context = await loadScheduleContext();
-  const writes: { id: string; occurrence: string; index: number }[] = [];
+  const writes: { id: string; occurrence: string; index: number; doneAt: Date | null }[] = [];
   let count = 0;
   // An archived routine is read only: not ticked.
   for (const routine of await prisma.routine.findMany({ where: { id: { in: ids }, archivedAt: null }, include: { checks: LATEST_CHECKS } })) {
-    // Unticked: the occurrence last ticked among two due the same day (the one a bulk tick just did).
-    const current = occurrencesOf(routine, today, context, !done).current;
+    // Unticked without a day given: the occurrence last ticked among two due the same day.
+    const current = dateOf.get(routine.id) ?? occurrencesOf(routine, today, context, !done).current;
     if (!current) continue;
+    // Ticked already: kept as it is, with the time it was done at.
+    const ticked = new Set((ticksOf(routine, context) ?? []).filter((check) => formatDay(check.date) === current).map((check) => check.slot));
     // Every time of the day, or none of them.
-    const slots = Math.max(1, slotsOf(routine, current, context).length);
-    for (let slot = 0; slot < slots; slot += 1) writes.push({ id: routine.id, ...checkableOccurrence(routine, context, current, slot, null, done) });
+    const daySlots = slotsOf(routine, current, context);
+    for (let slot = 0; slot < Math.max(1, daySlots.length); slot += 1) {
+      if (done && ticked.has(slot)) continue;
+      const doneAt = done && doneOn ? routineBulkDoneAt(doneOn, daySlots[slot] ?? { fromTime: null, dueTime: null }, now) : null;
+      writes.push({ id: routine.id, doneAt, ...checkableOccurrence(routine, context, current, slot, doneAt, done) });
+    }
     count += 1;
   }
-  await prisma.$transaction(writes.map((write) => checkWrite(write.id, done, write.occurrence, write.index)));
+  await prisma.$transaction(writes.map((write) => checkWrite(write.id, done, write.occurrence, write.index, write.doneAt)));
   return count;
 }
 

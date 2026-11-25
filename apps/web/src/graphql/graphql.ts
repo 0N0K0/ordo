@@ -3710,6 +3710,8 @@ export type BulkSetRoutinesArchivedMutation = { bulkSetRoutinesArchived: number 
 export type BulkSetRoutinesDoneMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
   done: boolean;
+  doneOn?: string | null | undefined;
+  dates?: Array<string> | string | null | undefined;
 }>;
 
 
@@ -9331,8 +9333,8 @@ export const BulkSetRoutinesArchivedDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<BulkSetRoutinesArchivedMutation, BulkSetRoutinesArchivedMutationVariables>;
 export const BulkSetRoutinesDoneDocument = new TypedDocumentString(`
-    mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {
-  bulkSetRoutinesDone(ids: $ids, done: $done)
+    mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!, $doneOn: Date, $dates: [Date!]) {
+  bulkSetRoutinesDone(ids: $ids, done: $done, doneOn: $doneOn, dates: $dates)
 }
     `) as unknown as TypedDocumentString<BulkSetRoutinesDoneMutation, BulkSetRoutinesDoneMutationVariables>;
 export const BulkDeleteRoutinesDocument = new TypedDocumentString(`

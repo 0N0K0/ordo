@@ -1,14 +1,15 @@
 import { CheckCircleIcon, ClockIcon, XIcon } from '@phosphor-icons/react';
 import { Group, Popover, Stack } from '@mantine/core';
 import { routineTickPrefill, type RoutineDoneAt, type RoutineTickTarget } from '@ordo/shared';
-import { useState, type FocusEvent, type FormEvent, type ReactNode } from 'react';
+import { useState, type FocusEvent, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { IconAction } from '../../../components/actions/IconAction';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
 import { StateButton } from '../../../components/data-table/cells/StateButton';
+import { DateField } from '../../../components/inputs/DateField';
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { parisDay, parisInstant } from '../../../lib/dates';
-import { useNow } from '../../../lib/use-now';
+import { useNow, useToday } from '../../../lib/use-now';
 import { useRoutineTick, type RoutineTickRef } from '../hooks/use-routine-tick';
 import { ROUTINE_DONE_STATES } from '../lib/routine-columns';
 import { doneAtParts, doneAtText } from '../lib/routine-format';
@@ -97,6 +98,17 @@ export function DoneAtForm({ initial, submitLabel, change = false, description, 
  */
 const keepEscape = (event: FocusEvent<HTMLElement>) => event.target.setAttribute('data-mantine-stop-propagation', 'true');
 
+/**
+ * Closes the popover on Échap, unless the key closes the calendar of its date picker, open inside it (that one
+ * closes alone).
+ * @param {KeyboardEvent<HTMLElement>} event Key pressed in the popover.
+ * @param {() => void} close Closes the popover.
+ * @returns {void}
+ */
+const escapeOwn = (event: KeyboardEvent<HTMLElement>, close: () => void) => {
+  if (event.key === 'Escape' && (event.target as HTMLElement).closest('[role="dialog"]') === event.currentTarget) close();
+};
+
 interface RoutineTickButtonProps {
   /** Time of the day of the occurrence ticked. */
   tick: RoutineTickRef;
@@ -127,9 +139,10 @@ export function RoutineTickButton({ tick, label, hint, done, doneAt, target, opt
   const writes = useRoutineTick();
   const [opened, setOpened] = useState(false);
   const previous = done ? doneAt : null;
+  const clock = done && !disabled;
 
   return (
-    <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={300} trapFocus returnFocus>
+    <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={300} trapFocus returnFocus closeOnEscape={false}>
       <Popover.Target>
         <Group gap={2} wrap="nowrap" style={{ flexShrink: 0 }}>
           {/* eslint-disable-next-line no-restricted-syntax -- the one state button of a routine tick. */}
@@ -144,23 +157,23 @@ export function RoutineTickButton({ tick, label, hint, done, doneAt, target, opt
             loading={writes.pending && !opened}
             onChange={(next) => (next ? setOpened(true) : writes.untick(tick, previous))}
           />
-          {done && !disabled && (
-            <IconAction
-              label="Changer l’heure de réalisation"
-              item={label}
-              hint={previous ? `Changer l’heure de réalisation (${doneAtText(previous)})` : undefined}
-              size={size}
-              onClick={(event) => {
-                stopClick(event);
-                setOpened(true);
-              }}
-            >
-              <ClockIcon aria-hidden />
-            </IconAction>
-          )}
+          {/* Its place kept while to do: what follows does not move when it is ticked. */}
+          <IconAction
+            label="Changer l’heure de réalisation"
+            item={label}
+            hint={previous ? `Changer l’heure de réalisation (${doneAtText(previous)})` : undefined}
+            size={size}
+            {...(clock ? {} : { 'aria-hidden': true, tabIndex: -1, style: { visibility: 'hidden' } })}
+            onClick={(event) => {
+              stopClick(event);
+              setOpened(true);
+            }}
+          >
+            <ClockIcon aria-hidden />
+          </IconAction>
         </Group>
       </Popover.Target>
-      <Popover.Dropdown onClick={stopClick} onFocusCapture={keepEscape}>
+      <Popover.Dropdown onClick={stopClick} onFocusCapture={keepEscape} onKeyDown={(event) => escapeOwn(event, () => setOpened(false))}>
         {opened && (
           <DoneAtForm
             initial={previous ? doneAtParts(previous) : routineTickPrefill(target, new Date())}
@@ -178,5 +191,90 @@ export function RoutineTickButton({ tick, label, hint, done, doneAt, target, opt
         )}
       </Popover.Dropdown>
     </Popover>
+  );
+}
+
+interface RoutineTickPanelProps {
+  /** Time of the day of the occurrence ticked. */
+  tick: RoutineTickRef;
+  /** Its due day and times, the time proposed is read from. */
+  target: RoutineTickTarget;
+  /** When it was done (ISO), if it already is: its time changed. */
+  doneAt: string | null;
+  onDone: () => void;
+}
+
+/**
+ * « Faite le » of a time of the day in the side panel, where no state button shows it (« Marquer comme faite » of a
+ * reminder ringing): the same form, proposed as on its button (`routineTickPrefill`), written by `useRoutineTick`.
+ * @param {RoutineTickPanelProps} props Component props.
+ * @returns {JSX.Element} Form.
+ */
+export function RoutineTickPanel({ tick, target, doneAt, onDone }: RoutineTickPanelProps) {
+  const writes = useRoutineTick();
+  const [initial] = useState(() => (doneAt ? doneAtParts(doneAt) : routineTickPrefill(target, new Date())));
+  return (
+    <DoneAtForm
+      initial={initial}
+      submitLabel={doneAt ? 'Changer l’heure' : 'Cocher comme faite'}
+      change={doneAt !== null}
+      description={doneAt ? undefined : 'L’heure prévue si elle est passée, sinon maintenant.'}
+      loading={writes.pending}
+      onSubmit={(at) => writes.tick(tick, at, doneAt, onDone)}
+    >
+      <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onDone}>
+        Annuler
+      </ActionButton>
+    </DoneAtForm>
+  );
+}
+
+interface BulkTickFormProps {
+  /** Sends the day they were done (YYYY-MM-DD). */
+  onSubmit: (doneOn: string) => void;
+  onCancel: () => void;
+}
+
+/**
+ * « Faites le » of the routines ticked together: a day only (today by default, not after it), each time of the day then
+ * done that day at its scheduled time (`routineBulkDoneAt`, read by the API); Entrée validates.
+ * @param {BulkTickFormProps} props Component props.
+ * @returns {JSX.Element} Form.
+ */
+export function BulkTickForm({ onSubmit, onCancel }: BulkTickFormProps) {
+  const today = useToday();
+  const [day, setDay] = useState(today);
+  /**
+   * Sends the day.
+   * @param {FormEvent | { preventDefault: () => void }} [event] Submit (or Entrée in the field). Optional.
+   * @returns {void}
+   */
+  const submit = (event?: FormEvent | { preventDefault: () => void }) => {
+    event?.preventDefault();
+    onSubmit(day);
+  };
+  return (
+    <form onSubmit={submit} noValidate>
+      <Stack gap="md">
+        <DateField
+          label="Faites le"
+          description="Chaque moment à son heure prévue ce jour-là (« jusqu’à », sinon « dès ») ; sans heure, maintenant aujourd’hui, midi un autre jour ; jamais après maintenant."
+          value={day}
+          maxDate={today}
+          onChange={(value) => value && setDay(value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') submit(event);
+          }}
+        />
+        <Group justify="flex-end" gap="sm">
+          <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onCancel}>
+            Annuler
+          </ActionButton>
+          <ActionButton type="submit" icon={<CheckCircleIcon aria-hidden />} data-autofocus>
+            Cocher
+          </ActionButton>
+        </Group>
+      </Stack>
+    </form>
   );
 }
