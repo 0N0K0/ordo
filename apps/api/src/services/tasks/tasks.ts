@@ -1216,6 +1216,9 @@ export const bulkSetTasksArchived = automated(async function bulkSetTasksArchive
   for (const id of await topmostIds('task', ids)) await setTaskArchived(id, archived);
 });
 
+/** Deletion of tasks whose transaction ran out of time (rolled back). */
+const DELETE_TIMEOUT_ERROR = 'La suppression a pris trop de temps : rien n’a été supprimé. Réessayez avec moins de tâches.';
+
 /**
  * Deletes several tasks; their unselected sub-tasks are deleted too, or moved up. The times they leave with nothing
  * attached (no project, no other task, routine or event; not billed) are deleted with them.
@@ -1225,13 +1228,15 @@ export const bulkSetTasksArchived = automated(async function bulkSetTasksArchive
  */
 export const bulkDeleteTasks = automated(async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): Promise<void> {
   await assertTasks(ids);
-  // Their GitHub items are taken off the board first.
-  await deleteTreeItems('task', ids, deleteSubtasks, async (gone) => {
-    // Sub-tasks left by their deleted parent keep, as their own, what they inherited.
-    await freezeTaskInheritance((await prisma.task.findMany({ where: { parentId: { in: gone }, id: { notIn: gone } }, select: { id: true } })).map((task) => task.id));
-    await forgetGithubItems(gone);
-    await releaseSubjectTime({ taskIds: gone });
-  });
+  // One transaction: their GitHub items leave the board (their issues closed) once it is committed, never if it fails.
+  await inTransaction(() =>
+    deleteTreeItems('task', ids, deleteSubtasks, async (gone) => {
+      // Sub-tasks left by their deleted parent keep, as their own, what they inherited.
+      await freezeTaskInheritance((await prisma.task.findMany({ where: { parentId: { in: gone }, id: { notIn: gone } }, select: { id: true } })).map((task) => task.id));
+      await forgetGithubItems(gone);
+      await releaseSubjectTime({ taskIds: gone });
+    }),
+  ).catch((error: unknown) => rethrowTimeout(error, DELETE_TIMEOUT_ERROR));
 });
 
 // The actions of the automations go through the same writes (same checks).

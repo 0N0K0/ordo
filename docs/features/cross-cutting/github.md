@@ -61,7 +61,7 @@ Section « GitHub » du panneau des paramètres d’un projet. Composant `Projec
 - Dernier échec : « Dernière synchronisation en échec » avec le message. Sinon : « Dernier échange : <résumé>. ».
 - Synchronisation des itérations arrêtée (GitHub n’a pas gardé une écriture telle qu’envoyée) : « Itérations non synchronisées » avec le message et le bouton « Reprendre » (`resumeGithubIterations` ; enregistrer les réglages ne reprend pas ; toast « Itérations reprises : elles sont synchronisées de nouveau à la prochaine synchronisation. »).
 - Dernière écriture des itérations refusée par GitHub (le champ inchangé) : avertissement « Itérations refusées par GitHub » avec le message (pas quand la synchronisation des itérations est arrêtée).
-- Rappel : « Un champ modifié d’un seul côté passe de l’autre ; modifié des deux côtés, la modification la plus récente gagne. Une tâche supprimée dans Ordo est retirée du tableau (une issue reste dans son dépôt) ; archiver ou restaurer une tâche archive ou sort de l’archive son item, et inversement ; un item retiré du tableau laisse sa tâche dans Ordo, déliée et archivée, avec un commentaire. ».
+- Rappel : « Un champ modifié d’un seul côté passe de l’autre ; modifié des deux côtés, la modification la plus récente gagne. Une tâche supprimée ou transformée en routine dans Ordo est retirée du tableau (un brouillon est supprimé, une issue reste dans son dépôt, fermée comme « non prévue » (comme la tâche si elle est fermée) ; une tâche transférée hors du tableau garde son issue ouverte) ; archiver ou restaurer une tâche archive ou sort de l’archive son item, et inversement ; un item retiré du tableau laisse sa tâche dans Ordo, déliée et archivée, avec un commentaire. ».
 
 ### Résumé d’une synchronisation
 

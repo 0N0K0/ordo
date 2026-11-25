@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { goneOnGithub, stopsGithubSync } from '../../src/tasks/github';
+import { goneIssueCloseReason, goneOnGithub, stopsGithubSync } from '../../src/tasks/github';
 
 describe('a failed call to GitHub that stops the whole sync', () => {
   it('GitHub out of reach (network, time out)', () => {
@@ -42,5 +42,25 @@ describe('a failed call to GitHub saying what it names is gone', () => {
     expect(goneOnGithub({ status: 404 })).toBe(false);
     expect(goneOnGithub({ status: 200, graphqlTypes: ['FORBIDDEN'] })).toBe(false);
     expect(goneOnGithub({ network: true })).toBe(false);
+  });
+});
+
+describe('goneIssueCloseReason: the issue of a task deleted or turned into a routine', () => {
+  const closedAt = new Date('2026-11-20T10:00:00Z');
+
+  it('open: closed as not planned', () => {
+    expect(goneIssueCloseReason({ closedAt: null, closeReason: null, snapshot: { closed: false } })).toBe('NOT_PLANNED');
+    expect(goneIssueCloseReason({ closedAt: null, closeReason: null, snapshot: null })).toBe('NOT_PLANNED');
+  });
+
+  it('already closed on GitHub (a done issue stays done): left as it is', () => {
+    expect(goneIssueCloseReason({ closedAt, closeReason: 'COMPLETED', snapshot: { closed: 'COMPLETED' } })).toBeNull();
+    expect(goneIssueCloseReason({ closedAt: null, closeReason: null, snapshot: { closed: true } })).toBeNull();
+  });
+
+  it('the task closed, not yet sent: closed as it was', () => {
+    expect(goneIssueCloseReason({ closedAt, closeReason: 'COMPLETED', snapshot: { closed: false } })).toBe('COMPLETED');
+    expect(goneIssueCloseReason({ closedAt, closeReason: null, snapshot: null })).toBe('COMPLETED');
+    expect(goneIssueCloseReason({ closedAt, closeReason: 'NOT_PLANNED', snapshot: null })).toBe('NOT_PLANNED');
   });
 });

@@ -337,7 +337,7 @@ export interface RulePiece {
  * @param {number} days Days moved (negative: earlier).
  * @returns {Recurrence} Rule.
  */
-const shiftedDates = (rule: Recurrence, days: number): Recurrence => ({
+export const shiftedDates = (rule: Recurrence, days: number): Recurrence => ({
   ...rule,
   until: rule.until && addDays(rule.until, days),
   exceptions: rule.exceptions.map((day) => addDays(day, days)),

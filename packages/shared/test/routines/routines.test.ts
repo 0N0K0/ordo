@@ -6,6 +6,14 @@ import {
   mergedAway,
   mergeRefusal,
   shiftedRoutineRule,
+  shiftMovesAll,
+  weekdayMovedEnd,
+  weekdayMovedCase,
+  listedWeeklyStart,
+  shiftedRoutinePiece,
+  earlierCases,
+  shiftedCaseUntil,
+  lastTicked,
   MAX_MERGED_ROWS,
   MAX_ROUTINE_MOVES,
   moveKey,
@@ -34,7 +42,8 @@ import {
   type RoutineCase,
   type RoutineMove,
 } from '../../src/routines/routines';
-import { occurrenceDates } from '../../src/dates/recurrence';
+import { occurrenceDates, type Recurrence } from '../../src/dates/recurrence';
+import { addDays, weekdayOfDate } from '../../src/dates/days';
 import { rule } from '../rules';
 
 /**
@@ -256,6 +265,228 @@ describe('shiftedRoutineRule: the rule going on from an occurrence changed', () 
   it('daily: unchanged values', () => {
     const daily = rule({ frequency: 'DAILY' });
     expect(shiftedRoutineRule(daily, '2026-11-01', '2026-11-10', '2026-11-12', false)).toEqual(daily);
+  });
+
+  it('all its occurrences moved: its end, excluded dates and pauses move with them, as an event series', () => {
+    const daily = rule({ frequency: 'DAILY', interval: 2, until: '2026-12-31', exceptions: ['2026-11-15'], pauses: [{ from: '2026-12-01', to: '2026-12-05' }] });
+    expect(shiftedRoutineRule(daily, '2026-11-01', '2026-11-11', '2026-11-13', false)).toMatchObject({
+      until: '2027-01-02',
+      exceptions: ['2026-11-17'],
+      pauses: [{ from: '2026-12-03', to: '2026-12-07' }],
+    });
+  });
+
+  it('monthly moved to another day of the month: an excluded occurrence stays excluded', () => {
+    const monthly = rule({ frequency: 'MONTHLY', monthDay: 10, exceptions: ['2027-01-10'] });
+    const shifted = shiftedRoutineRule(monthly, '2026-01-10', '2026-11-10', '2026-11-12', false);
+    expect(shifted.exceptions).toEqual(['2027-01-12']);
+    expect(occurrenceDates(shifted, '2026-01-12', '2026-11-01', '2027-02-28')).toEqual(['2026-11-12', '2026-12-12', '2027-02-12']);
+  });
+
+  it('cut (« Celle-ci et les suivantes »): the excluded dates after the occurrence, moved', () => {
+    const weekly = rule({ frequency: 'WEEKLY', exceptions: ['2026-10-26', '2026-11-16'] });
+    expect(shiftedRoutineRule(weekly, '2026-10-05', '2026-11-09', '2026-11-11', true).exceptions).toEqual(['2026-11-18']);
+  });
+
+  it('weekly on one listed day: everything moves with it', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [1], until: '2026-12-28', exceptions: ['2026-11-23'] });
+    expect(shiftedRoutineRule(weekly, '2026-11-02', '2026-11-09', '2026-11-10', false)).toMatchObject({ weekdays: [2], until: '2026-12-29', exceptions: ['2026-11-24'] });
+  });
+
+  it('weekly on several listed days: only the excluded dates of the weekday moved move; its pauses stay', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [1, 5], until: '2026-12-25', exceptions: ['2026-11-16', '2026-11-20'], pauses: [{ from: '2026-12-07', to: '2026-12-11' }] });
+    const shifted = shiftedRoutineRule(weekly, '2026-11-02', '2026-11-13', '2026-11-14', false);
+    expect(shifted).toMatchObject({ weekdays: [1, 6], until: '2026-12-26', exceptions: ['2026-11-16', '2026-11-21'], pauses: [{ from: '2026-12-07', to: '2026-12-11' }] });
+    expect(occurrenceDates(shifted, '2026-11-02', '2026-11-14', '2026-11-22')).toEqual(['2026-11-14']);
+  });
+
+  it('weekly, the weekday moved onto another of its weekdays: its occurrences merge there, nothing moves', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [1, 5], exceptions: ['2026-11-20'] });
+    expect(shiftedRoutineRule(weekly, '2026-11-02', '2026-11-13', '2026-11-16', false)).toMatchObject({ weekdays: [1], exceptions: ['2026-11-20'] });
+  });
+});
+
+describe('shiftedRoutineRule: weekly on several listed days, its end', () => {
+  it('put off as far as the last occurrence of the weekday moved goes', () => {
+    // Mondays and Fridays to Friday 2026-12-25; Friday 2026-11-13 moved to Saturday.
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [1, 5], until: '2026-12-25' });
+    const shifted = shiftedRoutineRule(weekly, '2026-11-02', '2026-11-13', '2026-11-14', false);
+    expect(shifted.until).toBe('2026-12-26');
+    expect(occurrenceDates(shifted, '2026-11-02', '2026-12-20', '2026-12-31')).toEqual(['2026-12-21', '2026-12-26']);
+  });
+
+  it('never brought forward (moved earlier, or its last occurrence far enough from the end)', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [1, 5], until: '2026-12-25' });
+    expect(shiftedRoutineRule(weekly, '2026-11-02', '2026-11-13', '2026-11-12', false).until).toBe('2026-12-25');
+    const earlyEnd = rule({ frequency: 'WEEKLY', weekdays: [1, 3], until: '2026-12-27' });
+    expect(shiftedRoutineRule(earlyEnd, '2026-11-02', '2026-11-04', '2026-11-05', false).until).toBe('2026-12-27');
+  });
+});
+
+/**
+ * Occurrences of a rule once « Toutes » moved one of its occurrences, as the API computes them (`shiftedRoutinePiece`).
+ * @param {Recurrence} weekly Rule.
+ * @param {string} start First day it counts from.
+ * @param {string} date Occurrence moved.
+ * @param {string} to New day.
+ * @returns {string[]} Occurrences, over two years.
+ */
+const allMoved = (weekly: Recurrence, start: string, date: string, to: string): string[] => {
+  const piece = shiftedRoutinePiece(weekly, start, date, to, false);
+  return occurrenceDates(piece.recurrence, piece.start, piece.start, '2028-12-31');
+};
+
+/**
+ * Former occurrences of a rule, those of the weekday of a day moved by a number of days.
+ * @param {Recurrence} weekly Rule.
+ * @param {string} start First day.
+ * @param {string} date Occurrence moved.
+ * @param {number} days Days moved.
+ * @returns {string[]} Expected occurrences, in order.
+ */
+const expectedMoved = (weekly: Recurrence, start: string, date: string, days: number): string[] =>
+  occurrenceDates(weekly, start, start, '2028-12-31')
+    .map((day) => (weekdayOfDate(day) === weekdayOfDate(date) ? addDays(day, days) : day))
+    .sort();
+
+describe('« Toutes » on a weekly rule with several listed weekdays, one moved alone: exactly the former occurrences', () => {
+  it('until: Mondays and Thursdays to Tuesday 2026-11-24, Monday 2026-11-09 moved to Saturday', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [1, 4], until: '2026-11-24' });
+    expect(allMoved(weekly, '2026-11-02', '2026-11-09', '2026-11-14')).toEqual(expectedMoved(weekly, '2026-11-02', '2026-11-09', 5));
+    expect(allMoved(weekly, '2026-11-02', '2026-11-09', '2026-11-14')).not.toContain('2026-11-26');
+  });
+
+  it('until: Tuesdays and Thursdays from 2026-11-24 to Monday 2026-12-14, Tuesday 2026-12-01 moved to Monday 2026-11-30', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [2, 4], until: '2026-12-14' });
+    const moved = allMoved(weekly, '2026-11-24', '2026-12-01', '2026-11-30');
+    expect(moved).toEqual(['2026-11-23', '2026-11-26', '2026-11-30', '2026-12-03', '2026-12-07', '2026-12-10']);
+    expect(moved).not.toContain('2026-12-14');
+  });
+
+  it('earlier first day: Tuesdays and Wednesdays from Wednesday 2026-11-25, Tuesday 2026-12-01 moved to Sunday 2026-12-06', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [2, 3], until: '2027-01-31' });
+    const moved = allMoved(weekly, '2026-11-25', '2026-12-01', '2026-12-06');
+    expect(moved).toEqual(expectedMoved(weekly, '2026-11-25', '2026-12-01', 5));
+    expect(moved).not.toContain('2026-11-29');
+  });
+
+  it('counted: the same number, the same last occurrence', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [2, 3], count: 6 });
+    const moved = allMoved(weekly, '2026-11-25', '2026-12-01', '2026-12-06');
+    const expected = expectedMoved(weekly, '2026-11-25', '2026-12-01', 5);
+    expect(moved).toEqual(expected);
+    expect(moved).toHaveLength(6);
+  });
+
+  it('without end: the same occurrences, from its first days on', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [2, 4] });
+    const moved = allMoved(weekly, '2026-11-24', '2026-12-01', '2026-11-30').filter((day) => day <= '2027-03-31');
+    expect(moved).toEqual(expectedMoved(weekly, '2026-11-24', '2026-12-01', -1).filter((day) => day <= '2027-03-31'));
+  });
+
+  it('a single listed weekday counted: its first day earlier, no occurrence lost (Wednesdays ×4 from 2026-11-04, 11-11 to Monday 11-09)', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [3], count: 4 });
+    expect(listedWeeklyStart(weekly, '2026-11-04', '2026-11-11', '2026-11-09')).toBe('2026-11-02');
+    expect(allMoved(weekly, '2026-11-04', '2026-11-11', '2026-11-09')).toEqual(['2026-11-02', '2026-11-09', '2026-11-16', '2026-11-23']);
+  });
+
+  it('moved later, onto another of its weekdays, or not listed: its first day unchanged', () => {
+    expect(listedWeeklyStart(rule({ frequency: 'WEEKLY', weekdays: [3] }), '2026-11-04', '2026-11-11', '2026-11-12')).toBe('2026-11-04');
+    expect(listedWeeklyStart(rule({ frequency: 'WEEKLY', weekdays: [1, 3] }), '2026-11-04', '2026-11-11', '2026-11-09')).toBe('2026-11-04');
+    expect(listedWeeklyStart(rule({ frequency: 'DAILY' }), '2026-11-04', '2026-11-11', '2026-11-09')).toBe('2026-11-04');
+  });
+
+  it('its end never brought forward', () => {
+    const weekly = rule({ frequency: 'WEEKLY', weekdays: [1, 4], until: '2026-11-24' });
+    expect(weekdayMovedEnd(weekly, '2026-11-02', '2026-11-09', '2026-11-14', '2026-11-24')).toBe('2026-11-28');
+    expect(weekdayMovedEnd(weekly, '2026-11-02', '2026-11-12', '2026-11-11', '2026-11-24')).toBe('2026-11-24');
+    expect(weekdayMovedEnd(weekly, '2026-11-02', '2026-11-09', '2026-11-12', '2026-11-24')).toBe('2026-11-24');
+  });
+});
+
+describe('weekdayMovedCase: a case with its own end, one weekday moved alone', () => {
+  // Mondays and Thursdays from Monday 2026-11-02, the case to Tuesday 2026-11-24; Monday 2026-11-09 moved to Saturday.
+  const item = { until: '2026-11-24', recurrence: rule({ frequency: 'WEEKLY', weekdays: [1, 4] }) };
+  const piece = shiftedRoutinePiece(item.recurrence, '2026-11-02', '2026-11-09', '2026-11-14', false);
+
+  it('its end put off, its occurrences exact', () => {
+    const result = weekdayMovedCase(item, piece.recurrence, '2026-11-02', piece.start, '2026-11-09', '2026-11-14', [], '2026-11-02', false);
+    expect(result.until).toBe('2026-11-28');
+    expect(occurrenceDates({ ...result.recurrence, until: result.until }, '2026-11-02', '2026-11-02', '2026-12-31')).toEqual(
+      expectedMoved({ ...item.recurrence, until: item.until }, '2026-11-02', '2026-11-09', 5),
+    );
+  });
+
+  it('never into the period of the next case', () => {
+    const result = weekdayMovedCase(item, piece.recurrence, '2026-11-02', piece.start, '2026-11-09', '2026-11-14', [{ from: '2026-11-26' }], '2026-11-02', false);
+    expect(result.until).toBe('2026-11-25');
+    expect(occurrenceDates({ ...result.recurrence, until: result.until }, '2026-11-02', '2026-11-02', '2026-12-31')).toEqual(['2026-11-05', '2026-11-07', '2026-11-12', '2026-11-14', '2026-11-19', '2026-11-21']);
+  });
+});
+
+describe('earlierCases: « Toutes » moved before the first time of the routine', () => {
+  type Item = { from: string | null; name: string };
+  const START = '2026-11-10';
+
+  it('the first time becomes the earliest day moved, the other cases keep the day they counted from', () => {
+    const before: Item = { from: null, name: 'before' };
+    const clamped: Item = { from: '2026-11-01', name: 'clamped' };
+    const moved: Item = { from: '2026-11-03', name: 'moved' };
+    const later: Item = { from: '2026-12-01', name: 'later' };
+    const { startDate, cases } = earlierCases([before, clamped, moved, later], new Set([moved]), START);
+    expect(startDate).toBe('2026-11-03');
+    expect(cases.map((item) => item.from)).toEqual([START, START, '2026-11-03', '2026-12-01']);
+  });
+
+  it('nothing before the first time: unchanged', () => {
+    const moved: Item = { from: '2026-11-12', name: 'moved' };
+    const other: Item = { from: null, name: 'other' };
+    expect(earlierCases([other, moved], new Set([moved]), START)).toEqual({ startDate: START, cases: [other, moved] });
+  });
+});
+
+describe('shiftedCaseUntil: the end of a case moved with its occurrences', () => {
+  const START = '2026-01-01';
+
+  it('moved as much', () => {
+    expect(shiftedCaseUntil('2026-06-30', 3, [], START)).toBe('2026-07-03');
+    expect(shiftedCaseUntil('2026-06-30', -3, [{ from: '2026-07-01' }], START)).toBe('2026-06-27');
+    expect(shiftedCaseUntil(null, 3, [], START)).toBeNull();
+    expect(shiftedCaseUntil('2026-06-30', 0, [], START)).toBe('2026-06-30');
+  });
+
+  it('never into the period of a case starting after it: the day before it at the latest', () => {
+    expect(shiftedCaseUntil('2026-06-30', 5, [{ from: '2026-07-02' }, { from: '2026-09-01' }, { from: null }], START)).toBe('2026-07-01');
+  });
+});
+
+describe('shiftMovesAll: whether every occurrence moves with one', () => {
+  it('all rules but a weekly one with several listed weekdays', () => {
+    expect(shiftMovesAll(rule({ frequency: 'DAILY' }))).toBe(true);
+    expect(shiftMovesAll(rule({ frequency: 'MONTHLY' }))).toBe(true);
+    expect(shiftMovesAll(rule({ weekdays: [] }))).toBe(true);
+    expect(shiftMovesAll(rule({ weekdays: [3] }))).toBe(true);
+    expect(shiftMovesAll(rule({ weekdays: [1, 3] }))).toBe(false);
+  });
+});
+
+describe('lastTicked: the occurrence ticked last among several due the same day', () => {
+  const MON = '2026-11-23';
+  const WED = '2026-11-25';
+
+  it('the one whose tick was done last, whatever the order of their days', () => {
+    expect(lastTicked([MON, WED], [{ date: WED, doneAt: 1 }, { date: MON, doneAt: 2 }])).toBe(MON);
+    expect(lastTicked([MON, WED], [{ date: MON, doneAt: 1 }, { date: WED, doneAt: 2 }])).toBe(WED);
+  });
+
+  it('its latest tick counts (several times of the day)', () => {
+    expect(lastTicked([MON, WED], [{ date: MON, doneAt: 1 }, { date: WED, doneAt: 2 }, { date: MON, doneAt: 3 }])).toBe(MON);
+  });
+
+  it('at the same time or without times: the last in order; none ticked: none', () => {
+    expect(lastTicked([MON, WED], [{ date: MON, doneAt: 5 }, { date: WED, doneAt: 5 }])).toBe(WED);
+    expect(lastTicked([MON, WED], [{ date: MON }, { date: WED }])).toBe(WED);
+    expect(lastTicked([MON, WED], [{ date: '2026-11-24', doneAt: 9 }])).toBeUndefined();
   });
 });
 

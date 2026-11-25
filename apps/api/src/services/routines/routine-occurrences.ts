@@ -69,12 +69,13 @@ export interface ScheduleContext {
  * Latest ticks of a routine, as it is loaded with them to tell its current occurrence (with those of its occurrences
  * kept apart, from the context: `ticksOf`).
  */
-export const LATEST_CHECKS = { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true } } as const;
+export const LATEST_CHECKS = { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true, doneAt: true } } as const;
 
-/** A time of the day of an occurrence ticked, by the day that identifies the occurrence. */
+/** A time of the day of an occurrence ticked, by the day that identifies the occurrence, and when it was done (optional). */
 export interface RoutineTick {
   date: Date;
   slot: number;
+  doneAt?: Date;
 }
 
 /** Without schedules: no slot anywhere. */
@@ -136,8 +137,8 @@ async function loadApartTicks(routines: ReadonlyMap<string, StoredInheritingRout
       .map((move) => ({ routineId: routine.id, date: parseDay(move.from) })),
   );
   if (!wanted.length) return new Map();
-  const ticks = await prisma.routineCheck.findMany({ where: { OR: wanted }, select: { routineId: true, date: true, slot: true } });
-  return new Map([...groupBy(ticks, (tick) => tick.routineId)].map(([id, list]) => [id, list.map(({ date, slot }) => ({ date, slot }))]));
+  const ticks = await prisma.routineCheck.findMany({ where: { OR: wanted }, select: { routineId: true, date: true, slot: true, doneAt: true } });
+  return new Map([...groupBy(ticks, (tick) => tick.routineId)].map(([id, list]) => [id, list.map(({ date, slot, doneAt }) => ({ date, slot, doneAt }))]));
 }
 
 /**

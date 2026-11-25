@@ -10,6 +10,7 @@ export const CONVERSION_LOSSES = [
   'milestone',
   'sprints',
   'github',
+  'githubDraft',
   'effort',
   'dates',
   'taskLinks',

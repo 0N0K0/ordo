@@ -33,6 +33,13 @@ import {
   type RoutineCase,
   routineCaseOn,
   shiftedRoutineRule,
+  shiftMovesAll,
+  earlierCases,
+  shiftedCaseUntil,
+  shiftedRoutinePiece,
+  weekdayMovedCase,
+  cutRoutineBefore,
+  shiftedDates,
   type RoutineCategoryInput,
   routineCategorySchema,
   type RoutineInput,
@@ -60,6 +67,7 @@ import {
   withMove,
   withMovedTimes,
   joinedKey,
+  lastTicked,
   normalizedReminders,
   REMINDER_LOOKAHEAD_DAYS,
   readReminders,
@@ -133,8 +141,9 @@ import { changedRoutineInheritance, clearedRoutineInput, effectiveRoutineOf, fre
  * Each is given by the day that identifies it (`moveKey`). Two due the same day (one moved there and kept apart): the
  * current one is the first not done yet, in the order of their days (the last once both are done), as its ticks tell
  * when the routine comes with its latest ones (`checks`, with those of its occurrences kept apart: `ticksOf`); else the
- * first. To take a tick away, the current one among them is the last ticked (the one a tick was just given to).
- * @param {RoutineTiming & { checks?: { date: Date, slot: number }[] }} routine Routine (with its latest ticks, optional).
+ * first. To take a tick away, the current one among them is the one ticked last (by when it was done: the one a tick
+ * was just given to).
+ * @param {RoutineTiming & { checks?: readonly RoutineTick[] }} routine Routine (with its latest ticks, optional).
  * @param {string} [today] Today. Optional. Default = today in Paris.
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
  * @param {boolean} [unticking] For a tick taken away. Optional. Default = false.
@@ -169,10 +178,10 @@ export function occurrencesOf(
       if (found.next === null && found.current !== null && found.current < day) found = { ...found, current: null };
       return found;
     };
-    // Several due the same day: the first not done yet (their ticks), else the last; to take a tick away, the last ticked.
-    const ticked = (date: string) => Boolean(checks?.some((check) => formatDay(check.date) === date));
+    // Several due the same day: the first not done yet (their ticks), else the last; to take a tick away, the one ticked last.
+    const ticks = checks?.map((check) => ({ date: formatDay(check.date), doneAt: check.doneAt?.getTime() })) ?? [];
     const pick = (dates: string[]) =>
-      checks ? ((unticking ? dates.filter(ticked).at(-1) : undefined) ?? dates.find((date) => !occurrenceDone(routine, date, checks, schedules)) ?? dates.at(-1)!) : dates[0];
+      checks ? ((unticking ? lastTicked(dates, ticks) : undefined) ?? dates.find((date) => !occurrenceDone(routine, date, checks, schedules)) ?? dates.at(-1)!) : dates[0];
     return movedOccurrences(compute, liveMoves(routine, schedules), today, pick);
   });
 }
@@ -1411,7 +1420,7 @@ const NO_OCCURRENCE = 'Cette routine n’a pas d’occurrence ce jour-là.';
 
 /**
  * Checks that a time of the day of an occurrence of a routine can be ticked or unticked, nothing written.
- * @param {Routine & { checks?: { date: Date, slot: number }[] }} routine Routine (with its latest ticks: the current occurrence among two due the same day).
+ * @param {Routine & { checks?: readonly RoutineTick[] }} routine Routine (with its latest ticks: the current occurrence among two due the same day).
  * @param {ScheduleContext} slots Schedules.
  * @param {string | null} [date] Occurrence date. Optional. Default = the current occurrence.
  * @param {number | null} [slot] Time of the day (index). Optional. Default = 0.
@@ -1419,7 +1428,7 @@ const NO_OCCURRENCE = 'Cette routine n’a pas d’occurrence ce jour-là.';
  * @param {boolean} [ticking] Ticked (true) or unticked. Optional. Default = true.
  * @returns {{ occurrence: string, index: number }} Occurrence and time of the day.
  */
-function checkableOccurrence(routine: Routine & { checks?: { date: Date; slot: number }[] }, slots: ScheduleContext, date?: string | null, slot?: number | null, doneAt?: Date | null, ticking = true): { occurrence: string; index: number } {
+function checkableOccurrence(routine: Routine & { checks?: readonly RoutineTick[] }, slots: ScheduleContext, date?: string | null, slot?: number | null, doneAt?: Date | null, ticking = true): { occurrence: string; index: number } {
   refuseArchived(routine);
   const occurrence = date ?? occurrencesOf(routine, undefined, slots, !ticking).current;
   if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');
@@ -1813,10 +1822,16 @@ type RoutineScope = 'THIS' | 'FOLLOWING' | 'ALL';
 const endedBefore = (rule: Recurrence, start: string, date: string): Recurrence =>
   rule.count !== null ? { ...rule, count: Math.max(1, occurrencesBefore(rule, start, date)) } : { ...rule, until: addDays(date, -1) };
 
-/** A piece of the rule of a routine going on from an occurrence moved: its rule, and the day it counts from (none: as before). */
+/**
+ * A piece of the rule of a routine going on from an occurrence moved: its rule, the day it counts from (none: as
+ * before), the days the last day of its case moves by (its occurrences all moved; 0: they stay), and whether one
+ * weekday of a weekly rule on several listed weekdays moved alone (its case's end then goes as far as it does).
+ */
 interface ShiftedPiece {
   recurrence: Recurrence;
   from: string | null;
+  shift: number;
+  weekdayAlone: boolean;
 }
 
 /**
@@ -1825,7 +1840,8 @@ interface ShiftedPiece {
  * its weeks along: it becomes a piece of its own (its even or odd weeks swapped, its rhythm counted from its first
  * day moved: `movedWeekdays`), its other weekdays another one on their former weeks (from the occurrence when split);
  * a number of occurrences then becomes the day of the last one (moved for the weekday moved), so that the pieces keep
- * the same occurrences together. A rule without weekdays moves its rhythm with the occurrence.
+ * the same occurrences together. A rule without weekdays moves its rhythm with the occurrence. The end, excluded dates
+ * and pauses of a piece whose occurrences all move move with them (`shiftedDates`), those of the weekdays that stay do not.
  * @param {Recurrence} rule Rule.
  * @param {string} start First day it counts from.
  * @param {string} date Occurrence.
@@ -1834,19 +1850,30 @@ interface ShiftedPiece {
  * @returns {ShiftedPiece[]} Pieces.
  */
 function shiftedPieces(rule: Recurrence, start: string, date: string, to: string, split: boolean): ShiftedPiece[] {
-  const same = shiftedRoutineRule(rule, start, date, to, split);
   const days = daysBetween(date, to);
-  if (rule.frequency !== 'WEEKLY' || !weeksChange(rule, crossedWeeks(weekdayOf(date), days))) return [{ recurrence: same, from: null }];
   const weekday = weekdayOf(date);
+  if (rule.frequency !== 'WEEKLY' || !weeksChange(rule, crossedWeeks(weekday, days))) {
+    // Listed weekdays: as much earlier when its first one moves before its first day; one weekday alone: exact.
+    const { recurrence, start: first } = shiftedRoutinePiece(rule, start, date, to, split);
+    return [
+      {
+        recurrence,
+        from: split || first === start ? null : first,
+        shift: shiftMovesAll(rule) ? days : 0,
+        weekdayAlone: !shiftMovesAll(rule),
+      },
+    ];
+  }
   const others = rule.weekdays.filter((day) => day !== weekday);
-  let base: Recurrence = { ...same, weekdays: rule.weekdays };
+  // Its occurrences left (counted) and its excluded dates from the occurrence (cut), nothing moved yet.
+  let base = shiftedRoutineRule(rule, start, date, date, split);
   if (others.length && base.count !== null) {
     const last = occurrenceDates(rule, start, start, addDays(start, 36_600)).at(-1);
     if (last) base = { ...base, count: null, until: last };
   }
-  const moved = movedWeekdays(base, split ? date : start, [weekday], days);
-  const pieces: ShiftedPiece[] = others.length ? [{ recurrence: { ...base, weekdays: others }, from: split ? date : null }] : [];
-  return [...pieces, { recurrence: { ...moved.rule, until: base.until && others.length ? addDays(base.until, days) : base.until }, from: moved.anchor }];
+  const moved = movedWeekdays(shiftedDates(base, days), split ? date : start, [weekday], days);
+  const pieces: ShiftedPiece[] = others.length ? [{ recurrence: { ...base, weekdays: others }, from: split ? date : null, shift: 0, weekdayAlone: false }] : [];
+  return [...pieces, { recurrence: moved.rule, from: moved.anchor, shift: days, weekdayAlone: false }];
 }
 
 /**
@@ -1934,23 +1961,32 @@ export async function changeRoutineOccurrence(
     const item = routineCaseOn(cases, start, origin);
     if (!item) throw clientError('BAD_USER_INPUT', 'Occurrence introuvable.');
     const index = cases.indexOf(item);
+    const others = cases.filter((other) => other !== item);
     const own = caseStart(item, start);
     const slots = item.slots.map((other, position) => (position === slot ? { ...other, fromTime: window.fromTime, dueTime: window.dueTime } : other));
     const split = scope === 'FOLLOWING' && hasBefore(item.recurrence, own, origin);
+    // End and rule of the case for a piece: its end moved with its occurrences, or as far as a weekday moved alone goes.
+    const pieceCase = (piece: ShiftedPiece, from: string | null) => {
+      if (!piece.weekdayAlone) return { from, until: shiftedCaseUntil(item.until, piece.shift, others, start), recurrence: piece.recurrence };
+      const counted = from && from < start ? from : caseStart({ from }, start);
+      return { from, ...weekdayMovedCase(item, piece.recurrence, own, counted, origin, parsedTo, others, start, split) };
+    };
     let pieces: RoutineCase[];
     if (split) {
       pieces = [
-        { ...item, recurrence: endedBefore(item.recurrence, own, origin) },
-        ...shiftedPieces(item.recurrence, own, origin, parsedTo, true).map((piece) => ({ ...item, from: piece.from ?? parsedTo, recurrence: piece.recurrence, slots })),
+        { ...item, recurrence: cutRoutineBefore(item.recurrence, own, origin, parsedTo) ?? endedBefore(item.recurrence, own, origin) },
+        ...shiftedPieces(item.recurrence, own, origin, parsedTo, true).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? parsedTo), slots })),
       ];
     } else {
-      // Weekly on listed days: the weekday changes; else its repetition counts from as much later or earlier.
+      // Weekly on listed days: the weekday changes; else its repetition counts from as much later or earlier (its own
+      // day never before the routine's first time, as it counted).
       const listed = item.recurrence.frequency === 'WEEKLY' && item.recurrence.weekdays.length > 0;
-      const from = delta === 0 || listed ? item.from : addDays(own, delta);
-      pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false).map((piece) => ({ ...item, from: piece.from ?? from, recurrence: piece.recurrence, slots }));
-      if (pieces.some((piece) => piece.from && piece.from < start)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
+      const from = delta === 0 || listed ? item.from && own : addDays(own, delta);
+      pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? from), slots }));
     }
-    changes = { cases: [...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)] };
+    // Moved before its first time: the routine starts as much earlier, its other cases where they were.
+    const earlier = earlierCases([...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)], new Set(split ? pieces.slice(1) : pieces), start);
+    changes = { cases: earlier.cases, ...(earlier.startDate !== start && { startDate: earlier.startDate }) };
   } else {
     if (!rule) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas de répétition.');
     // Its moments, the one changed with its new times.
@@ -1964,7 +2000,7 @@ export async function changeRoutineOccurrence(
       // Its repetition becomes cases: the former one up to the occurrence, the new one (or its pieces) from it.
       changes = {
         cases: [
-          { from: null, until: null, recurrence: endedBefore(rule, start, origin), slots: storedMoments(routine), ...kept },
+          { from: null, until: null, recurrence: cutRoutineBefore(rule, start, origin, parsedTo) ?? endedBefore(rule, start, origin), slots: storedMoments(routine), ...kept },
           ...shiftedPieces(rule, start, origin, parsedTo, true).map((piece) => ({ from: piece.from ?? parsedTo, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept })),
         ],
         slotCondition: null,
@@ -1977,9 +2013,11 @@ export async function changeRoutineOccurrence(
         const startDate = pieces[0].from ?? (delta === 0 || listed ? start : addDays(start, delta));
         changes = { startDate, recurrence: pieces[0].recurrence, moments: changedMoments, cases: [] };
       } else {
-        // Its weekdays on weeks of their own: its repetition becomes a case for each.
-        if (pieces.some((piece) => piece.from && piece.from < start)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
-        changes = { cases: pieces.map((piece) => ({ from: piece.from, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept })), slotCondition: null, opensOn: null };
+        // Its weekdays on weeks of their own: its repetition becomes a case for each (one moved before its first time:
+        // the routine starts as much earlier, the other one where it was).
+        const made = pieces.map((piece) => ({ from: piece.from, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept }));
+        const earlier = earlierCases(made, new Set(made), start);
+        changes = { cases: earlier.cases, ...(earlier.startDate !== start && { startDate: earlier.startDate }), slotCondition: null, opensOn: null };
       }
     }
   }
@@ -2016,7 +2054,9 @@ function followingGone(routine: RoutineTiming & { id: string }, schedules: Sched
   const ruled = origin > date ? ruleSpans(routine, date, addDays(origin, -1), schedules, true).map((span) => span.end).filter((day) => !movedDays.has(day)) : [];
   const except = [...new Set([...ruled, ...moves.filter((move) => move.from < origin && !move.merged).map(moveKey)])].filter((day) => day >= date);
   const earlier = moves.filter((move) => move.from >= origin && !move.merged && moveKey(move) < date).map((move) => ({ id: routine.id, on: moveKey(move) }));
-  return [{ id: routine.id, from: date, except }, ...earlier];
+  // Postponed past days of its rule: those days, from the cut on, go too (not moved: still identified there).
+  const skipped = origin < date ? ruleSpans(routine, addDays(origin, 1), addDays(date, -1), schedules, true).map((span) => span.end).filter((day) => day > origin && day < date && !movedDays.has(day)) : [];
+  return [{ id: routine.id, from: date, except }, ...earlier, ...skipped.map((on) => ({ id: routine.id, on }))];
 }
 
 /**

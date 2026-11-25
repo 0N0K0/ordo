@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TaskCloseReason } from './task-columns';
 
 /** Settings of the link of a project with a GitHub board: the fields synced, their options, what is pushed. */
 // A type (not an interface): a form's values (`useAppForm`) are a record.
@@ -75,3 +76,17 @@ export const githubLinkFormSchema = z.object({
     .nullable()
     .refine((name) => !name?.trim() || /^[^/\s]+\/[^/\s]+$/.test(name.trim()), REPOSITORY_FORMAT_ERROR),
 });
+
+/**
+ * How the issue of a task deleted in Ordo (or turned into a routine) is closed on GitHub: not at all when it is already
+ * closed there (its last synced state, `closed` of the snapshot; a done issue stays done); closed as the task was when
+ * the task is closed (done or cancelled); else as not planned (the task is gone).
+ * @param {{ closedAt: Date | null, closeReason: TaskCloseReason | null, snapshot: unknown }} task Task.
+ * @returns {TaskCloseReason | null} State reason to close it with (null: left as it is).
+ */
+export function goneIssueCloseReason(task: { closedAt: Date | null; closeReason: TaskCloseReason | null; snapshot: unknown }): TaskCloseReason | null {
+  const snapshot = task.snapshot && typeof task.snapshot === 'object' ? (task.snapshot as { closed?: unknown }) : null;
+  if (snapshot?.closed) return null;
+  if (task.closedAt) return task.closeReason ?? 'COMPLETED';
+  return 'NOT_PLANNED';
+}

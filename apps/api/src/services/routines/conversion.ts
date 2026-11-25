@@ -1,5 +1,5 @@
 import { type EffectiveTask, conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, normalizedReminders, parseDay, parseOptionalDay, readDeadTimes, readReminders, readSlotCondition, readTaskHours, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
-import { prisma } from '../../db';
+import { inTransaction, prisma } from '../../db';
 import { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
 import { findActive } from '../core/archive';
@@ -102,7 +102,9 @@ export const convertTaskToRoutine = automated(async function convertTaskToRoutin
     tags: task.tags.length,
     milestone: flag(task.milestoneId),
     sprints: task.sprints.length,
-    github: flag(task.githubItemId),
+    // An issue is closed, a draft deleted.
+    github: task.githubItemId && task.githubContentType !== 'DRAFT_ISSUE' ? 1 : 0,
+    githubDraft: task.githubItemId && task.githubContentType === 'DRAFT_ISSUE' ? 1 : 0,
     effort: flag(task.effort),
     dates: task.startDate || task.endDate ? 1 : 0,
     taskLinks: sumOf([task.blocking, task.blockedBy, task.relationsA, task.relationsB], (links) => links.length),
@@ -140,53 +142,55 @@ export const convertTaskToRoutine = automated(async function convertTaskToRoutin
   const firstDate = parseDay(first);
   // Closed: its first occurrence done (each of its times of the day), not to show late; one to come is not ticked.
   const ticked = task.closedAt && first <= parisToday() ? Math.max(1, slotsOf(timing, first, schedules).length) : 0;
-  // Off the GitHub board, as a deleted task.
-  await forgetGithubItems([id]);
   const position = await nextPositionIn('routine');
 
-  return prisma.$transaction(async (tx) => {
-    const routine = await tx.routine.create({
-      data: {
-        label: task.label,
-        description: task.description,
-        startDate: timing.startDate,
-        recurrence: toJson(DAILY_RECURRENCE),
-        slotCondition: readSlotCondition(task.slotCondition) ? toJson(task.slotCondition) : Prisma.DbNull,
-        // « N jours avant » the « Échéance » of the task stay so: counted from the due day of the routine.
-        reminders: toJson(normalizedReminders(readReminders(task.reminders).map((reminder) => (reminder.days ? { ...reminder, anchor: 'end' as const } : reminder)))),
-        deadTimes: toJson(readDeadTimes(task.deadTimes)),
-        savedCountdowns: await linkedSavedCountdowns('TASK', id, tx),
-        opensOn: opens ? toJson(opens) : Prisma.DbNull,
-        location: task.location,
-        locationLat: task.locationLat,
-        locationLon: task.locationLon,
-        links: toJson(readLinks(task.links)),
-        projectId: task.projectId,
-        // Kept as values already there (even archived).
-        priorityId: task.priorityId,
-        typeId: task.typeId,
-        position,
-        // Already on the task: kept, as a value already there (even archived, or no longer of the project).
-        assignees: { connect: task.assignees },
-        beneficiaries: { connect: task.beneficiaries },
-        beneficiaryRelations: { connect: task.beneficiaryRelations },
-        timeEntries: { connect: task.timeEntries },
-        // Its documents stay linked (its project, hence its tree, is the same).
-        libraryDocuments: { connect: task.libraryDocuments },
-        projectResources: { connect: task.projectResources },
-      },
+  // One transaction: its GitHub item leaves the board (as for a deleted task) once it is committed, never if it fails.
+  return inTransaction(async () => {
+    await forgetGithubItems([id]);
+    return prisma.$transaction(async (tx) => {
+      const routine = await tx.routine.create({
+        data: {
+          label: task.label,
+          description: task.description,
+          startDate: timing.startDate,
+          recurrence: toJson(DAILY_RECURRENCE),
+          slotCondition: readSlotCondition(task.slotCondition) ? toJson(task.slotCondition) : Prisma.DbNull,
+          // « N jours avant » the « Échéance » of the task stay so: counted from the due day of the routine.
+          reminders: toJson(normalizedReminders(readReminders(task.reminders).map((reminder) => (reminder.days ? { ...reminder, anchor: 'end' as const } : reminder)))),
+          deadTimes: toJson(readDeadTimes(task.deadTimes)),
+          savedCountdowns: await linkedSavedCountdowns('TASK', id, tx),
+          opensOn: opens ? toJson(opens) : Prisma.DbNull,
+          location: task.location,
+          locationLat: task.locationLat,
+          locationLon: task.locationLon,
+          links: toJson(readLinks(task.links)),
+          projectId: task.projectId,
+          // Kept as values already there (even archived).
+          priorityId: task.priorityId,
+          typeId: task.typeId,
+          position,
+          // Already on the task: kept, as a value already there (even archived, or no longer of the project).
+          assignees: { connect: task.assignees },
+          beneficiaries: { connect: task.beneficiaries },
+          beneficiaryRelations: { connect: task.beneficiaryRelations },
+          timeEntries: { connect: task.timeEntries },
+          // Its documents stay linked (its project, hence its tree, is the same).
+          libraryDocuments: { connect: task.libraryDocuments },
+          projectResources: { connect: task.projectResources },
+        },
+      });
+      if (ticked) await tx.routineCheck.createMany({ data: Array.from({ length: ticked }, (_, slot) => ({ routineId: routine.id, date: firstDate, slot, doneAt: task.closedAt ?? undefined })) });
+      if (task.comments.length) await tx.comment.createMany({ data: task.comments.map((comment) => ({ ...comment, routineId: routine.id, occurrenceDate: firstDate })) });
+      await tx.sheetLink.updateMany({ where: { taskId: id }, data: { taskId: null, routineId: routine.id } });
+      const [checklist] = task.checklists;
+      if (checklist) await tx.checklist.update({ where: { id: checklist.id }, data: { taskId: null, routineId: routine.id, occurrenceDate: firstDate } });
+      // A one-off event: the routine of that day done during it.
+      if (oneOff.length) await tx.calendarEventRoutine.createMany({ data: oneOff.map((event) => ({ eventId: event.id, routineId: routine.id, date: event.startDate })), skipDuplicates: true });
+      // Alarms stay, without their task (as they stay without their project).
+      await tx.alarm.updateMany({ where: { taskId: id }, data: { taskId: null } });
+      await tx.task.delete({ where: { id } });
+      return routine.id;
     });
-    if (ticked) await tx.routineCheck.createMany({ data: Array.from({ length: ticked }, (_, slot) => ({ routineId: routine.id, date: firstDate, slot, doneAt: task.closedAt ?? undefined })) });
-    if (task.comments.length) await tx.comment.createMany({ data: task.comments.map((comment) => ({ ...comment, routineId: routine.id, occurrenceDate: firstDate })) });
-    await tx.sheetLink.updateMany({ where: { taskId: id }, data: { taskId: null, routineId: routine.id } });
-    const [checklist] = task.checklists;
-    if (checklist) await tx.checklist.update({ where: { id: checklist.id }, data: { taskId: null, routineId: routine.id, occurrenceDate: firstDate } });
-    // A one-off event: the routine of that day done during it.
-    if (oneOff.length) await tx.calendarEventRoutine.createMany({ data: oneOff.map((event) => ({ eventId: event.id, routineId: routine.id, date: event.startDate })), skipDuplicates: true });
-    // Alarms stay, without their task (as they stay without their project).
-    await tx.alarm.updateMany({ where: { taskId: id }, data: { taskId: null } });
-    await tx.task.delete({ where: { id } });
-    return routine.id;
   });
 });
 
