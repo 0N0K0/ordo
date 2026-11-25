@@ -1,6 +1,7 @@
 import { Group, NumberInput, Select } from '@mantine/core';
 import { monthOptions, ONE_DAY, type Duration, type DurationUnit } from '@ordo/shared';
 import { plural } from '../../lib/text';
+import { MonthDayField } from './MonthDayField';
 
 const UNIT_LABELS: Record<DurationUnit, string> = {
   DAYS: 'Pendant des jours',
@@ -23,7 +24,8 @@ interface DurationFieldsProps {
 }
 
 /**
- * How long each occurrence lasts from its first day: a day, days, weeks, months, or up to a day (of a month), a week
+ * How long each occurrence lasts from its first day: a day, days, weeks, months, or up to a day (of a month; or its
+ * last day, « Le dernier jour du mois »: `MonthDayField`), a week
  * of the year or the end of a month (all-day events and slots, a routine done once over a weekend…). Each change is
  * given at once; `onCommit` follows a choice at once, and a number once it is left.
  * @param {DurationFieldsProps} props Component props.
@@ -66,30 +68,29 @@ export function DurationFields({ value, onChange, units, withinPortal = true, on
         />
       )}
       {value.unit === 'TO_DAY' && (
-        <>
-          <NumberInput
+          <MonthDayField
             size="xs"
             w={100}
-            min={1}
-            max={31}
             prefix="le "
-            aria-label="Dernier jour"
+            ariaLabel="Dernier jour"
             value={value.day ?? 1}
-            onChange={(day) => onChange({ ...value, day: Math.min(31, Math.max(1, Number(day) || 1)) })}
-            onBlur={onCommit}
+            fallback={1}
+            onChange={(day) => onChange({ ...value, day })}
+            onCommit={onCommit}
+            month={
+              <Select
+                size="xs"
+                w={150}
+                aria-label="Mois du dernier jour"
+                placeholder="du même mois"
+                clearable
+                data={monthOptions}
+                value={value.month ? String(value.month) : null}
+                comboboxProps={comboboxProps}
+                onChange={(month) => choose({ ...value, month: month ? Number(month) : null })}
+              />
+            }
           />
-          <Select
-            size="xs"
-            w={150}
-            aria-label="Mois du dernier jour"
-            placeholder="du même mois"
-            clearable
-            data={monthOptions}
-            value={value.month ? String(value.month) : null}
-            comboboxProps={comboboxProps}
-            onChange={(month) => choose({ ...value, month: month ? Number(month) : null })}
-          />
-        </>
       )}
       {value.unit === 'TO_WEEK' && (
         <NumberInput

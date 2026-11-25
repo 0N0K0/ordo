@@ -8,6 +8,8 @@ import { linkedDocumentsFields } from '../core/documents';
 import { addDays, daysBetween, weekdayOfDate, monthOfYear, yearOfDay } from '../dates/days';
 import {
   isLastDayRule,
+  LAST_DAY,
+  monthDaySchema,
   lastDayStandIn,
   occurrenceDates,
   occurrencesBefore,
@@ -54,7 +56,6 @@ export const routineSlotSchema = z
   .refine(...endAfter('fromTime', 'dueTime', true));
 export type RoutineSlot = z.infer<typeof routineSlotSchema>;
 
-const dayNumber = z.number().int().min(1).max(31);
 const monthNumber = z.number().int().min(1).max(12);
 const weekdayNumber = z.number().int().min(1).max(7);
 
@@ -65,8 +66,8 @@ const weekdayNumber = z.number().int().min(1).max(7);
  * comes after its due day); or some days before its due day.
  */
 const routineOpensSchema = z.discriminatedUnion('mode', [
-  /** Monthly: month null; yearly: its month. */
-  z.object({ mode: z.literal('DAY'), day: dayNumber, month: monthNumber.nullable().default(null) }),
+  /** The day number, or -1 the last day of the month (`LAST_DAY`); monthly: month null; yearly: its month. */
+  z.object({ mode: z.literal('DAY'), day: monthDaySchema, month: monthNumber.nullable().default(null) }),
   /** The nth (1 to 4, -1 the last) weekday; monthly: month null; yearly: its month. */
   z.object({ mode: z.literal('WEEKDAY'), position: z.union([z.literal(-1), z.number().int().min(1).max(4)]), weekday: weekdayNumber, month: monthNumber.nullable().default(null) }),
   /** A weekday of a week: monthly, the week of the month (1 to 6, from the one of its 1st, weeks from Monday); yearly, the ISO week. */
@@ -284,7 +285,8 @@ export type RoutineInput = z.input<typeof routineSchema>;
  */
 function opensInMonth(opens: Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | 'WEEK' }>, year: number, month: number): string {
   const first = dayInMonth(year, month, 1);
-  if (opens.mode === 'DAY') return dayInMonth(year, month, opens.day);
+  // The last day of the month: the 31st, kept within the month.
+  if (opens.mode === 'DAY') return dayInMonth(year, month, opens.day === LAST_DAY ? 31 : opens.day);
   if (opens.mode === 'WEEKDAY') {
     const firstOne = 1 + ((opens.weekday - weekdayOfDate(first) + 7) % 7);
     if (opens.position > 0) return dayInMonth(year, month, firstOne + 7 * (opens.position - 1));

@@ -1,4 +1,5 @@
 import { Group, NumberInput, Select, Stack } from '@mantine/core';
+import { MonthDayField } from '../../../components/recurrence/MonthDayField';
 import { monthOptions, positionOptions, weekdayOptions, type Recurrence, type RoutineOpens, type RoutineOpensMode } from '@ordo/shared';
 
 interface OpensOnInputProps {
@@ -51,7 +52,8 @@ function firstValue(mode: RoutineOpensMode, frequency: Recurrence['frequency']):
 }
 
 /**
- * « Ouverture »: day each occurrence can be done from, before its due day: a day number, a weekday of the month (the
+ * « Ouverture »: day each occurrence can be done from, before its due day: a day number (or the last day of the month,
+ * `MonthDayField`), a weekday of the month (the
  * 2nd Tuesday), the weekday of a week (of the month, or ISO week of the year), in its period (a monthly or yearly
  * rule), or some days before its due day; none: from its first day. Each change is given at once; `onCommit` follows a
  * choice at once, and a number once it is left.
@@ -104,10 +106,7 @@ export function OpensOnInput({ frequency, value, onChange, onCommit, error }: Op
         error={error}
       />
       {value?.mode === 'DAY' && mode === 'DAY' && (
-        <Group gap="sm" align="flex-start" grow>
-          <NumberInput label="Jour" min={1} max={31} allowDecimal={false} value={value.day} onChange={(next) => change({ day: Math.min(31, Math.max(1, Number(next) || 1)) })} onBlur={onCommit} />
-          {monthSelect}
-        </Group>
+        <MonthDayField label="Jour" value={value.day} fallback={1} onChange={(day) => change({ day })} onCommit={onCommit} month={monthSelect} />
       )}
       {value?.mode === 'WEEKDAY' && mode === 'WEEKDAY' && (
         <Group gap="sm" align="flex-start" grow>

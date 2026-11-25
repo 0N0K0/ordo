@@ -64,6 +64,7 @@ export function BirthDateField({ value, onChange, onBlur, error }: BirthDateFiel
   return (
     <LabeledField label="Date de naissance" description="L’année est facultative : connue, l’âge s’affiche." error={error}>
       <Group gap="xs" wrap="nowrap" align="flex-start">
+        {/* eslint-disable-next-line no-restricted-syntax -- a birth date, not a day of a repetition: no last day. */}
         <NumberInput aria-label="Jour de naissance" placeholder="Jour" min={1} max={31} w={80} allowDecimal={false} value={parts.day} onChange={(day) => change({ day: day === '' ? '' : Number(day) })} onBlur={onBlur} />
         <Select aria-label="Mois de naissance" placeholder="Mois" data={monthOptions} clearable style={{ flex: 1 }} value={parts.month} onChange={(month) => change({ month })} onBlur={onBlur} />
         <NumberInput aria-label="Année de naissance" placeholder="Année" min={BIRTH_YEAR_MIN} w={100} allowDecimal={false} thousandSeparator="" value={parts.year} onChange={(year) => change({ year: year === '' ? '' : Number(year) })} onBlur={onBlur} />

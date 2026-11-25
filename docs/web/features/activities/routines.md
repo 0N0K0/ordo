@@ -84,7 +84,7 @@ Internes : `RoutineScheduleValues`, `RoutineFieldsProps`, `inheritedProps`, `Rou
 
 | Export                                                 | Rôle                                                                                                                                                           |
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OpensOnInput({ frequency, value, onChange, onCommit?, error? })` | Champ « Ouverture » : modes selon la fréquence, jour, position, jour de semaine, mois, semaine, jours avant ; `onCommit` après un choix, un nombre une fois quitté. Utilisé par la répétition des routines (`RoutineSchedule.tsx`) et `OpensOnCell`. |
+| `OpensOnInput({ frequency, value, onChange, onCommit?, error? })` | Champ « Ouverture » : modes selon la fréquence, jour (`MonthDayField` : numéro ou « Le dernier jour du mois »), position, jour de semaine, mois, semaine, jours avant ; `onCommit` après un choix, un nombre une fois quitté. Utilisé par la répétition des routines (`RoutineSchedule.tsx`) et `OpensOnCell`. |
 
 Internes : `NONE`, `modeOptions(frequency)`, `firstValue(mode, frequency)`.
 
@@ -360,7 +360,7 @@ Internes : `RoutineColumn`, `TABLE_COLUMNS`, `useBulkRoutineChanges` (instantan�
 
 | Export                        | Rôle                                                                                                                          |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `opensText(opens, frequency, { ofDue })` | « le 15 du mois », « le 2e mardi de mars », « 3 jours avant l'échéance », « la veille de l'échéance » ; `ofDue: false` : « 3 jours avant », « la veille » (sous l’échéance) ; vide si incompatible. |
+| `opensText(opens, frequency, { ofDue })` | « le 15 du mois », « le dernier jour du mois », « le dernier jour de février », « le 2e mardi de mars », « 3 jours avant l'échéance », « la veille de l'échéance » ; `ofDue: false` : « 3 jours avant », « la veille » (sous l’échéance) ; vide si incompatible. |
 | `occurrenceOpensText(opens, frequency, open, due)` | Ligne d’aide sous l’échéance d’une occurrence : « Ouverte 3 jours avant (le 5 nov.) », « Ouverte dès la veille (le 4 nov.) », « Ouverte dès le 15 du mois (le 15 oct.) », « Ouverte le jour même » (premier jour = échéance) ; vide si incompatible. |
 
 ### `lib/open-routine-form.tsx`

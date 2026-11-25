@@ -16,12 +16,18 @@ export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
 export const DURATION_UNITS = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'] as const;
 export type DurationUnit = (typeof DURATION_UNITS)[number];
 
+/** Day number of the last day of the month, whatever its length (31, 30, 29 or 28): rules, durations, « Ouverture ». */
+export const LAST_DAY = -1;
+
+/** A day of the month (1 to 31), or -1 its last day (`LAST_DAY`: the 31st, 30th, 29th or 28th). */
+export const monthDaySchema = z.union([z.literal(-1), z.number().int().min(1).max(31)]);
+
 const occurrenceDurationSchema = z.object({
   unit: z.enum(DURATION_UNITS).default('DAYS'),
   /** DAYS, WEEKS, MONTHS: how many. */
   count: z.number().int().min(1, 'Au moins 1.').max(366, '366 au plus.').default(1),
-  /** TO_DAY: last day number (the last day of a shorter month). */
-  day: z.number().int().min(1).max(31).nullable().default(null),
+  /** TO_DAY: last day number (the last day of a shorter month), or -1 the last day of the month (`LAST_DAY`). */
+  day: monthDaySchema.nullable().default(null),
   /** TO_DAY: its month (none: the same month, or the next one); TO_MONTH: last month. */
   month: z.number().int().min(1).max(12).nullable().default(null),
   /** TO_WEEK: last ISO week. */
@@ -73,7 +79,8 @@ export function spanEnd(duration: Duration, start: string): string {
       return dayInMonth(year + Math.floor(last / 12), (last % 12) + 1, 31);
     }
     case 'TO_DAY': {
-      const day = duration.day ?? dayOfMonthOf(start);
+      // The last day of the month: the 31st, kept within the month.
+      const day = duration.day === LAST_DAY ? 31 : (duration.day ?? dayOfMonthOf(start));
       if (duration.month !== null) {
         const end = dayInMonth(year, duration.month, day);
         return end >= start ? end : dayInMonth(year + 1, duration.month, day);
@@ -132,7 +139,7 @@ export const recurrenceSchema = z
      * day of every month (`LAST_DAY`: the 31st, 30th, 29th or 28th), and the month (yearly); WEEKDAY: the nth (1 to 4,
      * -1 the last) weekday, and the month (yearly); WEEK: the weekday of the ISO week.
      */
-    monthDay: z.union([z.literal(-1), z.number().int().min(1).max(31)]).nullish(),
+    monthDay: monthDaySchema.nullish(),
     position: z.union([z.literal(-1), z.number().int().min(1).max(4)]).nullish(),
     weekday: z.number().int().min(1).max(7).nullish(),
     month: z.number().int().min(1).max(12).nullish(),
@@ -150,9 +157,6 @@ export const recurrenceSchema = z
   })
   .refine((rule) => rule.until === null || rule.count === null, 'Choisissez une date de fin ou un nombre d’occurrences.');
 export type Recurrence = z.infer<typeof recurrenceSchema>;
-
-/** Day number of a monthly or yearly rule on the last day of the month, whatever its length (31, 30, 29 or 28). */
-export const LAST_DAY = -1;
 
 /**
  * Whether a rule repeats on the last day of the month (monthly), or of its month (yearly).

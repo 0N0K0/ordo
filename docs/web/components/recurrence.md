@@ -58,9 +58,13 @@ Formulaire de la nouvelle règle d'une répétition le dernier jour du mois dép
 - `askMovedRule(proposal, start)` : ouvre `MovedRuleForm` dans le panneau de droite, « Nouvelle règle de la répétition » (par-dessus le panneau déjà ouvert), et attend la règle choisie ; `null` si abandonné (« Annuler », panneau fermé).
 - `withMovedRuleChoice(run)` : lance un déplacement sans nouvelle règle (`run(null)`) ; refusé faute d'elle — par l'API (`RULE_CHOICE_REQUIRED`, extension `movedRule` : `{ rule, start }`) ou par un calcul partagé lancé dans l'app (`RuleChoiceRequired`) —, demande la règle (`askMovedRule`) puis relance avec elle ; abandonné : `ActionDeclined` (silencieux, l'appelant remet en place). Autres refus transmis. Utilisé par la modification d'un évènement (`useCalendarEventMutations().update`), le changement d'une occurrence de routine (`useRoutineMutations().changeOccurrence`) et les changements de créneaux depuis l'agenda (`changeSlot`, `SlotEditForm`). Fonction interne `proposedRule`.
 
+### `MonthDayField`
+
+Jour du mois choisi, le même champ partout (répétition `RecurrenceEditor`, durée `DurationFields`, « Ouverture » `OpensOnInput`) : un nombre 1 à 31 (le dernier jour d'un mois plus court), ou la case « Le dernier jour du mois » (`LAST_DAY` : le nombre masqué ; décochée, `fallback`). Props : `value`, `onChange`, `fallback`, `onCommit` (après la case, ou le nombre quitté), `label`, `ariaLabel`, `prefix`, `size`, `w`, `month` (le choix du mois, placé entre le nombre et la case : durée, « Ouverture » annuelle). Garde eslint : un `NumberInput` `max={31}` écrit à la main est refusé (sauf la date de naissance, `BirthDateField`).
+
 ### `DurationFields`
 
-Durée de chaque occurrence à partir de son premier jour : « Chaque fois » : « Pendant des jours », « Pendant des semaines (jusqu'au dimanche) », « Pendant des mois (jusqu'à la fin du mois) », « Jusqu'à un jour (du mois, d'un mois) », « Jusqu'à une semaine de l'année », « Jusqu'à la fin d'un mois » ; avec le nombre (1 à 366), le jour (1 à 31) et le mois (« du même mois » par défaut), la semaine (1 à 53) ou le mois. Props : `value`, `onChange`, `units` (unités proposées), `withinPortal`, `onCommit` (après un choix, ou un nombre quitté).
+Durée de chaque occurrence à partir de son premier jour : « Chaque fois » : « Pendant des jours », « Pendant des semaines (jusqu'au dimanche) », « Pendant des mois (jusqu'à la fin du mois) », « Jusqu'à un jour (du mois, d'un mois) », « Jusqu'à une semaine de l'année », « Jusqu'à la fin d'un mois » ; avec le nombre (1 à 366), le jour (`MonthDayField` : 1 à 31, ou « Le dernier jour du mois » ; décochée : le 1er) et le mois (« du même mois » par défaut), la semaine (1 à 53) ou le mois. Props : `value`, `onChange`, `units` (unités proposées), `withinPortal`, `onCommit` (après un choix, ou un nombre quitté).
 
 ### `CaseCard`
 
@@ -73,7 +77,7 @@ Occurrences supprimées une à une d'une répétition, sous « Dates supprimées
 ## Résumés (`describe-recurrence.ts`)
 
 - `describeRecurrence(rule, start, weekdays = true)` : règle en mots : « Toutes les 2 semaines le lundi, le jeudi », « du lundi au vendredi », « Les semaines paires », « Tous les mois le 2e mardi », « Tous les mois le dernier jour du mois », « Tous les ans le 1er juin », « Tous les ans le dernier jour de février », « … de la semaine 12 », puis « , jusqu'au 20 décembre 2026 », « , 10 fois », « (2 pauses) ». Fonctions internes `nthWeekday`, `dayOfRule` (« le 14 », « le dernier jour du mois », « le dernier jour d’avril »).
-- `describeDuration(duration)` : « pendant 3 jours », « toute la semaine », « tout le mois », « jusqu'au 20 août », « jusqu'à la semaine 12 », « jusqu'à fin août » ; vide pour un seul jour.
+- `describeDuration(duration)` : « pendant 3 jours », « toute la semaine », « tout le mois », « jusqu'au 20 août », « jusqu’au dernier jour du mois », « jusqu’au dernier jour de février », « jusqu'à la semaine 12 », « jusqu'à fin août » ; vide pour un seul jour.
 - `describeCase(item, start, { weekly, times })` : texte d'un cas : période, règle (ou « Ne se répète pas »), durée et horaires, séparés par « · ».
 
 ## Plis et clés des cas (`use-case-folds.ts`)

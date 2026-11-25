@@ -1,12 +1,11 @@
 import { LabeledField } from '../inputs/LabeledField';
 import { AddItemButton } from '../actions/AddItemButton';
-import { Checkbox, Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { DateField } from '../inputs/DateField';
 import { PeriodField } from '../inputs/PeriodField';
 import {
   DEFAULT_RECURRENCE,
   dayOfMonthOf,
-  LAST_DAY,
   ruleValues,
   withRuleValues,
   type Recurrence,
@@ -18,6 +17,7 @@ import {
 } from '@ordo/shared';
 import { PauseIcon } from '@phosphor-icons/react';
 import { DeletedDates } from './DeletedDates';
+import { MonthDayField } from './MonthDayField';
 import { describeRecurrence } from './describe-recurrence';
 import { RemoveButton } from '../actions/RemoveButton';
 import { plural } from '../../lib/text';
@@ -174,26 +174,17 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
             ]}
           />
           <Group gap="xs" align="flex-end" wrap="wrap">
-            {rule.monthlyMode === 'DAY' && values.monthDay !== LAST_DAY && (
-              <NumberInput
+            {rule.monthlyMode === 'DAY' && (
+              // Unticked, the last day gives way to the day of the first date.
+              <MonthDayField
                 size="xs"
                 w={100}
-                min={1}
-                max={31}
                 prefix="le "
-                aria-label="Jour du mois"
+                ariaLabel="Jour du mois"
                 value={values.monthDay}
-                onChange={(monthDay) => update({ ...values, monthDay: Math.min(31, Math.max(1, Number(monthDay) || 1)) })}
-                onBlur={onCommit}
-              />
-            )}
-            {rule.monthlyMode === 'DAY' && (
-              <Checkbox
-                size="xs"
-                label="Le dernier jour du mois"
-                checked={values.monthDay === LAST_DAY}
-                // Unchecked: the day of the first date.
-                onChange={(event) => choose({ ...values, monthDay: event.currentTarget.checked ? LAST_DAY : dayOfMonthOf(start) })}
+                fallback={dayOfMonthOf(start)}
+                onChange={(monthDay) => update({ ...values, monthDay })}
+                onCommit={onCommit}
               />
             )}
             {rule.monthlyMode === 'WEEKDAY' && (

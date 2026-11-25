@@ -14,12 +14,14 @@ import {
   ruleValues,
   shiftedRulePieces,
   shiftedSeries,
+  spanEnd,
+  type Duration,
   type Recurrence,
 } from '../../src/dates/recurrence';
 import { addDays } from '../../src/dates/days';
 import { lastDayOfMonth } from '../../src/dates/months';
 import { changedScheduleSlot, LAST_DAY_CASES_REFUSAL, plannedSlots, type WorkScheduleRule } from '../../src/calendar/work-schedules';
-import { routineOpenDate, routineOccurrences, shiftedRoutinePiece, shiftedRoutineRule } from '../../src/routines/routines';
+import { readOpens, routineOpenDate, routineOccurrences, shiftedRoutinePiece, shiftedRoutineRule } from '../../src/routines/routines';
 import { allDates, rule } from '../rules';
 import { schedule, scheduleCase } from '../calendar/schedules';
 
@@ -220,5 +222,64 @@ describe('slots: a case on the last day of the month moved', () => {
     expect(refusalOf(() => changedScheduleSlot(ephemeris, slot('2026-12-31'), slot('2027-01-01'), 'ALL'))).toBeInstanceOf(RuleChoiceRequired);
     const two = { ...ephemeris, cases: [...ephemeris.cases, scheduleCase({ frequency: 'MONTHLY', monthlyMode: 'DAY', monthDay: LAST_DAY, interval: 2 })] };
     expect(() => changedScheduleSlot(two, slot('2026-12-31'), slot('2027-01-01'), 'ALL', MONTHLY_LAST)).toThrow(LAST_DAY_CASES_REFUSAL);
+  });
+});
+
+describe('duration « Jusqu’au dernier jour du mois »', () => {
+  const toLast = (month: number | null): Duration => ({ unit: 'TO_DAY', count: 1, day: LAST_DAY, month, week: null });
+
+  it('is valid, as a day number; 0 is not', () => {
+    expect(recurrenceSchema.safeParse({ ...MONTHLY_LAST, monthDay: 15, duration: toLast(null) }).success).toBe(true);
+    expect(recurrenceSchema.safeParse({ ...MONTHLY_LAST, monthDay: 15, duration: { ...toLast(null), day: 0 } }).success).toBe(false);
+  });
+
+  it('of the same month: its last day (February 28 or 29), the first day itself when it is the last one', () => {
+    expect(spanEnd(toLast(null), '2027-02-10')).toBe('2027-02-28');
+    expect(spanEnd(toLast(null), '2028-02-10')).toBe('2028-02-29');
+    expect(spanEnd(toLast(null), '2027-04-30')).toBe('2027-04-30');
+  });
+
+  it('of a month: its last day, the next year when it comes before', () => {
+    expect(spanEnd(toLast(2), '2027-01-15')).toBe('2027-02-28');
+    expect(spanEnd(toLast(2), '2027-03-01')).toBe('2028-02-29');
+  });
+
+  it('the same end as the 31st, whatever the first day and the month', () => {
+    for (let start = '2026-01-01'; start <= '2028-12-31'; start = addDays(start, 5)) {
+      for (const month of [null, 1, 2, 4, 12]) expect(spanEnd(toLast(month), start)).toBe(spanEnd({ ...toLast(month), day: 31 }, start));
+    }
+  });
+
+  it('a slot case on Mondays up to the last day of the month covers the end of the month', () => {
+    const item = scheduleCase({ weekdays: [1] }, { rule: { ...rule({ weekdays: [1] }), duration: toLast(null) } });
+    expect(plannedSlots([schedule([item])], '2027-02-22', '2027-03-02').map((planned) => planned.date)).toEqual(['2027-02-22', '2027-02-23', '2027-02-24', '2027-02-25', '2027-02-26', '2027-02-27', '2027-02-28', '2027-03-01', '2027-03-02']);
+  });
+});
+
+describe('« Ouverture » on the last day of the month', () => {
+  const last = (month: number | null) => ({ mode: 'DAY' as const, day: LAST_DAY, month });
+
+  it('is read as saved', () => {
+    expect(readOpens(last(null))).toEqual(last(null));
+    expect(readOpens({ mode: 'DAY', day: 0, month: null })).toBeNull();
+  });
+
+  it('monthly: the last day of the month of the due day, that of the month before when it comes after the due day', () => {
+    expect(routineOpenDate('2027-03-15', last(null), 'MONTHLY')).toBe('2027-02-28');
+    expect(routineOpenDate('2028-03-10', last(null), 'MONTHLY')).toBe('2028-02-29');
+    expect(routineOpenDate('2027-03-31', last(null), 'MONTHLY')).toBe('2027-03-31');
+    expect(routineOpenDate('2027-01-05', last(null), 'MONTHLY')).toBe('2026-12-31');
+  });
+
+  it('yearly: the last day of its month, of the year before when it comes after the due day', () => {
+    expect(routineOpenDate('2028-06-01', last(2), 'YEARLY')).toBe('2028-02-29');
+    expect(routineOpenDate('2027-01-10', last(2), 'YEARLY')).toBe('2026-02-28');
+  });
+
+  it('the same day as the 31st, for every due day', () => {
+    for (let due = '2026-01-01'; due <= '2028-12-31'; due = addDays(due, 3)) {
+      expect(routineOpenDate(due, last(null), 'MONTHLY')).toBe(routineOpenDate(due, { ...last(null), day: 31 }, 'MONTHLY'));
+      expect(routineOpenDate(due, last(4), 'YEARLY')).toBe(routineOpenDate(due, { ...last(4), day: 31 }, 'YEARLY'));
+    }
   });
 });

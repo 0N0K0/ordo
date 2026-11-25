@@ -130,6 +130,11 @@ const RESTRICTED_SYNTAX = [
     selector: "CallExpression[callee.property.name='find'][callee.object.property.name='inheritance']",
     message: 'Utiliser originOf(item, field) (components/inheritance/inheritance) et InheritedField pour montrer un champ hérité.',
   },
+  // A day of the month chosen (a repetition, a duration, an « Ouverture »): one field, with its last day.
+  {
+    selector: "JSXOpeningElement[name.name='NumberInput']:has(JSXAttribute[name.name='max'] > JSXExpressionContainer > Literal[value=31])",
+    message: 'Utiliser MonthDayField (components/recurrence/MonthDayField) pour un jour du mois : numéro ou « Le dernier jour du mois ».',
+  },
   // A question waited for in a modal: one brick (answerInModal, askChoice), not a promise around openModal by hand.
   {
     selector: "NewExpression[callee.name='Promise'] CallExpression[callee.name='openModal']",

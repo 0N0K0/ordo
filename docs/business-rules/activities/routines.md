@@ -120,6 +120,7 @@ Une occurrence va de son premier jour (son ouverture) à son jour d'échéance (
 
 - `BEFORE` : `days` jours avant l'échéance ; valable pour toute fréquence.
 - `DAY` (le n du mois, ou d'un mois pour une règle annuelle), `WEEKDAY` (le 1er à 4e ou dernier jour de semaine du mois), `WEEK` (un jour de semaine de la semaine 1 à 6 du mois, semaines du lundi, la première étant celle du 1er ; ce jour de semaine tombé avant le 1er est le premier de ce jour dans le mois, tombé après la fin du mois le dernier : un « lundi de la semaine 1 » d'un mois qui commence un dimanche est le lundi 2 ; en annuel, semaine ISO 1 à 53) : seulement pour une règle mensuelle (sans mois) ou annuelle (avec mois, ou semaine ISO) (`opensFits`).
+- `DAY` peut aussi être « le dernier jour du mois » (`day` = -1) : le dernier jour du mois de l'échéance (le 31, 30, 29 ou 28), donc celui du mois précédent pour toute échéance qui n'est pas elle-même un dernier jour (échéance le 15 mars : ouverte dès le 28 ou 29 février ; échéance le 31 mars : le jour même) ; en annuel, le dernier jour de son mois (« le dernier jour de février »), celui de l'année précédente s'il tombe après l'échéance.
 - Le jour est pris dans la période de l'échéance ; s'il tombe après l'échéance, celui de la période précédente. Un jour que le mois n'a pas est son dernier jour : avec une échéance le dernier jour du mois, « le 25 » ouvre le 25 février pour l'échéance du 28, « le 30 » le jour même.
 - Sans ouverture (ou si elle ne convient pas), l'occurrence s'ouvre le jour de son échéance.
 

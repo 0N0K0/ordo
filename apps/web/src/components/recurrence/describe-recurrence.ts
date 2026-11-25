@@ -1,4 +1,4 @@
-import { dayOfMonthText, LAST_DAY, MONTH_LABELS, ofMonth, POSITION_LABELS, ruleValues, WEEKDAY_LABELS, type Duration, type Recurrence, type RepetitionCase } from '@ordo/shared';
+import { dayOfMonthText, LAST_DAY, lastDayWords, MONTH_LABELS, ofMonth, POSITION_LABELS, ruleValues, WEEKDAY_LABELS, type Duration, type Recurrence, type RepetitionCase } from '@ordo/shared';
 import type { RepetitionTimes } from './RepetitionEditor';
 import * as fmt from '../../lib/format';
 import { countOf } from '../../lib/text';
@@ -21,7 +21,7 @@ function nthWeekday(position: number, weekday: number): string {
  * @returns {string} Label.
  */
 function dayOfRule(monthDay: number, month: number | null): string {
-  if (monthDay === LAST_DAY) return `le dernier jour ${month === null ? 'du mois' : ofMonth(month)}`;
+  if (monthDay === LAST_DAY) return `le ${lastDayWords(month)}`;
   return `le ${dayOfMonthText(monthDay)}${month === null ? '' : ` ${MONTH_LABELS[month - 1]}`}`;
 }
 
@@ -67,7 +67,8 @@ export function describeRecurrence(rule: Recurrence, start: string, weekdays = t
 }
 
 /**
- * How long each occurrence lasts, as text ("pendant 3 jours", "jusqu’au 20 août"); empty for a single day.
+ * How long each occurrence lasts, as text ("pendant 3 jours", "jusqu’au 20 août", "jusqu’au dernier jour du mois",
+ * "jusqu’au dernier jour de février"); empty for a single day.
  * @param {Duration} duration Duration.
  * @returns {string} Label.
  */
@@ -80,6 +81,7 @@ export function describeDuration(duration: Duration): string {
     case 'MONTHS':
       return duration.count > 1 ? `pendant ${duration.count} mois` : 'tout le mois';
     case 'TO_DAY':
+      if (duration.day === LAST_DAY) return `jusqu’au ${lastDayWords(duration.month)}`;
       return `jusqu’au ${duration.day ? dayOfMonthText(duration.day) : ''}${duration.month ? ` ${MONTH_LABELS[duration.month - 1]}` : ''}`;
     case 'TO_WEEK':
       return `jusqu’à la semaine ${duration.week ?? ''}`;

@@ -1,8 +1,9 @@
-import { MONTH_LABELS, ofMonth, opensFits, ordinal, POSITION_LABELS, WEEKDAY_LABELS, type Recurrence, type RoutineOpens } from '@ordo/shared';
+import { LAST_DAY, lastDayWords, MONTH_LABELS, ofMonth, opensFits, ordinal, POSITION_LABELS, WEEKDAY_LABELS, type Recurrence, type RoutineOpens } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 
 /**
- * « Ouverture » in words, without « dès »: « le 15 du mois », « le 15 mars », « le 2e mardi du mois », « le lundi
+ * « Ouverture » in words, without « dès »: « le 15 du mois », « le 15 mars », « le dernier jour du mois », « le dernier jour
+ * de mars », « le 2e mardi du mois », « le lundi
  * de la semaine 12 », « 3 jours avant l’échéance ».
  * @param {RoutineOpens} opens « Ouverture ».
  * @param {Recurrence['frequency']} frequency Frequency of its rule.
@@ -16,6 +17,7 @@ export function opensText(opens: RoutineOpens, frequency: Recurrence['frequency'
     case 'BEFORE':
       return `${opens.days === 1 ? 'la veille' : `${opens.days} jours avant`}${ofDue ? (opens.days === 1 ? ' de l’échéance' : ' l’échéance') : ''}`;
     case 'DAY':
+      if (opens.day === LAST_DAY) return `le ${lastDayWords(opens.month)}`;
       return opens.month ? `le ${ordinal(opens.day)} ${MONTH_LABELS[opens.month - 1]}` : `le ${ordinal(opens.day)} du mois`;
     case 'WEEKDAY':
       return `le ${POSITION_LABELS[opens.position]} ${WEEKDAY_LABELS[opens.weekday - 1]} ${opens.month ? ofMonth(opens.month) : 'du mois'}`;
