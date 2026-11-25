@@ -2619,6 +2619,7 @@ export type UpdateCalendarEventMutationVariables = Exact<{
   scope: CalendarEventScope;
   occurrenceDate?: string | null | undefined;
   confirmLoss?: boolean | null | undefined;
+  movedRule?: unknown;
 }>;
 
 
@@ -3757,6 +3758,7 @@ export type ChangeRoutineOccurrenceMutationVariables = Exact<{
   dueTime?: string | null | undefined;
   confirmLoss?: boolean | null | undefined;
   sameDay?: RoutineSameDayChoice | null | undefined;
+  movedRule?: unknown;
 }>;
 
 
@@ -7734,13 +7736,14 @@ export const CreateCalendarEventDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CreateCalendarEventMutation, CreateCalendarEventMutationVariables>;
 export const UpdateCalendarEventDocument = new TypedDocumentString(`
-    mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {
+    mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean, $movedRule: JSON) {
   updateCalendarEvent(
     id: $id
     input: $input
     scope: $scope
     occurrenceDate: $occurrenceDate
     confirmLoss: $confirmLoss
+    movedRule: $movedRule
   )
 }
     `) as unknown as TypedDocumentString<UpdateCalendarEventMutation, UpdateCalendarEventMutationVariables>;
@@ -9359,7 +9362,7 @@ export const MoveRoutineOccurrenceDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MoveRoutineOccurrenceMutation, MoveRoutineOccurrenceMutationVariables>;
 export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`
-    mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean, $sameDay: RoutineSameDayChoice) {
+    mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean, $sameDay: RoutineSameDayChoice, $movedRule: JSON) {
   changeRoutineOccurrence(
     id: $id
     date: $date
@@ -9370,6 +9373,7 @@ export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`
     dueTime: $dueTime
     confirmLoss: $confirmLoss
     sameDay: $sameDay
+    movedRule: $movedRule
   )
 }
     `) as unknown as TypedDocumentString<ChangeRoutineOccurrenceMutation, ChangeRoutineOccurrenceMutationVariables>;

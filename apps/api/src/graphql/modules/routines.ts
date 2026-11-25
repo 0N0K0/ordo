@@ -13,7 +13,7 @@ import { locatedChanges, locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS,
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
 import { DeadTimeInput, DeadTimeRef } from '../dead-time-fields';
-import { CommentSnapshotInput, CommentSnapshotRef, CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
+import { chosenRule, CommentSnapshotInput, CommentSnapshotRef, CONFIRM_LOSS_DESCRIPTION, MOVED_RULE_DESCRIPTION } from '../occurrence-fields';
 import { readLinks } from '../../services/core/links';
 import { linkedDocumentsInputFields } from '../document-fields';
 import { relationIds } from '../relation-fields';
@@ -862,9 +862,12 @@ builder.mutationFields((t) => ({
       dueTime: t.arg.string(),
       confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
       sameDay: t.arg({ type: SameDayChoiceEnum, description: SAME_DAY_DESCRIPTION }),
+      movedRule: t.arg({ type: 'JSON', description: MOVED_RULE_DESCRIPTION }),
     },
-    resolve: async (_root, { id, date, scope, to, slot, fromTime, dueTime, confirmLoss, sameDay }) =>
-      parseDay(await routines.changeRoutineOccurrence(id, date, scope, to, slot, { fromTime: fromTime ?? null, dueTime: dueTime ?? null }, confirmLoss ?? false, sameDay ?? undefined)),
+    resolve: async (_root, { id, date, scope, to, slot, fromTime, dueTime, confirmLoss, sameDay, movedRule }) =>
+      parseDay(
+        await routines.changeRoutineOccurrence(id, date, scope, to, slot, { fromTime: fromTime ?? null, dueTime: dueTime ?? null }, confirmLoss ?? false, sameDay ?? undefined, chosenRule(movedRule)),
+      ),
   }),
   deleteRoutineOccurrence: t.field({
     type: RoutineOccurrenceDeletionRef,

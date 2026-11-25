@@ -14,7 +14,7 @@ import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
 import { BIRTH_DATE_DESCRIPTION } from '../person-fields';
 import * as birthdays from '../../services/calendar/birthdays';
-import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
+import { chosenRule, CONFIRM_LOSS_DESCRIPTION, MOVED_RULE_DESCRIPTION } from '../occurrence-fields';
 import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
@@ -546,8 +546,10 @@ builder.mutationFields((t) => ({
       scope: t.arg({ type: EventScope, required: true }),
       occurrenceDate: t.arg({ type: 'Date' }),
       confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
+      movedRule: t.arg({ type: 'JSON', description: MOVED_RULE_DESCRIPTION }),
     },
-    resolve: async (_root, { id, input, scope, occurrenceDate, confirmLoss }) => (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate, confirmLoss ?? false)).id,
+    resolve: async (_root, { id, input, scope, occurrenceDate, confirmLoss, movedRule }) =>
+      (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate, confirmLoss ?? false, chosenRule(movedRule))).id,
   }),
   setCalendarEventCalledOff: t.boolean({
     description: 'Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.',

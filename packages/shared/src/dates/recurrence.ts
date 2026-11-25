@@ -1,8 +1,8 @@
-import { dayInMonth, dayOfMonthOf, daysInMonth } from './months';
+import { dayInMonth, dayOfMonthOf, daysInMonth, lastDayOfMonth } from './months';
 import { z } from 'zod';
 import { addDays, DAY_MS, formatDay, isoWeek, isoWeekday, monthOfYear, parseDay, weekdayOfDate, yearOfDay } from './days';
 import { daySchema } from './times';
-import { endAfter } from '../core/rules';
+import { endAfter, UserError } from '../core/rules';
 import { groupBy } from '../core/collections';
 
 export const RECURRENCE_FREQUENCIES = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
@@ -128,10 +128,11 @@ export const recurrenceSchema = z
     monthlyMode: z.enum(['DAY', 'WEEKDAY', 'WEEK']),
     /**
      * Values of the monthly and yearly modes, chosen (prefilled from the first date); none: those of the first date
-     * (rules saved before they could be chosen). DAY: the day number (the last day of a shorter month), and the month
-     * (yearly); WEEKDAY: the nth (1 to 4, -1 the last) weekday, and the month (yearly); WEEK: the weekday of the ISO week.
+     * (rules saved before they could be chosen). DAY: the day number (the last day of a shorter month), or -1 the last
+     * day of every month (`LAST_DAY`: the 31st, 30th, 29th or 28th), and the month (yearly); WEEKDAY: the nth (1 to 4,
+     * -1 the last) weekday, and the month (yearly); WEEK: the weekday of the ISO week.
      */
-    monthDay: z.number().int().min(1).max(31).nullish(),
+    monthDay: z.union([z.literal(-1), z.number().int().min(1).max(31)]).nullish(),
     position: z.union([z.literal(-1), z.number().int().min(1).max(4)]).nullish(),
     weekday: z.number().int().min(1).max(7).nullish(),
     month: z.number().int().min(1).max(12).nullish(),
@@ -149,6 +150,20 @@ export const recurrenceSchema = z
   })
   .refine((rule) => rule.until === null || rule.count === null, 'Choisissez une date de fin ou un nombre d’occurrences.');
 export type Recurrence = z.infer<typeof recurrenceSchema>;
+
+/** Day number of a monthly or yearly rule on the last day of the month, whatever its length (31, 30, 29 or 28). */
+export const LAST_DAY = -1;
+
+/**
+ * Whether a rule repeats on the last day of the month (monthly), or of its month (yearly).
+ * @param {Recurrence | null | undefined} rule Rule.
+ * @returns {boolean} On the last day.
+ */
+export const isLastDayRule = (rule: Recurrence | null | undefined): boolean =>
+  Boolean(rule && (rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY') && rule.monthlyMode === 'DAY' && rule.monthDay === LAST_DAY);
+
+/** Refusal of a rule on the last day of the month moved without its new rule: not decided for the user. */
+export const LAST_DAY_MOVE_REFUSAL = 'Cette répétition tombe le dernier jour du mois : choisissez sa nouvelle règle pour la déplacer.';
 
 /**
  * Validated recurrence rule stored in JSON, or null (none, or invalid).
@@ -220,8 +235,9 @@ function dayOfMonthMatches(rule: Recurrence, start: Date, day: Date): boolean {
     if (rule.position === null || rule.position === undefined) return weekdayPosition(day) === weekdayPosition(start);
     return rule.position === -1 ? day.getUTCDate() + 7 > lastDay : Math.ceil(day.getUTCDate() / 7) === rule.position;
   }
-  // A day missing from a month (the 31st…) occurs on its last day.
-  return day.getUTCDate() === Math.min(rule.monthDay ?? start.getUTCDate(), lastDay);
+  const wanted = rule.monthDay ?? start.getUTCDate();
+  // The last day of every month; a day missing from a month (the 31st…) occurs on its last day.
+  return day.getUTCDate() === (wanted === LAST_DAY ? lastDay : Math.min(wanted, lastDay));
 }
 
 /**
@@ -295,16 +311,72 @@ export function occurrenceDates(rule: Recurrence, start: string, from: string, t
 }
 
 /**
+ * Rule whose monthly and yearly values are those of a day (its day of the month, weekday, position, month, week).
+ * @param {Recurrence} rule Rule.
+ * @param {string} to Day.
+ * @returns {Recurrence} Rule.
+ */
+function valuesOfDay(rule: Recurrence, to: string): Recurrence {
+  const day = dayOfMonthOf(to);
+  const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
+  const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
+  return { ...rule, monthDay: day, weekday: weekdayOfDate(to), position, month: monthOfYear(to), week: isoWeek(to) };
+}
+
+/**
  * Rule whose monthly and yearly values are those of a new day (its day of the month, weekday, position, month, week).
+ * A rule on the last day of the month is refused (`LAST_DAY_MOVE_REFUSAL`): not every month has the same length, its
+ * new rule is chosen by the user (`proposedMovedRule`), never decided here.
  * @param {Recurrence} rule Rule.
  * @param {string} to New day.
  * @returns {Recurrence} Rule.
  */
 export function ruleMovedTo(rule: Recurrence, to: string): Recurrence {
-  const day = dayOfMonthOf(to);
-  const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
-  const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
-  return { ...rule, monthDay: day, weekday: weekdayOfDate(to), position, month: monthOfYear(to), week: isoWeek(to) };
+  if (isLastDayRule(rule)) throw new UserError(LAST_DAY_MOVE_REFUSAL);
+  return valuesOfDay(rule, to);
+}
+
+/**
+ * Same occurrences as a rule, but on the 31st instead of the last day of the month (the 31st falls on the last day of
+ * a shorter month): a rule on the last day moved as any other to propose its new rule (`proposedMovedRule`).
+ * @param {Recurrence} rule Rule.
+ * @returns {Recurrence} Rule (itself when not on the last day).
+ */
+export const lastDayStandIn = (rule: Recurrence): Recurrence => (isLastDayRule(rule) ? { ...rule, monthDay: 31 } : rule);
+
+/**
+ * Rule proposed for a rule on the last day of the month once moved (the user chooses it in a form): the rule moved as
+ * another would be (from `lastDayStandIn`), on the values of the day the occurrence goes to; that day the last of its
+ * month, on the last day of the month again.
+ * @param {Recurrence} moved Rule moved (its end, excluded dates, pauses, number of occurrences).
+ * @param {string} to Day the occurrence goes to.
+ * @returns {Recurrence} Rule proposed.
+ */
+export function proposedMovedRule(moved: Recurrence, to: string): Recurrence {
+  const values = valuesOfDay(moved, to);
+  return lastDayOfMonth(to) === to ? { ...values, monthDay: LAST_DAY } : values;
+}
+
+/**
+ * Refusal of a move of a rule on the last day of the month without its new rule, with the rule proposed (`proposedMovedRule`)
+ * and the day it is shown from: the web asks the new rule in a form, then runs the move again with it.
+ */
+export class RuleChoiceRequired extends UserError {
+  /** Rule proposed. */
+  readonly proposal: Recurrence;
+  /** Day the form shows the rule from (the occurrence moved, on its new day). */
+  readonly start: string;
+  /**
+   * Refusal with the rule proposed.
+   * @param {Recurrence} proposal Rule proposed.
+   * @param {string} start Day the form shows the rule from.
+   */
+  constructor(proposal: Recurrence, start: string) {
+    super(LAST_DAY_MOVE_REFUSAL);
+    this.name = 'RuleChoiceRequired';
+    this.proposal = proposal;
+    this.start = start;
+  }
 }
 
 /**
@@ -392,14 +464,23 @@ function shiftedRecurrence(rule: Recurrence, first: string | null, days: number)
  * weekly with its weeks counted (every n weeks, even or odd weeks), the weekdays changing week apart from those that do
  * not, each piece on its own weeks (`movedWeekdays`: its own even or odd weeks, its own day its rhythm counts from).
  * Split, a number of occurrences becomes the day of the last one, moved, so that the pieces keep the same occurrences
- * together.
+ * together. On the last day of the month, its new rule is the one chosen (`chosen`, one piece); none chosen, refused
+ * with the rule proposed (`RuleChoiceRequired`, `proposedMovedRule` for the day an occurrence goes to).
  * @param {Recurrence} rule Rule.
  * @param {string | null} first First occurrence before the move (see `shiftedRecurrence`).
  * @param {number} days Days moved (negative: earlier).
  * @param {string} anchor Day its rhythm counts from before the move.
+ * @param {Recurrence | null} [chosen] New rule chosen for a rule on the last day of the month. Optional. Default = none.
+ * @param {string} [to] Day the occurrence moved goes to (the rule proposed takes its values). Optional. Default = the
+ * first occurrence (else the anchor), moved.
  * @returns {RulePiece[]} Pieces (one or two); an anchor only when the rhythm needs one other than the former one moved.
  */
-export function shiftedRulePieces(rule: Recurrence, first: string | null, days: number, anchor: string): RulePiece[] {
+export function shiftedRulePieces(rule: Recurrence, first: string | null, days: number, anchor: string, chosen: Recurrence | null = null, to?: string): RulePiece[] {
+  if (days !== 0 && isLastDayRule(rule)) {
+    if (chosen) return [{ rule: chosen, anchor: null }];
+    const day = to ?? addDays(first ?? anchor, days);
+    throw new RuleChoiceRequired(proposedMovedRule(shiftedRecurrence(lastDayStandIn(rule), first, days), day), day);
+  }
   if (days === 0 || rule.frequency !== 'WEEKLY' || (rule.interval === 1 && !rule.weekParity)) return [{ rule: shiftedRecurrence(rule, first, days), anchor: null }];
   const own = rule.weekdays.length ? rule.weekdays : [weekdayOfDate(first ?? anchor)];
   const groups = [...groupBy(own, (weekday) => crossedWeeks(weekday, days)).values()];
@@ -434,10 +515,12 @@ const hasOccurrence = (series: MovedSeries): boolean =>
  * @param {string} start Day its rhythm counts from before the move (an occurrence).
  * @param {string | null} first First occurrence before the move (see `shiftedRecurrence`).
  * @param {number} days Days moved (negative: earlier).
+ * @param {Recurrence | null} chosen New rule chosen for a rule on the last day of the month (see `shiftedRulePieces`).
+ * @param {string} to Day the occurrence moved goes to.
  * @returns {MovedSeries[]} Series, in order of their first day (one at least).
  */
-function movedSeries(rule: Recurrence, start: string, first: string | null, days: number): MovedSeries[] {
-  const pieces = shiftedRulePieces(rule, first, days, start);
+function movedSeries(rule: Recurrence, start: string, first: string | null, days: number, chosen: Recurrence | null, to: string): MovedSeries[] {
+  const pieces = shiftedRulePieces(rule, first, days, start, chosen, to);
   if (pieces.length === 1) return [{ rule: pieces[0].rule, start: addDays(start, days) }];
   const series = pieces.map((piece) => ({ rule: piece.rule, start: piece.anchor ?? addDays(start, days) })).sort((a, b) => (a.start < b.start ? -1 : 1));
   const kept = series.filter(hasOccurrence);
@@ -447,29 +530,35 @@ function movedSeries(rule: Recurrence, start: string, first: string | null, days
 /**
  * Series of the new part of a cut (« Celle-ci et les suivantes »): the rule given, moved from the occurrence by the
  * days it moved (`movedSeries`, one series per group of weekdays changing week apart); its number of occurrences, when
- * left as the series had it, reduced by those before the cut (one at least).
+ * left as the series had it, reduced by those before the cut (one at least). On the last day of the month and moved:
+ * the new rule chosen as it is (refused without it, see `shiftedRulePieces`).
  * @param {Recurrence} rule Rule given.
  * @param {Recurrence} before Rule of the series before the cut.
  * @param {string} seriesStart First day of the series.
  * @param {string} date Occurrence the cut starts at.
  * @param {number} days Days the occurrence moved.
+ * @param {Recurrence | null} [chosen] New rule chosen for a rule on the last day of the month. Optional. Default = none.
  * @returns {MovedSeries[]} New series.
  */
-export function cutSeries(rule: Recurrence, before: Recurrence, seriesStart: string, date: string, days: number): MovedSeries[] {
+export function cutSeries(rule: Recurrence, before: Recurrence, seriesStart: string, date: string, days: number, chosen: Recurrence | null = null): MovedSeries[] {
   const counted = rule.count === null || rule.count !== before.count ? rule : { ...rule, count: Math.max(1, rule.count - occurrencesBefore(before, seriesStart, date)) };
-  return movedSeries(counted, date, date, days);
+  return movedSeries(counted, date, date, days, chosen, addDays(date, days));
 }
 
 /**
  * Series a series moved by a number of days from its first date becomes (`movedSeries`, its first occurrence looked for
- * over a year and a month).
+ * over a year and a month). On the last day of the month: the new rule chosen as it is (refused without it, the rule
+ * proposed taking the values of the day the occurrence moved goes to, see `shiftedRulePieces`).
  * @param {Recurrence} rule Rule.
  * @param {string} start First date of the series before the move.
  * @param {number} days Days moved (negative: earlier).
+ * @param {Recurrence | null} [chosen] New rule chosen for a rule on the last day of the month. Optional. Default = none.
+ * @param {string} [to] Day the occurrence moved goes to. Optional. Default = the first occurrence, moved.
  * @returns {MovedSeries[]} Series.
  */
-export function shiftedSeries(rule: Recurrence, start: string, days: number): MovedSeries[] {
-  return movedSeries(rule, start, occurrenceDates(rule, start, start, addDays(start, 400))[0] ?? start, days);
+export function shiftedSeries(rule: Recurrence, start: string, days: number, chosen: Recurrence | null = null, to?: string): MovedSeries[] {
+  const first = occurrenceDates(rule, start, start, addDays(start, 400))[0] ?? start;
+  return movedSeries(rule, start, first, days, chosen, to ?? addDays(first, days));
 }
 
 /**

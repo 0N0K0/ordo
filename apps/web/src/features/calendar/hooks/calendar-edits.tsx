@@ -5,6 +5,7 @@ import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
 import { ruleScheduleInput, useWorkScheduleMutations, type CalendarEventScope } from '../api';
 import { askScope } from '../lib/ask-scope';
+import { withMovedRuleChoice } from '../../../components/recurrence/ask-moved-rule';
 import { fetchLostOnDelete } from '../../time/api';
 import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { RoutineOccurrenceForm, SlotEditForm } from '../components/CalendarEditForms';
@@ -59,7 +60,8 @@ export function useCalendarEdits() {
     if (!scope) return revert?.();
     let next: ReturnType<typeof changedScheduleSlot>;
     try {
-      next = changedScheduleSlot(schedule, slot, change, scope);
+      // A case on the last day of the month moved to another day: its new rule is asked first (given up: put back).
+      next = await withMovedRuleChoice((movedRule) => changedScheduleSlot(schedule, slot, change, scope, movedRule));
     } catch (error) {
       notifyFailure(error, 'Changement impossible.');
       return revert?.();

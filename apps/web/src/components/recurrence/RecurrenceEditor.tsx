@@ -1,9 +1,21 @@
 import { LabeledField } from '../inputs/LabeledField';
 import { AddItemButton } from '../actions/AddItemButton';
-import { Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { Checkbox, Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { DateField } from '../inputs/DateField';
 import { PeriodField } from '../inputs/PeriodField';
-import { DEFAULT_RECURRENCE, ruleValues, withRuleValues, type Recurrence, type RecurrenceFrequency, WEEKDAY_SHORT_LABELS, weekdayOptions, monthOptions, positionOptions } from '@ordo/shared';
+import {
+  DEFAULT_RECURRENCE,
+  dayOfMonthOf,
+  LAST_DAY,
+  ruleValues,
+  withRuleValues,
+  type Recurrence,
+  type RecurrenceFrequency,
+  WEEKDAY_SHORT_LABELS,
+  weekdayOptions,
+  monthOptions,
+  positionOptions,
+} from '@ordo/shared';
 import { PauseIcon } from '@phosphor-icons/react';
 import { DeletedDates } from './DeletedDates';
 import { describeRecurrence } from './describe-recurrence';
@@ -32,6 +44,8 @@ interface RecurrenceEditorProps {
   weekly?: boolean;
   /** « Ne se répète pas » offered. Optional. Default = true. */
   allowNone?: boolean;
+  /** The frequency is shown, not changed (the new rule of a series moved keeps its frequency). Optional. Default = false. */
+  frequencyLocked?: boolean;
   /**
    * Called once a value is chosen (a frequency, a weekday, an end…) or a number is left: a panel saved field by field
    * saves the rule then, not on each key typed. Optional.
@@ -41,12 +55,13 @@ interface RecurrenceEditorProps {
 
 /**
  * Rule of a repetition: frequency, interval, weekdays and even / odd weeks, the day of the month or of the year
- * (chosen, prefilled from the first date), end (date or number), paused periods and deleted dates, with a readable summary.
+ * (chosen, prefilled from the first date; or « Le dernier jour du mois », whatever its length), end (date or number),
+ * paused periods and deleted dates, with a readable summary.
  * Each change is given at once (`onChange`); `onCommit` follows a choice at once, and a number once it is left.
  * @param {RecurrenceEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly = true, allowNone = true, onCommit }: RecurrenceEditorProps) {
+export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly = true, allowNone = true, frequencyLocked = false, onCommit }: RecurrenceEditorProps) {
   const comboboxProps = { withinPortal };
   const rule = value;
   const values = rule ? ruleValues(rule, start) : null;
@@ -87,6 +102,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
           label="Répétition"
           data={allowNone ? FREQUENCIES : FREQUENCIES.filter((frequency) => frequency.value !== 'NONE')}
           value={rule?.frequency ?? 'NONE'}
+          readOnly={frequencyLocked}
           allowDeselect={false}
           comboboxProps={comboboxProps}
           onChange={(frequency) => {
@@ -158,7 +174,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
             ]}
           />
           <Group gap="xs" align="flex-end" wrap="wrap">
-            {rule.monthlyMode === 'DAY' && (
+            {rule.monthlyMode === 'DAY' && values.monthDay !== LAST_DAY && (
               <NumberInput
                 size="xs"
                 w={100}
@@ -169,6 +185,15 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                 value={values.monthDay}
                 onChange={(monthDay) => update({ ...values, monthDay: Math.min(31, Math.max(1, Number(monthDay) || 1)) })}
                 onBlur={onCommit}
+              />
+            )}
+            {rule.monthlyMode === 'DAY' && (
+              <Checkbox
+                size="xs"
+                label="Le dernier jour du mois"
+                checked={values.monthDay === LAST_DAY}
+                // Unchecked: the day of the first date.
+                onChange={(event) => choose({ ...values, monthDay: event.currentTarget.checked ? LAST_DAY : dayOfMonthOf(start) })}
               />
             )}
             {rule.monthlyMode === 'WEEKDAY' && (

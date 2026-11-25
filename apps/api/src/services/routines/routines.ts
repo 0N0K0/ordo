@@ -1864,14 +1864,15 @@ interface ShiftedPiece {
  * @param {string} date Occurrence.
  * @param {string} to New day.
  * @param {boolean} split The rule goes on from the occurrence (the former one ends before it).
+ * @param {Recurrence | null} chosen New rule chosen for a rule on the last day of the month (`shiftedRoutineRule`).
  * @returns {ShiftedPiece[]} Pieces.
  */
-function shiftedPieces(rule: Recurrence, start: string, date: string, to: string, split: boolean): ShiftedPiece[] {
+function shiftedPieces(rule: Recurrence, start: string, date: string, to: string, split: boolean, chosen: Recurrence | null): ShiftedPiece[] {
   const days = daysBetween(date, to);
   const weekday = weekdayOf(date);
   if (rule.frequency !== 'WEEKLY' || !weeksChange(rule, crossedWeeks(weekday, days))) {
     // Listed weekdays: as much earlier when its first one moves before its first day; one weekday alone: exact.
-    const { recurrence, start: first } = shiftedRoutinePiece(rule, start, date, to, split);
+    const { recurrence, start: first } = shiftedRoutinePiece(rule, start, date, to, split, chosen);
     return [
       {
         recurrence,
@@ -1928,6 +1929,9 @@ async function changeableOccurrence(id: string, date: string) {
  * @param {boolean} [confirmLoss] Other occurrences made to disappear, with comments, confirmed. Optional.
  * @param {SameDayChoice} [sameDay] This occurrence alone onto a day that has its own: both kept apart, or merged
  * (unanswered: CONFIRMATION_REQUIRED, nothing changes; `sameDayJoin`). Optional.
+ * @param {Recurrence | null} [movedRule] New rule of a rule (or of a case) on the last day of the month moved to another
+ * day, chosen by the user; none there: refused with the rule proposed (RULE_CHOICE_REQUIRED, `shiftedRoutineRule`).
+ * Optional.
  * @returns {Promise<string>} Day that identifies the occurrence now (its new day, or the day of its rule when kept apart).
  */
 export async function changeRoutineOccurrence(
@@ -1939,6 +1943,7 @@ export async function changeRoutineOccurrence(
   times: { fromTime: string | null; dueTime: string | null },
   confirmLoss?: boolean,
   sameDay?: SameDayChoice,
+  movedRule: Recurrence | null = null,
 ): Promise<string> {
   const found = await changeableOccurrence(id, date);
   await placeLegacyRoutineComments([id]);
@@ -1992,14 +1997,14 @@ export async function changeRoutineOccurrence(
     if (split) {
       pieces = [
         { ...item, recurrence: cutRoutineBefore(item.recurrence, own, origin, parsedTo) ?? endedBefore(item.recurrence, own, origin) },
-        ...shiftedPieces(item.recurrence, own, origin, parsedTo, true).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? parsedTo), slots })),
+        ...shiftedPieces(item.recurrence, own, origin, parsedTo, true, movedRule).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? parsedTo), slots })),
       ];
     } else {
       // Weekly on listed days: the weekday changes; else its repetition counts from as much later or earlier (its own
       // day never before the routine's first time, as it counted).
       const listed = item.recurrence.frequency === 'WEEKLY' && item.recurrence.weekdays.length > 0;
       const from = delta === 0 || listed ? item.from && own : addDays(own, delta);
-      pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? from), slots }));
+      pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false, movedRule).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? from), slots }));
     }
     // Moved before its first time: the routine starts as much earlier, its other cases where they were.
     const earlier = earlierCases([...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)], new Set(split ? pieces.slice(1) : pieces), start);
@@ -2018,14 +2023,14 @@ export async function changeRoutineOccurrence(
       changes = {
         cases: [
           { from: null, until: null, recurrence: cutRoutineBefore(rule, start, origin, parsedTo) ?? endedBefore(rule, start, origin), slots: storedMoments(routine), ...kept },
-          ...shiftedPieces(rule, start, origin, parsedTo, true).map((piece) => ({ from: piece.from ?? parsedTo, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept })),
+          ...shiftedPieces(rule, start, origin, parsedTo, true, movedRule).map((piece) => ({ from: piece.from ?? parsedTo, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept })),
         ],
         slotCondition: null,
         opensOn: null,
       };
     } else {
       const listed = rule.frequency === 'WEEKLY' && rule.weekdays.length > 0;
-      const pieces = shiftedPieces(rule, start, origin, parsedTo, false);
+      const pieces = shiftedPieces(rule, start, origin, parsedTo, false, movedRule);
       if (pieces.length === 1) {
         const startDate = pieces[0].from ?? (delta === 0 || listed ? start : addDays(start, delta));
         changes = { startDate, recurrence: pieces[0].recurrence, moments: changedMoments, cases: [] };

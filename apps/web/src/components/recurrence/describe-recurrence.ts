@@ -1,4 +1,4 @@
-import { dayOfMonthText, MONTH_LABELS, ofMonth, POSITION_LABELS, ruleValues, WEEKDAY_LABELS, type Duration, type Recurrence, type RepetitionCase } from '@ordo/shared';
+import { dayOfMonthText, LAST_DAY, MONTH_LABELS, ofMonth, POSITION_LABELS, ruleValues, WEEKDAY_LABELS, type Duration, type Recurrence, type RepetitionCase } from '@ordo/shared';
 import type { RepetitionTimes } from './RepetitionEditor';
 import * as fmt from '../../lib/format';
 import { countOf } from '../../lib/text';
@@ -11,6 +11,18 @@ import { countOf } from '../../lib/text';
  */
 function nthWeekday(position: number, weekday: number): string {
   return `le ${POSITION_LABELS[position]} ${WEEKDAY_LABELS[weekday - 1]}`;
+}
+
+/**
+ * Day of the month of a monthly or yearly rule as text: « le 14 », « le 1er »; the last day: « le dernier jour du mois »
+ * (monthly), « le dernier jour de février » (yearly, its month).
+ * @param {number} monthDay Day number, or `LAST_DAY`.
+ * @param {number | null} month Month of a yearly rule (1 to 12), null for a monthly one.
+ * @returns {string} Label.
+ */
+function dayOfRule(monthDay: number, month: number | null): string {
+  if (monthDay === LAST_DAY) return `le dernier jour ${month === null ? 'du mois' : ofMonth(month)}`;
+  return `le ${dayOfMonthText(monthDay)}${month === null ? '' : ` ${MONTH_LABELS[month - 1]}`}`;
 }
 
 /**
@@ -36,7 +48,7 @@ export function describeRecurrence(rule: Recurrence, start: string, weekdays = t
       break;
     }
     case 'MONTHLY':
-      text = `${n === 1 ? 'Tous les mois' : `Tous les ${n} mois`} ${rule.monthlyMode === 'WEEKDAY' ? nthWeekday(values.position, values.weekday) : `le ${dayOfMonthText(values.monthDay)}`}`;
+      text = `${n === 1 ? 'Tous les mois' : `Tous les ${n} mois`} ${rule.monthlyMode === 'WEEKDAY' ? nthWeekday(values.position, values.weekday) : dayOfRule(values.monthDay, null)}`;
       break;
     case 'YEARLY':
       text = `${n === 1 ? 'Tous les ans' : `Tous les ${n} ans`} ${
@@ -44,7 +56,7 @@ export function describeRecurrence(rule: Recurrence, start: string, weekdays = t
           ? `le ${WEEKDAY_LABELS[values.weekday - 1]} de la semaine ${values.week}`
           : rule.monthlyMode === 'WEEKDAY'
             ? `${nthWeekday(values.position, values.weekday)} ${ofMonth(values.month)}`
-            : `le ${dayOfMonthText(values.monthDay)} ${MONTH_LABELS[values.month - 1]}`
+            : dayOfRule(values.monthDay, values.month)
       }`;
       break;
   }

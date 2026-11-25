@@ -618,11 +618,20 @@ async function endSeriesBefore(event: CalendarEvent, rule: Recurrence, date: str
  * @param {EventScope} scope Scope.
  * @param {string | null} [occurrenceDate] Occurrence changed. Optional for a one-off event.
  * @param {boolean} [confirmLoss] Occurrences made to disappear, with comments or times, confirmed (`confirmLostOccurrences`). Optional.
+ * @param {Recurrence | null} [movedRule] New rule of a series on the last day of the month moved to another day (FOLLOWING,
+ * ALL), chosen by the user; none there: refused with the rule proposed (`RULE_CHOICE_REQUIRED`). Optional.
  * @returns {Promise<CalendarEvent>} Updated (or new, after a split) event.
  */
-export async function updateCalendarEvent(id: string, input: CalendarEventInput, scope: EventScope, occurrenceDate?: string | null, confirmLoss?: boolean): Promise<CalendarEvent> {
+export async function updateCalendarEvent(
+  id: string,
+  input: CalendarEventInput,
+  scope: EventScope,
+  occurrenceDate?: string | null,
+  confirmLoss?: boolean,
+  movedRule?: Recurrence | null,
+): Promise<CalendarEvent> {
   const before = (await findEvent(id)).projectId;
-  const { event: updated, linkDays, linkShift = 0 } = await updateEventFields(id, input, scope, occurrenceDate, confirmLoss);
+  const { event: updated, linkDays, linkShift = 0 } = await updateEventFields(id, input, scope, occurrenceDate, confirmLoss, movedRule ?? null);
   const fields = parseInput(calendarEventInputSchema, input);
   // A new project (not for one occurrence: it keeps the one of its series): the contributors follow the event into it.
   await followProject(before, updated.projectId, fields.contributorIds);
@@ -688,6 +697,8 @@ function assertSeriesFieldsKept(given: CalendarEventInput, series: CalendarEvent
  * @param {EventScope} scope Occurrences changed.
  * @param {string | null} [occurrenceDate] Occurrence edited. Optional.
  * @param {boolean} [confirmLoss] Occurrences made to disappear confirmed (`confirmLostOccurrences`). Optional.
+ * @param {Recurrence | null} [movedRule] New rule chosen for a series on the last day of the month moved (`shiftedSeries`,
+ * `cutSeries`). Optional. Default = none.
  * @returns {Promise<{ event: CalendarEvent, linkDays: OccurrenceDays | null, linkShift?: number }>} Event the occurrence
  * belongs to, the days whose routine links its own replace (null: every link of a one-off event), and the days from
  * those the input gives to its own (an occurrence changed alone, edited with its series: shown on other days).
@@ -698,6 +709,7 @@ async function updateEventFields(
   scope: EventScope,
   occurrenceDate?: string | null,
   confirmLoss?: boolean,
+  movedRule: Recurrence | null = null,
 ): Promise<{ event: CalendarEvent; linkDays: OccurrenceDays | null; linkShift?: number }> {
   const event = await findEvent(id);
   await assertEventWritable(event);
@@ -759,7 +771,8 @@ async function updateEventFields(
   if (scope === 'ALL' || occurrence.date === seriesStart) {
     // Its repetition removed: the event becomes the occurrence edited, on its day; else the series moves by as much as
     // the occurrence did, the event keeping the series of the occurrence edited.
-    const series = fields.recurrence ? shiftedSeries(fields.recurrence, seriesStart, shift) : [];
+    // On the last day of the month: the new rule chosen (none: refused with the rule proposed for the day it goes to).
+    const series = fields.recurrence ? shiftedSeries(fields.recurrence, seriesStart, shift, movedRule, fields.startDate) : [];
     const own = series.length ? seriesOn(series, fields.startDate) : null;
     const startDate = own ? own.start : fields.startDate;
     const moved = own ? movedOccurrence(seriesStart, shift, true) : movedOccurrence(occurrence.date, 0, false);
@@ -807,7 +820,7 @@ async function updateEventFields(
 
   // FOLLOWING: the series ends before the occurrence, a new one starts with the changes (one per group of weekdays
   // changing week apart, see above).
-  const series = fields.recurrence ? cutSeries(fields.recurrence, occurrence.rule, seriesStart, occurrence.date, shift) : [];
+  const series = fields.recurrence ? cutSeries(fields.recurrence, occurrence.rule, seriesStart, occurrence.date, shift, movedRule) : [];
   const own = series.length ? seriesOn(series, fields.startDate) : null;
   // Following occurrences that the new series do not have once moved: their comments and times go, with the save.
   const settle = await confirmLostOccurrences(

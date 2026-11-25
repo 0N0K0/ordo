@@ -1,6 +1,7 @@
 import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, XIcon } from '@phosphor-icons/react';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { Fieldset, Group, Stack, Text, Switch } from '@mantine/core';
+import { withMovedRuleChoice } from '../../../components/recurrence/ask-moved-rule';
 import { changedScheduleSlot, routineSlotSchema, scheduleSlotTimeSchema, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
 import { useEffect, useRef } from 'react';
 import { openRoutineForm } from '../../routines/lib/open-routine-form';
@@ -57,7 +58,8 @@ export function SlotEditForm({
         ? null
         : async (_changes, values) => {
             const change = { date: values.date, start: values.start, end: values.end, allDay: values.allDay };
-            const next = changedScheduleSlot(saved.current.schedule, saved.current.slot, change, scope);
+            // A case on the last day of the month moved to another day: its new rule is asked first.
+            const next = await withMovedRuleChoice((movedRule) => changedScheduleSlot(saved.current.schedule, saved.current.slot, change, scope, movedRule));
             const current = saved.current.schedule;
             await update.mutateAsync({ id: current.id, input: ruleScheduleInput(current, next) });
             saved.current = { schedule: { ...current, ...next }, slot: change };

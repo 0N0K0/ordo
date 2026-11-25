@@ -6,7 +6,19 @@ import { locatedFields } from '../core/geo';
 import { itemLinksSchema } from '../core/links';
 import { linkedDocumentsFields } from '../core/documents';
 import { addDays, daysBetween, weekdayOfDate, monthOfYear, yearOfDay } from '../dates/days';
-import { occurrenceDates, occurrencesBefore, recurrenceSchema, ruleMovedTo, shiftedDates, type Recurrence, type Span } from '../dates/recurrence';
+import {
+  isLastDayRule,
+  lastDayStandIn,
+  occurrenceDates,
+  occurrencesBefore,
+  proposedMovedRule,
+  recurrenceSchema,
+  RuleChoiceRequired,
+  ruleMovedTo,
+  shiftedDates,
+  type Recurrence,
+  type Span,
+} from '../dates/recurrence';
 import { caseSpans } from '../dates/repetition';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
 import { remindersSchema } from '../dates/reminders';
@@ -849,14 +861,22 @@ export const shiftMovesAll = (rule: Recurrence): boolean => !(rule.frequency ===
  * (`shiftMovesAll`); weekly with other listed weekdays, only the excluded dates of the weekday moved do, unless it
  * joins another of its weekdays (its occurrences then merge into those of that weekday); its pauses stay, and its end
  * is put off as far as the last occurrence of the weekday moved goes (never brought forward), so that none is lost.
+ * On the last day of the month and moved to another day: the new rule chosen, as it is; none chosen, refused with the
+ * rule proposed (`RuleChoiceRequired`: this computation on `lastDayStandIn`, on the values of the new day,
+ * `proposedMovedRule`).
  * @param {Recurrence} rule Rule.
  * @param {string} start First day it counts from.
  * @param {string} date Occurrence (the day of its rule).
  * @param {string} to New day.
  * @param {boolean} split The rule goes on from the occurrence (the former one ends before it).
+ * @param {Recurrence | null} [chosen] New rule chosen for a rule on the last day of the month. Optional. Default = none.
  * @returns {Recurrence} Rule.
  */
-export function shiftedRoutineRule(rule: Recurrence, start: string, date: string, to: string, split: boolean): Recurrence {
+export function shiftedRoutineRule(rule: Recurrence, start: string, date: string, to: string, split: boolean, chosen: Recurrence | null = null): Recurrence {
+  if (to !== date && isLastDayRule(rule)) {
+    if (chosen) return chosen;
+    throw new RuleChoiceRequired(proposedMovedRule(shiftedRoutineRule(lastDayStandIn(rule), start, date, to, split), to), to);
+  }
   const moved = to !== date && (rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY') ? ruleMovedTo(rule, to) : rule;
   const weekday = weekdayOfDate(date);
   const weekdays =
@@ -1075,10 +1095,12 @@ function movedWeekdayPlace(date: string, to: string, part: 'all' | 'piece' | 'be
  * @param {string} date Occurrence moved (the day of its rule).
  * @param {string} to New day.
  * @param {boolean} split The rule goes on from the occurrence (the former one ends before it: `cutRoutineBefore`).
+ * @param {Recurrence | null} [chosen] New rule chosen for a rule on the last day of the month (`shiftedRoutineRule`).
+ * Optional. Default = none.
  * @returns {{ recurrence: Recurrence, start: string }} Rule and the first day it counts from.
  */
-export function shiftedRoutinePiece(rule: Recurrence, start: string, date: string, to: string, split: boolean): { recurrence: Recurrence; start: string } {
-  const recurrence = shiftedRoutineRule(rule, start, date, to, split);
+export function shiftedRoutinePiece(rule: Recurrence, start: string, date: string, to: string, split: boolean, chosen: Recurrence | null = null): { recurrence: Recurrence; start: string } {
+  const recurrence = shiftedRoutineRule(rule, start, date, to, split, chosen);
   const first = split ? to : listedWeeklyStart(rule, start, date, to);
   if (!otherWeekdays(rule, date, to)?.length) return { recurrence, start: first };
   // Compared from the new day (cut), else from the earlier of its first days.

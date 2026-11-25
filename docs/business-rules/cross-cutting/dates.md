@@ -54,12 +54,13 @@ Une seule forme de répétition (`recurrenceSchema`) pour les événements, les 
 
 - Fréquences : quotidienne, hebdomadaire, mensuelle, annuelle, tous les N (1 à 999).
 - Hebdomadaire : jours choisis (vide : le jour de la première date), ou semaines ISO paires / impaires.
-- Mensuelle et annuelle : même numéro de jour (le dernier jour pour un mois plus court : le 31 tombe le 30 ou le 28), ou n-ième jour de semaine (1er à 4e, ou dernier) ; annuelle aussi : même jour d'une semaine ISO.
+- Mensuelle et annuelle : même numéro de jour (le dernier jour pour un mois plus court : le 31 tombe le 30 ou le 28), « Le dernier jour du mois » (le 31, 30, 29 ou 28 selon le mois ; en annuelle, le dernier jour de son mois : le 28 ou le 29 février), ou n-ième jour de semaine (1er à 4e, ou dernier) ; annuelle aussi : même jour d'une semaine ISO. Le dernier jour vaut pour toutes les répétitions (évènements, routines, créneaux, éphémérides, alarmes, mouvements prévus, factures récurrentes) ; l'export iCalendar l'écrit `BYMONTHDAY=-1` (avec `BYMONTH` en annuelle).
 - Fin : une date (incluse) **ou** un nombre d'occurrences (1 à 9999), pas les deux (« Choisissez une date de fin ou un nombre d’occurrences. »).
 - Exceptions (dates supprimées une à une, 5000 max) et pauses (périodes incluses, 100 max) : elles n'ont pas lieu et ne comptent pas dans le nombre d'occurrences.
 - La première date est toujours une occurrence (sauf exclue ou en pause).
 - Durée d'une occurrence : un jour par défaut ; N jours, N semaines (jusqu'à la fin de la dernière semaine), N mois (jusqu'à la fin du dernier mois : 1 mois depuis le 15 novembre finit le 30 novembre), ou jusqu'à un jour / une semaine ISO / un mois donné (le suivant s'il tombe avant).
 - Couper une série à une date (« celle-ci et les suivantes ») : la partie avant garde le nombre d'occurrences déjà passées (`occurrencesBefore`).
+- Une répétition le dernier jour du mois déplacée à un autre jour (« Celle-ci et les suivantes », « Toutes » : évènement, routine, créneau, éphéméride) ne reçoit jamais de nouvelle règle décidée seule, car tous les mois n'ont pas le même nombre de jours : un formulaire demande la nouvelle règle, prérempli avec la règle décalée comme une autre (fin, dates supprimées, pauses, nombre d'occurrences) sur le jour d'arrivée (le dernier jour du mois quand ce jour est le dernier de son mois, sinon son numéro). Sans nouvelle règle, le déplacement est refusé (« Cette répétition tombe le dernier jour du mois : choisissez sa nouvelle règle pour la déplacer. »). « Cette occurrence » seule (une exception) ne demande rien, ni un changement d'heures sans changement de jour.
 
 ### Portée d'une modification
 

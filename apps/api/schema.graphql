@@ -2150,6 +2150,11 @@ type Mutation {
     id: ID!
 
     """
+    New rule (recurrence JSON) of a rule on the last day of the month moved to another day, chosen by the user: omitted there, refuses with RULE_CHOICE_REQUIRED and extension movedRule { rule, start } (the rule proposed, the day it is shown from); ignored otherwise.
+    """
+    movedRule: JSON
+
+    """
     Onto a day that has its own occurrence: KEEP_BOTH or MERGE; omitted there: CONFIRMATION_REQUIRED, extension lost.merge (the day), nothing changes.
     """
     sameDay: RoutineSameDayChoice
@@ -2984,6 +2989,11 @@ type Mutation {
     confirmLoss: Boolean
     id: ID!
     input: CalendarEventInput!
+
+    """
+    New rule (recurrence JSON) of a rule on the last day of the month moved to another day, chosen by the user: omitted there, refuses with RULE_CHOICE_REQUIRED and extension movedRule { rule, start } (the rule proposed, the day it is shown from); ignored otherwise.
+    """
+    movedRule: JSON
     occurrenceDate: Date
     scope: CalendarEventScope!
   ): ID!

@@ -24,6 +24,7 @@ import type { CalendarEventScope, DeleteRoutineOccurrenceMutation, RoutineOccurr
 import { execute } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
 import { withSameDayChoice } from '../lib/same-day';
+import { withMovedRuleChoice } from '../../../components/recurrence/ask-moved-rule';
 import { timeQueryKey } from '../../time/api';
 import { conversionDialog } from '../lib/conversion-loss';
 import type { ConversionLoss } from '@ordo/shared';
@@ -263,8 +264,20 @@ const ChangeRoutineOccurrenceDocument = graphql(`
     $dueTime: String
     $confirmLoss: Boolean
     $sameDay: RoutineSameDayChoice
+    $movedRule: JSON
   ) {
-    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss, sameDay: $sameDay)
+    changeRoutineOccurrence(
+      id: $id
+      date: $date
+      scope: $scope
+      to: $to
+      slot: $slot
+      fromTime: $fromTime
+      dueTime: $dueTime
+      confirmLoss: $confirmLoss
+      sameDay: $sameDay
+      movedRule: $movedRule
+    )
   }
 `);
 
@@ -737,10 +750,13 @@ export function useRoutineMutations() {
       });
       return { key, merged: chosen === 'MERGE' };
     }),
+    // A rule on the last day of the month moved to another day: its new rule is asked first (`withMovedRuleChoice`).
     changeOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope; to: string; slot: number; fromTime: string | null; dueTime: string | null }) =>
-        withLossConfirmation(async (confirmLoss) =>
-          withSameDayChoice(async (sameDay) => (await execute(ChangeRoutineOccurrenceDocument, { ...variables, confirmLoss, sameDay } as never)).changeRoutineOccurrence),
+        withMovedRuleChoice((movedRule) =>
+          withLossConfirmation(async (confirmLoss) =>
+            withSameDayChoice(async (sameDay) => (await execute(ChangeRoutineOccurrenceDocument, { ...variables, confirmLoss, sameDay, movedRule } as never)).changeRoutineOccurrence),
+          ),
         ),
     ),
     deleteOccurrence: useRoutineMutation(

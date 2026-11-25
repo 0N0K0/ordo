@@ -1,0 +1,224 @@
+import { describe, expect, it } from 'vitest';
+import {
+  cutSeries,
+  isLastDayRule,
+  LAST_DAY,
+  LAST_DAY_MOVE_REFUSAL,
+  lastDayStandIn,
+  occurrenceDates,
+  occurrencesBefore,
+  proposedMovedRule,
+  recurrenceSchema,
+  RuleChoiceRequired,
+  ruleMovedTo,
+  ruleValues,
+  shiftedRulePieces,
+  shiftedSeries,
+  type Recurrence,
+} from '../../src/dates/recurrence';
+import { addDays } from '../../src/dates/days';
+import { lastDayOfMonth } from '../../src/dates/months';
+import { changedScheduleSlot, LAST_DAY_CASES_REFUSAL, plannedSlots, type WorkScheduleRule } from '../../src/calendar/work-schedules';
+import { routineOpenDate, routineOccurrences, shiftedRoutinePiece, shiftedRoutineRule } from '../../src/routines/routines';
+import { allDates, rule } from '../rules';
+import { schedule, scheduleCase } from '../calendar/schedules';
+
+/** Every month on its last day. */
+const MONTHLY_LAST = rule({ frequency: 'MONTHLY', monthlyMode: 'DAY', monthDay: LAST_DAY });
+/** Every year on the last day of February. */
+const FEBRUARY_LAST = rule({ frequency: 'YEARLY', monthlyMode: 'DAY', monthDay: LAST_DAY, month: 2 });
+
+/**
+ * Refusal thrown by a move, or none.
+ * @param {() => unknown} move Move.
+ * @returns {RuleChoiceRequired} Refusal.
+ */
+function refusalOf(move: () => unknown): RuleChoiceRequired {
+  try {
+    move();
+  } catch (error) {
+    if (error instanceof RuleChoiceRequired) return error;
+    throw error;
+  }
+  throw new Error('No refusal.');
+}
+
+describe('recurrenceSchema: the last day of the month', () => {
+  it('takes -1 (the last day) and 1 to 31, nothing else', () => {
+    expect(recurrenceSchema.safeParse(MONTHLY_LAST).success).toBe(true);
+    expect(recurrenceSchema.safeParse({ ...MONTHLY_LAST, monthDay: 0 }).success).toBe(false);
+    expect(recurrenceSchema.safeParse({ ...MONTHLY_LAST, monthDay: -2 }).success).toBe(false);
+    expect(recurrenceSchema.safeParse({ ...MONTHLY_LAST, monthDay: 31 }).success).toBe(true);
+  });
+
+  it('isLastDayRule: monthly or yearly, by day number only', () => {
+    expect(isLastDayRule(MONTHLY_LAST)).toBe(true);
+    expect(isLastDayRule(FEBRUARY_LAST)).toBe(true);
+    expect(isLastDayRule({ ...MONTHLY_LAST, monthlyMode: 'WEEKDAY' })).toBe(false);
+    expect(isLastDayRule({ ...MONTHLY_LAST, monthDay: 31 })).toBe(false);
+    expect(isLastDayRule({ ...MONTHLY_LAST, frequency: 'WEEKLY' })).toBe(false);
+    expect(isLastDayRule(null)).toBe(false);
+  });
+});
+
+describe('occurrenceDates: the last day of the month', () => {
+  it('monthly: 31, 30, 29 or 28 by the month (leap and common Februaries)', () => {
+    expect(occurrenceDates(MONTHLY_LAST, '2027-01-31', '2027-01-01', '2028-04-30')).toEqual([
+      '2027-01-31',
+      '2027-02-28',
+      '2027-03-31',
+      '2027-04-30',
+      '2027-05-31',
+      '2027-06-30',
+      '2027-07-31',
+      '2027-08-31',
+      '2027-09-30',
+      '2027-10-31',
+      '2027-11-30',
+      '2027-12-31',
+      '2028-01-31',
+      '2028-02-29',
+      '2028-03-31',
+      '2028-04-30',
+    ]);
+  });
+
+  it('every day of the result is the last of its month, across the daylight saving changes (March and October)', () => {
+    const dates = occurrenceDates(MONTHLY_LAST, '2026-11-30', '2026-11-01', '2031-12-31');
+    expect(dates).toHaveLength(62);
+    expect(dates.every((date) => lastDayOfMonth(date) === date)).toBe(true);
+    expect(dates).toContain('2027-03-31');
+    expect(dates).toContain('2027-10-31');
+  });
+
+  it('from a first date that is not a last day: the last days from its month on', () => {
+    expect(occurrenceDates(MONTHLY_LAST, '2026-11-10', '2026-11-01', '2027-02-28')).toEqual(['2026-11-30', '2026-12-31', '2027-01-31', '2027-02-28']);
+  });
+
+  it('every 2 months, counted, with an excluded date and a pause (neither counted)', () => {
+    const counted = { ...MONTHLY_LAST, interval: 2, count: 3, exceptions: ['2027-03-31'], pauses: [{ from: '2027-05-01', to: '2027-05-31' }] };
+    expect(occurrenceDates(counted, '2027-01-31', '2027-01-01', '2028-12-31')).toEqual(['2027-01-31', '2027-07-31', '2027-09-30']);
+  });
+
+  it('yearly: the last day of February, 28 or 29', () => {
+    expect(occurrenceDates(FEBRUARY_LAST, '2027-02-28', '2027-01-01', '2029-12-31')).toEqual(['2027-02-28', '2028-02-29', '2029-02-28']);
+  });
+
+  it('the same days as the 31st (a day missing from a month falls on its last day), whatever the first date', () => {
+    for (let start = '2026-01-01'; start <= '2026-12-31'; start = addDays(start, 7)) {
+      for (const base of [MONTHLY_LAST, { ...MONTHLY_LAST, interval: 3 }, { ...FEBRUARY_LAST, month: 4 }, { ...FEBRUARY_LAST, interval: 2 }]) {
+        expect(allDates(base, start)).toEqual(allDates(lastDayStandIn(base), start));
+      }
+    }
+  });
+
+  it('days chosen otherwise are unchanged: the 30th falls on the 28th of February, the 29th of February on the 28th', () => {
+    expect(occurrenceDates(rule({ frequency: 'MONTHLY', monthlyMode: 'DAY', monthDay: 30 }), '2027-01-30', '2027-01-01', '2027-03-31')).toEqual(['2027-01-30', '2027-02-28', '2027-03-30']);
+    expect(occurrenceDates(rule({ frequency: 'YEARLY', monthlyMode: 'DAY', monthDay: 29, month: 2 }), '2028-02-29', '2028-01-01', '2029-12-31')).toEqual(['2028-02-29', '2029-02-28']);
+  });
+
+  it('ruleValues keeps the last day', () => {
+    expect(ruleValues(MONTHLY_LAST, '2026-11-10').monthDay).toBe(LAST_DAY);
+  });
+});
+
+describe('moves of a rule on the last day of the month: never decided, the new rule chosen', () => {
+  it('ruleMovedTo refuses it; other rules move as before', () => {
+    expect(() => ruleMovedTo(MONTHLY_LAST, '2026-11-15')).toThrow(LAST_DAY_MOVE_REFUSAL);
+    expect(ruleMovedTo(rule({ frequency: 'MONTHLY', monthDay: 31 }), '2026-11-15').monthDay).toBe(15);
+  });
+
+  it('proposedMovedRule: the last day again when the new day is the last of its month, else that day', () => {
+    expect(proposedMovedRule(MONTHLY_LAST, '2027-02-28').monthDay).toBe(LAST_DAY);
+    expect(proposedMovedRule(MONTHLY_LAST, '2028-02-28').monthDay).toBe(28);
+    expect(proposedMovedRule(MONTHLY_LAST, '2026-11-15').monthDay).toBe(15);
+    expect(proposedMovedRule(FEBRUARY_LAST, '2027-03-31')).toMatchObject({ monthDay: LAST_DAY, month: 3 });
+  });
+
+  it('« Toutes »: refused with the rule proposed for the day the occurrence goes to', () => {
+    const refusal = refusalOf(() => shiftedSeries(MONTHLY_LAST, '2026-10-31', 31, null, '2027-03-31'));
+    expect(refusal.message).toBe(LAST_DAY_MOVE_REFUSAL);
+    expect(refusal.start).toBe('2027-03-31');
+    expect(refusal.proposal).toMatchObject({ frequency: 'MONTHLY', monthlyMode: 'DAY', monthDay: LAST_DAY });
+    expect(refusalOf(() => shiftedSeries(MONTHLY_LAST, '2026-10-31', -16, null, '2027-02-12')).proposal.monthDay).toBe(12);
+  });
+
+  it('« Toutes »: its end, excluded dates and pauses moved as another rule, in the rule proposed', () => {
+    const ended = { ...MONTHLY_LAST, until: '2027-06-30', exceptions: ['2027-01-31'], pauses: [{ from: '2027-03-01', to: '2027-03-31' }] };
+    const { proposal } = refusalOf(() => shiftedSeries(ended, '2026-10-31', -1, null, '2026-11-29'));
+    expect(proposal).toMatchObject({ until: '2027-06-29', exceptions: ['2027-01-30'], pauses: [{ from: '2027-02-28', to: '2027-03-30' }], monthDay: 29 });
+  });
+
+  it('« Toutes » with the new rule chosen: that rule, the series moved by as many days', () => {
+    const chosen = { ...MONTHLY_LAST, monthDay: 15 };
+    expect(shiftedSeries(MONTHLY_LAST, '2026-10-31', -16, chosen, '2026-10-15')).toEqual([{ rule: chosen, start: '2026-10-15' }]);
+  });
+
+  it('not moved (its hours only): nothing asked', () => {
+    expect(shiftedSeries(MONTHLY_LAST, '2026-10-31', 0)).toEqual([{ rule: MONTHLY_LAST, start: '2026-10-31' }]);
+    expect(shiftedRulePieces(MONTHLY_LAST, '2026-10-31', 0, '2026-10-31')).toEqual([{ rule: MONTHLY_LAST, anchor: null }]);
+  });
+
+  it('« Celle-ci et les suivantes »: the rule proposed counts the occurrences left; the one chosen is kept as it is', () => {
+    const counted = { ...MONTHLY_LAST, count: 6 };
+    const { proposal, start } = refusalOf(() => cutSeries(counted, counted, '2026-10-31', '2027-01-31', -1));
+    expect(start).toBe('2027-01-30');
+    expect(proposal).toMatchObject({ count: 6 - occurrencesBefore(counted, '2026-10-31', '2027-01-31'), monthDay: 30 });
+    const chosen = { ...proposal, monthDay: LAST_DAY };
+    expect(cutSeries(counted, counted, '2026-10-31', '2027-01-31', -1, chosen)).toEqual([{ rule: chosen, start: '2027-01-30' }]);
+  });
+
+  it('yearly on the last day of February moved to the 1st of March: proposed on the 1st of March', () => {
+    expect(refusalOf(() => cutSeries(FEBRUARY_LAST, FEBRUARY_LAST, '2027-02-28', '2028-02-29', 1)).proposal).toMatchObject({ monthDay: 1, month: 3 });
+  });
+});
+
+describe('routines: a rule on the last day of the month moved', () => {
+  it('refused with the rule proposed; the new rule chosen is kept; its times only: nothing asked', () => {
+    const { proposal, start } = refusalOf(() => shiftedRoutineRule(MONTHLY_LAST, '2026-10-31', '2026-11-30', '2026-11-27', false));
+    expect(start).toBe('2026-11-27');
+    expect(proposal.monthDay).toBe(27);
+    expect(refusalOf(() => shiftedRoutineRule(MONTHLY_LAST, '2026-10-31', '2026-11-30', '2026-12-31', true)).proposal.monthDay).toBe(LAST_DAY);
+    const chosen = { ...MONTHLY_LAST, interval: 2 };
+    expect(shiftedRoutineRule(MONTHLY_LAST, '2026-10-31', '2026-11-30', '2026-11-27', false, chosen)).toBe(chosen);
+    expect(shiftedRoutinePiece(MONTHLY_LAST, '2026-10-31', '2026-11-30', '2026-11-27', false, chosen).recurrence).toBe(chosen);
+    expect(shiftedRoutineRule(MONTHLY_LAST, '2026-10-31', '2026-11-30', '2026-11-30', false)).toEqual(MONTHLY_LAST);
+  });
+
+  it('« Ouverture » on a day of the month with a due last day: within the month of the due day', () => {
+    expect(routineOpenDate('2027-02-28', { mode: 'DAY', day: 25, month: null }, 'MONTHLY')).toBe('2027-02-25');
+    expect(routineOpenDate('2027-02-28', { mode: 'DAY', day: 30, month: null }, 'MONTHLY')).toBe('2027-02-28');
+    expect(routineOpenDate('2028-02-29', { mode: 'DAY', day: 1, month: 2 }, 'YEARLY')).toBe('2028-02-01');
+    expect(routineOccurrences(MONTHLY_LAST, '2027-01-31', '2027-02-26', { mode: 'DAY', day: 25, month: null })).toEqual({ current: '2027-02-28', next: '2027-03-31' });
+  });
+});
+
+describe('slots: a case on the last day of the month moved', () => {
+  const slot = (date: string) => ({ date, start: '09:00', end: '12:00', allDay: false });
+  const lastDays = schedule([scheduleCase({ frequency: 'MONTHLY', monthlyMode: 'DAY', monthDay: LAST_DAY })]);
+  const days = (item: WorkScheduleRule, from: string, to: string) => plannedSlots([item], from, to).map((planned) => planned.date);
+
+  it('its slots on the last day of each month', () => {
+    expect(days(lastDays, '2026-11-01', '2027-03-31')).toEqual(['2026-11-30', '2026-12-31', '2027-01-31', '2027-02-28', '2027-03-31']);
+  });
+
+  it('« Ce jour seulement »: nothing asked', () => {
+    expect(() => changedScheduleSlot(lastDays, slot('2026-12-31'), slot('2026-12-30'), 'THIS')).not.toThrow();
+  });
+
+  it('« Ce jour et les suivantes » / « Tous »: refused with the rule proposed, then the new rule chosen', () => {
+    const refusal = refusalOf(() => changedScheduleSlot(lastDays, slot('2026-12-31'), slot('2026-12-30'), 'FOLLOWING'));
+    expect(refusal.proposal.monthDay).toBe(30);
+    const chosen: Recurrence = { ...refusal.proposal, monthDay: LAST_DAY };
+    const changed = { ...lastDays, ...changedScheduleSlot(lastDays, slot('2026-12-31'), slot('2026-12-30'), 'FOLLOWING', chosen) };
+    expect(changed.cases.at(-1)?.rule).toEqual(chosen);
+    expect(refusalOf(() => changedScheduleSlot(lastDays, slot('2026-12-31'), slot('2027-01-01'), 'ALL')).proposal.monthDay).toBe(1);
+  });
+
+  it('an éphéméride moved whole: its case asked; two cases on the last day refused', () => {
+    const ephemeris = { ...lastDays, ephemeris: true, endDate: '2027-06-30' };
+    expect(refusalOf(() => changedScheduleSlot(ephemeris, slot('2026-12-31'), slot('2027-01-01'), 'ALL'))).toBeInstanceOf(RuleChoiceRequired);
+    const two = { ...ephemeris, cases: [...ephemeris.cases, scheduleCase({ frequency: 'MONTHLY', monthlyMode: 'DAY', monthDay: LAST_DAY, interval: 2 })] };
+    expect(() => changedScheduleSlot(two, slot('2026-12-31'), slot('2027-01-01'), 'ALL', MONTHLY_LAST)).toThrow(LAST_DAY_CASES_REFUSAL);
+  });
+});

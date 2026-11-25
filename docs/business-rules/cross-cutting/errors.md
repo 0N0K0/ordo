@@ -19,6 +19,7 @@ Toute erreur destinée à l'utilisateur est une `GraphQLError` créée par `clie
 | `TOO_MANY_REQUESTS`   | Limite de tentatives atteinte (« Trop de tentatives. Réessayez dans N min. », extension `retryAfter` en secondes). | 429                       |
 | `SERVICE_UNAVAILABLE` | Service externe injoignable (cartographie, serveur mail…).                                                         | 503                       |
 | `CONFIRMATION_REQUIRED` | Changement qui supprimerait des données sans confirmation : règle d'une série d'évènements ou d'une routine qui fait disparaître des occurrences ayant des commentaires ou des temps (extension `lost` : `{ times, comments }`) ; transformation d'une tâche en routine ou l'inverse (extension `lost` : `ConversionLoss`, toujours demandée). Le web demande la confirmation et renvoie avec `confirmLoss: true` (`confirm: true` pour une transformation). | —                         |
+| `RULE_CHOICE_REQUIRED` | Déplacement d'une répétition le dernier jour du mois à un autre jour (« Celle-ci et les suivantes », « Toutes ») sans sa nouvelle règle (« Cette répétition tombe le dernier jour du mois : choisissez sa nouvelle règle pour la déplacer. », extension `movedRule` : `{ rule, start }`, la règle proposée et le jour d'où elle se montre). Le web demande la règle dans un formulaire et renvoie avec `movedRule`. | —                         |
 
 ## Erreurs rattachées à un champ
 
@@ -43,7 +44,7 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 ## Utilitaires
 
 - `done(work)` : résultat `true` d'une mutation booléenne une fois le travail fini.
-- `sharedRefusal(error)` : une `UserError` d'un calcul partagé devient `BAD_USER_INPUT` avec son message ; toute autre erreur est rendue telle quelle (voir [Erreurs des calculs partagés](#erreurs-des-calculs-partagés)).
+- `sharedRefusal(error)` : une `UserError` d'un calcul partagé devient `BAD_USER_INPUT` avec son message (un `RuleChoiceRequired`, `RULE_CHOICE_REQUIRED` avec l'extension `movedRule`) ; toute autre erreur est rendue telle quelle (voir [Erreurs des calculs partagés](#erreurs-des-calculs-partagés)).
 - `rethrowTimeout(error, message)` : une transaction (`inTransaction`) qui a dépassé son délai de 60 s ou n'a pas pu commencer dans les 10 s (Prisma `P2028` d'une transaction expirée ou non commencée à temps, détectée par `isTransactionTimeout` ; tout est annulé) devient `BAD_USER_INPUT` avec le message donné ; toute autre erreur est relancée. Ainsi l'annulation d'un transfert : « L’annulation a pris trop de temps : rien n’a été changé. Réessayez avec moins de tâches. » (voir [Tâches](../activities/tasks.md#transfert-vers-un-autre-projet)) ; la suppression de tâches : « La suppression a pris trop de temps : rien n’a été supprimé. Réessayez avec moins de tâches. » (voir [Tâches](../activities/tasks.md#suppression)).
 - `errorMessage(error)` : texte d'une erreur quelconque (journaux, erreurs stockées comme `lastSyncError` GitHub).
 - `userErrorMessage(error, fallback, context)` : message d'une `GraphQLError` (écrit pour l'utilisateur), sinon le message de secours, l'erreur étant journalisée.
@@ -73,4 +74,4 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 Une fonction partagée qui refuse avec un message destiné à l'utilisateur lève une `UserError` (`packages/shared/src/core/rules.ts`), jamais une `Error` simple (règle du lint de `packages/shared`). Ex. `changedScheduleSlot` : « Ce jour est en dehors de la période du créneau. », « La fin doit suivre le début. » (voir [calendar](../../shared/activities/calendar.md)).
 
 - Le web affiche son message (toast ou sous le champ, comme toute erreur).
-- L'API la transforme en une seule fois pour tous ses appelants (`sharedRefusal`, `apps/api/src/graphql/errors.ts`) : en `BAD_USER_INPUT` avec son message, dans les réponses GraphQL (`maskError` de Yoga, `apps/api/src/index.ts`) comme dans les routes de fichiers (`sendServiceError`, 400). Un service n'a donc pas à l'attraper.
+- L'API la transforme en une seule fois pour tous ses appelants (`sharedRefusal`, `apps/api/src/graphql/errors.ts`) : en `BAD_USER_INPUT` avec son message (le refus d'une répétition le dernier jour du mois déplacée sans sa nouvelle règle, `RuleChoiceRequired`, en `RULE_CHOICE_REQUIRED` avec la règle proposée), dans les réponses GraphQL (`maskError` de Yoga, `apps/api/src/index.ts`) comme dans les routes de fichiers (`sendServiceError`, 400). Un service n'a donc pas à l'attraper.
