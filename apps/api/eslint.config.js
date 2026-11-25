@@ -320,6 +320,9 @@ export default defineConfig([
       'no-restricted-syntax': ['error', ...SHARED_SYNTAX_RULES, ...API_SYNTAX_RULES],
       // Fields left out of a copy are named with a leading underscore.
       '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_', argsIgnorePattern: '^_', ignoreRestSiblings: true }],
+      // A variable used before its declaration throws at run time (temporal dead zone), which tsc does not see in a
+      // callback: declared first. Function declarations are hoisted, types erased.
+      '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: true, variables: true, typedefs: false, ignoreTypeReferences: true, enums: true }],
     },
   },
   {

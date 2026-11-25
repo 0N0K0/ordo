@@ -120,6 +120,17 @@ export function entrySeconds(entry: { startedAt: string; endedAt: string | null;
 }
 
 /**
+ * Whether a timer has reached the longest time (24 hours, pauses left out): the API stops it there, its duration 24
+ * hours. A paused timer that had not reached it before its pause does not get there.
+ * @param {Parameters<typeof entrySeconds>[0]} entry Time entry.
+ * @param {number} [now] Current time in ms. Optional. Default = Date.now().
+ * @returns {boolean} 24 hours reached.
+ */
+export function reachedDurationMax(entry: Parameters<typeof entrySeconds>[0], now = Date.now()): boolean {
+  return entrySeconds(entry, now) >= DURATION_MAX_SECONDS;
+}
+
+/**
  * Seconds of a time within a period (a day, a week): the part of its duration between the two instants, for a time
  * that crosses one of them (a timer running past midnight, started the evening before the week). Its pauses, whose
  * moments are not kept, are shared out over the whole time.

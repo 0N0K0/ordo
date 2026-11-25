@@ -1,4 +1,4 @@
-import { UserError } from '@ordo/shared';
+import { RuleChoiceRequired, UserError } from '@ordo/shared';
 import { GraphQLError } from 'graphql';
 import { z } from 'zod';
 import { Prisma } from '../generated/prisma/client';
@@ -12,7 +12,8 @@ type ErrorCode =
   | 'NOT_FOUND'
   | 'TOO_MANY_REQUESTS'
   | 'SERVICE_UNAVAILABLE'
-  | 'CONFIRMATION_REQUIRED';
+  | 'CONFIRMATION_REQUIRED'
+  | 'RULE_CHOICE_REQUIRED';
 
 /**
  * Error thrown when a requested record does not exist: « X introuvable. », attached to a form field when one is given.
@@ -43,6 +44,28 @@ export function isUniqueConflict(error: unknown): error is Prisma.PrismaClientKn
  */
 export function rethrowUnique(error: unknown, message: string, field = 'label'): never {
   if (isUniqueConflict(error)) throw clientError('CONFLICT', message, { fields: { [field]: message } });
+  throw error;
+}
+
+/**
+ * Whether an error is the end of a transaction that ran out of time (`inTransaction`: its timeout passed, or it could
+ * not start in time): Prisma's P2028 about an expired transaction or one not started in the given time (its other
+ * P2028 errors, a transaction not found or already closed, are not about time), everything rolled back.
+ * @param {unknown} error Caught error.
+ * @returns {boolean} A P2028 timeout error.
+ */
+export function isTransactionTimeout(error: unknown): boolean {
+  return error instanceof Error && (error as { code?: unknown }).code === 'P2028' && /expired transaction|in the given time/.test(error.message);
+}
+
+/**
+ * Rethrows a caught error, a transaction that ran out of time turned into a client error with this message.
+ * @param {unknown} error Caught error.
+ * @param {string} message Message (« L’annulation a pris trop de temps : rien n’a été changé. … »).
+ * @returns {never}
+ */
+export function rethrowTimeout(error: unknown, message: string): never {
+  if (isTransactionTimeout(error)) throw clientError('BAD_USER_INPUT', message);
   throw error;
 }
 
@@ -149,12 +172,15 @@ export function errorMessage(error: unknown): string {
 
 /**
  * Refusal of a shared computation (`UserError`, its message written for the user) as the client error it is
- * (`BAD_USER_INPUT`); any other error as it is. The one place the API maps them: GraphQL answers and file routes.
+ * (`BAD_USER_INPUT`; a rule on the last day of the month moved without its new rule, `RULE_CHOICE_REQUIRED` with the
+ * extension `movedRule`: the rule proposed and the day it is shown from); any other error as it is. The one place the
+ * API maps them: GraphQL answers and file routes.
  * @param {unknown} error Error caught.
  * @returns {unknown} Client error, or the error.
  */
 export function sharedRefusal(error: unknown): unknown {
   const original = error instanceof GraphQLError && error.originalError ? error.originalError : error;
+  if (original instanceof RuleChoiceRequired) return clientError('RULE_CHOICE_REQUIRED', original.message, { movedRule: { rule: original.proposal, start: original.start } });
   return original instanceof UserError ? clientError('BAD_USER_INPUT', original.message) : error;
 }
 

@@ -73,7 +73,8 @@ function moment(name: string, day: string, time: string | null): string {
 
 /**
  * Dates of a rule falling on the last day of a month that lacks its day (the 30th of April for the 31st): the
- * iCalendar rule skips those months, they are added as RDATE (up to the end of the rule, or the horizon).
+ * iCalendar rule skips those months, they are added as RDATE (up to the end of the rule, or the horizon). The last day
+ * of the month (`LAST_DAY`, written BYMONTHDAY=-1) misses none: no RDATE.
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.
  * @param {string | null} until Last date, if any.

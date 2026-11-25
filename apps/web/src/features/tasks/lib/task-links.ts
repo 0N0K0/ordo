@@ -1,5 +1,3 @@
-import { sumOf } from '@ordo/shared';
-
 import type { Task } from '../api';
 import type { TaskContext } from '../hooks/use-task-context';
 import { unarchived } from '../../../lib/archive';
@@ -43,11 +41,21 @@ export function linkableTasks(context: TaskContext, projectId: string | null, ta
 }
 
 /**
+ * Sub-tasks of a task, at any depth.
+ * @param {TaskContext} context Task context.
+ * @param {string} taskId Task id.
+ * @returns {Task[]} Sub-tasks.
+ */
+export function subtasksOf(context: TaskContext, taskId: string): Task[] {
+  return context.childrenOf(taskId).flatMap((child) => [child, ...subtasksOf(context, child.id)]);
+}
+
+/**
  * Number of sub-tasks of a task, at any depth.
  * @param {TaskContext} context Task context.
  * @param {string} taskId Task id.
  * @returns {number} Count.
  */
 export function countSubtasks(context: TaskContext, taskId: string): number {
-  return sumOf(context.childrenOf(taskId), (child) => 1 + countSubtasks(context, child.id));
+  return subtasksOf(context, taskId).length;
 }

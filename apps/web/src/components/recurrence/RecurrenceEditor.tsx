@@ -3,9 +3,21 @@ import { AddItemButton } from '../actions/AddItemButton';
 import { Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { DateField } from '../inputs/DateField';
 import { PeriodField } from '../inputs/PeriodField';
-import { DEFAULT_RECURRENCE, ruleValues, withRuleValues, type Recurrence, type RecurrenceFrequency, WEEKDAY_SHORT_LABELS, weekdayOptions, monthOptions, positionOptions } from '@ordo/shared';
+import {
+  DEFAULT_RECURRENCE,
+  dayOfMonthOf,
+  ruleValues,
+  withRuleValues,
+  type Recurrence,
+  type RecurrenceFrequency,
+  WEEKDAY_SHORT_LABELS,
+  weekdayOptions,
+  monthOptions,
+  positionOptions,
+} from '@ordo/shared';
 import { PauseIcon } from '@phosphor-icons/react';
 import { DeletedDates } from './DeletedDates';
+import { MonthDayField } from './MonthDayField';
 import { describeRecurrence } from './describe-recurrence';
 import { RemoveButton } from '../actions/RemoveButton';
 import { plural } from '../../lib/text';
@@ -32,6 +44,8 @@ interface RecurrenceEditorProps {
   weekly?: boolean;
   /** « Ne se répète pas » offered. Optional. Default = true. */
   allowNone?: boolean;
+  /** The frequency is shown, not changed (the new rule of a series moved keeps its frequency). Optional. Default = false. */
+  frequencyLocked?: boolean;
   /**
    * Called once a value is chosen (a frequency, a weekday, an end…) or a number is left: a panel saved field by field
    * saves the rule then, not on each key typed. Optional.
@@ -41,12 +55,13 @@ interface RecurrenceEditorProps {
 
 /**
  * Rule of a repetition: frequency, interval, weekdays and even / odd weeks, the day of the month or of the year
- * (chosen, prefilled from the first date), end (date or number), paused periods and deleted dates, with a readable summary.
+ * (chosen, prefilled from the first date; or « Le dernier jour du mois », whatever its length), end (date or number),
+ * paused periods and deleted dates, with a readable summary.
  * Each change is given at once (`onChange`); `onCommit` follows a choice at once, and a number once it is left.
  * @param {RecurrenceEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly = true, allowNone = true, onCommit }: RecurrenceEditorProps) {
+export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly = true, allowNone = true, frequencyLocked = false, onCommit }: RecurrenceEditorProps) {
   const comboboxProps = { withinPortal };
   const rule = value;
   const values = rule ? ruleValues(rule, start) : null;
@@ -87,6 +102,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
           label="Répétition"
           data={allowNone ? FREQUENCIES : FREQUENCIES.filter((frequency) => frequency.value !== 'NONE')}
           value={rule?.frequency ?? 'NONE'}
+          readOnly={frequencyLocked}
           allowDeselect={false}
           comboboxProps={comboboxProps}
           onChange={(frequency) => {
@@ -159,16 +175,16 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
           />
           <Group gap="xs" align="flex-end" wrap="wrap">
             {rule.monthlyMode === 'DAY' && (
-              <NumberInput
+              // Unticked, the last day gives way to the day of the first date.
+              <MonthDayField
                 size="xs"
                 w={100}
-                min={1}
-                max={31}
                 prefix="le "
-                aria-label="Jour du mois"
+                ariaLabel="Jour du mois"
                 value={values.monthDay}
-                onChange={(monthDay) => update({ ...values, monthDay: Math.min(31, Math.max(1, Number(monthDay) || 1)) })}
-                onBlur={onCommit}
+                fallback={dayOfMonthOf(start)}
+                onChange={(monthDay) => update({ ...values, monthDay })}
+                onCommit={onCommit}
               />
             )}
             {rule.monthlyMode === 'WEEKDAY' && (

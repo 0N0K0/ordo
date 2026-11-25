@@ -190,4 +190,6 @@ export function isoWeek(date: string): number {
  * @param {string} date YYYY-MM-DD.
  * @returns {number} Day.
  */
-export const weekdayOfDate = (date: string): number => isoWeekday(parseDay(date));
+export function weekdayOfDate(date: string): number {
+  return isoWeekday(parseDay(date));
+}

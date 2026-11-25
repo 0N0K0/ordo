@@ -40,6 +40,10 @@ const disableIntrospection: Plugin = {
   },
 };
 
+const app = express();
+// Express reads NODE_ENV itself (stack traces in its error pages): the mode of the app decides instead.
+app.set('env', env.NODE_ENV);
+
 /**
  * Serves the built web app (apps/web/dist) and falls back to its index.html for the client-side routes, so one Node
  * app hosts the whole site in production. Hashed assets are cached for good; the page and the service worker never.
@@ -88,10 +92,6 @@ const yoga = createYoga<ServerContext>({
   context: createContext,
   plugins: isProd ? [disableIntrospection, taskAutomationsPlugin] : [taskAutomationsPlugin],
 });
-
-const app = express();
-// Express reads NODE_ENV itself (stack traces in its error pages): the mode of the app decides instead.
-app.set('env', env.NODE_ENV);
 
 // Behind the Vite proxy in dev, and a reverse proxy in production: needed for req.ip.
 app.set('trust proxy', 'loopback');

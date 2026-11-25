@@ -1,9 +1,9 @@
-import { formatOptionalDay, parseOptionalDay, sumOf } from '@ordo/shared';
+import { formatOptionalDay, parseOptionalDay, placedWithoutClash, sumOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
 import { releaseSubjectTime, timeLeftEmpty } from '../tasks/time-entries';
-import { commentsLostOnDelete, deleteGoneComments, type GoneComments } from './comments';
+import { commentsLostOnDelete, deleteGoneComments, type GoneCommentOccurrences, type GoneComments } from './comments';
 import { modelDelegate } from './delegate';
 
 /**
@@ -49,13 +49,14 @@ interface OccurrenceRowDelegate {
  * @param {object} [options] Options. Optional.
  * @param {string} [options.to] Item the rows mapped go to. Optional. Default = the same item.
  * @param {object} [options.client] Client or transaction. Optional. Default = the client of the workspace.
+ * @param {ReadonlySet<string>} [options.only] Rows that may move (by id), the others staying as they are. Optional. Default = every row.
  * @returns {Promise<void>}
  */
 export async function remapOccurrenceRows(
   owner: OccurrenceOwner,
   id: string,
   map: (date: string | null) => string | null | undefined,
-  { to = id, client = prisma }: { to?: string; client?: object } = {},
+  { to = id, client = prisma, only }: { to?: string; client?: object; only?: ReadonlySet<string> } = {},
 ): Promise<void> {
   for (const { model, day = 'occurrenceDate', unique } of OCCURRENCE_ROWS[owner]) {
     const delegate = modelDelegate<OccurrenceRowDelegate>(model, client);
@@ -63,6 +64,7 @@ export async function remapOccurrenceRows(
     const rows = await delegate.findMany({ where: { [owner]: id }, select: { id: true, [day]: true, ...Object.fromEntries(columns.map((column) => [column, true])) } });
     const keyOf = (row: Record<string, unknown>, date: string | null) => [date, ...columns.map((column) => String(row[column]))].join('|');
     const moving = rows.flatMap((row) => {
+      if (only && !only.has(row.id as string)) return [];
       const before = formatOptionalDay(row[day] as Date | null);
       const after = map(before);
       return after === undefined || (after === before && to === id) ? [] : [{ row, before, after }];
@@ -78,12 +80,11 @@ export async function remapOccurrenceRows(
     const forward = moving.some((item) => item.before !== null && item.after !== null && item.after > item.before);
     const ordered = unique ? [...moving].sort((a, b) => ((a.after ?? '') < (b.after ?? '') ? 1 : -1) * (forward ? 1 : -1)) : moving;
     const groups = new Map<string | null, string[]>();
-    for (const { row, before, after } of ordered) {
+    // One row per occurrence: one whose new day is held stays where it is.
+    const placed = unique ? placedWithoutClash(ordered.map(({ row, before, after }) => ({ before: keyOf(row, before), after: keyOf(row, after) })), held) : [];
+    for (const [index, { row, after }] of ordered.entries()) {
       if (unique) {
-        if (held.has(keyOf(row, after))) continue;
-        held.delete(keyOf(row, before));
-        held.add(keyOf(row, after));
-        await delegate.updateMany({ where: { id: { in: [row.id as string] } }, data: { [owner]: to, [day]: parseOptionalDay(after) } });
+        if (placed[index]) await delegate.updateMany({ where: { id: { in: [row.id as string] } }, data: { [owner]: to, [day]: parseOptionalDay(after) } });
         continue;
       }
       groups.set(after, [...(groups.get(after) ?? []), row.id as string]);
@@ -113,7 +114,8 @@ export async function occurrenceRowIds(owner: OccurrenceOwner, ids: readonly str
 
 /**
  * Puts rows of occurrences (`occurrenceRowIds`) back on a day, whichever item of the owner they belong to; those gone
- * since are passed over.
+ * since are passed over. As when rows follow their occurrence (`remapOccurrenceRows`), a row of which an occurrence has
+ * one only (a checklist, a link with an event) stays where it is when that day of its item already has one.
  * @param {OccurrenceOwner} owner Column of the items (`eventId`, `routineId`).
  * @param {readonly string[]} rowIds Rows.
  * @param {string} day Day they go back to.
@@ -121,9 +123,17 @@ export async function occurrenceRowIds(owner: OccurrenceOwner, ids: readonly str
  */
 export async function putOccurrenceRows(owner: OccurrenceOwner, rowIds: readonly string[], day: string): Promise<void> {
   if (!rowIds.length) return;
-  for (const { model, day: column = 'occurrenceDate' } of OCCURRENCE_ROWS[owner]) {
-    await modelDelegate<OccurrenceRowDelegate>(model).updateMany({ where: { id: { in: [...rowIds] } }, data: { [column]: parseOptionalDay(day) } });
+  const only = new Set(rowIds);
+  // The items they belong to (a routine and its sub-routines), each moved as its rows follow an occurrence.
+  const items = new Set<string>();
+  for (const { model } of OCCURRENCE_ROWS[owner]) {
+    const rows = await modelDelegate<OccurrenceRowDelegate>(model).findMany({ where: { id: { in: [...rowIds] } }, select: { [owner]: true } });
+    for (const row of rows) {
+      const item = row[owner];
+      if (typeof item === 'string') items.add(item);
+    }
   }
+  for (const id of items) await remapOccurrenceRows(owner, id, () => day, { only });
 }
 
 /**
@@ -154,6 +164,8 @@ export interface LostOccurrences {
   times: number;
   /** Comments deleted with them. */
   comments: number;
+  /** Occurrences whose comments are deleted (one per day), to count them with others without counting one twice. */
+  occurrences: GoneCommentOccurrences[];
   /** Deletes those comments and times (the other times leave the occurrences), in the transaction given if any. */
   settle: (client?: Prisma.TransactionClient) => Promise<void>;
 }
@@ -169,13 +181,14 @@ export interface LostOccurrences {
  */
 export async function lostOccurrences(owner: OccurrenceOwner, id: string, gone: (day: string) => boolean): Promise<LostOccurrences> {
   const days = (await occurrenceRowDays(owner, id)).filter(gone);
-  if (!days.length) return { times: 0, comments: 0, settle: async () => {} };
+  if (!days.length) return { times: 0, comments: 0, occurrences: [], settle: async () => {} };
   const occurrences = days.map((on) => ({ id, on }));
   const comments: GoneComments = owner === 'eventId' ? { events: occurrences } : { routines: occurrences };
   const events = owner === 'eventId' ? days.map((on) => ({ eventId: id, on })) : [];
   return {
     times: events.length ? (await timeLeftEmpty({ events })).length : 0,
     comments: await commentsLostOnDelete(comments),
+    occurrences,
     settle: async (client = prisma) => {
       if (events.length) await releaseSubjectTime({ events }, client);
       await deleteGoneComments(comments, client);

@@ -130,6 +130,11 @@ const RESTRICTED_SYNTAX = [
     selector: "CallExpression[callee.property.name='find'][callee.object.property.name='inheritance']",
     message: 'Utiliser originOf(item, field) (components/inheritance/inheritance) et InheritedField pour montrer un champ hérité.',
   },
+  // A day of the month chosen (a repetition, a duration, an « Ouverture »): one field, with its last day.
+  {
+    selector: "JSXOpeningElement[name.name='NumberInput']:has(JSXAttribute[name.name='max'] > JSXExpressionContainer > Literal[value=31])",
+    message: 'Utiliser MonthDayField (components/recurrence/MonthDayField) pour un jour du mois : numéro ou « Le dernier jour du mois ».',
+  },
   // A question waited for in a modal: one brick (answerInModal, askChoice), not a promise around openModal by hand.
   {
     selector: "NewExpression[callee.name='Promise'] CallExpression[callee.name='openModal']",
@@ -1287,6 +1292,16 @@ const RESTRICTED_SYNTAX = [
     // A workspace setting shown in a narrower place says so in one line, the same everywhere.
     selector: "FunctionDeclaration:not([id.name='SettingsScopeNote']) :matches(JSXText, Literal)[value=/valent pour tout l’espace/]",
     message: 'Utiliser SettingsScopeNote (components/settings) : une seule phrase pour dire qu’un paramètre vaut pour tout l’espace.',
+  },
+  {
+    // A time of the day of a routine is ticked through one state button (its « Faite le » form, its time changed, its untick with « Annuler »).
+    selector: "JSXOpeningElement[name.name='StateButton']:has(JSXSpreadAttribute > Identifier[name='ROUTINE_DONE_STATES'])",
+    message: 'Utiliser RoutineTickButton (features/routines/components/RoutineTick) : cocher ouvre « Faite le », décocher en un clic avec « Annuler », l’heure se change depuis l’horloge.',
+  },
+  {
+    // A tick of a routine is written by useRoutineTick (its toast and its « Annuler »), not by the mutation by hand.
+    selector: "CallExpression[callee.property.name=/^mutate(Async)?$/]:matches([callee.object.name='setDone'], [callee.object.property.name='setDone'])",
+    message: 'Utiliser useRoutineTick (features/routines/hooks/use-routine-tick) : tick / untick, avec le toast et « Annuler ».',
   },
 ];
 

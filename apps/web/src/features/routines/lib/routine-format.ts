@@ -21,6 +21,8 @@ import type { Routine } from '../api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { inProjectTree } from '../../tasks/lib/task-links';
 import * as fmt from '../../../lib/format';
+import { parisParts } from '../../../lib/dates';
+import type { RoutineDoneAt } from '@ordo/shared';
 
 /** Rule of a new routine: every day (`DAILY_RECURRENCE`, also that of a task turned into a routine). */
 export const DAILY: Recurrence = DAILY_RECURRENCE;
@@ -41,6 +43,23 @@ export function ruleOf(routine: Routine): Recurrence | null {
  * @returns {boolean} Done.
  */
 export const isDone = (routine: Routine) => routine.done;
+
+/**
+ * When a time of the day of a routine was done, in words: « faite le 5 nov. à 08:12 ».
+ * @param {string} doneAt Instant (ISO).
+ * @returns {string} Text.
+ */
+export const doneAtText = (doneAt: string): string => `faite le ${fmt.dayShort(doneAt)} à ${fmt.time(doneAt)}`;
+
+/**
+ * Day and time a time of the day was done at, in Paris: what « Faite le » shows to change it.
+ * @param {string} doneAt Instant (ISO).
+ * @returns {RoutineDoneAt} Day and time.
+ */
+export const doneAtParts = (doneAt: string): RoutineDoneAt => {
+  const { date, time } = parisParts(doneAt);
+  return { day: date, time };
+};
 
 /**
  * State of a routine today: « à faire » only while its slots allow it now (« à venir » otherwise).
@@ -148,11 +167,14 @@ export function describeRoutineCase(item: RoutineCase, start: string): string {
 }
 
 /**
- * Exceptions of a routine: occurrences moved to another day.
- * @param {Routine} routine Routine.
+ * Exceptions of a routine: occurrences moved to another day; those it goes by (`effective`: of the routine it follows
+ * when it inherits them, none when emptied on purpose), as its occurrences are computed.
+ * @param {Pick<Routine, 'moves' | 'effective'>} routine Routine.
  * @returns {RoutineMove[]} Moves, by day of the rule.
  */
-export const movesOf = (routine: Routine): RoutineMove[] => (routine.moves as RoutineMove[] | null) ?? [];
+export const movesOf = (routine: Pick<Routine, 'moves' | 'effective'>): RoutineMove[] =>
+  // eslint-disable-next-line no-restricted-syntax -- the exceptions it goes by: not a field of the row (its own ones are given back by an undo).
+  ((routine.effective.moves ?? routine.moves) as RoutineMove[] | null) ?? [];
 
 /**
  * Occurrence of a routine open in its panel when none is chosen (its comments are those of it): the

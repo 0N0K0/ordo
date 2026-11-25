@@ -73,10 +73,13 @@ const LinkDocument = graphql(`
       syncLabels
       repositoryName
       pushExisting
+      writeIterations
+      iterationWriteRefusal
       enabled
       lastSyncAt
       lastSyncError
       lastSyncSummary
+      iterationWriteError
       linkedTaskCount
     }
   }
@@ -96,6 +99,11 @@ const SaveLink = graphql(`
     saveGithubLink(projectId: $projectId, input: $input)
   }
 `);
+const ResumeIterations = graphql(`
+  mutation ResumeGithubIterations($projectId: ID!) {
+    resumeGithubIterations(projectId: $projectId)
+  }
+`);
 const Unlink = graphql(`
   mutation UnlinkGithubProject($projectId: ID!) {
     unlinkGithubProject(projectId: $projectId)
@@ -109,8 +117,12 @@ const Sync = graphql(`
       pulled
       pushed
       unlinked
+      failed
       sprints
+      sprintsPushed
       sprintsSkipped
+      sprintsBlocked
+      sprintsUnpaired
       renumbered
       comments
     }
@@ -178,6 +190,7 @@ export function useGithubMutations() {
     removeToken: useGithubMutation(async () => (await execute(RemoveToken)).removeGithubToken),
     saveLink: useGithubMutation(async (variables: { projectId: string; input: LinkValues }) => (await execute(SaveLink, variables)).saveGithubLink),
     unlink: useGithubMutation(async (projectId: string) => (await execute(Unlink, { projectId })).unlinkGithubProject),
+    resumeIterations: useGithubMutation(async (projectId: string) => (await execute(ResumeIterations, { projectId })).resumeGithubIterations),
     sync: useGithubMutation(async (projectId: string) => (await execute(Sync, { projectId })).syncGithubProject),
     setLogin: useGithubMutation(async (variables: { id: string; login: string | null }) => (await execute(SetLogin, variables)).setContributorGithubLogin),
   };

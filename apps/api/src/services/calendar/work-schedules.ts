@@ -595,8 +595,9 @@ type StoredSubscription = { sourceWorkspaceId: string; typeId: string | null; un
  * Subscriptions of this workspace to the kinds of schedules of other workspaces, with their look and « Indisponible ».
  * @returns {Promise<StoredSubscription[]>} Subscriptions.
  */
-const scheduleSubscriptions = (): Promise<StoredSubscription[]> =>
-  prisma.workScheduleSubscription.findMany({ select: { sourceWorkspaceId: true, typeId: true, unavailable: true, ...lookSelect } });
+function scheduleSubscriptions(): Promise<StoredSubscription[]> {
+  return prisma.workScheduleSubscription.findMany({ select: { sourceWorkspaceId: true, typeId: true, unavailable: true, ...lookSelect } });
+}
 
 /**
  * Whether a schedule of another workspace is « Indisponible » here: the subscription of this workspace to its kind

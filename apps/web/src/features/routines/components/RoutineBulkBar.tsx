@@ -6,6 +6,8 @@ import type { SelectionAction } from '../../../components/data-table/selection/S
 import { duplicateRowsAction, archiveRowsAction, outermost, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { openModal } from '../../../components/panels/open-modal';
 import { DeleteRoutinesDialog } from './DeleteRoutinesDialog';
+import { BulkTickForm } from './RoutineTick';
+import { openFormPanel } from '../../../components/panels/panels';
 import { routineInputOf, routinesKey, useRoutineMutations, useRoutinesData, type Routine } from '../api';
 import type { RoutinesDataQuery } from '../../../graphql/graphql';
 import { useQueryClient } from '@tanstack/react-query';
@@ -54,18 +56,42 @@ export function useRoutineRowsActions() {
     const byId = mapById(data?.routines ?? []);
 
     const single = routines.length === 1 ? routines[0] : null;
+    /**
+     * Ticks (« Faites le » a day, else now) or unticks the occurrence each shows, told with its undo (on the same ones).
+     * @param {string | null} doneOn Day they were done (ticking); null: now.
+     * @returns {SelectionAction} Action.
+     */
+    // The occurrence each shows (unticked: those done; ticked: those still to do), the same for its « Annuler ».
+    const shown = active.filter((routine) => routine.currentDate !== null && (allDone || !isDone(routine)));
+    const shownIds = shown.map((routine) => routine.id);
+    const shownDates = shown.map((routine) => routine.currentDate as string);
+    const doneSwitch = (doneOn: string | null) =>
+      switchRowsAction({
+        on: allDone,
+        labels: ['Cocher', 'Décocher'],
+        icons: [<CheckCircleIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
+        loading: bulkDone.isPending,
+        apply: (done) => bulkDone.mutateAsync({ ids: shownIds, done, doneOn: done ? doneOn : null, dates: shownDates }),
+        done: (done) => `${routinesLabel(shownIds.length)} ${plural(shownIds.length, done ? 'cochée' : 'décochée')}.`,
+      });
     return {
-      done: {
-        ...switchRowsAction({
-          on: allDone,
-          labels: ['Cocher', 'Décocher'],
-          icons: [<CheckCircleIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
-          loading: bulkDone.isPending,
-          apply: (done) => bulkDone.mutateAsync({ ids: activeIds, done }),
-          done: (done) => `${activeLabel} ${plural(activeIds.length, done ? 'cochée' : 'décochée')}.`,
-        }),
-        disabled: activeIds.length === 0,
-      },
+      done: allDone
+        ? { ...doneSwitch(null), disabled: shownIds.length === 0 }
+        : {
+            ...doneSwitch(null),
+            // Ticked « Faites le » a day, asked first.
+            onClick: () =>
+              openFormPanel(`Cocher ${routinesLabel(shownIds.length)}`, (close) => (
+                <BulkTickForm
+                  onCancel={close}
+                  onSubmit={(doneOn) => {
+                    close();
+                    doneSwitch(doneOn).onClick();
+                  }}
+                />
+              )),
+            disabled: shownIds.length === 0,
+          },
       postpone: {
         label: 'Reporter au lendemain',
         icon: <ArrowBendUpRightIcon aria-hidden />,

@@ -1,4 +1,4 @@
-import { timeQueryKey } from '../../../lib/query-keys';
+import { runningTimersQueryKey, timeQueryKey } from '../../../lib/query-keys';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
@@ -140,7 +140,7 @@ const DeleteTimeEntryDocument = graphql(`
   }
 `);
 
-export { timeQueryKey };
+export { runningTimersQueryKey, timeQueryKey };
 
 /**
  * Time entries of a project and its sub-projects, latest first.
@@ -176,7 +176,7 @@ export function useTimeEntriesSince(since: string | null, enabled = true) {
  */
 export function useRunningTimers() {
   return useQuery({
-    queryKey: [...timeQueryKey, 'running'],
+    queryKey: runningTimersQueryKey,
     queryFn: async () => (await execute(RunningTimeEntriesDocument)).runningTimeEntries,
     refetchOnWindowFocus: true,
     // A tab left open in the background sees the timers started or stopped elsewhere, and those stopped after 24 hours.

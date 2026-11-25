@@ -3,19 +3,37 @@ import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { Checkbox, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import type { TasksDialogProps } from '../lib/open-tasks-dialog';
+import type { Task } from '../api';
 
 import { CascadeChoice, DestructiveActions, DestructiveRisks } from '../../../components/dialogs/DestructiveActions';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { formCallbacks } from '../../../lib/form';
-import { plural, countWith } from '../../../lib/text';
+import { plural, countWith, countOf } from '../../../lib/text';
 import { useBulkTaskMutations } from '../api';
-import { countSubtasks, inProjectTree } from '../lib/task-links';
+import { countSubtasks, inProjectTree, subtasksOf } from '../lib/task-links';
 import { ProjectSelect } from './task-ui';
 import { taskName, taskNumbered } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { useTransferTasks } from '../hooks/use-transfer-tasks';
 import { tasksLabel } from '../lib/bulk-label';
 import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
+
+/**
+ * What deleting tasks does on GitHub: the issues of those linked to a board closed as not planned (those of closed
+ * tasks as they were closed), their drafts deleted; nothing without any.
+ * @param {readonly Task[]} gone Tasks deleted (sub-tasks deleted with them included).
+ * @returns {string | null} Sentence, or null.
+ */
+function githubDeleteRisk(gone: readonly Task[]): string | null {
+  const linked = gone.filter((task) => task.githubLinked);
+  const issues = linked.filter((task) => task.githubNumber !== null).length;
+  const drafts = linked.length - issues;
+  const parts = [
+    ...(issues ? [`${countOf(issues, 'issue GitHub', 'issues GitHub')} ${plural(issues, 'sera fermée', 'seront fermées')} comme « non prévue » si ${plural(issues, 'elle est encore ouverte et son tableau synchronisé', 'elles sont encore ouvertes et leur tableau synchronisé')} (${plural(issues, 'elle reste dans son dépôt', 'elles restent dans leur dépôt')} ; celle d’une tâche fermée l’est comme elle)`] : []),
+    ...(drafts ? [`${countOf(drafts, 'brouillon GitHub', 'brouillons GitHub')} ${plural(drafts, 'sera supprimé', 'seront supprimés')}`] : []),
+  ];
+  return parts.length ? ` ${parts.join(' et ')}.` : null;
+}
 
 /**
  * Deletion of tasks, confirmed; with sub-tasks not deleted with them, asks whether to keep them (moved up a level) or
@@ -31,6 +49,7 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
   const [mode, setMode] = useState<'detach' | 'delete'>('detach');
   const single = tasks.length === 1 ? tasks[0] : null;
   const selected = new Set(tasks.map((task) => task.id));
+  const gone = mode === 'delete' ? [...new Map([...tasks, ...tasks.flatMap((task) => subtasksOf(context, task.id))].map((task) => [task.id, task])).values()] : tasks;
   const subtasks = single ? countSubtasks(context, single.id) : tasks.filter((task) => context.childrenOf(task.id).some((child) => !selected.has(child.id))).length;
 
   /**
@@ -54,6 +73,7 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
         ) : (
           `${tasksLabel(tasks.length)} et leurs commentaires seront supprimés définitivement. Pour les retirer des listes sans perdre leurs données, archivez-les plutôt.`
         )}
+        {githubDeleteRisk(gone)}
         <LostOnDeleteRisk query={{ taskIds: [...selected], withSubtree: mode === 'delete' }} />
       </DestructiveRisks>
       {subtasks > 0 && (

@@ -19,6 +19,9 @@ export default defineConfig([
           message: 'Une fonction partagée refuse par UserError (message pour l’utilisateur, donné au client par l’API), jamais par une Error simple.',
         },
       ],
+      // A variable used before its declaration throws at run time (temporal dead zone), which tsc does not see in a
+      // callback: declared first. Function declarations are hoisted, types erased.
+      '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: true, variables: true, typedefs: false, ignoreTypeReferences: true, enums: true }],
     },
   },
   // Tests build instants and dates by hand on purpose (around a change of time, in another zone).

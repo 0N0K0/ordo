@@ -67,6 +67,9 @@ export const reportHeadingSchema = z.object({
   subtitle: z.string().max(PRINTED_LABEL_MAX).default(''),
 });
 
+/** Text colors of every PDF export: the text, and what is muted (captions, footers). */
+export const PDF_TEXT = { text: '#1d232b', muted: '#66707c' };
+
 /**
  * Writes the title of an export (16 pt) and its subtitle (10 pt, muted) at the top of its content.
  * @param {PdfDoc} doc Document.
@@ -90,8 +93,6 @@ export const REPORT_MARGIN = 36;
 const HEADER_HEIGHT = 30;
 /** Band of the footer (export date, issuer, page number). */
 const FOOTER_HEIGHT = 18;
-/** Text colors of every PDF export: the text, and what is muted (captions, footers). */
-export const PDF_TEXT = { text: '#1d232b', muted: '#66707c' };
 /** Borders and fills of every PDF table: lines, cell backgrounds, group headings. */
 export const PDF_TABLE = { border: '#dfe3e8', fill: '#f2f4f6', group: '#e7ebf0' };
 const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border };

@@ -1,7 +1,7 @@
-import { dayPart, REPOSITORY_FORMAT_ERROR, type TaskCloseReason } from '@ordo/shared';
+import { dayPart, issueAddress, REPOSITORY_FORMAT_ERROR, type BoardIteration, type IterationReading, type SentIteration, type TaskCloseReason } from '@ordo/shared';
 import { env } from '../../env';
 import { clientError, fieldError } from '../../graphql/errors';
-import { githubRequest, githubRestPost } from './client';
+import { githubRequest, githubRestPost, isGoneOnGithub } from './client';
 
 export interface BoardField {
   id: string;
@@ -10,7 +10,13 @@ export interface BoardField {
   dataType: string;
   options: { id: string; name: string }[];
   /** Iterations (current and coming, then completed). */
-  iterations: { id: string; title: string; startDate: string; duration: number }[];
+  iterations: BoardIteration[];
+  /** Ids of the completed iterations (iteration fields only). */
+  completedIterationIds: string[];
+  /** Duration of the iteration field, in days (iteration fields only, otherwise null). */
+  iterationDuration: number | null;
+  /** Last change of the field (its iterations included). */
+  updatedAt: string | null;
   /**
    * Issue field of the organization the board shows, or null: its values belong to the issues (none on a draft),
    * its options are the issue field's, and it is written with updateIssueFieldValue.
@@ -53,6 +59,8 @@ export interface RemoteItem {
   body: string;
   /** Issues only (a draft has no state). */
   closed: boolean | null;
+  /** Archived on the board (issues and drafts). */
+  archived: boolean;
   /** How a closed issue was closed: done (COMPLETED), or not planned (NOT_PLANNED, a duplicate included); null while open. */
   closeReason: TaskCloseReason | null;
   assignees: string[];
@@ -68,25 +76,24 @@ export interface RemoteItem {
   comments: RemoteComment[];
   /** Latest change of the item or its content. */
   updatedAt: string;
+  /** Latest change of its content (the issue or draft) alone. */
+  contentUpdatedAt: string;
   fields: Record<string, FieldValue>;
 }
 
 const ISSUE_FIELD_SELECTION =
   'issueField { __typename ... on IssueFieldSingleSelect { id options { id name } } ... on IssueFieldDate { id } ... on IssueFieldNumber { id } ... on IssueFieldText { id } }';
 
+const ITERATION_CONFIGURATION = 'configuration { duration iterations { id title startDate duration } completedIterations { id title startDate duration } }';
+
 const FIELD_SELECTION = `
   fields(first: 50) {
     nodes {
       __typename
-      ... on ProjectV2FieldCommon { id name dataType isIssueField }
+      ... on ProjectV2FieldCommon { id name dataType isIssueField updatedAt }
       ... on ProjectV2Field { ${ISSUE_FIELD_SELECTION} }
       ... on ProjectV2SingleSelectField { options { id name } ${ISSUE_FIELD_SELECTION} }
-      ... on ProjectV2IterationField {
-        configuration {
-          iterations { id title startDate duration }
-          completedIterations { id title startDate duration }
-        }
-      }
+      ... on ProjectV2IterationField { ${ITERATION_CONFIGURATION} }
     }
   }
   owner { __typename ... on Organization { issueTypes(first: 50) { nodes { id name isEnabled } } } }`;
@@ -96,9 +103,26 @@ interface RawField {
   name?: string;
   dataType?: string;
   options?: { id: string; name: string }[];
-  configuration?: { iterations: BoardField['iterations']; completedIterations: BoardField['iterations'] };
+  configuration?: RawIterationConfiguration;
+  updatedAt?: string;
   isIssueField?: boolean;
   issueField?: { id?: string; options?: { id: string; name: string }[] } | null;
+}
+
+interface RawIterationConfiguration {
+  duration: number;
+  iterations: BoardIteration[];
+  completedIterations: BoardIteration[];
+}
+
+/**
+ * Iterations of a raw iteration configuration: current and coming, then completed (the ids of these apart).
+ * @param {RawIterationConfiguration | undefined} configuration Raw configuration.
+ * @returns {IterationReading} Iterations.
+ */
+function iterationsOf(configuration: RawIterationConfiguration | undefined): IterationReading {
+  const completed = configuration?.completedIterations ?? [];
+  return { iterations: [...(configuration?.iterations ?? []), ...completed], completedIds: completed.map((iteration) => iteration.id) };
 }
 
 interface RawBoard {
@@ -127,7 +151,10 @@ function toBoard(raw: RawBoard): Board {
         dataType: field.dataType ?? '',
         // The options of an issue field are the issue field's (its values are written with their ids).
         options: (field.isIssueField ? field.issueField?.options : undefined) ?? field.options ?? [],
-        iterations: [...(field.configuration?.iterations ?? []), ...(field.configuration?.completedIterations ?? [])],
+        iterations: iterationsOf(field.configuration).iterations,
+        completedIterationIds: iterationsOf(field.configuration).completedIds,
+        iterationDuration: field.configuration?.duration ?? null,
+        updatedAt: field.updatedAt ?? null,
         issueFieldId: (field.isIssueField && field.issueField?.id) || null,
       })),
     issueTypes: (raw.owner?.issueTypes?.nodes ?? []).filter((type) => type.isEnabled).map(({ id, name }) => ({ id, name })),
@@ -205,7 +232,7 @@ interface RawItem {
 }
 
 /**
- * Issues and draft issues of a board (pull requests and archived items left out). The values of the issue fields
+ * Issues and draft issues of a board, archived ones included (pull requests left out). The values of the issue fields
  * the board shows are read on the issues and kept under the board field.
  * @param {string} token Token.
  * @param {Board} board Board, with its fields.
@@ -268,7 +295,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
     if (!data.node) throw clientError('BAD_USER_INPUT', 'Tableau GitHub introuvable, ou le jeton n’y a plus accès.');
     for (const item of data.node.items.nodes) {
       const content = item.content;
-      if (item.isArchived || !content || (content.__typename !== 'Issue' && content.__typename !== 'DraftIssue')) continue;
+      if (!content || (content.__typename !== 'Issue' && content.__typename !== 'DraftIssue')) continue;
       const fields: Record<string, FieldValue> = {};
       for (const value of item.fieldValues.nodes) {
         const fieldId = value.field?.id;
@@ -297,6 +324,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
         title: content.title ?? '',
         body: content.body ?? '',
         closed: content.__typename === 'Issue' ? content.state === 'CLOSED' : null,
+        archived: item.isArchived,
         closeReason: content.__typename === 'Issue' && content.state === 'CLOSED' ? (content.stateReason === 'NOT_PLANNED' || content.stateReason === 'DUPLICATE' ? 'NOT_PLANNED' : 'COMPLETED') : null,
         assignees: (content.assignees?.nodes ?? []).map((user) => user.login),
         labels: content.labels?.nodes ?? [],
@@ -308,6 +336,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
         relatesTo: (content.relatesTo?.nodes ?? []).map((issue) => issue.id),
         comments: (content.comments?.nodes ?? []).map((comment) => ({ ...comment, author: comment.author?.login ?? null })),
         updatedAt: updates[updates.length - 1],
+        contentUpdatedAt: content.updatedAt ?? item.updatedAt,
         fields,
       });
     }
@@ -493,14 +522,53 @@ export async function createItem(
       { repositoryId: input.repositoryId, title: input.title, body: input.body, assigneeIds },
     )
   ).createIssue.issue;
-  const item = (
-    await githubRequest<{ addProjectV2ItemById: { item: { id: string } } }>(
-      token,
-      'mutation OrdoAddItem($projectId: ID!, $contentId: ID!) { addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) { item { id } } }',
-      { projectId: input.projectId, contentId: issue.id },
-    )
-  ).addProjectV2ItemById.item;
-  return { itemId: item.id, contentId: issue.id, type: 'ISSUE', number: issue.number, url: issue.url };
+  return { itemId: await addIssueToBoard(token, input.projectId, issue.id), contentId: issue.id, type: 'ISSUE', number: issue.number, url: issue.url };
+}
+
+/**
+ * Adds an existing issue to a board (an issue already there keeps its item).
+ * @param {string} token Token.
+ * @param {string} projectId Board node id.
+ * @param {string} issueId Issue node id.
+ * @returns {Promise<string>} Item node id.
+ */
+export async function addIssueToBoard(token: string, projectId: string, issueId: string): Promise<string> {
+  const data = await githubRequest<{ addProjectV2ItemById: { item: { id: string } } }>(
+    token,
+    'mutation OrdoAddItem($projectId: ID!, $contentId: ID!) { addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) { item { id } } }',
+    { projectId, contentId: issueId },
+  );
+  return data.addProjectV2ItemById.item.id;
+}
+
+/**
+ * Whether an issue is surely gone: its repository can be read with the token, and has no issue of that number
+ * (deleted, or moved to another repository). A repository out of reach (deleted, made private, or the token narrowed)
+ * cannot tell: not gone. Errors other than « not found » are thrown.
+ * @param {string} token Token.
+ * @param {string | null} url Address of the issue.
+ * @returns {Promise<boolean>} Gone for sure.
+ */
+export async function issueGone(token: string, url: string | null): Promise<boolean> {
+  const address = issueAddress(url);
+  if (!address) return false;
+  const variables = { owner: address.owner, name: address.name };
+  try {
+    await githubRequest(token, 'query OrdoRepositoryReachable($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }', variables);
+  } catch (error) {
+    if (isGoneOnGithub(error)) return false;
+    throw error;
+  }
+  try {
+    await githubRequest(token, 'query OrdoIssueThere($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { issue(number: $number) { id } } }', {
+      ...variables,
+      number: address.number,
+    });
+    return false;
+  } catch (error) {
+    if (isGoneOnGithub(error)) return true;
+    throw error;
+  }
 }
 
 /**
@@ -515,6 +583,19 @@ export async function deleteItem(token: string, projectId: string, itemId: strin
     projectId,
     itemId,
   });
+}
+
+/**
+ * Archives an item of a board, or takes it out of the archive (the issue or draft is not changed).
+ * @param {string} token Token.
+ * @param {string} projectId Board node id.
+ * @param {string} itemId Item node id.
+ * @param {boolean} archived Target state.
+ * @returns {Promise<void>}
+ */
+export async function setItemArchived(token: string, projectId: string, itemId: string, archived: boolean): Promise<void> {
+  const mutation = archived ? 'archiveProjectV2Item' : 'unarchiveProjectV2Item';
+  await githubRequest(token, `mutation OrdoArchiveItem($projectId: ID!, $itemId: ID!) { ${mutation}(input: { projectId: $projectId, itemId: $itemId }) { item { id } } }`, { projectId, itemId });
 }
 
 /**
@@ -727,4 +808,44 @@ export async function setRelatesTo(token: string, issueId: string, relatedIssueI
     issueId,
     relatedIssueId,
   });
+}
+
+/** An iteration field as read alone: its iterations, its duration and its last change. */
+export interface IterationField extends IterationReading {
+  duration: number;
+  updatedAt: string | null;
+}
+
+/**
+ * Reads an iteration field again, alone (just before writing it, and after, to check the write).
+ * @param {string} token Token.
+ * @param {string} fieldId Iteration field.
+ * @returns {Promise<IterationField>} Iterations, duration and last change.
+ */
+export async function iterationField(token: string, fieldId: string): Promise<IterationField> {
+  const data = await githubRequest<{ node: { updatedAt?: string; configuration?: RawIterationConfiguration } | null }>(
+    token,
+    `query OrdoIterationField($id: ID!) { node(id: $id) { ... on ProjectV2IterationField { updatedAt ${ITERATION_CONFIGURATION} } } }`,
+    { id: fieldId },
+  );
+  if (!data.node?.configuration) throw clientError('BAD_USER_INPUT', 'Champ d’itération du tableau GitHub introuvable.');
+  return { ...iterationsOf(data.node.configuration), duration: data.node.configuration.duration, updatedAt: data.node.updatedAt ?? null };
+}
+
+/**
+ * Writes the whole configuration of an iteration field (the API replaces it: every iteration is sent, the existing ones
+ * with their id so that they keep their identity and the items their value).
+ * @param {string} token Token.
+ * @param {string} fieldId Iteration field.
+ * @param {{ startDate: string, duration: number, iterations: SentIteration[] }} configuration First day, duration of the field, iterations.
+ * @returns {Promise<void>}
+ */
+export async function setIterations(token: string, fieldId: string, configuration: { startDate: string; duration: number; iterations: SentIteration[] }): Promise<void> {
+  await githubRequest(
+    token,
+    `mutation OrdoSetIterations($fieldId: ID!, $configuration: ProjectV2IterationFieldConfigurationInput!) {
+      updateProjectV2Field(input: { fieldId: $fieldId, iterationConfiguration: $configuration }) { projectV2Field { ... on ProjectV2IterationField { id } } }
+    }`,
+    { fieldId, configuration },
+  );
 }

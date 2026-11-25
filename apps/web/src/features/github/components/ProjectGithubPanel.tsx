@@ -91,6 +91,7 @@ function guessSettings(board: GithubBoard, context: TaskContext): LinkValues {
     syncLabels: true,
     repositoryName: null,
     pushExisting: false,
+    writeIterations: false,
     enabled: true,
   };
 }
@@ -237,11 +238,19 @@ function LinkForm({ projectId, board, initial, saved, context, onDone }: LinkFor
         <Switch label="Étiquettes (labels des issues)" checked={values.syncLabels} onChange={(event) => change({ syncLabels: event.currentTarget.checked })} />
       </Group>
       {values.iterationFieldId && (
-        <Text size="xs" c="dimmed">
-          Itérations et sprints se correspondent par leur nom : une itération sans sprint devient un sprint du projet ; un sprint sans itération est à créer dans les réglages du tableau GitHub (l’API
-          ne sait pas donner ses dates à une itération). Ordo fait référence pour les noms et dates. Une tâche placée dans une itération sur GitHub est ajoutée à son sprint, sans perdre ses autres
-          sprints.
-        </Text>
+        <Stack gap="xs">
+          <Switch
+            label="Écrire les itérations sur GitHub"
+            description="Les sprints créés, renommés ou redatés dans Ordo sont écrits dans le champ d’itération : toute la liste est réécrite puis relue, et l’écriture s’arrête au moindre écart. GitHub peut recalculer les dates des itérations : essayez d’abord sur un tableau de test."
+            checked={values.writeIterations}
+            onChange={(event) => change({ writeIterations: event.currentTarget.checked })}
+          />
+          <Text size="xs" c="dimmed">
+            {values.writeIterations
+              ? 'Sprints et itérations sont le reflet l’un de l’autre : une itération sans sprint prend le sprint de même nom, ou devient un sprint du projet ; un sprint sans itération devient une itération ; un nom ou des dates changés d’un côté passent de l’autre (changés des deux côtés, Ordo l’emporte). Un sprint qui chevauche un autre sprint n’est pas envoyé. Un sprint supprimé dans Ordo laisse son itération sur GitHub, ses items perdent seulement cette valeur. Une tâche placée dans une itération sur GitHub est ajoutée à son sprint, sans perdre ses autres sprints.'
+              : 'Itérations et sprints se correspondent par leur nom : une itération sans sprint prend le sprint de même nom, ou devient un sprint du projet ; les sprints ne sont pas écrits sur GitHub (un sprint sans itération est à créer dans les réglages du tableau) et Ordo fait référence pour leurs noms et dates. Une tâche placée dans une itération sur GitHub est ajoutée à son sprint, sans perdre ses autres sprints.'}
+          </Text>
+        </Stack>
       )}
       {(values.statusFieldId || values.priorityFieldId || values.typeSource) && (
         <SimpleGrid type="container" cols={{ base: 1, '760px': 3 }} spacing="lg">
@@ -309,6 +318,7 @@ const linkValues = (link: GithubLink): LinkValues => ({
   syncLabels: link.syncLabels,
   repositoryName: link.repositoryName ?? null,
   pushExisting: link.pushExisting,
+  writeIterations: link.writeIterations,
   enabled: link.enabled,
 });
 
@@ -334,7 +344,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const { data: login, isPending: loginPending } = useGithubLogin();
   const { data: link, isPending } = useGithubLink(projectId);
-  const { sync, unlink } = useGithubMutations();
+  const { sync, unlink, resumeIterations } = useGithubMutations();
   const [url, setUrl] = useState('');
   const [requested, setRequested] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -360,7 +370,8 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
   const confirmUnlink = () => {
     confirmDestructive({
       title: 'Délier le tableau GitHub',
-      risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.',
+      risks:
+        'La synchronisation s’arrête et Ordo oublie quel item, quelle itération et quel commentaire du tableau correspond à chaque tâche, sprint et commentaire. Rien n’est supprimé : les tâches, sprints et commentaires restent dans Ordo, les items restent sur le tableau (les issues dans leur dépôt), sans plus changer ensemble. Lier ce tableau à nouveau ne les rapparie pas : chaque item non archivé du tableau deviendrait une nouvelle tâche à côté de l’ancienne et, avec « Envoyer aussi les tâches qui existaient avant la liaison », chaque tâche active un nouvel item à côté de l’ancien (une nouvelle issue dans le dépôt, ou un brouillon), sauf une tâche retirée du tableau, qui n’est plus envoyée ; les commentaires d’autres auteurs venus de GitHub gardent leur auteur et restent dans Ordo seulement (les autres sont publiés sur la nouvelle issue) ; seuls les sprints retrouvent leur itération par leur nom (les autres deviendraient de nouvelles itérations).',
       confirmLabel: 'Délier',
       confirmIcon: <LinkBreakIcon aria-hidden />,
       run: () => unlink.mutateAsync(projectId),
@@ -455,6 +466,22 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
             </Group>
           </Group>
           {link.lastSyncError && <ErrorAlert title="Dernière synchronisation en échec">{link.lastSyncError}</ErrorAlert>}
+          {link.iterationWriteRefusal && !link.iterationWriteError && <NoticeAlert kind="warning" title="Itérations refusées par GitHub">{link.iterationWriteRefusal}</NoticeAlert>}
+          {link.iterationWriteError && (
+            <ErrorAlert title="Itérations non synchronisées">
+              <Stack gap="xs" align="flex-start">
+                <Text size="sm">{link.iterationWriteError}</Text>
+                <ActionButton
+                  priority="secondary"
+                  icon={<ArrowsClockwiseIcon aria-hidden />}
+                  loading={resumeIterations.isPending}
+                  onClick={() => resumeIterations.mutate(projectId, toastCallbacks('Itérations reprises : elles sont synchronisées de nouveau à la prochaine synchronisation.'))}
+                >
+                  Reprendre
+                </ActionButton>
+              </Stack>
+            </ErrorAlert>
+          )}
           {summary && !link.lastSyncError && (
             <Text size="xs" c="dimmed">
               Dernier échange : {syncSummaryText(summary)}.
@@ -468,8 +495,8 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
         </Paper>
       )}
       <Text size="xs" c="dimmed">
-        Un champ modifié d’un seul côté passe de l’autre ; modifié des deux côtés, la modification la plus récente gagne. Une tâche supprimée dans Ordo est retirée du tableau (une issue reste dans son
-        dépôt) ; un item retiré du tableau laisse sa tâche dans Ordo, déliée.
+        Un champ modifié d’un seul côté passe de l’autre ; modifié des deux côtés, la modification la plus récente gagne. Une tâche supprimée ou transformée en routine dans Ordo est retirée du tableau
+        (un brouillon est supprimé, une issue reste dans son dépôt, fermée comme « non prévue » (comme la tâche si elle est fermée) ; une tâche transférée hors du tableau garde son issue ouverte) ; archiver ou restaurer une tâche archive ou sort de l’archive son item, et inversement ; un item retiré du tableau laisse sa tâche dans Ordo, déliée et archivée, avec un commentaire.
       </Text>
     </Stack>
   );

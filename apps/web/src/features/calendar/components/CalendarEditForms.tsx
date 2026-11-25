@@ -1,10 +1,16 @@
 import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, XIcon } from '@phosphor-icons/react';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { Fieldset, Group, Stack, Text, Switch } from '@mantine/core';
+import { withMovedRuleChoice } from '../../../components/recurrence/ask-moved-rule';
 import { changedScheduleSlot, routineSlotSchema, scheduleSlotTimeSchema, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
 import { useEffect, useRef } from 'react';
 import { openRoutineForm } from '../../routines/lib/open-routine-form';
 import { OccurrenceOpening } from '../../routines/components/OccurrenceOpening';
+import { RoutineTickButton } from '../../routines/components/RoutineTick';
+import { doneAtText, windowText } from '../../routines/lib/routine-format';
+import { ROUTINE_DONE_STATES } from '../../routines/lib/routine-columns';
+import { useToday } from '../../../lib/use-now';
+import * as fmt from '../../../lib/format';
 import type { RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useAppForm, useFieldSave } from '../../../lib/form';
@@ -52,7 +58,8 @@ export function SlotEditForm({
         ? null
         : async (_changes, values) => {
             const change = { date: values.date, start: values.start, end: values.end, allDay: values.allDay };
-            const next = changedScheduleSlot(saved.current.schedule, saved.current.slot, change, scope);
+            // A case on the last day of the month moved to another day: its new rule is asked first.
+            const next = await withMovedRuleChoice((movedRule) => changedScheduleSlot(saved.current.schedule, saved.current.slot, change, scope, movedRule));
             const current = saved.current.schedule;
             await update.mutateAsync({ id: current.id, input: ruleScheduleInput(current, next) });
             saved.current = { schedule: { ...current, ...next }, slot: change };
@@ -142,7 +149,8 @@ interface OccurrenceValues extends Record<string, unknown> {
  * Panel of an occurrence of a routine from the calendar: its day and the times of one of its times of the day, each
  * saved as soon as it changes for the occurrences chosen when the panel opened (`scope`: this one, an
  * exception; it and the following ones; all; null: none chosen, read only); or cancelling it; or opening the routine.
- * The occurrence of the cache is followed (moved or changed elsewhere). A cancelled occurrence is only given back
+ * Its time of the day is ticked there too (`RoutineTickButton`: « Faite le », its time changed, unticked), from its
+ * first day. The occurrence of the cache is followed (moved or changed elsewhere). A cancelled occurrence is only given back
  * (« Rétablir »); one of an archived routine is read only, also when the routine is archived elsewhere while the panel
  * is open.
  * @param {{ occurrence: RoutineOccurrenceRef, movedFrom: string | null, scope: CalendarEventScope | null, onDelete: () => void, onRestore: () => void, onClose: () => void }} props Component props.
@@ -180,6 +188,8 @@ export function RoutineOccurrenceForm({
   const { data: routines } = useRoutinesData();
   const cachedRoutine = routines?.routines.find((routine) => routine.id === occurrence.routine.id);
   const archived = occurrence.archived || Boolean(cachedRoutine?.archived);
+  // Ticked from its first day (« Ouverture »).
+  const opened = (current?.startDate ?? occurrence.dueDate) <= useToday();
   const base = useAppForm<OccurrenceValues>({
     initialValues: { date: occurrence.dueDate, fromTime: occurrence.slot.fromTime, dueTime: occurrence.slot.dueTime, optional: false },
     schema: routineSlotSchema,
@@ -268,6 +278,21 @@ export function RoutineOccurrenceForm({
           </OccurrenceOpening>
         </Stack>
       </Fieldset>
+      {/* Ticked (or its time changed, or unticked) here too, whatever the scope chosen: not a change of the occurrence. */}
+      <Group gap="xs" wrap="nowrap">
+        <RoutineTickButton
+          tick={{ id: occurrence.routine.id, date: current?.date ?? occurrence.date, slot: occurrence.slot.index }}
+          label={(current?.slots.length ?? 1) > 1 ? `${occurrence.routine.label}, ${windowText(occurrence.slot) || `fois ${occurrence.slot.index + 1}`}` : occurrence.routine.label}
+          hint={opened ? ROUTINE_DONE_STATES.toggleLabels.yes : 'Pas encore ouverte'}
+          done={Boolean(currentSlot?.done)}
+          doneAt={currentSlot?.doneAt ?? null}
+          optional={currentSlot?.optional}
+          // Its tick is read from the occurrence of the cache: none there (being reloaded), nothing to tick from.
+          disabled={!opened || !currentSlot}
+          target={{ dueDate: current?.dueDate ?? occurrence.dueDate, fromTime: currentSlot?.fromTime ?? occurrence.slot.fromTime, dueTime: currentSlot?.dueTime ?? occurrence.slot.dueTime }}
+        />
+        <Text size="sm">{currentSlot?.doneAt ? fmt.capitalize(doneAtText(currentSlot.doneAt)) : opened ? 'À faire' : 'Pas encore ouverte'}</Text>
+      </Group>
       {reading ? (
         <Group justify="space-between" gap="sm">
           {openRoutine}

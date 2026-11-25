@@ -1,3 +1,5 @@
+import { goneOnGithub, stopsGithubSync, type GithubFailure } from '@ordo/shared';
+import type { GraphQLError } from 'graphql';
 import { prisma } from '../../db';
 import { env } from '../../env';
 import { clientError, errorMessage } from '../../graphql/errors';
@@ -7,6 +9,42 @@ import { currentWorkspaceId } from '../../workspace-context';
 interface GraphqlResponse<T> {
   data?: T;
   errors?: { message: string; type?: string }[];
+}
+
+/** Failures of the errors of calls to GitHub, for what follows them (`stopsSync`, `isGoneOnGithub`). */
+const failures = new WeakMap<GraphQLError, GithubFailure>();
+
+/**
+ * Error of a failed call to GitHub, with its failure kept.
+ * @param {string} message Message.
+ * @param {GithubFailure} failure Failure.
+ * @returns {GraphQLError} BAD_USER_INPUT error.
+ */
+function githubError(message: string, failure: GithubFailure): GraphQLError {
+  const error = clientError('BAD_USER_INPUT', message);
+  failures.set(error, failure);
+  return error;
+}
+
+/**
+ * Whether an error is a failed call to GitHub that stops the whole synchronization (GitHub out of reach, token
+ * refused, rate limit, missing scopes), not only the task being synchronized.
+ * @param {unknown} error Error caught.
+ * @returns {boolean} The synchronization stops.
+ */
+export function stopsSync(error: unknown): boolean {
+  const failure = failures.get(error as GraphQLError);
+  return failure !== undefined && stopsGithubSync(failure);
+}
+
+/**
+ * Whether an error is a failed call to GitHub saying that what it names no longer exists (`NOT_FOUND`).
+ * @param {unknown} error Error caught.
+ * @returns {boolean} Gone on GitHub.
+ */
+export function isGoneOnGithub(error: unknown): boolean {
+  const failure = failures.get(error as GraphQLError);
+  return failure !== undefined && goneOnGithub(failure);
 }
 
 /**
@@ -27,10 +65,14 @@ async function githubFetch(token: string, url: string, payload: unknown, headers
       signal: AbortSignal.timeout(30_000),
     });
   } catch (error) {
-    throw clientError('BAD_USER_INPUT', `GitHub injoignable (${errorMessage(error)}).`);
+    throw githubError(`GitHub injoignable (${errorMessage(error)}).`, { network: true });
   }
-  if (response.status === 401) throw clientError('BAD_USER_INPUT', 'Jeton GitHub refusé : vérifiez-le dans Paramètres › GitHub.');
-  if (response.status === 403 || response.status === 429) throw clientError('BAD_USER_INPUT', 'Limite de requêtes GitHub atteinte : réessayez plus tard.');
+  if (response.status === 401) throw githubError('Jeton GitHub refusé : vérifiez-le dans Paramètres › GitHub.', { status: 401 });
+  if (response.status === 403 || response.status === 429) {
+    // A 403 is the rate limit when GitHub says so (no request left, or a delay to wait); otherwise a right missing on one resource.
+    const rateLimited = response.headers.get('x-ratelimit-remaining') === '0' || response.headers.has('retry-after');
+    throw githubError('Limite de requêtes GitHub atteinte : réessayez plus tard.', { status: response.status, rateLimited });
+  }
   return response;
 }
 
@@ -46,9 +88,10 @@ export async function githubRequest<T>(token: string, query: string, variables: 
   const body = (await response.json().catch(() => ({}))) as GraphqlResponse<T>;
   if (body.errors?.length) {
     const forbidden = body.errors.some((error) => error.type === 'FORBIDDEN' || error.type === 'INSUFFICIENT_SCOPES');
-    throw clientError('BAD_USER_INPUT', forbidden ? `Le jeton GitHub n’a pas les droits nécessaires (projets, issues) : ${body.errors[0].message}` : `GitHub : ${body.errors[0].message}`);
+    const message = forbidden ? `Le jeton GitHub n’a pas les droits nécessaires (projets, issues) : ${body.errors[0].message}` : `GitHub : ${body.errors[0].message}`;
+    throw githubError(message, { status: response.status, graphqlTypes: body.errors.flatMap((error) => (error.type ? [error.type] : [])) });
   }
-  if (!response.ok || !body.data) throw clientError('BAD_USER_INPUT', `GitHub a répondu ${response.status}.`);
+  if (!response.ok || !body.data) throw githubError(`GitHub a répondu ${response.status}.`, { status: response.status });
   return body.data;
 }
 

@@ -27,7 +27,7 @@ Internes : `githubKey = ['github']`, documents GraphQL, `useGithubMutation` (inv
 
 ### `components/ProjectGithubPanel.tsx`
 
-`ProjectGithubPanel({ projectId })` : section « GitHub » des paramètres d’un projet (`ProjectPage`) : invitation à se connecter, ou formulaire d’adresse + `LinkForm` prérempli, ou carte de la liaison (« Synchroniser » avec `toastCallbacks` et `syncSummaryText`, « Réglages » → `EditLink`, « Délier » avec `confirmDestructive`), erreur de la dernière synchronisation.
+`ProjectGithubPanel({ projectId })` : section « GitHub » des paramètres d’un projet (`ProjectPage`) : invitation à se connecter, ou formulaire d’adresse + `LinkForm` prérempli, ou carte de la liaison (« Synchroniser » avec `toastCallbacks` et `syncSummaryText`, « Réglages » → `EditLink`, « Délier » avec `confirmDestructive`), erreur de la dernière synchronisation, arrêt de la synchronisation des itérations (`iterationWriteError`, « Reprendre » : `resumeIterations`), refus de la dernière écriture (`iterationWriteRefusal`, `NoticeAlert` d’avertissement). `LinkForm` : interrupteur « Écrire les itérations sur GitHub » (`writeIterations`) et son rappel.
 
 Internes :
 
@@ -46,5 +46,5 @@ Internes :
 
 ### `lib/sync-summary.ts`
 
-- `SyncSummary` : compteurs d’une synchronisation (`pulledNew`, `pushedNew`, `pulled`, `pushed`, `unlinked`, `sprints`, `sprintsSkipped`, `renumbered`, `comments`), tous facultatifs.
+- `SyncSummary` : compteurs d’une synchronisation (`pulledNew`, `pushedNew`, `pulled`, `pushed`, `unlinked`, `sprints`, `sprintsPushed`, `sprintsSkipped`, `sprintsBlocked`, `sprintsUnpaired`, `renumbered`, `comments`, `failed`), tous facultatifs.
 - `syncSummaryText(summary)` : la phrase du résumé, la même dans le toast et sous la liaison (`countOf`, `plural`). Utilisé par `ProjectGithubPanel`.

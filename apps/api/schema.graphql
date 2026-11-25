@@ -1488,6 +1488,9 @@ input GithubLinkInput {
   """
   typeSource: String
   url: String!
+
+  """Sprints written as iterations on GitHub. Default = false."""
+  writeIterations: Boolean
 }
 
 type GithubProjectLink {
@@ -1497,6 +1500,16 @@ type GithubProjectLink {
   endFieldId: String
   id: ID!
   iterationFieldId: String
+
+  """
+  Why the iterations are no longer synchronized (GitHub did not keep a write as sent), until resumed (resumeGithubIterations).
+  """
+  iterationWriteError: String
+
+  """
+  Why GitHub refused the last iteration write (tried again at each sync).
+  """
+  iterationWriteRefusal: String
   label: String!
   lastSyncAt: DateTime
   lastSyncError: String
@@ -1519,10 +1532,20 @@ type GithubProjectLink {
   """FIELD, ISSUE_TYPE, or null."""
   typeSource: String
   url: String!
+
+  """
+  Sprints written as iterations on GitHub (off: iterations only read and paired).
+  """
+  writeIterations: Boolean!
 }
 
 type GithubSyncSummary {
   comments: Int!
+
+  """
+  Tasks whose sync failed: left as they were, tried again at the next sync.
+  """
+  failed: Int!
   pulled: Int!
   pulledNew: Int!
   pushed: Int!
@@ -1531,9 +1554,22 @@ type GithubSyncSummary {
   sprints: Int!
 
   """
-  Ordo sprints without iteration: to be created on GitHub, where they are paired by name.
+  Sprints not sent: the iteration writes of the link are stopped (iterationWriteError) or refused by GitHub (iterationWriteRefusal).
+  """
+  sprintsBlocked: Int!
+
+  """Iterations created or updated on GitHub from the sprints."""
+  sprintsPushed: Int!
+
+  """
+  Sprints not sent: they share a day with another sprint of the project tree, or would with another iteration.
   """
   sprintsSkipped: Int!
+
+  """
+  Sprints without iteration while the iterations are not written (writeIterations off).
+  """
+  sprintsUnpaired: Int!
   unlinked: Int!
 }
 
@@ -2044,7 +2080,19 @@ type Mutation {
   """
   Ticks or unticks the current occurrence of several routines; returns how many changed.
   """
-  bulkSetRoutinesDone(done: Boolean!, ids: [ID!]!): Int!
+  bulkSetRoutinesDone(
+    """
+    Occurrence of each routine, in the order of ids (the day that identifies it: the one shown, the one an undo puts back); by default the current one of each.
+    """
+    dates: [Date!]
+    done: Boolean!
+
+    """
+    Day they were done (ticking): each time of the day at its scheduled time that day (« jusqu’à », else « dès »; without any, now today, noon another day; never later than now). Now by default.
+    """
+    doneOn: Date
+    ids: [ID!]!
+  ): Int!
 
   """
   Archiving cascades to sub-tasks; restoring restores them and the archived parents.
@@ -2100,6 +2148,11 @@ type Mutation {
     dueTime: String
     fromTime: String
     id: ID!
+
+    """
+    New rule (recurrence JSON) of a rule on the last day of the month moved to another day, chosen by the user: omitted there, refuses with RULE_CHOICE_REQUIRED and extension movedRule { rule, start } (the rule proposed, the day it is shown from); ignored otherwise.
+    """
+    movedRule: JSON
 
     """
     Onto a day that has its own occurrence: KEEP_BOTH or MERGE; omitted there: CONFIRMATION_REQUIRED, extension lost.merge (the day), nothing changes.
@@ -2624,12 +2677,17 @@ type Mutation {
   resetPassword(password: String!, token: String!): Boolean!
 
   """
+  Resumes the iteration sync of a link stopped after a write GitHub did not keep as sent.
+  """
+  resumeGithubIterations(projectId: ID!): Boolean!
+
+  """
   Records that an alarm or a reminder starts ringing (first ring or repetition); a stopped one is returned as it is.
   """
   ringAlarm(input: AlarmRingInput!): AlarmRing!
 
   """
-  Records that the end of a timer rang (its ring goes on as an AlarmRing): it no longer shows.
+  Records that the end of a timer rang (its ring goes on as an AlarmRing): it no longer shows. False when not recorded: not running, not ended yet for the server (a few seconds of clock gap allowed), already rung or cancelled.
   """
   ringCountdown(id: ID!): Boolean!
   saveBirthdayLook(input: BirthdayLookInput!): BirthdayLook!
@@ -2931,6 +2989,11 @@ type Mutation {
     confirmLoss: Boolean
     id: ID!
     input: CalendarEventInput!
+
+    """
+    New rule (recurrence JSON) of a rule on the last day of the month moved to another day, chosen by the user: omitted there, refuses with RULE_CHOICE_REQUIRED and extension movedRule { rule, start } (the rule proposed, the day it is shown from); ignored otherwise.
+    """
+    movedRule: JSON
     occurrenceDate: Date
     scope: CalendarEventScope!
   ): ID!
@@ -3522,9 +3585,16 @@ type Query {
   routineChecks(from: Date!, to: Date!): [RoutineCheck!]!
 
   """
-  Occurrences of the routines in a period (both days included, 100 days at most), with their times of the day ticked: the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged).
+  Occurrences of the routines in a period (both days included, 100 days at most), with their times of the day ticked (and when): the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged). With doneInPeriod, also those outside the period with a time of the day done (ticked at) within it, in Paris.
   """
-  routineOccurrences(from: Date!, to: Date!): [RoutineOccurrence!]!
+  routineOccurrences(
+    """
+    Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the history of a day).
+    """
+    doneInPeriod: Boolean
+    from: Date!
+    to: Date!
+  ): [RoutineOccurrence!]!
 
   """Every routine, archived ones included, in manual order."""
   routines: [Routine!]!
@@ -4373,6 +4443,9 @@ enum RoutineSameDayChoice {
 """Time of the day of an occurrence of a routine."""
 type RoutineSlot {
   done: Boolean!
+
+  """When it was done (its tick); null: not ticked."""
+  doneAt: DateTime
   dueTime: String
   fromTime: String
   index: Int!
