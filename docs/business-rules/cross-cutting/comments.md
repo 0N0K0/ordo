@@ -98,7 +98,7 @@ Source : `placeLegacyComments` (`services/core/comments.ts`), `placeLegacyRoutin
 Source : `services/github/sync.ts` (`syncComments`), `forgetGithubComment` (`services/github/links.ts`).
 
 - Pour une tâche liée à une issue GitHub, les commentaires sont synchronisés dans les deux sens : un nouveau commentaire de chaque côté est copié de l’autre ; un commentaire modifié est fusionné à trois voies contre son dernier corps synchronisé (`githubBody`), la modification la plus récente gagnant un conflit ; un commentaire supprimé d’un côté est supprimé de l’autre.
-- `githubAuthor` : auteur sur GitHub quand ce n’est pas le compte connecté (ses propres commentaires n’affichent pas d’auteur).
+- `githubAuthor` : auteur sur GitHub, enregistré pour tout commentaire synchronisé, le compte connecté compris (un commentaire publié depuis Ordo : le compte qui l’a publié) ; l’API ne le rend que quand ce n’est pas le compte connecté (ses propres commentaires et ceux écrits dans Ordo n’affichent pas d’auteur). Voir [GitHub](github.md#commentaires-issues).
 - Supprimer un commentaire de tâche synchronisé supprime aussi le commentaire de l’issue (en tâche de fond ; un échec est seulement journalisé : « Commentaire GitHub non supprimé. »).
 - Détails dans [GitHub](github.md).
 

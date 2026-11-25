@@ -11,6 +11,11 @@ const API_SYNTAX_RULES = [
     selector: 'ImportExpression',
     message: 'Pas d’import dynamique : déplacer ce qui est partagé dans un module importé des deux côtés (ex. services/routines/routine-occurrences).',
   },
+  // A value loaded once per GraphQL request.
+  {
+    selector: "NewExpression[callee.name='WeakMap'][typeArguments.params.0.typeName.name='Context']",
+    message: 'Utiliser perRequest(load) (graphql/batch) : une valeur chargée une fois par requête, ou batchedBy(load) pour les lignes d’une requête.',
+  },
   // Trees of tasks and routines.
   {
     selector: "CallExpression[callee.name='cascadeArchive'][arguments.0.value=/^(task|routine)$/]",

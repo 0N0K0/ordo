@@ -67,6 +67,19 @@ Section « GitHub » du panneau des paramètres d’un projet. Composant `Projec
 
 « N tâches créées depuis GitHub, N items créés sur GitHub, N tâches et N items mis à jour, N tâches retirées du tableau (archivées), N sprints créés ou mis à jour, [N itérations créées ou mises à jour sur GitHub, ]N tâches renumérotées, [N sprints non envoyés (ils chevauchent un autre sprint), ][N sprints non envoyés (itérations non écrites, voir la section GitHub du projet), ][N sprints sans itération (à créer dans GitHub), ]N commentaires échangés[, N tâches en échec (réessayées à la prochaine synchronisation)] ».
 
+## Tâches d’une arborescence liée
+
+Dans une arborescence de projets liée à un tableau, chaque tâche montre où elle en est avec GitHub (rien hors d’une arborescence liée) :
+
+- tableau des tâches : icône GitHub devant le libellé d’une tâche sur GitHub (« Synchronisée avec l’issue GitHub #n » ou « Synchronisée avec un brouillon GitHub ») ; colonne « GitHub » (masquée par défaut, filtrable) : pastille « Sur GitHub » (vert), « Pas sur GitHub » (gris) ou « Retirée du tableau GitHub » (orange) ;
+- en-tête du panneau d’une tâche : badge « GitHub #12 » (lien vers l’issue) ou « Brouillon GitHub » ; sinon « Pas sur GitHub » (infobulle « Pas sur GitHub : créée avant la liaison (sans « Envoyer aussi les tâches qui existaient avant la liaison »), ou en attente de la prochaine synchronisation. ») ou « Retirée du tableau GitHub » (infobulle « Retirée du tableau GitHub : la synchronisation ne la renvoie plus. »), suivie, quand la tâche peut être envoyée, de « « Envoyer sur GitHub », dans le menu de la tâche, l’y envoie maintenant. », pour une tâche archivée retirée du tableau de « Restaurée, « Envoyer sur GitHub » (menu de la tâche) l’y renvoie. ».
+
+Une synchronisation en échec pour une seule tâche n’est pas gardée sur la tâche : elle est comptée dans le résumé de la liaison (« N tâches en échec ») et la tâche est réessayée à la synchronisation suivante.
+
+### Envoyer sur GitHub
+
+Menu d’une tâche (ligne du tableau, panneau) et barre de sélection : « Envoyer sur GitHub » (icône GitHub), proposé pour une tâche active pas sur GitHub (jamais envoyée, créée avant la liaison, ou retirée du tableau) d’une arborescence liée dont la synchronisation automatique est activée, GitHub connecté ; la barre de sélection ne l’affiche que si l’une des tâches cochées peut l’être, et n’envoie que celles-là. L’envoi lance une synchronisation de la liaison (après celle en cours) : toast « Tâche envoyée sur GitHub. » (« 3 tâches envoyées sur GitHub. »), la sélection vidée ; une tâche non envoyée est dite dans un toast d’erreur (son message ; plusieurs : « 2 tâches non envoyées : <premier message> »). Règles : [Envoyer sur GitHub](../../business-rules/cross-cutting/github.md#envoyer-sur-github).
+
 ## Tâche de fond
 
 Toutes les liaisons en synchronisation automatique sont synchronisées 30 secondes après le démarrage du serveur puis toutes les 10 minutes, dans chaque espace connecté. Une erreur est gardée sur la liaison et affichée dans le panneau.

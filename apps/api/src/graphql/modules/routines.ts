@@ -6,6 +6,7 @@ import * as occurrences from '../../services/routines/routine-occurrences';
 import * as routines from '../../services/routines/routines';
 import { convertRoutineToTask, convertTaskToRoutine } from '../../services/routines/conversion';
 import type { Context } from '../context';
+import { perRequest } from '../batch';
 import { BY_POSITION } from '../../services/core/ordering';
 import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
@@ -45,18 +46,8 @@ const TIMING = {
   slotCondition: true,
 } as const;
 
-const slotContexts = new WeakMap<Context, Promise<occurrences.ScheduleContext>>();
-
-/**
- * Slots of the workspace for the slot rules of the routines, loaded once per request.
- * @param {Context} ctx GraphQL context.
- * @returns {Promise<occurrences.ScheduleContext>} Schedules.
- */
-function slotsOf(ctx: Context): Promise<occurrences.ScheduleContext> {
-  let slots = slotContexts.get(ctx);
-  if (!slots) slotContexts.set(ctx, (slots = occurrences.loadScheduleContext()));
-  return slots;
-}
+/** Slots of the workspace for the slot rules of the routines, loaded once per request. */
+const slotsOf = perRequest(occurrences.loadScheduleContext);
 
 /** Time of the day of an occurrence, with its state. */
 interface SlotState {

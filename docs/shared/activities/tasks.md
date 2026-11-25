@@ -143,6 +143,10 @@ Internes : `AlarmSchedule`, `ringsOnDay` (l'alarme sonne ce jour-là, jour de Pa
 | `goneIssueCloseReason(task)` | Fermeture de l'issue d'une tâche supprimée ou transformée en routine : aucune quand elle est déjà fermée sur GitHub (`closed` de son instantané : une issue terminée le reste), comme la tâche quand celle-ci est fermée (`closeReason`, `COMPLETED` par défaut), sinon « non prévue » (`NOT_PLANNED`). Testé dans `test/tasks/github.test.ts`. |
 | `goneOnGithub(failure)` | L'échec dit que ce qu'il nomme n'existe plus (erreur GraphQL `NOT_FOUND`) : une issue revenue qui n'existe plus est envoyée comme une tâche nouvelle. Testé dans `test/tasks/github.test.ts`. |
 | `stopsGithubSync(failure)` | L'échec arrête toute la synchronisation (chaque appel suivant échouerait de même) plutôt que la seule tâche synchronisée : GitHub injoignable, jeton refusé (401), limite de requêtes (429, 403 `rateLimited`, `RATE_LIMITED`), jeton sans les droits nécessaires (`INSUFFICIENT_SCOPES`) ; un `FORBIDDEN` ou un autre 403 ne concerne qu'une tâche. Utilisé par `services/github/client.ts` ; testé dans `test/tasks/github.test.ts`. Voir [GitHub](../../business-rules/cross-cutting/github.md#erreurs-dappel-github). |
+| `GITHUB_NOT_CONNECTED` | « Connectez d’abord GitHub (Paramètres › GitHub). » : toute action GitHub sans connexion. |
+| `GITHUB_TASK_STATES`, `GithubTaskState`, `GITHUB_TASK_STATE_LABELS` | État GitHub d'une tâche d'une arborescence liée : `SYNCED` « Sur GitHub », `NOT_SENT` « Pas sur GitHub », `REMOVED` « Retirée du tableau GitHub ». |
+| `githubTaskState(task, linked)` | État GitHub d'une tâche (`githubItemId`, `githubContentType`) : `null` hors d'une arborescence liée ; liée à un item : `SYNCED` ; marquée `REMOVED_FROM_BOARD` : `REMOVED` ; sinon `NOT_SENT`. |
+| `GITHUB_SEND_REFUSALS`, `githubSendRefusal(task, link, connected)` | Pourquoi « Envoyer sur GitHub » est refusé pour une tâche (`null` : proposé) : hors d'une arborescence liée, déjà sur GitHub, archivée, liaison en synchronisation manuelle, GitHub non connecté. Testé dans `test/tasks/github.test.ts`. |
 
 ## `github-merge.ts` — fusion d'une tâche et de son item GitHub
 
@@ -166,7 +170,9 @@ Fonctions pures de la synchronisation GitHub (`apps/api/src/services/github/sync
 | `remoteChangeDate(item, readded)` | Date du dernier changement d'un item comparée à la tâche : celle de l'item ou de son contenu ; pour une issue tout juste remise au tableau, celle de l'issue seule (`contentUpdatedAt`). |
 | `issueAddress(url)` | Compte, dépôt et numéro d'une issue d'après son adresse (`…/<compte>/<dépôt>/issues/<n>`), sinon `null`. |
 | `REMOVED_FROM_BOARD` | Type de contenu GitHub d'une tâche retirée du tableau (son item l'a quitté, ou son issue est liée à une autre tâche) : elle n'est plus envoyée, même restaurée, même après une déliaison et une nouvelle liaison. |
-| `commentToPublish(comment)` | Un commentaire Ordo est à publier sur son issue : jamais envoyé et écrit dans Ordo (pas celui d'un autre auteur venu de GitHub, `githubAuthor`, dont l'issue a été oubliée ou dont le projet a été délié ou lié à un autre tableau). |
+| `commentToPublish(comment, login)` | Un commentaire Ordo est à publier sur son issue : jamais envoyé, et écrit dans Ordo (sans auteur, `githubAuthor`) ou du compte connecté (`login`, `sameGithubLogin`) ; pas celui d'un autre compte (l'ancien compte connecté compris, après un changement de jeton) dont l'issue a été oubliée ou dont le projet a été délié ou lié à un autre tableau : il reste dans Ordo seulement. |
+| `sameGithubLogin(a, b)` | Deux logins GitHub sont le même compte (sans tenir compte de la casse ; jamais pour un login absent). |
+| `shownGithubAuthor(author, login)` | Auteur GitHub montré sur un commentaire (« @x sur GitHub ») : le sien quand c'est un autre compte que le compte connecté, sinon `null`. |
 | `alreadyLinkedComment(day)` | Commentaire ajouté à une tâche revenue dont l'issue est déjà liée à une autre tâche : « Déliée de GitHub le JJ/MM/AAAA : son issue est déjà liée à une autre tâche. » (`printedDay`). |
 | `itemParentValue(parentIssueId, linked)` | Parent synchronisé d'une issue : son issue parente si elle est liée à une tâche, archivée ou non, sinon `gh:<id>` (hors du tableau). |
 

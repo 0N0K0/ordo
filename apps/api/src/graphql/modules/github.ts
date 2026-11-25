@@ -1,11 +1,58 @@
 import { currentGithubConnection } from '../../services/github/client';
 import { done } from '../errors';
 import { prisma } from '../../db';
-import { syncGithubProject } from '../../services/github/sync';
+import { sendTasksToGithub, syncGithubProject } from '../../services/github/sync';
+import { linksByProject } from '../../services/github/links';
+import { perRequest } from '../batch';
+import { GITHUB_TASK_STATES, githubSendRefusal, githubTaskState, shownGithubAuthor } from '@ordo/shared';
 import * as admin from '../../services/github/links-admin';
 import type { Board, BoardField } from '../../services/github/board';
 import { builder } from '../builder';
 import { subtreeIds } from '../../services/core/trees';
+
+/** Login of the account connected (null: not connected), loaded once per request. */
+const loginOf = perRequest(async () => (await currentGithubConnection())?.login ?? null);
+
+/** GitHub links of the projects, loaded once per request. */
+const linksOf = perRequest(linksByProject);
+
+const GithubTaskStateEnum = builder.enumType('GithubTaskState', {
+  values: GITHUB_TASK_STATES,
+  description: 'Where a task of a project tree linked to a GitHub board stands: on the board, not on GitHub, or removed from the board (not sent again by the sync).',
+});
+
+builder.prismaObjectFields('Task', (t) => ({
+  githubState: t.field({
+    type: GithubTaskStateEnum,
+    nullable: true,
+    description: 'GitHub state of the task; null outside a project tree linked to a board.',
+    resolve: async (task, _args, ctx) => githubTaskState(task, Boolean(task.projectId && (await linksOf(ctx)).has(task.projectId))),
+  }),
+  githubSendable: t.boolean({
+    description: '« Envoyer sur GitHub » is offered (sendTasksToGithub): active, not on GitHub, in a linked tree whose sync is enabled, GitHub connected.',
+    resolve: async (task, _args, ctx) => {
+      const [links, login] = await Promise.all([linksOf(ctx), loginOf(ctx)]);
+      const link = task.projectId ? (links.get(task.projectId) ?? null) : null;
+      return githubSendRefusal({ archived: task.archivedAt !== null, state: githubTaskState(task, Boolean(link)) }, link, login !== null) === null;
+    },
+  }),
+}));
+
+builder.prismaObjectFields('TaskComment', (t) => ({
+  githubAuthor: t.string({
+    nullable: true,
+    description: 'Author on GitHub, when someone else than the connected account.',
+    resolve: async (comment, _args, ctx) => shownGithubAuthor(comment.githubAuthor, await loginOf(ctx)),
+  }),
+}));
+
+const SendResultRef = builder.objectRef<Awaited<ReturnType<typeof sendTasksToGithub>>>('GithubSendResult').implement({
+  description: 'What « Envoyer sur GitHub » did.',
+  fields: (t) => ({
+    sent: t.exposeInt('sent', { description: 'Tasks now on GitHub.' }),
+    errors: t.exposeStringList('errors', { description: 'Why each other task is not.' }),
+  }),
+});
 
 const BoardOptionRef = builder.objectRef<{ id: string; name: string }>('GithubBoardOption').implement({
   fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }),
@@ -206,6 +253,12 @@ builder.mutationFields((t) => ({
     type: SummaryRef,
     args: { projectId: t.arg.id({ required: true }) },
     resolve: (_root, { projectId }) => syncGithubProject(projectId),
+  }),
+  sendTasksToGithub: t.field({
+    type: SendResultRef,
+    description: '« Envoyer sur GitHub »: sends tasks not on GitHub (never sent, created before the link, removed from the board) by a sync of their link.',
+    args: { ids: t.arg.idList({ required: true }) },
+    resolve: (_root, { ids }) => sendTasksToGithub(ids.map(String)),
   }),
   setContributorGithubLogin: t.boolean({
     args: { id: t.arg.id({ required: true }), login: t.arg.string() },

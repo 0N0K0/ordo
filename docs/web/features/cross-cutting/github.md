@@ -1,6 +1,6 @@
 # Code web : GitHub
 
-Tous les fichiers de `apps/web/src/features/github/` : API GitHub, paramètres de connexion, panneau GitHub d’un projet et texte du résumé de synchronisation. Fonctionnalités : [GitHub](../../../features/cross-cutting/github.md) ; règles : [Règles GitHub](../../../business-rules/cross-cutting/github.md).
+Tous les fichiers de `apps/web/src/features/github/` : API GitHub, paramètres de connexion, panneau GitHub d’un projet, badge et états GitHub d’une tâche et texte du résumé de synchronisation. Fonctionnalités : [GitHub](../../../features/cross-cutting/github.md) ; règles : [Règles GitHub](../../../business-rules/cross-cutting/github.md).
 
 ## `api/`
 
@@ -16,6 +16,7 @@ Tous les fichiers de `apps/web/src/features/github/` : API GitHub, paramètres d
 | `useGithubBoard(url)`      | Tableau d’une adresse, chargé quand `url` est donné, sans nouvel essai.                                                | `ProjectGithubPanel` (`EditLink` et liaison) |
 | `useGithubLink(projectId)` | Liaison d’un projet.                                                                                                   | `ProjectGithubPanel`                         |
 | `useGithubMutations()`     | `{ setToken, removeToken, saveLink, unlink, sync, setLogin }`.                                                         | `GithubSettings`, `ProjectGithubPanel`       |
+| `useSendTasksToGithub()`   | « Envoyer sur GitHub » (`sendTasksToGithub(ids)`) : rend `{ sent, errors }`.                                           | `useTaskRowsActions` (`BulkBar`)             |
 
 Internes : `githubKey = ['github']`, documents GraphQL, `useGithubMutation` (invalide `githubKey` et `tasksQueryKey` : une synchronisation change les tâches).
 
@@ -42,7 +43,17 @@ Internes :
 | `linkValues(link)`                                                 | Réglages d’une liaison tels que le formulaire les tient.                                                                                                                                                                                                                                                                                                 |
 | `EditLink({ link, context })`                                      | Recharge le tableau d’une liaison puis ouvre `LinkForm` avec ses réglages (`initial` et `saved` : `linkValues`).                                                                                                                                                                                                                                         |
 
+### `components/TaskGithubBadge.tsx`
+
+`TaskGithubBadge({ task })` : badge GitHub de l’en-tête du panneau d’une tâche (`TaskDetail`), rien hors d’une arborescence liée (`githubState` nul) : « GitHub #n » (lien vers l’issue, `EXTERNAL_LINK`) ou « Brouillon GitHub » ; sinon le nom de l’état (`GITHUB_TASK_STATE_LABELS`) dans sa couleur, avec son infobulle (`githubStateHint`).
+
 ## `lib/`
+
+### `lib/task-github-state.ts`
+
+- `GITHUB_STATE_COLORS` : couleur de chaque état GitHub d’une tâche (sur GitHub vert, pas sur GitHub gris, retirée du tableau orange).
+- `GITHUB_STATE_HINTS`, `GITHUB_SEND_HINT`, `GITHUB_RESTORE_HINT`, `githubStateHint(task)` : infobulle d’une tâche pas sur GitHub : ce que veut dire son état (« Pas sur GitHub », « Retirée du tableau GitHub »), suivi de la phrase qui dit ce qui l’envoie : maintenant quand elle peut l’être (`githubSendable`), une fois restaurée pour une tâche archivée retirée du tableau.
+- `GITHUB_STATE_BADGES` : les états comme ceux d’une colonne d’état (`ColumnState`) : la colonne « GitHub » des tâches (`taskColumns`).
 
 ### `lib/sync-summary.ts`
 

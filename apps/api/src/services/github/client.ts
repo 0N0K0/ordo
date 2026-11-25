@@ -1,4 +1,4 @@
-import { goneOnGithub, stopsGithubSync, type GithubFailure } from '@ordo/shared';
+import { GITHUB_NOT_CONNECTED, goneOnGithub, stopsGithubSync, type GithubFailure } from '@ordo/shared';
 import type { GraphQLError } from 'graphql';
 import { prisma } from '../../db';
 import { env } from '../../env';
@@ -122,7 +122,7 @@ export function currentGithubConnection() {
  */
 export async function githubToken(): Promise<string> {
   const connection = await currentGithubConnection();
-  if (!connection) throw clientError('BAD_USER_INPUT', 'Connectez d’abord GitHub (Paramètres › GitHub).');
+  if (!connection) throw clientError('BAD_USER_INPUT', GITHUB_NOT_CONNECTED);
   try {
     return decryptSecret(connection.token);
   } catch {

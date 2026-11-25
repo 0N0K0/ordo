@@ -8,9 +8,10 @@ import { useAppForm, useFieldSave } from '../../../lib/form';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { Badge, Group, Select, Text } from '@mantine/core';
+import { Group, Select, Text } from '@mantine/core';
 import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type TaskInheritableField } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
+import { TaskGithubBadge } from '../../github/components/TaskGithubBadge';
 import { useState } from 'react';
 
 import { parisToday } from '../../../lib/dates';
@@ -50,7 +51,6 @@ import { inheritedDateHint } from '../lib/inherited-dates';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { isTaskOverdue } from '../lib/task-overdue';
 import { InheritedField } from '../../../components/inheritance/InheritedField';
@@ -250,11 +250,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         }
         mentions={
           <>
-            {task.githubLinked && (
-              <Badge variant="light" color="dark" leftSection={<GithubLogoIcon aria-hidden />} {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, ...EXTERNAL_LINK } : {})}>
-                {task.githubNumber ? `GitHub #${task.githubNumber}` : 'Brouillon GitHub'}
-              </Badge>
-            )}
+            <TaskGithubBadge task={task} />
             {task.archived && <ArchivedBadge feminine />}
           </>
         }

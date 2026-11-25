@@ -161,6 +161,8 @@ graphql(`
     githubLinked
     githubUrl
     githubNumber
+    githubState
+    githubSendable
     slotCondition
     hours
     location

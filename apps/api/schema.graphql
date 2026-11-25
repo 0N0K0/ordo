@@ -1539,6 +1539,15 @@ type GithubProjectLink {
   writeIterations: Boolean!
 }
 
+"""What « Envoyer sur GitHub » did."""
+type GithubSendResult {
+  """Why each other task is not."""
+  errors: [String!]!
+
+  """Tasks now on GitHub."""
+  sent: Int!
+}
+
 type GithubSyncSummary {
   comments: Int!
 
@@ -1571,6 +1580,15 @@ type GithubSyncSummary {
   """
   sprintsUnpaired: Int!
   unlinked: Int!
+}
+
+"""
+Where a task of a project tree linked to a GitHub board stands: on the board, not on GitHub, or removed from the board (not sent again by the sync).
+"""
+enum GithubTaskState {
+  NOT_SENT
+  REMOVED
+  SYNCED
 }
 
 """Quote or invoice issued before Ordo: main information and file."""
@@ -2736,6 +2754,11 @@ type Mutation {
 
   """Sends a scheduled (or failed) mail now."""
   sendScheduledMail(id: ID!): Boolean!
+
+  """
+  « Envoyer sur GitHub »: sends tasks not on GitHub (never sent, created before the link, removed from the board) by a sync of their link.
+  """
+  sendTasksToGithub(ids: [ID!]!): GithubSendResult!
 
   """Moves a document (draft or final) to a project, or out of any."""
   setAccountingDocumentProject(id: ID!, projectId: ID): Boolean!
@@ -5310,6 +5333,16 @@ type Task {
   """Synchronized with an item of a GitHub board."""
   githubLinked: Boolean!
   githubNumber: Int
+
+  """
+  « Envoyer sur GitHub » is offered (sendTasksToGithub): active, not on GitHub, in a linked tree whose sync is enabled, GitHub connected.
+  """
+  githubSendable: Boolean!
+
+  """
+  GitHub state of the task; null outside a project tree linked to a board.
+  """
+  githubState: GithubTaskState
 
   """Issue on GitHub (null for a draft issue or an unlinked task)."""
   githubUrl: String

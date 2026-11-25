@@ -23,12 +23,12 @@ export function useTaskActions(context: TaskContext | null) {
     /**
      * Actions of a task in its menu (the menu of every row: table, detail panel), those of the selection bar on that
      * task alone: « Annuler » (not for a cancelled task), duplicate, transfer, « Héritage… » (a sub-task), archive, delete (an archived task, read only: restore, delete); then « Transformer
-     * en routine » (refused with sub-tasks); then « Lancer » each of its dead times and saved timers.
+     * en routine » (refused with sub-tasks), « Envoyer sur GitHub » (a task not on GitHub of a linked tree); then « Lancer » each of its dead times and saved timers.
      * @param {Task} task Task.
      * @returns {RowMenuEntry[]} Actions.
      */
     menu: (task: Task): RowMenuEntry[] => {
-      const { cancel, duplicate, transfer, inheritance, archive, remove } = actionsOf([task]);
+      const { cancel, duplicate, transfer, inheritance, archive, github, remove } = actionsOf([task]);
       if (task.archived) return [archive, remove].map(rowMenuEntry);
       return [
         ...(task.cancelled ? [] : [rowMenuEntry(cancel)]),
@@ -37,6 +37,8 @@ export function useTaskActions(context: TaskContext | null) {
         // A sub-task: its fields inherited again or emptied on purpose.
         ...(task.parentId ? [rowMenuEntry(inheritance)] : []),
         convert.toRoutine(task, Boolean(context?.childrenOf(task.id).length)),
+        // Not on GitHub, in a linked tree: sent now.
+        github && rowMenuEntry(github),
         rowMenuEntry(archive),
         rowMenuEntry(remove),
         ...countdownEntries(task, taskCountdownItem(task, context)),

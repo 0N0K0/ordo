@@ -1,4 +1,5 @@
 import { printedDay } from '../dates/days';
+import { sameName } from '../core/text';
 
 /** Fields synchronized between a task and an item of a GitHub board. */
 const SYNC_FIELDS = [
@@ -199,14 +200,38 @@ export function issueAddress(url: string | null): { owner: string; name: string;
 export const REMOVED_FROM_BOARD = 'REMOVED';
 
 /**
- * Whether an Ordo comment is to be published on its issue: never sent, and written in Ordo (a comment pulled from
- * GitHub whose issue was forgotten, or whose project was unlinked or linked to another board, keeps its author and stays in Ordo only, never
- * published again under the account connected).
+ * Whether two GitHub logins are the same account (GitHub ignores their case).
+ * @param {string | null} a Login.
+ * @param {string | null} b Login.
+ * @returns {boolean} Same account (never for a missing login).
+ */
+export function sameGithubLogin(a: string | null, b: string | null): boolean {
+  return Boolean(a && b && sameName(a, b));
+}
+
+/**
+ * GitHub author of a comment as shown in Ordo: its author when it is someone else than the account connected (« @x sur
+ * GitHub »); none for a comment of the account connected, or written in Ordo and never sent.
+ * @param {string | null} author Author recorded on the comment.
+ * @param {string | null} login Login of the account connected (null: not connected).
+ * @returns {string | null} Author shown.
+ */
+export function shownGithubAuthor(author: string | null, login: string | null): string | null {
+  return author && !sameGithubLogin(author, login) ? author : null;
+}
+
+/**
+ * Whether an Ordo comment is to be published on its issue: never sent, and written in Ordo, or by the account connected
+ * (its author recorded when it was published or pulled). A comment of another account whose issue was forgotten, or
+ * whose project was unlinked or linked to another board, keeps its author and stays in Ordo only: never published
+ * under the account connected, even after the token was replaced by one of another account. A comment without author
+ * recorded is taken as written in Ordo.
  * @param {{ githubCommentId: string | null, githubAuthor: string | null }} comment Comment.
+ * @param {string | null} login Login of the account connected.
  * @returns {boolean} To publish.
  */
-export function commentToPublish(comment: { githubCommentId: string | null; githubAuthor: string | null }): boolean {
-  return !comment.githubCommentId && !comment.githubAuthor;
+export function commentToPublish(comment: { githubCommentId: string | null; githubAuthor: string | null }, login: string | null): boolean {
+  return !comment.githubCommentId && (!comment.githubAuthor || sameGithubLogin(comment.githubAuthor, login));
 }
 
 /**

@@ -823,7 +823,7 @@ model Task {
   githubItemId         String?            @unique
   /// Content of the item: issue or draft issue node id.
   githubContentId      String?
-  /// ISSUE or DRAFT_ISSUE.
+  /// ISSUE or DRAFT_ISSUE; REMOVED: removed from the board (not sent again by the sync).
   githubContentType    String?
   githubUrl            String?
   githubNumber         Int?
@@ -964,7 +964,7 @@ model TaskComment {
   githubCommentId String?   @unique
   /// Body at the last sync, for the three-way merge.
   githubBody      String?
-  /// Author on GitHub, when someone else than the connected account wrote it there.
+  /// Author on GitHub (the account connected included; a comment published from Ordo: the account it was published with); null: written in Ordo and never sent, or synchronized before authors were recorded.
   githubAuthor    String?
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId     String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))

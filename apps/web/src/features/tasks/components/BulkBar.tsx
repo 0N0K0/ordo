@@ -1,6 +1,6 @@
 import { unarchived } from '../../../lib/archive';
 import { plural } from '../../../lib/text';
-import { ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, ProhibitIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, GithubLogoIcon, ProhibitIcon, TrashIcon } from '@phosphor-icons/react';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import { archiveRowsAction, duplicateRowsAction, outermost, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { useBulkTaskMutations, useDuplicateTask, useSetTasksClosed, type Task } from '../api';
@@ -11,7 +11,8 @@ import type { TaskContext } from '../hooks/use-task-context';
 import { useBulkUndo } from '../lib/bulk-undo';
 import { tasksLabel } from '../lib/bulk-label';
 import { inheritanceRowsAction } from '../../../components/inheritance/inheritance-action';
-import { notifyWithUndo } from '../../../lib/notify';
+import { notifyError, notifyFailure, notifySuccess, notifyWithUndo } from '../../../lib/notify';
+import { useSendTasksToGithub } from '../../github/api';
 import { TASK_INHERITANCE_OPTIONS } from '../lib/task-inheritance';
 
 /** Actions on tasks that their columns cannot do. */
@@ -22,12 +23,15 @@ interface TaskRowsActions {
   transfer: SelectionAction;
   inheritance: SelectionAction;
   archive: SelectionAction;
+  /** « Envoyer sur GitHub »: only when one of the tasks can be sent. */
+  github?: SelectionAction;
   remove: SelectionAction;
 }
 
 /**
  * Actions on tasks, the same on the tasks checked (bar of the table) and on one task (its menu): close as done (or
- * reopen), cancel (close as cancelled: struck through), duplicate, transfer, inheritance (« Héritage… », sub-tasks), archive, delete; each one undone from its toast when it can be. Archived tasks are read only: left
+ * reopen), cancel (close as cancelled: struck through), duplicate, transfer, inheritance (« Héritage… », sub-tasks), archive, « Envoyer sur GitHub » (the tasks not on GitHub of
+ * a linked tree), delete; each one undone from its toast when it can be. Archived tasks are read only: left
  * out of all but archive/restore and delete.
  * @param {TaskContext | null} context Task context.
  * @returns {(tasks: Task[], onClear?: () => void) => TaskRowsActions} Actions of tasks, given how to clear the selection.
@@ -38,6 +42,7 @@ export function useTaskRowsActions(context: TaskContext | null) {
   const undo = useBulkUndo();
   const duplicateTask = useDuplicateTask();
   const link = useTaskLink();
+  const sendToGithub = useSendTasksToGithub();
   return (tasks: Task[], onClear?: () => void): TaskRowsActions => {
     const ids = tasks.map((task) => task.id);
     const label = tasksLabel(ids.length);
@@ -46,6 +51,8 @@ export function useTaskRowsActions(context: TaskContext | null) {
     const several = active.length > 1;
     // Cancelled: those not cancelled yet (open, or closed as done).
     const toCancel = active.filter((task) => !task.cancelled);
+    // Sent to GitHub: those not on GitHub of a linked tree (never sent, created before the link, removed from the board).
+    const toSend = active.filter((task) => task.githubSendable);
     /**
      * Opens a dialog on the tasks not archived; a success clears the selection.
      * @param {string} title Title.
@@ -124,6 +131,20 @@ export function useTaskRowsActions(context: TaskContext | null) {
         undo: (archived) => undo.archived(tasks, archived),
         clear: onClear,
       }),
+      github: toSend.length
+        ? {
+            label: 'Envoyer sur GitHub',
+            icon: <GithubLogoIcon aria-hidden />,
+            loading: sendToGithub.isPending,
+            onClick: () =>
+              void sendToGithub.mutateAsync(toSend.map((task) => task.id)).then(({ sent, errors }) => {
+                if (sent) notifySuccess(toSend.length > 1 ? `${tasksLabel(sent)} ${plural(sent, 'envoyée')} sur GitHub.` : 'Tâche envoyée sur GitHub.');
+                // The tasks not sent told with the first reason (an error stays until closed).
+                if (errors.length) notifyError(sent || errors.length > 1 ? `${tasksLabel(errors.length)} non ${plural(errors.length, 'envoyée')} : ${errors[0]}` : errors[0]);
+                if (sent) onClear?.();
+              }, notifyFailure),
+          }
+        : undefined,
       remove: { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => open(several ? 'Supprimer les tâches' : 'Supprimer la tâche', DeleteTasksDialog) },
     };
   };
@@ -137,5 +158,5 @@ export function useTaskRowsActions(context: TaskContext | null) {
  */
 export function useTaskSelectionActions(context: TaskContext | null) {
   const actionsOf = useTaskRowsActions(context);
-  return (tasks: Task[], onClear: () => void): SelectionAction[] => Object.values(actionsOf(tasks, onClear));
+  return (tasks: Task[], onClear: () => void): SelectionAction[] => Object.values(actionsOf(tasks, onClear)).filter((action): action is SelectionAction => Boolean(action));
 }

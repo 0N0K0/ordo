@@ -44,6 +44,7 @@ Champs calculés exposés par GraphQL (`apps/api/src/graphql/modules/tasks.ts`) 
 - `effectiveMinDate`, `effectiveDeadline` : « Ouverture » et « Échéance » que la tâche suit ; `minDateSource`, `deadlineSource` : d’où elles viennent quand ce ne sont pas les siennes (`PARENT`, `MILESTONE`, `PROJECT`, `SPRINT`), voir [Dates suivies](#dates-suivies).
 - `inheritedFields`, `effective` (valeurs suivies : projet, priorité, jalon, assignés, bénéficiaires, condition, horaires, lieu, dates) et `inheritance` (état et source de chaque champ hérité), voir [Héritage](#héritage).
 - `githubLinked` : la tâche a un `githubItemId`.
+- `githubState` : état GitHub dans une arborescence liée (`SYNCED`, `NOT_SENT`, `REMOVED` ; null hors d’une arborescence liée) ; `githubSendable` : « Envoyer sur GitHub » est proposé (voir [GitHub](../cross-cutting/github.md#envoyer-sur-github)).
 - `blockingIds` (tâches qu’elle bloque), `blockedByIds` (tâches qui la bloquent), `relatedIds` (relations dans les deux sens).
 - `commentCount` : nombre de commentaires de la tâche.
 - `trackedSeconds` : temps passé, en secondes (voir [Temps passé d’une tâche](time.md#temps-passé-dune-tâche-dune-routine-dun-évènement)).
