@@ -428,6 +428,9 @@ export function useInvoiceTreasuryCategories() {
   return useQuery({ queryKey: [...treasuryKey, 'invoice-categories'], queryFn: async () => (await execute(InvoiceCategoriesDocument)).invoiceTreasuryCategories });
 }
 
+/** Query of the treasury settings (also fetched on demand: a relation opened from its birthday). */
+export const treasurySettingsQuery = { queryKey: treasurySettingsKey, queryFn: () => execute(SettingsDocument) };
+
 /**
  * Treasury settings: categories, payment methods and counterparties.
  * @returns {UseQueryResult} Query state.
@@ -435,9 +438,6 @@ export function useInvoiceTreasuryCategories() {
 export function useTreasurySettings() {
   return useQuery(treasurySettingsQuery);
 }
-
-/** Query of the treasury settings (also fetched on demand: a relation opened from its birthday). */
-export const treasurySettingsQuery = { queryKey: treasurySettingsKey, queryFn: () => execute(SettingsDocument) };
 
 /**
  * Entries whose label contains a text (at least 2 characters), to link them.

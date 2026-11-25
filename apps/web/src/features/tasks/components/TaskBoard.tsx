@@ -205,34 +205,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   };
 
   /**
-   * Cells of a task, each edited in place; of an event, what it has.
-   * @param {TaskTableRow} row Row.
-   * @returns {Record<string, ReactNode>} Cells, by column.
-   */
-  const cells = (row: TaskTableRow): Record<string, ReactNode> => {
-    if (!context) return {};
-    const texts = readOnlyCells(columns, row);
-    if (row.kind === 'event') {
-      const event = row.event;
-      return {
-        ...texts,
-        comments: <CommentCount count={commentTotal(eventComments.get(event.key), event.description)} />,
-        label: <EventLabelCell event={event} context={context} />,
-        assignees: <EventPeopleCell event={event} context={context} />,
-        beneficiaries: <EventBeneficiariesCell event={event} />,
-        status: <EventStatusCell event={event} />,
-        trackedTime: <EventTimeCell event={event} />,
-        startDate: <EventWhenCell event={event} side="start" />,
-        endDate: <EventWhenCell event={event} side="end" />,
-        location: <LocationText location={event.location} />,
-      };
-    }
-    const task = row.task;
-    // Its inherited fields greyed with their mention.
-    return inheritedCells(taskCells(task, texts), task, TASK_CELL_FIELDS, taskParentName(task, context.taskById));
-  };
-
-  /**
    * Cells of a task, each edited in place.
    * @param {Task} task Task.
    * @param {Record<string, ReactNode>} texts Read-only cells of its columns.
@@ -292,6 +264,34 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       related: <TaskLinksCell task={task} context={context} kind="related" />,
       comments: <CommentCount count={commentTotal(task.commentCount, task.description)} />,
     };
+  };
+
+  /**
+   * Cells of a task, each edited in place; of an event, what it has.
+   * @param {TaskTableRow} row Row.
+   * @returns {Record<string, ReactNode>} Cells, by column.
+   */
+  const cells = (row: TaskTableRow): Record<string, ReactNode> => {
+    if (!context) return {};
+    const texts = readOnlyCells(columns, row);
+    if (row.kind === 'event') {
+      const event = row.event;
+      return {
+        ...texts,
+        comments: <CommentCount count={commentTotal(eventComments.get(event.key), event.description)} />,
+        label: <EventLabelCell event={event} context={context} />,
+        assignees: <EventPeopleCell event={event} context={context} />,
+        beneficiaries: <EventBeneficiariesCell event={event} />,
+        status: <EventStatusCell event={event} />,
+        trackedTime: <EventTimeCell event={event} />,
+        startDate: <EventWhenCell event={event} side="start" />,
+        endDate: <EventWhenCell event={event} side="end" />,
+        location: <LocationText location={event.location} />,
+      };
+    }
+    const task = row.task;
+    // Its inherited fields greyed with their mention.
+    return inheritedCells(taskCells(task, texts), task, TASK_CELL_FIELDS, taskParentName(task, context.taskById));
   };
 
   const config = view.config;

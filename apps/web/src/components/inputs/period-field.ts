@@ -67,6 +67,7 @@ export function periodError([start, end]: PeriodDraft['days'], times: PeriodDraf
  * @returns {string} Text.
  */
 export function boundText(day: string, time?: string | null, weekday = false): string {
+  // eslint-disable-next-line no-restricted-syntax -- a calendar day without time, read and shown in the same zone: the text of the pickers (dayjs), zone-free.
   const text = dayjs(day).locale('fr').format(weekday ? PICKER_FORMATS.weekday : PICKER_FORMATS.day);
   return time ? `${text} ${time}` : text;
 }

@@ -294,6 +294,16 @@ const RESTRICTED_SYNTAX = [
   // Days and times: read in Paris, whatever the zone of the browser.
   ...PARIS_TIME_RULES,
   {
+    // A bound of a picker from the browser's clock: its day and time are read in the zone of the browser.
+    selector: "JSXAttribute[name.name=/^(minDate|maxDate)$/] > JSXExpressionContainer > :matches(NewExpression[callee.name='Date'], CallExpression[callee.object.name='Date'][callee.property.name='now'])",
+    message: 'Borne d’un sélecteur : parisToday() (lib/dates) pour un jour, minInstant de DateTimeField (components/inputs) pour un moment, lus à l’heure de Paris.',
+  },
+  {
+    // An agenda shows and reads its days and hours in Paris.
+    selector: "JSXOpeningElement[name.name='FullCalendar']:not(:has(> JSXSpreadAttribute[argument.callee.name='parisCalendarOptions']))",
+    message: 'Utiliser {...parisCalendarOptions(plugins)} (lib/paris-calendar) sur chaque FullCalendar : ses jours et ses heures à l’heure de Paris.',
+  },
+  {
     selector: "ImportSpecifier[imported.name='localDay']",
     message: 'Utiliser parisDay (lib/dates) : localDay n’est gardé que pour la bibliothèque de documents, à réécrire.',
   },
@@ -355,6 +365,10 @@ const RESTRICTED_SYNTAX = [
   {
     selector: "Literal[value='(sans objet)']",
     message: 'Utiliser NO_SUBJECT (@ordo/shared).',
+  },
+  {
+    selector: "Literal[value='Choisissez un moment à venir.']",
+    message: 'Utiliser SCHEDULE_IN_PAST / canScheduleAt (@ordo/shared) : le même moment refusé dans le web et l’API.',
   },
   {
     selector: 'Literal[value=/^#868e96$/i]',
@@ -1318,6 +1332,8 @@ export default defineConfig([
       'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS }],
       // Dates, numbers and amounts: one format per role, in lib/format.
       'no-restricted-syntax': ['error', ...RESTRICTED_SYNTAX],
+      // A value is declared before it is read (functions apart: they are hoisted), as in the API and the shared code.
+      '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: true, variables: true, typedefs: false, ignoreTypeReferences: true, enums: true }],
     },
   },
   {

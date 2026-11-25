@@ -90,6 +90,32 @@ export function searchKeepsOldest(sort: { by: MailSearchSortBy; ascending: boole
   return sort.by === 'date' && sort.ascending;
 }
 
+/** Least delay before a scheduled mail is sent, in ms. */
+export const SCHEDULE_MIN_DELAY_MS = 30_000;
+
+/** Error of a sending time already passed (or too close), the same in the web and the API. */
+// eslint-disable-next-line no-restricted-syntax -- the constant itself.
+export const SCHEDULE_IN_PAST = 'Choisissez un moment à venir.';
+
+/**
+ * Earliest time a mail can be scheduled for: at least `SCHEDULE_MIN_DELAY_MS` after now.
+ * @param {number} [now=Date.now()] Now, in ms. Optional. Default = the current time.
+ * @returns {number} Earliest instant, in ms.
+ */
+export function earliestSchedule(now: number = Date.now()): number {
+  return now + SCHEDULE_MIN_DELAY_MS;
+}
+
+/**
+ * Whether a mail can be scheduled for a time: a valid instant, not before `earliestSchedule`.
+ * @param {Date} sendAt Time to send it.
+ * @param {number} [now=Date.now()] Now, in ms. Optional. Default = the current time.
+ * @returns {boolean} True when it can.
+ */
+export function canScheduleAt(sendAt: Date, now: number = Date.now()): boolean {
+  return !Number.isNaN(sendAt.getTime()) && sendAt.getTime() >= earliestSchedule(now);
+}
+
 /** Subject shown for a mail without one. */
 export const NO_SUBJECT = '(sans objet)';
 

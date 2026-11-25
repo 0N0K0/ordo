@@ -197,16 +197,6 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   const [savedCountdownIds, setSavedCountdownIds] = useState(occurrence?.savedCountdownIds ?? []);
   const copyCountdowns = useSetSavedCountdownLinks([calendarQueryKey]);
 
-  /**
-   * Opens the postponement of this occurrence; once postponed, the event form closes too.
-   * @returns {void}
-   */
-  const openPostpone = () =>
-    occurrence &&
-    openFormPanel('Reporter l’évènement', (close) => (
-      <PostponePanel fields={values} occurrence={{ ...occurrence, eventId: target.eventId, occurrenceDate: target.occurrenceDate }} onCancel={close} onDone={() => (close(), onDone())} />
-    ));
-
   const { data: categories } = useCalendarCategories();
   const { data: documentOptions } = useDocumentOptions();
   const { data: calendarsData } = useCalendars();
@@ -305,6 +295,17 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     readOnly,
   });
   const values = form.values;
+
+  /**
+   * Opens the postponement of this occurrence; once postponed, the event form closes too.
+   * @returns {void}
+   */
+  const openPostpone = () =>
+    occurrence &&
+    openFormPanel('Reporter l’évènement', (close) => (
+      <PostponePanel fields={values} occurrence={{ ...occurrence, eventId: target.eventId, occurrenceDate: target.occurrenceDate }} onCancel={close} onDone={() => (close(), onDone())} />
+    ));
+
   // Put in the form (and saved, field by field) once chosen, cleared or left.
   const place = useFormLocation(values, (change) => form.setValues(change), commit);
   // One occurrence edited alone: the fields of the series stay as they are (the API keeps them).

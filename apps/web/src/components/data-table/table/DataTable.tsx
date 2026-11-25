@@ -513,6 +513,22 @@ export function DataTable<R>({
    */
   const fitColumn = (column: ShownColumn<R>, index: number) => tableRef.current && view.setLayout(fittedLayout(tableRef.current, layout, column, before + index, fitted.current));
 
+  // Group of each row shown, and the first row of each group (a row dropped on its heading goes there).
+  const groupOfRow = new Map<string, string>();
+  const firstOfGroup = new Map<string, string>();
+  {
+    const path: { key: string; depth: number }[] = [];
+    for (const row of visibleRows) {
+      while (path.length && path[path.length - 1].depth >= row.depth) path.pop();
+      if (row.original.kind === 'group') path.push({ key: row.original.group.key, depth: row.depth });
+      else if (path.length) {
+        const current = path[path.length - 1].key;
+        groupOfRow.set(row.id, current);
+        if (!firstOfGroup.has(current)) firstOfGroup.set(current, row.id);
+      }
+    }
+  }
+
   /**
    * Moves a dragged column, or a dragged row with its sub-rows: vertically to choose its place, horizontally its level
    * (in a tree).
@@ -580,22 +596,6 @@ export function DataTable<R>({
     }
   };
 
-  // Group of each row shown, and the first row of each group (a row dropped on its heading goes there).
-  const groupOfRow = new Map<string, string>();
-  const firstOfGroup = new Map<string, string>();
-  {
-    const path: { key: string; depth: number }[] = [];
-    for (const row of visibleRows) {
-      while (path.length && path[path.length - 1].depth >= row.depth) path.pop();
-      if (row.original.kind === 'group') path.push({ key: row.original.group.key, depth: row.depth });
-      else if (path.length) {
-        const current = path[path.length - 1].key;
-        groupOfRow.set(row.id, current);
-        if (!firstOfGroup.has(current)) firstOfGroup.set(current, row.id);
-      }
-    }
-  }
-
   /**
    * Row adding one, across the table.
    * @param {RowGroup<R> | null} group Group it adds to (null: the table).
@@ -620,14 +620,6 @@ export function DataTable<R>({
   // Groups open (unfolded), the innermost last: each ends with its add row and its totals.
   const open: { item: Extract<Item<R>, { kind: 'group' }>; depth: number }[] = [];
   /**
-   * Closes the groups open at a depth or deeper.
-   * @param {number} depth Depth.
-   * @returns {void}
-   */
-  const closeTo = (depth: number) => {
-    while (open.length && open[open.length - 1].depth >= depth) closeGroup(open.pop()!.item);
-  };
-  /**
    * Closes a group: its add row and the totals of its own rows.
    * @param {Extract<Item<R>, { kind: 'group' }>} item Group.
    * @returns {void}
@@ -641,6 +633,14 @@ export function DataTable<R>({
       const key = taggedKey('footer', group.key);
       entries.push({ key, render: (attrs) => <GroupFooter key={key} trProps={{ ...attrs }} shown={shown} rows={item.own} totals={footer} label={group.label} before={before} after={1} /> });
     }
+  };
+  /**
+   * Closes the groups open at a depth or deeper.
+   * @param {number} depth Depth.
+   * @returns {void}
+   */
+  const closeTo = (depth: number) => {
+    while (open.length && open[open.length - 1].depth >= depth) closeGroup(open.pop()!.item);
   };
   for (const row of visibleRows) {
     const item = row.original;

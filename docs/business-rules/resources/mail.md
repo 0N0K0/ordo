@@ -264,7 +264,7 @@ Source : `apps/api/src/services/mail/scheduled.ts`.
 
 ### Programmation (`scheduleMail`)
 
-- Heure valide et au moins 30 secondes dans le futur, sinon « Choisissez un moment à venir. » (champ `sendAt`).
+- Heure valide et au moins 30 secondes dans le futur, sinon « Choisissez un moment à venir. » (champ `sendAt` ; `canScheduleAt`, `SCHEDULE_IN_PAST` de `@ordo/shared`, la même règle dans le web, qui n’offre que les moments à venir).
 - Boîte active et projet actif requis.
 - Le message est construit **tout de suite** (fichiers compris), daté de son heure d’envoi, et gardé (`raw`, `copy`, destinataires, références, projet). Objet stocké : celui du mail, ou « (sans objet) ».
 - Le brouillon d’origine est supprimé.

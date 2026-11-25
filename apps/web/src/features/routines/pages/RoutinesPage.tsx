@@ -125,21 +125,6 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   /**
    * Cells of a routine, each edited in place.
    * @param {Routine} routine Routine.
-   * @returns {Record<string, ReactNode>} Cells, by column.
-   */
-  const cells = (routine: Routine): Record<string, ReactNode> => {
-    if (!context) return {};
-    const waiting = waitingFor(routine, byId);
-    const done = isDone(routine);
-    // Being created: nothing to change on it until it is saved (the server does not know it yet).
-    const readOnly = routine.archived || isDraftRoutine(routine);
-    // Its inherited fields greyed with their mention.
-    return inheritedCells(routineCells(routine, readOnly, waiting, done), routine, ROUTINE_CELL_FIELDS, routineParentName(routine, byId));
-  };
-
-  /**
-   * Cells of a routine, each edited in place.
-   * @param {Routine} routine Routine.
    * @param {boolean} readOnly Archived or being created.
    * @param {Routine[]} waiting Routines it waits for.
    * @param {boolean} done Its current occurrence done.
@@ -191,6 +176,21 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
         </Text>
       ) : null,
     };
+  };
+
+  /**
+   * Cells of a routine, each edited in place.
+   * @param {Routine} routine Routine.
+   * @returns {Record<string, ReactNode>} Cells, by column.
+   */
+  const cells = (routine: Routine): Record<string, ReactNode> => {
+    if (!context) return {};
+    const waiting = waitingFor(routine, byId);
+    const done = isDone(routine);
+    // Being created: nothing to change on it until it is saved (the server does not know it yet).
+    const readOnly = routine.archived || isDraftRoutine(routine);
+    // Its inherited fields greyed with their mention.
+    return inheritedCells(routineCells(routine, readOnly, waiting, done), routine, ROUTINE_CELL_FIELDS, routineParentName(routine, byId));
   };
 
   /**

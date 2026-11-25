@@ -1,6 +1,6 @@
 import type { UseFormReturnType } from '@mantine/form';
 import type { ReactNode } from 'react';
-import { parisDay, parisToday, monthOfDay } from '../../lib/dates';
+import { parisDay, parisParts, parisToday, monthOfDay } from '../../lib/dates';
 
 /** Name of the action that picks today, in every date picker. */
 export const TODAY_LABEL = 'Aujourd’hui';
@@ -42,7 +42,25 @@ export function parisTodayDays<P extends object = object>(getDayProps?: (day: st
 export function todayPresets({ min, max, time }: { min?: string | Date | null; max?: string | Date | null; time?: string | null } = {}): PickerPreset[] | undefined {
   const today = parisToday();
   if ((min && pickerDay(min) > today) || (max && pickerDay(max) < today)) return undefined;
-  return [{ value: time === undefined ? today : `${today} ${time ?? '00:00'}:00`, label: TODAY_LABEL }];
+  if (time === undefined) return [{ value: today, label: TODAY_LABEL }];
+  const moment = `${today} ${time ?? '00:00'}:00`;
+  // A first moment of today given (« YYYY-MM-DD HH:mm:ss »): an earlier time of today is not offered.
+  const earliest = typeof min === 'string' && min.includes(' ') ? min : null;
+  return [{ value: earliest && earliest > moment ? earliest : moment, label: TODAY_LABEL }];
+}
+
+/** One minute, in ms. */
+const MINUTE_MS = 60_000;
+
+/**
+ * Bound of a Mantine date-time picker from an instant: its day and time in Paris (« YYYY-MM-DD HH:mm:00 »), rounded up
+ * to the minute (the pickers choose whole minutes: the bound is never before the instant).
+ * @param {Date | number} instant Instant.
+ * @returns {string} Bound.
+ */
+export function pickerMoment(instant: Date | number): string {
+  const { date, time } = parisParts(new Date(Math.ceil(new Date(instant).getTime() / MINUTE_MS) * MINUTE_MS));
+  return `${date} ${time}:00`;
 }
 
 /**

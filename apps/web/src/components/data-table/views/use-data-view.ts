@@ -32,14 +32,6 @@ export interface FirstTableView {
 }
 
 /**
- * Filter of a first view: the rows whose date field is within a period (« thisMonth », « lastYear »…).
- * @param {string} field Date field (its condition has the same id).
- * @param {string} period Period token.
- * @returns {TableFilterGroup} Filter.
- */
-export const withinFilter = (field: string, period: string): TableFilterGroup => conditionFilter(field, 'within', period);
-
-/**
  * Filter of a first view made of one condition (« closed is false », « state in OPEN »…).
  * @param {string} field Field (its condition has the same id unless `id` is given).
  * @param {string} operator Operator (`isFalse`, `in`, `within`…).
@@ -54,6 +46,14 @@ export const conditionFilter = (field: string, operator: string, value: string |
   // eslint-disable-next-line no-restricted-syntax -- conditionFilter itself.
   children: [{ type: 'condition', id, field, operator, value }],
 });
+
+/**
+ * Filter of a first view: the rows whose date field is within a period (« thisMonth », « lastYear »…).
+ * @param {string} field Date field (its condition has the same id).
+ * @param {string} period Period token.
+ * @returns {TableFilterGroup} Filter.
+ */
+export const withinFilter = (field: string, period: string): TableFilterGroup => conditionFilter(field, 'within', period);
 
 /** Rows checked of a table (their check boxes): every field of each edited at once. */
 export interface RowSelection {

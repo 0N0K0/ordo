@@ -12,15 +12,6 @@ export type LinkedMail = LinkedMailFieldsFragment;
 export type MailDraft = MailDraftQuery['mailDraft'];
 export type { MailAccountInput, SaveMailDraftInput, SendMailInput };
 
-/**
- * Loads a draft to go on writing it.
- * @param {{ accountId: string, folder: string, uid: number }} location Draft.
- * @returns {Promise<MailDraft>} Draft.
- */
-export async function fetchMailDraft(location: { accountId: string; folder: string; uid: number }): Promise<MailDraft> {
-  return (await execute(MailDraftDocument, location)).mailDraft;
-}
-
 graphql(`
   fragment MailAccountFields on MailAccount {
     id
@@ -292,6 +283,15 @@ const MailDraftDocument = graphql(`
     }
   }
 `);
+
+/**
+ * Loads a draft to go on writing it.
+ * @param {{ accountId: string, folder: string, uid: number }} location Draft.
+ * @returns {Promise<MailDraft>} Draft.
+ */
+export async function fetchMailDraft(location: { accountId: string; folder: string; uid: number }): Promise<MailDraft> {
+  return (await execute(MailDraftDocument, location)).mailDraft;
+}
 
 const SaveMailDraftDocument = graphql(`
   mutation SaveMailDraft($input: SaveMailDraftInput!) {

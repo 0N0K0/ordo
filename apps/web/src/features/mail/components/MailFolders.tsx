@@ -88,6 +88,18 @@ export function AccountFolders({ account, selected, onSelect, onDropped }: Accou
       }),
     );
 
+  const byPath = new Map((folders ?? []).map((folder) => [folder.path, folder]));
+  /**
+   * Whether a folder is under another one, at any depth.
+   * @param {string} path Folder path.
+   * @param {string} ancestor Possible ancestor path.
+   * @returns {boolean} Under it.
+   */
+  const within = (path: string, ancestor: string): boolean => {
+    for (let current = byPath.get(path)?.parent ?? null; current; current = byPath.get(current)?.parent ?? null) if (current === ancestor) return true;
+    return false;
+  };
+
   /**
    * Asks where to move a folder (keyboard alternative to the drag and drop).
    * @param {{ path: string, name: string }} folder Folder.
@@ -132,18 +144,7 @@ export function AccountFolders({ account, selected, onSelect, onDropped }: Accou
   const { move } = useMailActions();
   // Folders whose sub-folders are hidden, remembered in this browser.
   const { ids: collapsed, toggle: toggleFolded } = useFoldedIds(`ordo.mail.collapsed.${account.id}`);
-  const byPath = new Map((folders ?? []).map((folder) => [folder.path, folder]));
   const parents = new Set((folders ?? []).map((folder) => folder.parent).filter((parent): parent is string => parent !== null));
-  /**
-   * Whether a folder is under another one, at any depth.
-   * @param {string} path Folder path.
-   * @param {string} ancestor Possible ancestor path.
-   * @returns {boolean} Under it.
-   */
-  const within = (path: string, ancestor: string): boolean => {
-    for (let current = byPath.get(path)?.parent ?? null; current; current = byPath.get(current)?.parent ?? null) if (current === ancestor) return true;
-    return false;
-  };
   /**
    * Whether the mails or the folder dragged can be dropped in a folder: mails of this account from another folder, a
    * folder anywhere but under itself or where it already is.
