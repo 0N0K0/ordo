@@ -1434,6 +1434,20 @@ export default defineConfig([
     },
   },
   {
+    // A field of a filter typed by the user passes its value on only when it is left: useTypedField (draft, blur, Enter).
+    files: ['src/components/filters/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...RESTRICTED_SYNTAX,
+        {
+          selector: "JSXOpeningElement[name.name=/^(TextInput|NumberInput|Textarea)$/]:not(:has(JSXAttribute[name.name='onBlur']))",
+          message: 'Champ saisi d’un filtre : useTypedField (components/filters/FilterBuilder), sa valeur transmise en quittant le champ (ou Entrée), pas à chaque touche.',
+        },
+      ],
+    },
+  },
+  {
     // The one place where shared query keys are built from one another (no imports, so no cycle).
     files: ['src/lib/query-keys.ts'],
     rules: { 'no-restricted-syntax': 'off' },

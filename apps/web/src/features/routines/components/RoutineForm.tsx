@@ -209,6 +209,8 @@ export interface RoutineFormProps {
   categoryId?: string | null;
   /** Project of a new routine. */
   projectId?: string | null;
+  /** « Première fois » of a new routine (the day it is added on). Optional. Default = today, or the first time of its parent when later. */
+  startDate?: string;
   /** Occurrence open in the panel (chosen in the calendar), whose comments it shows; none: `panelOccurrence`. Optional. */
   occurrenceDate?: string | null;
   onDone: () => void;
@@ -225,7 +227,7 @@ export interface RoutineFormProps {
  * @param {RoutineFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function RoutineForm({ routine, parent, categoryId = null, projectId = null, occurrenceDate = null, onDone }: RoutineFormProps) {
+export function RoutineForm({ routine, parent, categoryId = null, projectId = null, startDate, occurrenceDate = null, onDone }: RoutineFormProps) {
   const { data } = useRoutinesData();
   const { context } = useTaskContext();
   const { create, update } = useRoutineMutations();
@@ -246,7 +248,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
           // Its type is its own (not inherited, as a sub-task's).
           typeId: null,
           parentId: parent?.id ?? null,
-          startDate: parent && parent.startDate > parisToday() ? parent.startDate : parisToday(),
+          startDate: startDate ?? (parent && parent.startDate > parisToday() ? parent.startDate : parisToday()),
           recurrence: (parent && ruleOf(parent)) ?? DAILY,
           estimate: null,
           fromTime: null,

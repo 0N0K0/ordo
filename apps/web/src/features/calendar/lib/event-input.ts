@@ -1,4 +1,5 @@
 import { linkInputs } from '../../../lib/links';
+import { unarchived } from '../../../lib/archive';
 import { addDays, type CalendarEventInput, daysBetween, minutesToTime, occurrenceKey, readOccurrenceKey, shiftedRoutineLink, timeToMinutes } from '@ordo/shared';
 import type { CalendarEventScope, EventOccurrence } from '../api';
 
@@ -151,4 +152,34 @@ export function scopedInput(occurrence: EventOccurrence, scope: CalendarEventSco
   const firstDay = addDays(base.startDate, daysBetween(occurrence.startDate, start));
   const lastDay = addDays(firstDay, Math.max(0, daysBetween(start, endDate ?? occurrence.endDate)));
   return { ...withDays(base, firstDay, lastDay), ...rest };
+}
+
+/** Days and times of a new event: all day without a start time. */
+export interface NewEventPeriod {
+  startDate: string;
+  endDate: string;
+  /** HH:MM; none: all day. */
+  startTime?: string | null;
+  endTime?: string | null;
+}
+
+/**
+ * Fields of a new event on a period picked (a day, a time span): in the first calendar shown (not archived, not hidden),
+ * all day when no time is given.
+ * @param {readonly { id: string, archived?: boolean | null }[]} calendars Calendars of the workspace, in their order.
+ * @param {ReadonlySet<string>} hidden Ids of the calendars hidden.
+ * @param {NewEventPeriod} period Days and times.
+ * @returns {Partial<CalendarEventInput>} Defaults of the event form.
+ */
+export function newEventDefaults(calendars: readonly { id: string; archived?: boolean | null }[], hidden: ReadonlySet<string>, period: NewEventPeriod): Partial<CalendarEventInput> {
+  const calendarId = unarchived(calendars).find((calendar) => !hidden.has(calendar.id))?.id ?? null;
+  const allDay = !period.startTime;
+  return {
+    calendarId,
+    allDay,
+    startDate: period.startDate,
+    startTime: allDay ? null : (period.startTime ?? null),
+    endDate: period.endDate,
+    endTime: allDay ? null : (period.endTime ?? null),
+  };
 }

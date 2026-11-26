@@ -25,7 +25,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
  */
 const shortText = (date: string) => fmt.weekday(date);
 
-/** Days of occurrences offered before and after today (the query covers 100 days at most). */
+/** Days of occurrences offered before and after today, or the occurrence given when out of them (the query covers 100 days at most). */
 const PAST_DAYS = 30;
 const NEXT_DAYS = 68;
 
@@ -55,7 +55,11 @@ export function RoutineMoveForm({ routineId, date: firstDate, onDone }: { routin
   const { data } = useRoutinesData();
   const routine = data?.routines.find((item) => item.id === routineId);
   const today = parisToday();
-  const [range] = useState(() => ({ from: addDays(today, -PAST_DAYS), to: addDays(today, NEXT_DAYS) }));
+  // Around today; an occurrence given further away (a day of « Ma journée »), around it, so its times are read.
+  const [range] = useState(() => {
+    const around = firstDate && (firstDate < addDays(today, -PAST_DAYS) || firstDate > addDays(today, NEXT_DAYS)) ? firstDate : today;
+    return { from: addDays(around, -PAST_DAYS), to: addDays(around, NEXT_DAYS) };
+  });
   const { data: allOccurrences } = useRoutineOccurrences(range);
   // Those not ticked (a ticked one is not changed) nor cancelled (given back from the exceptions), late ones only when past.
   const occurrences = (allOccurrences ?? []).filter((item) => item.routineId === routineId && !item.cancelled && !item.slots.some((slot) => slot.done));
@@ -115,7 +119,7 @@ export function RoutineMoveForm({ routineId, date: firstDate, onDone }: { routin
       onSubmit={(event) => {
         event.preventDefault();
         if (!date || !target || (target === due && !timesChanged)) return;
-        move(routine, target, date, onDone, timesChanged ? { times: times as RoutineMoveTimes, previous: original as RoutineMoveTimes } : undefined);
+        move(routine, target, date, onDone, timesChanged ? { times: times as RoutineMoveTimes, previous: original as RoutineMoveTimes } : undefined, due);
       }}
     >
       <Stack gap="md">

@@ -52,7 +52,7 @@ import { slotColumns } from '../lib/slot-columns';
 import { EPHEMERIDES_TITLE, schedulesTitle, unavailableWarning } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
-import { scopedInput } from '../lib/event-input';
+import { newEventDefaults, scopedInput } from '../lib/event-input';
 import { birthdayEvents, isArchivedOccurrence, occurrenceSpan, scheduleSources, type ShownSlots, slotBarLook, slotLookClasses } from '../lib/calendar-events';
 import { usePersonOpener } from '../hooks/use-person-opener';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
@@ -943,26 +943,13 @@ export function CalendarPage() {
           select={(info: DateSelectArg) => {
             const start = parisParts(info.start);
             const end = parisParts(info.end);
+            // A new event goes into the first calendar shown; a day picked, all day.
             openEvent({
-              defaults: {
-                // A new event goes into the first calendar shown.
-                calendarId: unarchived(ownCalendars).find((calendar) => !hidden.has(calendar.id))?.id ?? null,
-                ...(info.allDay
-                  ? {
-                      allDay: true,
-                      startDate: start.date,
-                      startTime: null,
-                      endDate: addDays(end.date, -1),
-                      endTime: null,
-                    }
-                  : {
-                      allDay: false,
-                      startDate: start.date,
-                      startTime: start.time,
-                      endDate: end.date,
-                      endTime: end.time,
-                    }),
-              },
+              defaults: newEventDefaults(
+                ownCalendars,
+                hidden,
+                info.allDay ? { startDate: start.date, endDate: addDays(end.date, -1) } : { startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time },
+              ),
             });
             info.view.calendar.unselect();
           }}

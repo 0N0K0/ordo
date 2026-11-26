@@ -5,10 +5,11 @@ import {
   type MyDayRow,
   type MyDaySettings,
 } from "@ordo/shared";
-import { SunIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CalendarPlusIcon, PlusIcon, SunIcon } from "@phosphor-icons/react";
 import { useMemo, useState, type CSSProperties } from "react";
 import { PageSettings } from "../../../app/layout/PageSettings";
 import { PAGES } from "../../../app/pages";
+import { ActionButton } from "../../../components/actions/ActionButton";
 import { ErrorAlert } from "../../../components/feedback/ErrorAlert";
 import { EmptyState } from "../../../components/feedback/EmptyState";
 import { ListSkeleton } from "../../../components/feedback/Skeletons";
@@ -21,7 +22,10 @@ import { unarchived } from "../../../lib/archive";
 import { useCalendars, useScheduleSources } from "../../calendar/api";
 import { CalendarDisplayChoices } from "../../calendar/components/CalendarDisplayChoices";
 import { CalendarFilters } from "../../calendar/components/CalendarFilters";
+import { useEventForm } from "../../calendar/hooks/use-event-form";
 import { scheduleSources } from "../../calendar/lib/calendar-events";
+import { newEventDefaults } from "../../calendar/lib/event-input";
+import { openRoutineForm } from "../../routines/lib/open-routine-form";
 import {
   calendarChoices,
   scheduleChoices,
@@ -185,6 +189,54 @@ function MyDaySettingsPanel({
 }
 
 /**
+ * « Ajouter » of the day, as in the agenda: a new event or a new routine on the day shown, in the side panel (an event
+ * all day in the first calendar shown, as a day picked in the agenda; a routine done the first time that day).
+ * @param {{ day: string, context: TaskContext | null, hiddenCalendarIds: readonly string[], ready: boolean }} props Component props: the day shown, the task context (null while loading), the calendars hidden, the saved settings loaded.
+ * @returns {JSX.Element} Button and its menu.
+ */
+function MyDayAdd({
+  day,
+  context,
+  hiddenCalendarIds,
+  ready,
+}: {
+  day: string;
+  context: TaskContext | null;
+  hiddenCalendarIds: readonly string[];
+  ready: boolean;
+}) {
+  const { data: calendarsData } = useCalendars();
+  const openEvent = useEventForm(context);
+  return (
+    <ActionButton
+      icon={<PlusIcon aria-hidden />}
+      menu={[
+        {
+          label: "Évènement",
+          icon: <CalendarPlusIcon aria-hidden />,
+          disabled: !context || !calendarsData || !ready,
+          onClick: () =>
+            openEvent({
+              defaults: newEventDefaults(
+                calendarsData?.calendars ?? [],
+                new Set(hiddenCalendarIds),
+                { startDate: day, endDate: day },
+              ),
+            }),
+        },
+        {
+          label: "Routine",
+          icon: <ArrowsClockwiseIcon aria-hidden />,
+          onClick: () => openRoutineForm({ startDate: day }),
+        },
+      ]}
+    >
+      Ajouter
+    </ActionButton>
+  );
+}
+
+/**
  * « Ma journée »: the routines, tasks and events of a day of the current workspace with their hours (today by
  * default; previous and next day, or a day picked), in four blocks: its head (éphémérides, events of the whole day,
  * birthdays, late items), the items without hours, the hours (their slots as a background, « Indisponible » greyed,
@@ -215,19 +267,27 @@ export function MyDayPage() {
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.myDay.label} />
-      {/* The day, then « Filtrer », as the period and the filters of the agenda. */}
-      <Group gap="xs" wrap="wrap">
-        <DayNav day={day} onChange={setDay} />
-        {settingsReady && (
-          <CalendarFilters
-            sections={filterSections}
-            onChange={(kind, filter) =>
-              changeSettings((current) => ({
-                filters: { ...current.filters, [kind]: filter },
-              }))
-            }
-          />
-        )}
+      {/* The day, then « Filtrer », on the left, as the period and the filters of the agenda; « Ajouter » on the right. */}
+      <Group justify="space-between" wrap="wrap" gap="sm">
+        <Group gap="xs" wrap="wrap">
+          <DayNav day={day} onChange={setDay} />
+          {settingsReady && (
+            <CalendarFilters
+              sections={filterSections}
+              onChange={(kind, filter) =>
+                changeSettings((current) => ({
+                  filters: { ...current.filters, [kind]: filter },
+                }))
+              }
+            />
+          )}
+        </Group>
+        <MyDayAdd
+          day={day}
+          context={context}
+          hiddenCalendarIds={settings.hiddenCalendarIds}
+          ready={settingsReady}
+        />
       </Group>
       <PageSettings title="Paramètres de Ma journée">
         {/* Shown once the saved settings are loaded: a change before would save the defaults over them. */}

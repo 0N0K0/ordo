@@ -39,7 +39,18 @@ La page « Ma journée » (menu Activités, espace courant) montre aujourd'hui �
 - **Éphémérides** de l'espace et des types abonnés d'un autre espace ce jour, et **anniversaires** des personnes de l'espace (archivées exclues), en tête.
 - **Créneaux des heures** : ceux de l'espace et des types abonnés d'un autre espace (ni archivés, ni d'un type archivé), « Indisponible » tel que l'espace le règle.
 
+Rien d'archivé n'est dans la page, et elle n'a pas d'« Afficher les archivés » : ni tâche archivée, ni routine archivée ou occurrence archivée, ni évènement archivé ou d'un calendrier archivé, ni créneau ou éphéméride archivé ou d'un type archivé, ni anniversaire d'une personne archivée ; les calendriers proposés dans les réglages sont ceux non archivés de l'espace. Elle n'a pas non plus de graduation « Par 5 minutes » : c'est une liste rangée par heure, pas une grille.
+
 Chaque ligne a son bouton d'état (une tâche : faite / à faire ; un moment de routine : « Faite le » ; aucun pour un évènement, qui s'annule ou se reporte par son menu), son chrono (un évènement prend son projet et ses tâches liées), son nom qui ouvre son panneau, et son menu (celui de la tâche, de l'occurrence de la routine ou de l'occurrence de l'évènement). Le menu d'une occurrence d'un évènement répété l'annule ou la rétablit seule, sans demander la portée (« Supprimer » la demande) ; une occurrence de routine s'annule par « Reporter, changer l'horaire ou annuler… ». Les réglages ci-dessous filtrent ces éléments avant le placement.
+
+## Ajouter un élément du jour
+
+« Ajouter » crée, dans le panneau latéral, par les formulaires de création habituels, un élément prérempli avec le jour affiché (passé, aujourd'hui ou à venir) :
+
+- **Évènement** : comme un jour choisi dans l'agenda, toute la journée ce jour-là, dans le premier calendrier non archivé de l'espace que les réglages ne masquent pas (aucun : sans calendrier, à choisir).
+- **Routine** : sa « Première fois » est ce jour.
+
+Tout le reste est celui d'un nouvel élément, modifiable avant « Créer ». Une tâche ne s'ajoute pas depuis « Ma journée » : aucune règle ne dit encore quelle date d'une nouvelle tâche prend le jour.
 
 ## Placement
 
@@ -77,5 +88,6 @@ Les filtres et choix d'affichage de « Ma journée » sont ceux de l'agenda, rep
 - Les créneaux et les calendriers sont enregistrés par ceux qui sont **masqués** : un créneau ou un calendrier créé ensuite est affiché.
 - Jamais choisis : les valeurs par défaut. Lecture (`readMyDaySettings`, le schéma d'une vue de l'agenda réduit à ces champs) : un champ absent ou invalide prend sa valeur par défaut (une liste d'ids qui n'en est pas une, ou de plus de 500 ids : aucun masqué ; un filtre invalide : aucun filtre), une clé inconnue est ignorée, quelle qu'elle soit.
 - Un calendrier ou un créneau supprimé depuis n'est pas une erreur : son id reste enregistré, sans effet.
+- Une valeur tapée dans un filtre (texte, nombre, nombre de jours) n'est enregistrée qu'en quittant son champ (ou Entrée), comme dans l'agenda et les tableaux ; les choix le sont aussitôt.
 - Enregistrement : tout le jeu à la fois (`updateMyDaySettings`), lu par `myDaySettingsSchema` comme une vue de l'agenda (un champ invalide prend sa valeur par défaut) ; les ids ne sont pas comparés aux calendriers et créneaux de l'espace. Les enregistrements faits coup sur coup attendent les uns les autres : celui qu'un plus récent attend n'est pas envoyé (le plus récent porte tout), et les réglages ne sont relus qu'après le dernier.
 - Accès : un utilisateur ne lit et n'écrit que **ses** réglages (l'utilisateur de la session, jamais un id envoyé), et seulement dans l'espace de la requête dont il est membre (il y a son profil « Moi », voir [Personnes](../cross-cutting/people.md#-moi-)) ; sinon « Espace introuvable. » (`NOT_FOUND`). Supprimer l'espace ou l'utilisateur supprime ses réglages.
