@@ -825,11 +825,17 @@ function writeHeader(
   // Buyer, in the window of the envelope (lower when the facts above reach it), on the white of the page.
   const contact = buyer.contact ? [contactName(buyer.contact), buyer.contact.jobTitle].filter(Boolean).join(', ') : null;
   const postalLines = [buyer.service?.label ?? null, contact ? `À l’attention de ${contact}` : null, ...printedAddress(buyer.address)].filter((line): line is string => Boolean(line?.trim()));
-  const identifiers = [buyer.siret ? `SIRET ${buyer.siret}` : buyer.siren ? `SIREN ${buyer.siren}` : null, buyer.vatNumber ? `TVA ${buyer.vatNumber}` : null].filter((line): line is string =>
-    Boolean(line),
-  );
+  const registration = buyer.siret ? `SIRET ${buyer.siret}` : buyer.siren ? `SIREN ${buyer.siren}` : null;
+  const identifiers = [buyer.vatNumber ? `TVA ${buyer.vatNumber}` : null].filter((line): line is string => Boolean(line));
   const addressTop = Math.max(ENVELOPE_WINDOW.y, y + 10);
   doc.font('bold').fontSize(10.5).fillColor(COLORS.text).text(buyer.name, right, addressTop, { width: ENVELOPE_WINDOW.width });
+    // SIRET (else SIREN) of the buyer under its name: a mandatory mention on accounting documents.
+  if (registration)
+    doc
+      .font('regular')
+      .fontSize(8.5)
+      .fillColor(COLORS.muted)
+      .text(registration, right, doc.y + 1, { width: ENVELOPE_WINDOW.width });
   if (postalLines.length)
     doc
       .font('regular')
