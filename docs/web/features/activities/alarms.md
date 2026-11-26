@@ -38,7 +38,7 @@ Réglages de la page (`PageSettings` « Paramètres des alarmes ») : `SavedCoun
 
 ### `pages/AlarmsPage.module.css`
 
-`.root` : largeur maximale de 12 colonnes de la grille (12 × 96 px + 11 × 16 px), centrée ; `.columns` : les trois colonnes côte à côte (grille de trois parts égales, gouttière 16 px, alignées en haut) ; `.tab` : une colonne dans son onglet, 7 colonnes de la grille au plus, centrée, un pas du rythme vertical au-dessus.
+`.root` : toute la largeur de la page ; `.columns` : les trois colonnes côte à côte (grille de trois parts égales, gouttière 16 px, alignées en haut) ; `.tab` : une colonne dans son onglet, 7 colonnes de la grille au plus, centrée, un pas du rythme vertical au-dessus.
 
 ## components
 

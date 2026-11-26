@@ -3,14 +3,17 @@ import {
   addDays,
   birthdayLabel,
   birthdaysBetween,
+  BIRTHDAY_SLOT_KIND_LABEL,
   birthdaySlotId,
   countedSchedules,
   DEFAULT_SCHEDULE_DISPLAY,
+  DEFAULT_SCHEDULE_KIND_LABEL,
   mapById,
   type PlannedSlot,
   readBirthDate,
   readScheduleDisplay,
   type ScheduleDisplay,
+  slotPattern,
   UNTYPED_EPHEMERIS_LABEL,
   type WorkScheduleRule,
 } from '@ordo/shared';
@@ -18,6 +21,7 @@ import { scheduleRules, type PersonBirthday, type ScheduleType, type useBirthday
 import { archivedIds, unarchived } from '../../../lib/archive';
 import classes from '../pages/CalendarPage.module.css';
 import { inWorkspace } from './layer-label';
+import type { SlotPrint } from './calendar-pdf';
 
 /** Schedule of another workspace subscribed to. */
 type ForeignSchedule = NonNullable<ReturnType<typeof useSubscribedSchedules>['data']>[number];
@@ -52,6 +56,11 @@ export function isArchivedOccurrence(occurrence: { archived: boolean; calendarId
   return occurrence.archived || archivedCalendarIds.has(occurrence.calendarId);
 }
 
+/** Color of the working hours (the slots without kind and without color) in the background and in their bar. */
+export const WORK_HOURS_COLOR = 'var(--mantine-color-green-light)';
+/** Color of the thin line of the working hours, and of the border of their slots being changed. */
+export const WORK_LINE_COLOR = 'var(--mantine-color-green-6)';
+
 /** Color of the éphémérides without kind (they have no default kind). */
 export const EPHEMERIS_COLOR = 'var(--mantine-color-gray-6)';
 
@@ -68,8 +77,21 @@ interface ScheduleSource {
   ephemeris: boolean;
   color: string | null;
   label: string;
+  /** Name of its kind (« · Espace » after it for a kind of another workspace): its entry in the legend of the PDF. */
+  kind: string;
   foreign: boolean;
   display: ScheduleDisplay;
+}
+
+/**
+ * Name of the kind of a schedule: the label of its kind, else « Travail » for a créneau, the name of the éphémérides
+ * without kind for an éphéméride.
+ * @param {string | null | undefined} label Label of its kind.
+ * @param {boolean} ephemeris An éphéméride.
+ * @returns {string} Name.
+ */
+function kindName(label: string | null | undefined, ephemeris: boolean): string {
+  return label || (ephemeris ? UNTYPED_EPHEMERIS_LABEL : DEFAULT_SCHEDULE_KIND_LABEL);
 }
 
 /**
@@ -119,6 +141,7 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
         ephemeris: schedule.ephemeris,
         color: kind?.color ?? null,
         label: scheduleLayerLabel(schedule.label, kind?.label),
+        kind: kindName(kind?.label, schedule.ephemeris),
         foreign: false,
         display: readScheduleDisplay(kind),
       };
@@ -132,6 +155,7 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
         ephemeris: schedule.ephemeris,
         color: schedule.color ?? (schedule.ephemeris && !schedule.typeId ? EPHEMERIS_COLOR : null),
         label: scheduleLayerLabel(schedule.label, schedule.typeLabel, schedule.workspaceLabel),
+        kind: inWorkspace(kindName(schedule.typeLabel, schedule.ephemeris), schedule.workspaceLabel),
         foreign: true,
         display: readScheduleDisplay(schedule),
       };
@@ -149,21 +173,23 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
  */
 export function slotBarLook({ color, foreign, ephemeris = false, archived = false }: { color: string | null; foreign: boolean; ephemeris?: boolean; archived?: boolean }): Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'> {
   return {
-    backgroundColor: color ?? 'var(--mantine-color-green-light)',
-    borderColor: color ?? 'var(--mantine-color-green-light)',
+    backgroundColor: color ?? WORK_HOURS_COLOR,
+    borderColor: color ?? WORK_HOURS_COLOR,
     textColor: 'var(--mantine-color-text)',
     classNames: [classes.slotBar, ...slotLookClasses({ foreign, ephemeris, archived })],
   };
 }
 
 /**
- * Classes telling a schedule shown apart: hatched from another workspace, dotted an éphéméride, faded as an archived
- * event when archived (or of an archived kind) in its workspace.
+ * Classes telling a schedule shown apart, its pattern as `slotPattern` gives it (hatched a créneau of another workspace,
+ * dotted an éphéméride), its label in italics for an éphéméride, faded as an archived event when archived (or of an
+ * archived kind) in its workspace.
  * @param {{ foreign: boolean, ephemeris?: boolean, archived?: boolean }} source Schedule shown.
  * @returns {string[]} Classes.
  */
 export function slotLookClasses({ foreign, ephemeris = false, archived = false }: { foreign: boolean; ephemeris?: boolean; archived?: boolean }): string[] {
-  return [...(foreign ? [classes.subscribedSlot] : []), ...(ephemeris ? [classes.ephemeris, classes.ephemerisBar] : []), ...(archived ? [classes.archived] : [])];
+  const pattern = slotPattern({ foreign, ephemeris });
+  return [...(pattern === 'hatched' ? [classes.subscribedSlot] : []), ...(pattern === 'dotted' ? [classes.ephemeris] : []), ...(ephemeris ? [classes.ephemerisBar] : []), ...(archived ? [classes.archived] : [])];
 }
 
 /** Slots of a source as the agenda shows them: the look of its kind and its slots of the period. */
@@ -174,6 +200,7 @@ export interface ShownSlots {
   archived: boolean;
   color: string | null;
   label: string;
+  kind: string;
   foreign: boolean;
   display: ScheduleDisplay;
   slots: readonly PlannedSlot[];
@@ -204,7 +231,7 @@ export function birthdayEvents(birthdays: readonly PersonBirthday[], look: Birth
       editable: false,
       backgroundColor: color,
       borderColor: color,
-      extendedProps: { kind: 'birthday', birthday },
+      extendedProps: { kind: 'birthday', birthday, print: { legend: BIRTHDAY_SLOT_KIND_LABEL, color, pattern: null, opacity: 'full', archived: false } satisfies SlotPrint },
     }));
   });
 }

@@ -73,7 +73,7 @@ Sécurité des fichiers affichés (`fileSecurityPolicy`) : aucun contenu ne s'ex
 
 ## Exports PDF et ZIP
 
-- Gabarit commun des exports PDF (`apps/api/src/services/core/pdf-report.ts`) : A4 paysage, police Inter, logo de l'entreprise (ou nom de l'entreprise, ou de l'espace) et titre en haut de chaque page, pied « Émetteur · Exporté le … » à l'heure de Paris, numéros de page ; en tête du contenu, le titre de l'export en 16 pt gras et son sous-titre en 10 pt gris.
+- Gabarit commun des exports PDF (`apps/api/src/services/core/pdf-report.ts`) : A4 paysage, police Inter, logo de l'entreprise (ou nom de l'entreprise, ou de l'espace) et titre en haut de chaque page, pied « Émetteur · Exporté le … » à l'heure de Paris, numéros de page (avec `singlePageNumber: false`, aucun quand le document n'a qu'une page : l'agenda) ; en tête du contenu, le titre de l'export en 16 pt gras et son sous-titre en 10 pt gris (`writeHeading` ; l'agenda n'en a pas, sa période est dans l'en-tête).
 - Nom de l'émetteur : la société en espace PRO, sinon le libellé de l'espace (`issuerName`).
 - ZIP sans compression (PDF et images déjà compressés), noms UTF-8, dossiers par « / » (`zipFiles`).
 - Nom d'un fichier exporté : `fileName(libellé, extension)` (voir [Nommage](naming.md)).

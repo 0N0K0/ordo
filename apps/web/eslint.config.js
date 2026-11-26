@@ -1285,6 +1285,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser useWorkingHours (features/calendar/api) : les heures de travail, sans éphémérides ni créneaux archivés.',
   },
   {
+    // Where the slots of a kind show (bar, background, thin line) is decided once, for the agenda and its PDF.
+    selector: "BinaryExpression > MemberExpression[property.name=/^(dayDisplay|monthDisplay)$/]",
+    message: 'Utiliser slotPlacements (@ordo/shared) : les places des créneaux selon l’affichage de leur type, les mêmes pour l’agenda et son PDF.',
+  },
+  {
     // The schedules a page shows leave out those archived, or of an archived kind, in their workspace: scheduleSources says it.
     selector: "CallExpression[callee.name='countedSchedules'] > ArrayExpression.arguments",
     message: 'Utiliser scheduleSources(…, includeArchived) (features/calendar/lib/calendar-events) : les créneaux affichés, sans les archivés ni ceux d’un type archivé sauf demande, et leur `archived`.',

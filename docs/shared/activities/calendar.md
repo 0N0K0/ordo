@@ -12,7 +12,7 @@ Voir aussi : [Règles : calendrier](../../business-rules/activities/calendar.md)
 | `EVENT_SCOPES` / `EventScope`                               | Portée d'une modification d'un événement répété : `THIS` (cette occurrence), `FOLLOWING` (celle-ci et les suivantes), `ALL` (toute la série). |
 | `calendarCategoryFormSchema` / `CalendarCategoryFormValues` | Catégorie d'agenda : `label` (requis, 250), `color` (requise), `parentId` (catégories en arbre).                                              |
 | `calendarFormSchema` / `CalendarFormValues`                 | Agenda de l'espace (chaque événement appartient à un agenda) : `label` (requis, 250), `color`.                                                |
-| `CALENDAR_PDF_KINDS` / `CalendarPdfKind`                    | Aspects des éléments d'une vue de l'agenda imprimée en PDF, la même liste pour l'application qui les envoie et l'API qui les dessine : `event`, `task`, `time`, `travel`, `slot`, `background` (voir [Règles : export PDF](../../business-rules/activities/calendar.md#export-pdf)). |
+| `CALENDAR_PDF_KINDS` / `CalendarPdfKind`                    | Aspects des éléments d'une vue de l'agenda imprimée en PDF, la même liste pour l'application qui les envoie et l'API qui les dessine : `event`, `task`, `time`, `travel`, `slot`, `background`, `line` (fine ligne d'un créneau ou d'une éphéméride) (voir [Règles : export PDF](../../business-rules/activities/calendar.md#export-pdf)). |
 | `occurrenceKey(id, date?)`                                  | Clé d'une occurrence d'un élément répété (événement, routine) un jour : « id\|date » (date vide si aucune). Identique API / web.              |
 | `readOccurrenceKey(key)`                                    | Inverse : `{ id, date \| null }`.                                                                                                             |
 | `ShownEventOccurrence` / `occurrencesShowing(occurrences, day)` | Occurrence d'un évènement telle qu'affichée (`occurrenceDate`, le jour qui l'identifie, `null` pour un évènement unique ; `startDate`, `endDate`) ; celles affichées un jour (premier et dernier jours compris). Dans l'API (`goneRoutineLinks`, `moveRoutineLinks`). |
@@ -149,6 +149,17 @@ Réglages de la page, par utilisateur et par espace (règles dans [Ma journée](
 | `BIRTHDAY_SLOT_KIND`, `BIRTHDAY_SLOT_KIND_LABEL` | `'birthday'` : le type de tous les anniversaires de l'espace (« Anniversaires », ceux ajoutés ensuite compris ; jamais un type de créneaux). |
 | `BirthdayPerson`, `personBirthdayId(person, id)` | `contributor:<id>` ou `relation:<id>` : l'id d'un anniversaire (requête `birthdays`). |
 | `birthdaySlotId(birthdayId)` / `birthdaySlotPerson(scheduleId)` | `birthday:contributor:<id>` / `birthday:relation:<id>` : l'anniversaire d'une personne cité parmi les créneaux d'une condition (stable, dérivé de la personne) ; sa personne, `null` pour un créneau. |
+
+## `slot-display.ts` — placement et légende des créneaux dans l'agenda
+
+Ce que l'agenda et son PDF partagent pour dessiner les créneaux et éphémérides (voir [Règles : export PDF](../../business-rules/activities/calendar.md#export-pdf)).
+
+| Export | Rôle |
+| --- | --- |
+| `SLOT_PATTERNS` / `SlotPattern` | Motifs des créneaux : `hatched` (hachures), `dotted` (pointillés). |
+| `slotPattern({ foreign, ephemeris? })` | Motif d'un horaire affiché : pointillés pour une éphéméride (d'un autre espace aussi), hachures pour un créneau d'un autre espace, aucun sinon. Utilisé par `slotLookClasses` et `CalendarPage` (web). |
+| `SlotPlace`, `SlotPlacement` / `slotPlacements(display, month, slots, lanes)` | Où l'agenda place les créneaux d'un horaire selon l'affichage de son type (`ScheduleDisplay`) : au mois, chaque jour en fond ou en fine ligne en bas (ou rien) ; en semaine et jour, un bandeau par jour (`dayBar`) et leurs heures (la journée pour un créneau d'une journée entière, `columned` : côte à côte avec les fonds simultanés) ou la journée en fond, ou une fine ligne à gauche de leurs heures (ou rien). Chaque fine ligne d'un jour prend la voie suivante (`lanes`, par jour, partagé par les horaires d'une vue). Utilisé par `CalendarPage` (web), donc par son PDF. |
+| `LegendGlyph`, `LegendItem`, `CalendarLegendEntry` / `calendarLegend(items)` | Légende des couleurs d'une vue : une entrée par nom (`legend`), dans l'ordre ; un carré si un fond ou un bloc d'heures la montre, sinon un trait ; la couleur du premier élément ainsi dessiné, le motif et l'opacité la plus forte de ces éléments. Utilisé par le PDF de l'agenda (API). |
 
 ## `work-schedules.ts` — créneaux planifiés (horaires)
 
