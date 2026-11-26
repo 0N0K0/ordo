@@ -18,6 +18,8 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 
 ## Comportements à confirmer
 
+- **SIREN / SIRET obligatoire :** mention obligatoire de tout document comptable pour un client professionnel, mais la validation (`finalizeDocument`) ne refuse pas un client professionnel sans SIREN ni SIRET : le document est émis sans la mention. Voir [Règles de la facturation](business-rules/finances/accounting.md#clients--coordonnées-services-contacts). _à confirmer_
+
 - **Sens d’une catégorie de trésorerie :** le changement de sens n’est refusé que si des mouvements utilisent la catégorie ; les lignes de répartition ne sont pas vérifiées. Voir [Règles de la trésorerie](business-rules/finances/treasury.md). _il ne faudrait pas obliger à retirer toutes les lignes de la répartition pour pouvoir changer de sens_
 - **Suppression d’un contexte de trésorerie :** ses budgets sont supprimés aussi (`onDelete: Cascade`), mais la confirmation de l’interface ne le dit pas. Voir [Règles de la trésorerie](business-rules/finances/treasury.md). _à corriger_
 - **Unité renommée ou supprimée :** les unités se règlent aussi dans les paramètres des fiches et de l’inventaire, mais renommer une unité ne la renomme que dans les produits et les éléments des listes d’achats, et la supprimer ne la retire que d’eux : les éléments de fiches, les articles du stock et les éléments des listes à cocher gardent l’ancien libellé (leur usage n’est donc pas compté). Voir [Règles des achats](business-rules/supplies/shopping.md#unités). _à confirmer_
