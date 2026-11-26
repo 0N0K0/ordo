@@ -140,7 +140,8 @@ function HourBlock({
 
 /**
  * Settings of « Ma journée », in the sidebar of the page (⚙), as the display choices of the agenda: the calendars of
- * the workspace and the créneaux and éphémérides shown (those of the workspaces it subscribes to too), and the kinds of
+ * the workspace and the créneaux and éphémérides shown (those of the workspaces it subscribes to too), none archived nor
+ * of an archived kind, in their workspace (the day never shows them), and the kinds of
  * items (tasks, routines, créneaux and éphémérides with the birthdays); saved on the server at each change.
  * @param {{ settings: MyDaySettings, onChange: (patch: Partial<MyDaySettings>) => void }} props Component props.
  * @returns {JSX.Element} Settings.
@@ -167,6 +168,7 @@ function MyDaySettingsPanel({
           foreign ?? [],
           types ?? [],
           defaultKind,
+          false,
         ),
       ),
     [schedules, foreign, types, defaultKind],

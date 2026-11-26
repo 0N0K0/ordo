@@ -435,7 +435,9 @@ export function CalendarPage() {
           });
         }
       };
-      for (const { schedule, rule, color, label, foreign, display, ephemeris } of schedules ? scheduleSources(schedules, foreignSchedules ?? [], scheduleTypes ?? [], defaultKind) : []) {
+      // Those archived, or of an archived kind, in their workspace too: in the background with « Afficher les archivés »,
+      // and those of the workspace of an archived kind (not archived themselves) changed like the others.
+      for (const { schedule, rule, archived, color, label, foreign, display, ephemeris } of schedules ? scheduleSources(schedules, foreignSchedules ?? [], scheduleTypes ?? [], defaultKind, true) : []) {
         // An archived schedule (read only) stays in the background.
         if (!foreign && editingSlots && !('archived' in schedule && schedule.archived)) {
           // Being changed: each slot an event (an éphéméride dotted), moved to another day or hour, stretched, or opened.
@@ -457,7 +459,7 @@ export function CalendarPage() {
           }
           continue;
         }
-        if (!config.schedules || config.hiddenScheduleIds.includes(rule.id) || !kept.schedule(schedule.id)) continue;
+        if (!config.schedules || (archived && !showArchived) || config.hiddenScheduleIds.includes(rule.id) || !kept.schedule(schedule.id)) continue;
         showSlots({ color, label, foreign, display, ephemeris, slots: plannedSlots([rule], range.from, range.to) });
       }
       // Slots in the background at the same time stand side by side, each part of a slot as wide as the slots there
@@ -771,7 +773,8 @@ export function CalendarPage() {
   // Calendars that can be shown: those of the workspace, and those of other workspaces it subscribes to; then the
   // slots, of the workspace and of the workspaces it subscribes to.
   const shownCalendars = calendarChoices(ownCalendars, subscriptions);
-  const shownSchedules = scheduleChoices(scheduleSources(schedules ?? [], foreignSchedules ?? [], scheduleTypes ?? [], defaultKind));
+  // The archived ones (or of an archived kind) offered with « Afficher les archivés » only.
+  const shownSchedules = scheduleChoices(scheduleSources(schedules ?? [], foreignSchedules ?? [], scheduleTypes ?? [], defaultKind, showArchived));
   // Downloads the displayed view as a PDF (calendars shown, tasks, slots and timers as displayed), to print.
   const { run: exportPdf, loading: exporting } = useAsyncAction(
     async () => {

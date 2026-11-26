@@ -18,7 +18,7 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 
 ## Comportements à confirmer
 
-- **SIREN / SIRET obligatoire :** mention obligatoire de tout document comptable pour un client professionnel, mais la validation (`finalizeDocument`) ne refuse pas un client professionnel sans SIREN ni SIRET : le document est émis sans la mention. Voir [Règles de la facturation](business-rules/finances/accounting.md#clients--coordonnées-services-contacts). _à confirmer_
+- **SIREN / SIRET obligatoire :** mention obligatoire de tout document comptable pour un client société (pas pour un particulier), mais la validation (`finalizeDocument`) ne refuse pas un client société sans SIREN ni SIRET : le document est émis sans la mention. Voir [Règles de la facturation](business-rules/finances/accounting.md#clients--coordonnées-services-contacts). _à confirmer_
 
 - **Sens d’une catégorie de trésorerie :** le changement de sens n’est refusé que si des mouvements utilisent la catégorie ; les lignes de répartition ne sont pas vérifiées. Voir [Règles de la trésorerie](business-rules/finances/treasury.md). _il ne faudrait pas obliger à retirer toutes les lignes de la répartition pour pouvoir changer de sens_
 - **Suppression d’un contexte de trésorerie :** ses budgets sont supprimés aussi (`onDelete: Cascade`), mais la confirmation de l’interface ne le dit pas. Voir [Règles de la trésorerie](business-rules/finances/treasury.md). _à corriger_
@@ -30,7 +30,6 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 - **Personnes liées dans des états différents :** un contributeur et sa relation déjà enregistrés l'un archivé, l'autre non, le restent (aucune migration ne les aligne) ; le prochain archivage ou la prochaine restauration de l'un met l'autre dans le même état. Voir [Archivage](business-rules/cross-cutting/archiving.md#personnes-liées). _passer, rien n'est archivé pour l'instant en prod_
 - **Durée « Jusqu’à un jour » sans numéro de jour :** une durée enregistrée sans jour (données anciennes, `day` vide) affiche 1 dans le champ (`DurationFields`), alors que le calcul prend le jour du premier jour de l’occurrence (`spanEnd`) et que son libellé reste vide (« jusqu’au »). Voir [Dates](business-rules/cross-cutting/dates.md#répétitions). _à corriger_
 - **Lien de routine d’un jour qui montre plusieurs occurrences perdues :** quand une série décalée perd des occurrences, un lien de routine dont le jour montre plusieurs occurrences de l’évènement part par son jour (vers la série qui a ce jour, sinon celle de l’occurrence modifiée), même si toutes ces occurrences sont perdues et leurs commentaires supprimés. Voir [Agenda](business-rules/activities/calendar.md). _à confirmer_
-- **Créneaux archivés dans l'agenda :** l'agenda (et sa « Vue en PDF ») dessine en fond les créneaux et éphémérides archivés, ou d'un type archivé, de l'espace comme des types abonnés d'un autre espace, que « Afficher les archivés » soit coché ou non (l'interrupteur ne vise que les évènements, les calendriers et les routines) ; les réglages de l'agenda et de « Ma journée » les proposent aussi parmi les créneaux à afficher. Voir [Agenda](features/activities/calendar.md). _à confirmer_
 
 ## Écarts relevés par les tests
 

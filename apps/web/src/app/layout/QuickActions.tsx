@@ -1,6 +1,6 @@
 import { ActionButton } from '../../components/actions/ActionButton';
 import { ActionsMenu } from '../../components/actions/ActionsMenu';
-import { AlarmIcon, CalendarPlusIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon, TimerIcon } from '@phosphor-icons/react';
+import { AlarmIcon, ArrowsClockwiseIcon, CalendarPlusIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon, TimerIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { useMatch } from 'react-router';
 import { openNewDocument } from '../../features/accounting/lib/new-document';
@@ -27,8 +27,8 @@ interface QuickAction {
 
 /**
  * Creation menu of the header, between the running timer and the account, on every page and at every width: « Ajouter » opens, on hover (or a click, by touch
- * or keyboard), a task, an event, a timer (chrono), a countdown (« Minuteur »), an alarm, a mail and a quote (not in a personal workspace). On a project
- * page, the project (and its client for a quote) is preselected; on « Ma journée », the task and the event are prefilled
+ * or keyboard), a task, an event, a routine, a timer (chrono), a countdown (« Minuteur »), an alarm, a mail and a quote (not in a personal workspace). On a project
+ * page, the project (and its client for a quote) is preselected; on « Ma journée », the task, the event and the routine are prefilled
  * with the day shown, as the « Ajouter » of the page (`useDayAdd`). A running timer shows before it.
  * @returns {JSX.Element} Menu.
  */
@@ -36,7 +36,7 @@ export function QuickActions() {
   const { context } = useTaskContext();
   const projectId = useMatch(PROJECT_ROUTE)?.params.id;
   const project = projectId ? context?.projectById.get(projectId) : undefined;
-  // On « Ma journée », the day shown: the task and the event are prefilled with it, as the « Ajouter » of the page.
+  // On « Ma journée », the day shown: the task, the event and the routine are prefilled with it, as the « Ajouter » of the page.
   const addDay = usePageAddDay();
   const add = useDayAdd(context);
   const openAlarm = useAlarmForm(context);
@@ -54,6 +54,7 @@ export function QuickActions() {
   const actions: QuickAction[] = [
     { label: 'Tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => add.task(addDay, project ? { projectId: project.id } : undefined) },
     { label: 'Évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => add.event(addDay, project ? { projectId: project.id } : undefined) },
+    { label: 'Routine', icon: <ArrowsClockwiseIcon aria-hidden />, onClick: () => add.routine(addDay, project ? { projectId: project.id } : undefined) },
     // Several timers run at once: the ones running keep running.
     { label: 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer },
     { label: 'Minuteur', icon: <TimerIcon aria-hidden />, onClick: () => openCountdownForm() },

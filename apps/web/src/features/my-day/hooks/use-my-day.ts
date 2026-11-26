@@ -2,7 +2,6 @@ import {
   addDays,
   birthdayLabel,
   birthdaysBetween,
-  countedSchedules,
   inRoutineHistoryOn,
   itemWindowsOn,
   joinedKey,
@@ -218,7 +217,7 @@ export function useMyDay(day: string): MyDay {
     // Éphémérides and the slots of the hours: neither archived nor of an archived kind, in their workspace (another
     // one's too); with « Créneaux et éphémérides », each one shown, kept by the filter of its kind (those of another
     // workspace are not filtered).
-    const sources = scheduleSources(schedules, foreign, types, defaultKind).filter(({ rule }) => countedSchedules([rule]).length);
+    const sources = scheduleSources(schedules, foreign, types, defaultKind, false);
     const slots: MyDayHourSlot[] = [];
     for (const { schedule, rule, color, label, ephemeris } of settings.schedules ? sources : NONE) {
       if (hiddenSchedules.has(schedule.id) || !kept.schedule(schedule.id)) continue;

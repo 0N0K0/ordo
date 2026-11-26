@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   casesSlotsOn,
   changedScheduleSlot,
+  countedSchedules,
   fromLegacySchedule,
   plannedPauses,
   plannedSlots,
@@ -286,5 +287,31 @@ describe('scheduleTypeContextError', () => {
     expect(scheduleTypeContextError({ ephemeris: false, budgetContext: true, sharedContext: false })?.field).toBe('budgetContext');
     expect(scheduleTypeContextError({ ephemeris: true, budgetContext: false, sharedContext: true })?.field).toBe('sharedContext');
     expect(scheduleTypeContextError({ ephemeris: true, budgetContext: true, sharedContext: true })).toBeNull();
+  });
+});
+
+describe('countedSchedules', () => {
+  // What a page shows without « Afficher les archivés », and what the slot conditions count: neither archived nor of an
+  // archived kind, in their own workspace (another workspace's as it says).
+  const own = { id: 'own', archived: false, kindArchived: false };
+  const archived = { id: 'archived', archived: true, kindArchived: false };
+  const ofArchivedKind = { id: 'kind', archived: false, kindArchived: true };
+  const both = { id: 'both', archived: true, kindArchived: true };
+  const unknown = { id: 'unknown', archived: null, kindArchived: undefined };
+
+  it('keeps a schedule neither archived nor of an archived kind', () => {
+    expect(countedSchedules([own]).map(({ id }) => id)).toEqual(['own']);
+  });
+
+  it('leaves out an archived schedule, one of an archived kind, and one archived of an archived kind', () => {
+    expect(countedSchedules([archived, ofArchivedKind, both])).toEqual([]);
+  });
+
+  it('counts a schedule that does not say it (none, or null) as not archived', () => {
+    expect(countedSchedules([unknown]).map(({ id }) => id)).toEqual(['unknown']);
+  });
+
+  it('keeps the order of the schedules given', () => {
+    expect(countedSchedules([unknown, archived, own, ofArchivedKind]).map(({ id }) => id)).toEqual(['unknown', 'own']);
   });
 });

@@ -159,7 +159,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   const events: EventInput[] = [];
   // Slots of the chosen schedules: their hours in the background, their name in the all-day row.
   const shownSchedules = new Set(layers.scheduleIds);
-  const slotSources = scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind).filter(({ schedule }) => shownSchedules.has(schedule.id));
+  const slotSources = scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind, true).filter(({ schedule }) => shownSchedules.has(schedule.id));
   for (const { schedule, rule, color, label, foreign, ephemeris } of slotSources) {
     const slots = plannedSlots([rule], day, day);
     if (slots.length === 0) continue;

@@ -3,6 +3,7 @@ import type { AddDay } from '../../../app/layout/page-add';
 import { useCalendars } from '../../calendar/api';
 import { useEventForm } from '../../calendar/hooks/use-event-form';
 import { newEventDefaults } from '../../calendar/lib/event-input';
+import type { RoutineFormProps } from '../../routines/components/RoutineForm';
 import { openRoutineForm } from '../../routines/lib/open-routine-form';
 import type { TaskCreateDefaults } from '../../tasks/components/TaskCreateForm';
 import { useTaskActions } from '../../tasks/hooks/use-task-actions';
@@ -26,11 +27,12 @@ export interface DayAdd {
    */
   event: (on: AddDay | null, defaults?: Partial<CalendarEventInput>) => void;
   /**
-   * Opens « Nouvelle routine »: its « Première fois » the day.
+   * Opens « Nouvelle routine »: its « Première fois » the day (a routine has no due date).
    * @param {AddDay | null} on Day; null: none.
+   * @param {Pick<RoutineFormProps, 'projectId'>} [defaults] Other fields (the project of a project page). Optional.
    * @returns {void}
    */
-  routine: (on: AddDay | null) => void;
+  routine: (on: AddDay | null, defaults?: Pick<RoutineFormProps, 'projectId'>) => void;
 }
 
 /**
@@ -52,6 +54,6 @@ export function useDayAdd(context: TaskContext | null): DayAdd {
         defaults: on ? { ...defaults, ...newEventDefaults(calendarsData?.calendars ?? [], new Set(on.hiddenCalendarIds), { startDate: on.day, endDate: on.day }) } : defaults,
       }),
     // eslint-disable-next-line no-restricted-syntax -- the day prefill itself.
-    routine: (on) => openRoutineForm(on ? { startDate: on.day } : {}),
+    routine: (on, defaults) => openRoutineForm(on ? { ...defaults, startDate: on.day } : { ...defaults }),
   };
 }

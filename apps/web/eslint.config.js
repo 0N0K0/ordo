@@ -1272,6 +1272,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser useWorkingHours (features/calendar/api) : les heures de travail, sans éphémérides ni créneaux archivés.',
   },
   {
+    // The schedules a page shows leave out those archived, or of an archived kind, in their workspace: scheduleSources says it.
+    selector: "CallExpression[callee.name='countedSchedules'] > ArrayExpression.arguments",
+    message: 'Utiliser scheduleSources(…, includeArchived) (features/calendar/lib/calendar-events) : les créneaux affichés, sans les archivés ni ceux d’un type archivé sauf demande, et leur `archived`.',
+  },
+  {
     // The input of a schedule from its rule keeps its kind and nature.
     selector: "ObjectExpression:has(> Property[key.name='label']):has(> Property[key.name='startDate']):has(> Property[key.name='typeId']):has(> SpreadElement[argument.name='next'])",
     message: 'Utiliser ruleScheduleInput (features/calendar/api) : l’entrée d’un créneau depuis sa règle garde son type et sa nature.',

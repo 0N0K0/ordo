@@ -4,6 +4,7 @@ import {
   birthdayLabel,
   birthdaysBetween,
   birthdaySlotId,
+  countedSchedules,
   DEFAULT_SCHEDULE_DISPLAY,
   mapById,
   type PlannedSlot,
@@ -14,7 +15,7 @@ import {
   type WorkScheduleRule,
 } from '@ordo/shared';
 import { scheduleRules, type PersonBirthday, type ScheduleType, type useBirthdayLook, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
-import { archivedIds } from '../../../lib/archive';
+import { archivedIds, unarchived } from '../../../lib/archive';
 import classes from '../pages/CalendarPage.module.css';
 import { inWorkspace } from './layer-label';
 
@@ -56,11 +57,13 @@ export const EPHEMERIS_COLOR = 'var(--mantine-color-gray-6)';
 
 /**
  * Schedule shown as slots: its rule (archived, or of an archived kind, in its workspace: `countedSchedules` leaves it
- * out), the color of its kind, its label, whether of another workspace, and its display.
+ * out), whether it is archived so, the color of its kind, its label, whether of another workspace, and its display.
  */
 interface ScheduleSource {
   schedule: WorkSchedule | ForeignSchedule;
   rule: WorkScheduleRule;
+  /** Archived, or of an archived kind, in its workspace (another one's as that workspace says). */
+  archived: boolean;
   /** An éphéméride: dotted. */
   ephemeris: boolean;
   color: string | null;
@@ -85,23 +88,34 @@ export function scheduleLayerLabel(label: string, type: string | null | undefine
  * Schedules shown as slots: those of the workspace (in the color of their kind, the default kind without one), then
  * those of other workspaces subscribed to, each labelled « Libellé (Type) » (`scheduleLayerLabel`). Each rule says
  * whether the schedule is archived or of an archived kind, in its own workspace (for one of another workspace, as that
- * workspace says), the same for both.
+ * workspace says), the same for both; those archived so are left out unless `includeArchived` (`archived` then says
+ * which ones are).
  * @param {readonly WorkSchedule[]} own Schedules of the workspace.
  * @param {readonly ForeignSchedule[]} foreign Schedules subscribed to.
  * @param {readonly ScheduleType[]} types Kinds of slots.
  * @param {DefaultKind} defaultKind Default kind of the workspace.
+ * @param {boolean} includeArchived Whether the schedules archived, or of an archived kind, in their workspace are given too.
  * @returns {ScheduleSource[]} Sources.
  */
-export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly ForeignSchedule[], types: readonly ScheduleType[], defaultKind: DefaultKind): ScheduleSource[] {
+export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly ForeignSchedule[], types: readonly ScheduleType[], defaultKind: DefaultKind, includeArchived: boolean): ScheduleSource[] {
   const typeOf = mapById(types);
   const archivedKinds = archivedIds(types);
-  return [
+  /**
+   * Whether a rule is archived, or of an archived kind, in its workspace: what the slot conditions do not count.
+   * @param {WorkScheduleRule} rule Rule.
+   * @returns {boolean} Archived.
+   */
+  // eslint-disable-next-line no-restricted-syntax -- the one place a source is told archived.
+  const archived = (rule: WorkScheduleRule): boolean => countedSchedules([rule]).length === 0;
+  const sources: ScheduleSource[] = [
     ...own.map((schedule) => {
       // Without kind: the default kind of the workspace; an éphéméride without kind, its own look.
       const kind = (schedule.typeId ? typeOf.get(schedule.typeId) : undefined) ?? (schedule.ephemeris ? { label: UNTYPED_EPHEMERIS_LABEL, color: EPHEMERIS_COLOR, ...DEFAULT_SCHEDULE_DISPLAY } : defaultKind);
+      const rule = scheduleRules([schedule], archivedKinds)[0];
       return {
         schedule,
-        rule: scheduleRules([schedule], archivedKinds)[0],
+        rule,
+        archived: archived(rule),
         ephemeris: schedule.ephemeris,
         color: kind?.color ?? null,
         label: scheduleLayerLabel(schedule.label, kind?.label),
@@ -109,16 +123,21 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
         display: readScheduleDisplay(kind),
       };
     }),
-    ...foreign.map((schedule) => ({
-      schedule,
-      rule: scheduleRules([schedule])[0],
-      ephemeris: schedule.ephemeris,
-      color: schedule.color ?? (schedule.ephemeris && !schedule.typeId ? EPHEMERIS_COLOR : null),
-      label: scheduleLayerLabel(schedule.label, schedule.typeLabel, schedule.workspaceLabel),
-      foreign: true,
-      display: readScheduleDisplay(schedule),
-    })),
+    ...foreign.map((schedule) => {
+      const rule = scheduleRules([schedule])[0];
+      return {
+        schedule,
+        rule,
+        archived: archived(rule),
+        ephemeris: schedule.ephemeris,
+        color: schedule.color ?? (schedule.ephemeris && !schedule.typeId ? EPHEMERIS_COLOR : null),
+        label: scheduleLayerLabel(schedule.label, schedule.typeLabel, schedule.workspaceLabel),
+        foreign: true,
+        display: readScheduleDisplay(schedule),
+      };
+    }),
   ];
+  return includeArchived ? sources : unarchived(sources);
 }
 
 /**
