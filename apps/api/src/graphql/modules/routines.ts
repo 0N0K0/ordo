@@ -334,7 +334,7 @@ builder.prismaObject('Routine', {
       },
     }),
     hasSubRoutines: t.boolean({
-      description: 'It has sub-routines not archived: a group of them and their template, never ticked nor late, no reminder of its own; its state of a day is read from those due that day.',
+      description: 'It has sub-routines not archived: a group of them and their template, never ticked nor late, no reminder of its own; its state of a day is read from those open that day until the day they are done.',
       select: ACTIVE_CHILD,
       resolve: (routine) => routine.children.length > 0,
     }),

@@ -53,7 +53,7 @@ Fonctions internes : `useRoutineMutation` (mutation invalidante avec cache optim
 
 | Export                                       | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutinesPanel({ projectId?, projectIds? })` | Tableau des routines (`DataTable`, vue `routines`) : vues « À faire » et « Toutes » (`ROUTINE_VIEWS`), groupes par catégories, sous-routines sous leur parente, cellules éditables, glisser-déposer (`handleMove` : avant la routine qui suit dans l'ordre global, sous le nouveau parent), menu par ligne (`useRoutineOccurrenceMenu`, sur l’occurrence en cours), ligne d'ajout, barre de sélection. Une routine qui a des sous-routines (`hasSubRoutines`) : pas de bouton « Faite », dans la cellule « Échéance » son avancement d'aujourd'hui (`RoutineGroupProgress` sur `groupStates` de `useRoutineColumns`, rien quand aucune sous-routine n'est due), et les champs de son « quand » qu'une sous-routine hérite marqués (`inheritedCells` avec `heirs` : `routineHeirsFields`, `ROUTINE_HEIRS_MENTION`). Sur un projet, filtre les routines de `projectIds` et passe `projectId` aux créations. Utilisé ici et dans `features/projects/pages/ProjectPage.tsx`. |
+| `RoutinesPanel({ projectId?, projectIds? })` | Tableau des routines (`DataTable`, vue `routines`) : vues « À faire » et « Toutes » (`ROUTINE_VIEWS`), groupes par catégories, sous-routines sous leur parente, cellules éditables, glisser-déposer (`handleMove` : avant la routine qui suit dans l'ordre global, sous le nouveau parent), menu par ligne (`useRoutineOccurrenceMenu`, sur l’occurrence en cours), ligne d'ajout, barre de sélection. Une routine qui a des sous-routines (`hasSubRoutines`) : pas de bouton « Faite », dans la cellule « Échéance » son avancement d'aujourd'hui (`RoutineGroupProgress` de `components/feedback` sur `groupStates` de `useRoutineColumns`, rien quand aucune sous-routine ne compte aujourd'hui), et les champs de son « quand » qu'une sous-routine hérite marqués (`inheritedCells` avec `heirs` : `routineHeirsFields`, `ROUTINE_HEIRS_MENTION`). Sur un projet, filtre les routines de `projectIds` et passe `projectId` aux créations. Utilisé ici et dans `features/projects/pages/ProjectPage.tsx`. |
 | `RoutinesPage()`                             | Page `/routines` : en-tête, `PageSettings` « Paramètres des routines » (`RoutineSettings`), puis `RoutinesPanel`, sans onglets (un ancien `?tab=` est sans effet). Route dans `app/router.tsx`.                                                                                                                                                                                                                                                                                                              |
 
 Internes : `ROUTINE_VIEWS`, `movedCategories(categoryIds, from, to)` (catégories après un dépôt dans un autre groupe), `cells(routine)` (par `inheritedCells` : champs hérités grisés ; interne `routineCells`), `actions(routine)` (« Héritage… » d’une sous-routine compris) (menu d'une ligne, « Transformer en tâche » compris : `useConvertActivity` ; puis les temps morts et les minuteurs enregistrés pour l’occurrence en cours : `useCountdownMenuEntries`).
@@ -185,12 +185,6 @@ Interne : `hasOwnTimes(routine)`.
 
 Interne : `DueBadge` (« D'ici … » pendant l'« Ouverture », « Après … », « Partir maintenant », « Aujourd'hui … », à l'heure de Paris par `parisParts`, rafraîchi chaque minute).
 
-### `components/WaitingIcon.tsx`
-
-| Export                     | Rôle                                                                                                  |
-| -------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `WaitingIcon({ waiting })` | Sablier orange « En attente de : … » ; rien sans attente. Utilisé par `RoutinesPanel` et `LifeCards`. |
-
 ### `components/RoutineSettings.tsx`
 
 | Export              | Rôle                                                                                                                       |
@@ -222,7 +216,7 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 | Export | Rôle |
 | ------ | ---- |
 | `RoutineColumns` (interface) | `columns`, `byId`, `doable(routine)`. |
-| `useRoutineColumns(routines, categories, today)` | Colonnes du tableau des routines (`routineColumns`) avec ce qui leur manque : règles des créneaux (`useSlotRules`, `routineDoable`), créneaux et types (`useSlotChoices`), commentaires (`useCommentCounts`, sans les routines en création), bénéficiaires, état d’aujourd’hui des routines parentes (`useRoutineGroupStates`, rendu en `groupStates` ; la colonne d’état lit une parente « fait » quand toutes ses sous-routines dues aujourd’hui le sont, « à faire » sinon, « à venir » sans sous-routine due : jamais en retard) ; aucune colonne sans contexte des tâches. Utilisé par `RoutinesPanel`, `RoutineSettings` (colonnes des nouvelles vues) et la carte « Routines » de l’accueil. |
+| `useRoutineColumns(routines, categories, today)` | Colonnes du tableau des routines (`routineColumns`) avec ce qui leur manque : règles des créneaux (`useSlotRules`, `routineDoable`), créneaux et types (`useSlotChoices`), commentaires (`useCommentCounts`, sans les routines en création), bénéficiaires, état d’aujourd’hui des routines parentes (`useRoutineGroupStates`, rendu en `groupStates` ; la colonne d’état lit une parente « fait » quand toutes ses sous-routines qui comptent aujourd’hui le sont, « à faire » sinon, « à venir » sans sous-routine qui compte : jamais en retard) ; aucune colonne sans contexte des tâches. Utilisé par `RoutinesPanel`, `RoutineSettings` (colonnes des nouvelles vues) et la carte « Routines » de l’accueil. |
 
 ### `hooks/use-routine-move.ts`
 
@@ -369,7 +363,7 @@ Internes : `RoutineColumn`, `TABLE_COLUMNS`, `useBulkRoutineChanges` (instantan�
 
 ## Utilisations hors du dossier
 
-- `features/home/components/LifeCards.tsx` : `useRoutinesData`, `RoutineDoneToggles`, `WaitingIcon`, `usePostponeRoutine`, fonctions de `routine-format`.
+- `features/home/components/LifeCards.tsx` : `useRoutinesData`, `RoutineDoneToggles`, `usePostponeRoutine`, fonctions de `routine-format`.
 - `features/calendar/` : `useRoutineOccurrences`, `useRoutinesData`, `useRoutineMutations`, `manualOrder`, `openRoutineForm`, `RoutineTickButton`, `doneAtText`, `ROUTINE_DONE_STATES`.
 - `features/alarms/` : `useRoutinesData`, `openRoutineTick`, `isDone`, `windowText`.
 - `features/time/` : `useRoutinesData`, `routineTreeOptions`, `routinesKey`.

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   routineBulkDoneAt,
+  routineCountsOn,
+  routineDoneDay,
   routineDayEntries,
   routineGroupIds,
   routineGroupStatesOn,
@@ -168,12 +170,31 @@ describe('routineGroupIds', () => {
 describe('routineGroupStatesOn', () => {
   const tree = [routine('p'), routine('a', 'p'), routine('b', 'p'), routine('c', 'p')];
 
-  it('a group is present only on a day one of its sub-routines is due', () => {
-    // Open that day but due later: it does not count.
-    const later = [occurrence('a', [slot(0, false)], { dueDate: '2026-11-28' })];
-    expect(routineGroupStatesOn(tree, later, DAY).has('p')).toBe(false);
+  it('a group is present only on a day one of its sub-routines counts', () => {
     expect(routineGroupStatesOn(tree, [], DAY).has('p')).toBe(false);
-    expect(routineGroupStatesOn(tree, [...later, occurrence('b', [slot(0, false)])], DAY).get('p')).toMatchObject({ due: 1, done: 0, complete: false });
+    // Opened later, or due before: it does not count.
+    const outside = [occurrence('a', [slot(0, false)], { startDate: '2026-11-26', dueDate: '2026-11-28' }), occurrence('b', [slot(0, false)], { startDate: '2026-11-20', dueDate: '2026-11-24' })];
+    expect(routineGroupStatesOn(tree, outside, DAY).has('p')).toBe(false);
+  });
+
+  it('a sub-routine counts on each day of its window until the day it is done', () => {
+    const open = (doneAt: string | null) => [occurrence('a', [slot(0, false, { doneAt })], { startDate: '2026-11-23', dueDate: '2026-11-27' })];
+    // Not done: from its « Ouverture » to its due day.
+    for (const day of ['2026-11-23', '2026-11-25', '2026-11-27']) expect(routineGroupStatesOn(tree, open(null), day).get('p')).toMatchObject({ due: 1, done: 0 });
+    expect(routineGroupStatesOn(tree, open(null), '2026-11-22').has('p')).toBe(false);
+    expect(routineGroupStatesOn(tree, open(null), '2026-11-28').has('p')).toBe(false);
+    // Done on the 25th (in Paris): counted that day as done, no longer the following days; the day before, to do.
+    const done = open('2026-11-25T08:00:00Z');
+    expect(routineGroupStatesOn(tree, done, '2026-11-24').get('p')).toMatchObject({ due: 1, done: 0, complete: false });
+    expect(routineGroupStatesOn(tree, done, DAY).get('p')).toMatchObject({ due: 1, done: 1, complete: true });
+    expect(routineGroupStatesOn(tree, done, '2026-11-26').has('p')).toBe(false);
+    expect(routineGroupStatesOn(tree, done, '2026-11-27').has('p')).toBe(false);
+  });
+
+  it('a sub-routine opened and due the same day counts that day only', () => {
+    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, false)])], DAY).get('p')).toMatchObject({ due: 1, done: 0 });
+    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, false)])], '2026-11-24').has('p')).toBe(false);
+    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, false)])], '2026-11-26').has('p')).toBe(false);
   });
 
   it('a cancelled occurrence does not count', () => {
@@ -187,9 +208,27 @@ describe('routineGroupStatesOn', () => {
     expect(routineGroupStatesOn(tree, all, DAY).get('p')).toMatchObject({ due: 3, done: 3, complete: true });
   });
 
-  it('a sub-routine is done once every required moment of its occurrence is, whichever day it was ticked', () => {
-    const occurrences = [occurrence('a', [slot(0, true), slot(1, false)]), occurrence('b', [slot(0, true, { doneAt: '2026-11-23T08:00:00Z' })])];
-    expect(routineGroupStatesOn(tree, occurrences, DAY).get('p')).toMatchObject({ due: 2, done: 1, complete: false });
+  it('a sub-routine is done once every required moment of its occurrence is ticked, that day or before', () => {
+    const window = { startDate: '2026-11-23', dueDate: '2026-11-27' };
+    const occurrences = [
+      // One moment ticked the day before, the other that day: done.
+      occurrence('a', [slot(0, true, { doneAt: '2026-11-24T08:00:00Z' }), slot(1, true)], window),
+      // One moment ticked the day before, the other not: still counted, not done.
+      occurrence('b', [slot(0, true, { doneAt: '2026-11-24T08:00:00Z' }), slot(1, false)], window),
+      // Done after that day (a past day shown again): counted, not done that day.
+      occurrence('c', [slot(0, true, { doneAt: '2026-11-26T08:00:00Z' })], window),
+    ];
+    expect(routineGroupStatesOn(tree, occurrences, DAY).get('p')).toMatchObject({ due: 3, done: 1, complete: false });
+  });
+
+  it('a sub-routine with optional moments only does not count', () => {
+    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, false, { optional: true })])], DAY).has('p')).toBe(false);
+  });
+
+  it('a sub-routine ticked before its « Ouverture » counts on its first day, as done', () => {
+    const early = [occurrence('a', [slot(0, true, { doneAt: '2026-11-20T08:00:00Z' })], { startDate: '2026-11-23', dueDate: '2026-11-27' })];
+    expect(routineGroupStatesOn(tree, early, '2026-11-23').get('p')).toMatchObject({ due: 1, done: 1 });
+    expect(routineGroupStatesOn(tree, early, '2026-11-24').has('p')).toBe(false);
   });
 
   it('optional moments do not count', () => {
@@ -234,7 +273,34 @@ describe('routineGroupStatesOn', () => {
   });
 });
 
+describe('routineDoneDay', () => {
+  it('is the day (in Paris) of the last required moment ticked, once all are', () => {
+    const at = (slots: RoutineTickSlot[]) => routineDoneDay({ startDate: '2026-11-20', slots });
+    expect(at([slot(0, true, { doneAt: '2026-11-23T08:00:00Z' }), slot(1, true, { doneAt: '2026-11-24T23:30:00Z' })])).toBe('2026-11-25');
+    expect(at([slot(0, true), slot(1, false)])).toBeNull();
+    expect(at([slot(0, true), slot(1, false, { optional: true })])).toBe(DAY);
+    expect(at([])).toBeNull();
+    expect(at([slot(0, true, { optional: true })])).toBeNull();
+  });
+});
+
+describe('routineCountsOn', () => {
+  it('never counts a cancelled occurrence', () => {
+    expect(routineCountsOn(occurrence('a', [slot(0, false)], { cancelled: true }), DAY)).toBe(false);
+  });
+});
+
 describe('routineDayEntries', () => {
+  it('no longer lists the optional moments not done of a sub-routine done before that day', () => {
+    const slots = [slot(0, true, { doneAt: '2026-11-24T08:00:00Z' }), slot(1, false, { optional: true })];
+    const occurrences = [occurrence('a', slots, { startDate: '2026-11-23', dueDate: '2026-11-27' })];
+    const indexes = (routines: RoutineDayRoutine[], day: string) => routineDayEntries(routines, occurrences, day, { today: DAY }).map((entry) => entry.slot.index);
+    expect(indexes([routine('p'), routine('a', 'p')], '2026-11-24')).toEqual([0, 1]);
+    expect(indexes([routine('p'), routine('a', 'p')], DAY)).toEqual([]);
+    // A routine that is not a sub-routine keeps them.
+    expect(indexes([routine('a')], DAY)).toEqual([1]);
+  });
+
   it('never lists a group, nor its ticks; lists it again once it has no sub-routine not archived', () => {
     const occurrences = [occurrence('p', [slot(0, true)]), occurrence('a', [slot(0, false)])];
     const listed = (routines: RoutineDayRoutine[]) => routineDayEntries(routines, occurrences, DAY, { today: DAY }).map((entry) => entry.routine.id);

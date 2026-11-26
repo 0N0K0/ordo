@@ -10,6 +10,7 @@ import {
   readBirthDate,
   readSlotCondition,
   readTaskHours,
+  routineCountsOn,
   routineDayEntries,
   routineGroupStatesOn,
   taskDayReasons,
@@ -67,9 +68,12 @@ export interface MyDayRoutine extends MyDayItem {
 export interface MyDayRoutineGroup extends MyDayItem {
   kind: 'routineGroup';
   routine: Routine;
-  /** Its state that day, read from its sub-routines due that day (`routineGroupStatesOn`). */
+  /** Its state that day, read from its sub-routines that count that day (`routineGroupStatesOn`). */
   state: RoutineGroupState;
-  /** Its own occurrence due that day (its menu moves it, with the sub-routines following its exceptions); null: none. */
+  /**
+   * Its own occurrence open that day, the first one due when several are (its menu moves it, with the sub-routines
+   * following its exceptions); null: none.
+   */
   occurrence: RoutineOccurrence | null;
 }
 
@@ -158,7 +162,8 @@ function routineWindows(slot: RoutineSlot): TimeWindow[] | null {
  * - routines: each time of the day of an occurrence open that day (done: on the day it was done; on a past day, not
  *   done: « non faite »), cancelled on its due day, and today the late ones (their current occurrence past due)
  *   (`routineDayEntries`); a parent routine (a group) as the head of its sub-routines of the day, its progress read from
- *   those due that day (`routineGroupStatesOn`), present only when one is; archived ones left out;
+ *   those that count that day (`routineGroupStatesOn`: open that day until the day they are done), present only when
+ *   one does; archived ones left out;
  * - event occurrences of the workspace (cancelled ones struck through, those over several days on each of their
  *   days), éphémérides and birthdays of the day;
  * - the slots of the hours: the créneaux of the workspace and of the kinds of other workspaces it subscribes to,
@@ -270,7 +275,7 @@ export function useMyDay(day: string): MyDay {
     for (const [id, state] of groups) {
       const routine = routineById.get(id);
       if (!routine || routine.archived || !routineShown(routine)) continue;
-      const occurrence = unarchived(dayRoutineOccurrences, null, (item) => item.date).find((item) => item.routineId === id && !item.cancelled && item.dueDate === day) ?? null;
+      const occurrence = unarchived(dayRoutineOccurrences, null, (item) => item.date).find((item) => item.routineId === id && !item.cancelled && item.startDate <= day && day <= item.dueDate) ?? null;
       items.push({ kind: 'routineGroup', key: joinedKey('routineGroup', id), routine, state, occurrence, done: state.complete, groupKey: groupKeyOf(routine) });
     }
     // Each time of the day shown that day; today, the late ones kept to the hours their condition and the slots
@@ -297,8 +302,8 @@ export function useMyDay(day: string): MyDay {
         doneAt: parisTime(slot.doneAt),
         cancelled: occurrence.cancelled,
         eventKeys: linkedKeys(dayOccurrences, (event) => event.routineLinks.some((link) => link.routineId === routine.id && link.date === occurrence.date)),
-        // Under its parent only when it counts for it that day (due that day, not cancelled); else on its own.
-        groupKey: !occurrence.cancelled && occurrence.dueDate === day ? groupKeyOf(routine) : undefined,
+        // Under its parent only when it counts for it that day (open that day until the day it is done); else on its own.
+        groupKey: !late && routineCountsOn(occurrence, day) ? groupKeyOf(routine) : undefined,
       });
     }
     // Tasks: every task of the workspace with a reason that day, kept by the filter of the tasks.

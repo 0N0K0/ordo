@@ -1,7 +1,7 @@
 import { PAGES } from '../../../app/pages';
 import { inheritedCells } from '../../../components/inheritance/inherited-cells';
 import { ROUTINE_CELL_FIELDS, ROUTINE_HEIRS_MENTION, routineHeirsFields, routineParentName } from '../lib/routine-inheritance';
-import { RoutineGroupProgress } from '../../../components/routines/RoutineGroupProgress';
+import { RoutineGroupProgress } from '../../../components/feedback/RoutineGroupProgress';
 import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -33,7 +33,7 @@ import { useRoutineSelectionActions } from '../components/RoutineBulkBar';
 import { useRoutineOccurrenceMenu } from '../hooks/use-routine-occurrence-menu';
 import classes from '../components/Routines.module.css';
 import { plural } from '../../../lib/text';
-import { WaitingIcon } from '../components/WaitingIcon';
+import { WaitingIcon } from '../../../components/feedback/WaitingIcon';
 
 /** Views made the first time: those to do, all; grouped by category. */
 const ROUTINE_VIEWS: FirstTableView[] = [
@@ -78,7 +78,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const { move } = useRoutineMutations();
   const selectionActions = useRoutineSelectionActions();
   const menuOf = useRoutineOccurrenceMenu();
-  // With today's progress of the parent routines (groups), read from their sub-routines due today.
+  // With today's progress of the parent routines (groups), read from their sub-routines that count today.
   const { columns, byId, doable, groupStates } = useRoutineColumns(routines, categories, today);
   // Of the project on a project page; in their manual order.
   const rows = useMemo(() => routines.filter((routine) => !projectIds || (routine.projectId && projectIds.has(routine.projectId))), [routines, projectIds]);
@@ -137,7 +137,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       ),
       currentDate: (
         <RepetitionCell routine={routine} readOnly={readOnly}>
-          {/* A parent (a group): today's progress of its sub-routines, nothing when none is due today. */}
+          {/* A parent (a group): today's progress of its sub-routines, nothing when none counts today. */}
           {routine.hasSubRoutines ? (
             groupState && <RoutineGroupProgress state={groupState} when="aujourd’hui" />
           ) : (

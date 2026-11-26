@@ -4051,7 +4051,7 @@ type Routine {
   fromTime: String
 
   """
-  It has sub-routines not archived: a group of them and their template, never ticked nor late, no reminder of its own; its state of a day is read from those due that day.
+  It has sub-routines not archived: a group of them and their template, never ticked nor late, no reminder of its own; its state of a day is read from those open that day until the day they are done.
   """
   hasSubRoutines: Boolean!
   id: ID!

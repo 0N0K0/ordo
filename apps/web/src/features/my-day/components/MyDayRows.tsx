@@ -6,7 +6,7 @@ import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { LateBadge } from '../../../components/feedback/LateBadge';
-import { RoutineGroupProgress } from '../../../components/routines/RoutineGroupProgress';
+import { RoutineGroupProgress } from '../../../components/feedback/RoutineGroupProgress';
 import * as fmt from '../../../lib/format';
 import { EventTimerToggle } from '../../calendar/components/EventTimerToggle';
 import { useEventForm } from '../../calendar/hooks/use-event-form';
@@ -209,7 +209,7 @@ function RoutineRow({ row, item, today, day }: RowContext & { row: Row<MyDayEntr
 
 /**
  * Head of a group of routines (a parent routine): no state button (it is never ticked), its name (its panel), its
- * progress « 2/3 » read from its sub-routines due that day, and its menu; its sub-routines of the day under it. Dimmed
+ * progress « 2/3 » read from its sub-routines that count that day, and its menu; its sub-routines of the day under it. Dimmed
  * once they are all done.
  * @param {RowContext & { row: Row<MyDayEntry>, item: MyDayRoutineGroup }} props Component props.
  * @returns {JSX.Element} Row.

@@ -5,7 +5,7 @@ interface ProgressBadgeProps {
   done: number;
   /** Out of how many. */
   total: number;
-  /** What it says, for the screen readers and as its tooltip (« 2 sous-routines faites sur 3 dues aujourd’hui »). */
+  /** What it says, for the screen readers and as its tooltip (« 2 sous-routines faites sur 3 ouvertes aujourd’hui »). */
   label: string;
   /** Optional. Default = « sm ». */
   size?: MantineSize;

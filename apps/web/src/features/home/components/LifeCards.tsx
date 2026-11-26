@@ -20,7 +20,7 @@ import { HomeList, HomeRow } from './HomeList';
 import { leftToBuy } from '../../shopping/lib/shopping-format';
 import { LateBadge } from '../../../components/feedback/LateBadge';
 import { shoppingListPath, PAGES } from '../../../app/pages';
-import { WaitingIcon } from '../../routines/components/WaitingIcon';
+import { WaitingIcon } from '../../../components/feedback/WaitingIcon';
 import { unarchived } from '../../../lib/archive';
 import { viewList, viewNote, type ViewItem } from '../lib/home-data';
 

@@ -55,7 +55,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const blockers = (routine: Routine) => blockedRoutineIds(routines, routine.id);
   /**
    * State of a routine today, for its filters and sorts: a parent routine by today's progress of its sub-routines
-   * (« fait » once all due today are, « à faire » while some are, « à venir » when none is due today), never late.
+   * (« fait » once all that count today are, « à faire » while some are not, « à venir » when none counts today), never late.
    * @param {Routine} routine Routine.
    * @returns {RoutineState} State.
    */

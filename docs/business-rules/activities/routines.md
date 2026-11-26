@@ -77,6 +77,7 @@ Normalisation à l'enregistrement :
 Source : `effectiveRoutine` (`packages/shared/src/routines/routine-inheritance.ts`, sur `resolveInheritance` de `core/inheritance.ts`), `services/routines/routine-inheritance.ts`, colonne `Routine.inheritedFields`. Même règle que les tâches ([Tâches](tasks.md#héritage)).
 
 - **Champs hérités** d’une sous-routine : projet (`PROJECT`), assignés (`ASSIGNEES`), bénéficiaires, contributeurs et relations ensemble (`BENEFICIARIES`), condition de créneaux (`SLOT_CONDITION`, avec son ancienne forme), « Ouverture » (`OPENS_ON`), lieu avec son point (`LOCATION`, pas les trajets), catégories (`CATEGORIES`), priorité (`PRIORITY`, comme une sous-tâche ; le type ne s’hérite pas), et son « quand » : première fois (`START_DATE`), répétition (`RECURRENCE`, avec l’ancien créneau suivi), cas (`CASES`), moments (`MOMENTS`, avec l’ancienne fenêtre), exceptions (`MOVES`).
+- **Les rappels ne s’héritent pas** : chaque sous-routine sonne seulement ses propres rappels (aux heures du « quand » qu’elle suit) ; une parente ne sonne rien. Hérités, les rappels d’une parente sonneraient pour chacune de ses sous-routines à la fois (dix sous-routines : dix rappels en même temps).
 - Une sous-routine sans priorité à elle hérite de celle de sa parente : la migration `20261122180000_subroutine_priority_inherited` a ajouté la priorité aux champs hérités des sous-routines existantes qui n'en avaient pas (leur priorité vide se lisait « vidée exprès »).
 - **Trois états**, comme les tâches : hérité (en direct, en remontant la chaîne, une boucle s’arrête), valeur propre, vidé exprès. Seule une sous-routine hérite ; une routine du premier niveau a une liste vide.
 - La première fois et la répétition ne se vident pas (« La première fois et la répétition d’une routine ne se vident pas : donnez-lui les siennes ou rétablissez l’héritage. » sous `clear`). Vidés exprès, les cas, les moments et les exceptions valent « aucun » : la routine suit sa répétition, un moment sans heure, aucune exception ; la condition vidée : à toute heure ; l’« Ouverture » vidée : aucune.
@@ -202,28 +203,34 @@ Source : `setRoutineDone`, `bulkSetRoutinesDone`, `routineChecks` ; `routineGrou
 Une routine qui a au moins une sous-routine non archivée (une **parente**) est un **groupe** et un **modèle** : ses sous-routines héritent de son « quand » (première fois, répétition, cas, moments, exceptions, condition, « Ouverture », voir [Héritage](#héritage)), qu'elle garde en entier et qui se modifie comme pour toute routine ; elle n'est pas une chose à faire (`routineGroupIds`, `hasSubRoutines`).
 
 - **Jamais cochée** : pas de coche à la main (refusée par l'API, aucun bouton dans les écrans), pas en masse ; aucune coche n'est écrite pour elle.
-- **Jamais en retard** : pas d'état « à faire » ni « en retard » à elle (la carte « Routines du jour » de l'accueil ne la montre pas), comptée dans aucune pastille ni aucun compte ; une routine qui dépend d'elle ne l'attend pas. Les filtres et tris d'état du tableau la lisent par son avancement d'aujourd'hui : « fait » quand toutes ses sous-routines dues aujourd'hui le sont, « à faire » sinon, « à venir » sans sous-routine due.
-- **Pas de rappel à elle** (`reminderOccurrences` vide, dans l'app et hors de l'app) : ses sous-routines sonnent les leurs, aux heures qu'elles héritent d'elle.
+- **Jamais en retard** : pas d'état « à faire » ni « en retard » à elle (la carte « Routines du jour » de l'accueil ne la montre pas), comptée dans aucune pastille ni aucun compte ; une routine qui dépend d'elle ne l'attend pas. Les filtres et tris d'état du tableau la lisent par son avancement d'aujourd'hui : « fait » quand toutes ses sous-routines qui comptent aujourd'hui le sont, « à faire » sinon, « à venir » sans sous-routine qui compte.
+- **Pas de rappel à elle** (`reminderOccurrences` vide, dans l'app et hors de l'app) : elle ne sonne rien, et ses rappels ne s'héritent pas ; chaque sous-routine sonne seulement les siens, aux heures qu'elle hérite d'elle (hérités, ils sonneraient pour toutes ses sous-routines à la fois).
 - **Pas de bloc à elle** dans l'agenda ni dans son PDF : seules ses sous-routines y sont dessinées.
 - **Son état d'un jour se calcule à l'affichage** depuis ses sous-routines (`routineGroupStatesOn`), le même dans « Ma journée », le tableau des routines et partout où il se montre :
-  - comptent ses sous-routines non archivées **dues ce jour-là** (une occurrence non annulée dont l'échéance est ce jour-là ; une sous-routine qui est elle-même une parente compte quand elle est présente ce jour-là) ; celles qui ne sont pas dues ne comptent pas ;
+  - comptent ses sous-routines non archivées dont une occurrence non annulée est **ouverte ce jour-là**, de son « Ouverture » à son échéance comprises, **jusqu'au jour où elle est faite** : ce jour-là elle compte encore (faite), les jours suivants de son ouverture plus (`routineCountsOn` ; le jour où elle est faite est celui de la dernière coche de ses moments obligatoires, `routineDoneDay`) ; une sous-routine qui est elle-même une parente compte quand elle est présente ce jour-là ; les autres ne comptent pas, ni une sous-routine en retard (échéance passée, non faite), qui reste seule, ni une sous-routine sans moment obligatoire (rien à faire) ; cochée avant son « Ouverture », elle compte son premier jour, faite ;
   - elle est **présente** un jour seulement si au moins une sous-routine compte ;
-  - une sous-routine est **faite** quand chaque moment obligatoire de chacune de ses occurrences dues ce jour-là est coché (quel que soit le jour de la coche) ; les moments facultatifs ne comptent pas ;
-  - la parente est **faite** quand toutes celles qui comptent le sont ; son avancement est « faites / dues » (« 2/3 ») ;
+  - une sous-routine est **faite** quand chaque moment obligatoire de chacune de ses occurrences qui comptent ce jour-là est coché ce jour-là ou avant (un jour passé revu avant le jour de la coche : pas faite) ; les moments facultatifs ne comptent pas ; faite un jour de son ouverture, ses moments facultatifs non cochés ne s'affichent plus les jours suivants (« Ma journée ») ;
+  - la parente est **faite** quand toutes celles qui comptent le sont ; son avancement est « faites / comptées » (« 2/3 ») ;
   - son **moment M** est fait quand le moment M (obligatoire) de chaque sous-routine qui compte et qui l'a est fait.
 - Ses coches d'avant (quand elle n'avait pas de sous-routine) restent enregistrées, sans être lues : ni « Faite », ni « Dernière fois » (`lastDoneAt`, `doneDates` vides), ni dans ses occurrences (`routineOccurrences`), ni pour son occurrence en cours ; elles n'empêchent pas de déplacer une de ses occurrences. Sans plus aucune sous-routine non archivée (archivées, supprimées, rangées ailleurs), elle redevient une routine ordinaire : elle se coche, ses coches se montrent à nouveau.
 - Une répétition (ou tout autre champ du « quand ») qu'aucune sous-routine n'hérite reste telle quelle, sans rien montrer.
 
 | Situation (un jour) | Parente |
 | ------------------- | ------- |
-| Aucune sous-routine due ce jour-là (ouvertes mais dues plus tard, ou aucune occurrence) | Absente ce jour-là |
-| Trois sous-routines dues, deux faites | Présente, « 2/3 », pas faite |
+| Aucune sous-routine ouverte ce jour-là (aucune occurrence, ou toutes faites un jour d'avant) | Absente ce jour-là |
+| Une sous-routine ouverte du lundi au vendredi, pas encore faite | Compte chaque jour du lundi au vendredi |
+| Celle-ci faite le mercredi | Compte le lundi et le mardi (pas faite), le mercredi (faite), plus le jeudi ni le vendredi |
+| Une sous-routine aux moments tous facultatifs | Ne compte pas |
+| Une sous-routine cochée avant son « Ouverture » | Compte son premier jour, faite |
+| Une sous-routine ouverte et due le même jour | Compte ce jour-là seulement |
+| Une sous-routine en retard (échéance passée, non faite) | Ne compte pas : seule, hors de la parente |
+| Trois sous-routines qui comptent, deux faites | Présente, « 2/3 », pas faite |
 | Les trois faites | « 3/3 », faite |
 | Une sous-routine à deux moments obligatoires, un seul coché | Celle-ci pas faite |
 | Ses moments obligatoires cochés, le facultatif non | Celle-ci faite |
 | Une sous-routine archivée, non cochée, l'autre faite | « 1/1 », faite (l'archivée ne compte pas) |
 | Moment 0 coché par une sous-routine, pas par l'autre qui l'a aussi | Moment 0 de la parente pas fait |
-| Une sous-routine qui est elle-même une parente | Compte comme faite quand toutes ses propres sous-routines dues le sont |
+| Une sous-routine qui est elle-même une parente | Compte comme faite quand toutes ses propres sous-routines qui comptent le sont |
 | Cocher la parente | Refusé (« Une routine qui a des sous-routines ne se coche pas : cochez ses sous-routines. ») |
 | Sa dernière sous-routine archivée | Routine ordinaire : elle se coche, ses coches d'avant se montrent |
 
