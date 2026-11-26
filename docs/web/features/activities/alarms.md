@@ -76,7 +76,7 @@ Rappels des éphémérides et des anniversaires.
 
 ### `components/UpcomingReminderList.tsx`
 
-`UpcomingReminderList()` : colonne « Rappels à venir » : `useUpcomingReminders` ; `ErrorAlert` « Les rappels à venir n’ont pas pu être chargés. » si les occurrences d’évènements n’ont pas pu l’être ; `ListSkeleton` au chargement ; vide : `EmptyState` « Aucun rappel dans les 30 prochains jours. » ; sinon une `ListCard` par rappel (clé du rappel), cliquable (`openReminderPanel`) : l’icône de son genre (`UpcomingKindIcon`), l’heure de sa sonnerie (`fmt.dateTimeShort`, « Ven. 27 nov., 09:45 »), le titre de son élément, son échéance (`upcomingDueText`).
+`UpcomingReminderList()` : colonne « Rappels à venir » : `useUpcomingReminders` ; `ErrorAlert` « Les rappels à venir n’ont pas pu être chargés. » si les occurrences d’évènements, les tâches ou les routines n’ont pas pu l’être ; `ListSkeleton` au chargement ; vide : `EmptyState` « Aucun rappel dans les 30 prochains jours. » ; sinon une `ListCard` par rappel (clé du rappel), cliquable (`openReminderPanel`, nommée « Rappels de « X », sonne … ») : l’icône de son genre (`UpcomingKindIcon`), l’heure de sa sonnerie (`fmt.dateTimeShort`, « Ven. 27 nov., 09:45 »), le titre de son élément, son jour (`upcomingDueText` : « Début » ou « Échéance »).
 
 ### `components/UpcomingKindIcon.tsx`
 
@@ -84,7 +84,7 @@ Rappels des éphémérides et des anniversaires.
 
 ### `components/ReminderItemPanel.tsx`
 
-`ReminderItemPanel({ reminder, close })` : contenu du panneau latéral d’un rappel à venir : `SaveStatus`, l’icône, le titre et l’échéance de l’élément, puis ses « Rappels » seulement, par le champ de sa sorte (`TaskRemindersField` avec son ouverture et son échéance suivies ; `RoutineRemindersField` avec `routineHasHoursOf` ; `EventRemindersField` avec sa journée entière ; voir [Composants de saisie](../../components/inputs.md#itemreminderstsx)), lus dans le cache tels qu’ils sont (interne `useCurrentItem` : la tâche, la routine ou l’occurrence actuelle, `useUpcomingSources` ; l’élément cliqué s’il n’y est plus), enregistrés à chaque changement (les rappels choisis restent affichés jusqu’à ce que le cache change ; un échec remontre ceux enregistrés et le dit dans un toast d’erreur, `onMutationError`) ; « Ouvrir » (`ActionButton` secondaire) ferme d’abord ce panneau, puis ouvre la page de la tâche (`taskPath`, son panneau ouvert), le panneau de la routine sur l’occurrence du rappel (`openRoutineForm`), le panneau de l’occurrence de l’évènement (`useEventForm`, qui demande la portée pour un évènement récurrent). Interne `useItemRemindersSave(reminder)` : tâche `useUpdateTask` (`{ reminders }`), routine `useRoutineMutations().patch` (`{ reminders }`), évènement `useCalendarEventMutations().update` sur toute la série (`seriesInput` de l’occurrence actuelle avec les nouveaux rappels, portée `ALL`, comme le panneau « Toutes les occurrences » ; l’aide du champ suit la journée entière de la série). Utilisé par `openReminderPanel`.
+`ReminderItemPanel({ reminder, close })` : contenu du panneau latéral d’un rappel à venir : `SaveStatus`, l’icône, le titre et l’échéance de l’élément, puis ses « Rappels » seulement, par le champ de sa sorte (`TaskRemindersField` avec son ouverture et son échéance suivies ; `RoutineRemindersField` avec `routineHasHoursOf` ; `EventRemindersField` avec sa journée entière ; voir [Composants de saisie](../../components/inputs.md#itemreminderstsx)), lus dans le cache tels qu’ils sont (interne `useCurrentItem` : la tâche, la routine ou l’occurrence actuelle, `useUpcomingSources` ; et s’il manque ; manquant : avertissement `NoticeAlert` « Élément introuvable », champ et « Ouvrir » désactivés (sans lien vers la tâche), rien n’est enregistré depuis l’élément cliqué), enregistrés à chaque changement (les rappels choisis restent affichés jusqu’à ce que le cache change ; un échec remontre ceux enregistrés et le dit dans un toast d’erreur, `onMutationError`) ; « Ouvrir » (`ActionButton` secondaire) ferme d’abord ce panneau, puis ouvre la page de la tâche (`taskPath`, son panneau ouvert), le panneau de la routine sur l’occurrence du rappel (`openRoutineForm`), le panneau de l’occurrence de l’évènement (`useEventForm`, qui demande la portée pour un évènement récurrent). Interne `useItemRemindersSave(reminder)` : tâche `useUpdateTask` (`{ reminders }`), routine `useRoutineMutations().patch` (`{ reminders }`), évènement `useCalendarEventMutations().update` sur toute la série (`seriesInput` de l’occurrence actuelle avec les nouveaux rappels, portée `ALL`, comme le panneau « Toutes les occurrences » ; l’aide du champ suit la journée entière de la série). Utilisé par `openReminderPanel`.
 
 ### `components/SavedCountdownCards.tsx`
 
@@ -111,7 +111,7 @@ Rappels des éphémérides et des anniversaires.
 ### `hooks/use-upcoming-reminders.ts`
 
 - `UpcomingItemReminder` (type) : un rappel à venir de l’espace ouvert (`UpcomingReminder` partagé, sur `EventOccurrence`, `Task`, `Routine`).
-- `useUpcomingSources()` : de quoi les rappels à venir se lisent : les occurrences d’évènements d’hier à 30 + 31 jours (`useCalendarEvents`, `reminderDayRange(now, UPCOMING_REMINDER_DAYS + REMINDER_LOOKAHEAD_DAYS)`, la même clé toute la journée), les tâches et les routines de `useRingSources` et son report `deferRoutine`, `now` (chaque minute, `useNow(true, 60_000)`), `isError` (occurrences). Utilisé par `useUpcomingReminders`, `ReminderItemPanel`.
+- `useUpcomingSources()` : de quoi les rappels à venir se lisent : les occurrences d’évènements d’hier à 30 + 31 jours (`useCalendarEvents`, `reminderDayRange(now, UPCOMING_REMINDER_DAYS + REMINDER_LOOKAHEAD_DAYS)`, la même clé toute la journée), les tâches et les routines de `useRingSources` et son report `deferRoutine`, `now` (chaque minute, `useNow(true, 60_000)`), `isError` (occurrences, tâches ou routines en échec sans données : un rechargement raté garde la liste). Utilisé par `useUpcomingReminders`, `ReminderItemPanel`.
 - `useUpcomingReminders()` : `{ reminders, isPending, isError }` : `upcomingReminders` de `@ordo/shared` sur `useUpcomingSources`. Utilisé par `UpcomingReminderList`.
 
 ### `hooks/use-ring-sources.ts`
@@ -124,7 +124,7 @@ Rappels des éphémérides et des anniversaires.
 ### `lib/upcoming-reminders.ts`
 
 - `UPCOMING_KIND_LABELS` : « Évènement », « Tâche », « Routine » (nom de l’icône d’un rappel à venir).
-- `upcomingDueText(due)` : « Échéance : ven. 13 nov., 14:05 » (l’heure pour un évènement à heures), null sans échéance.
+- `upcomingDueText(due, kind)` : « Début : ven. 13 nov., 14:05 » pour un évènement (l’heure quand il en a), « Échéance : ven. 13 nov. » pour une tâche ou une routine ; null sans jour.
 
 ### `lib/open-reminder-panel.tsx`
 

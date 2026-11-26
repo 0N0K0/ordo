@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { REMINDER_LOOKAHEAD_DAYS, reminderDayRange, UPCOMING_REMINDER_DAYS, upcomingReminders, type UpcomingReminder } from '@ordo/shared';
 import { useCalendarEvents, type EventOccurrence } from '../../calendar/api';
-import type { Routine } from '../../routines/api';
-import type { Task } from '../../tasks/api';
+import { useRoutinesData, type Routine } from '../../routines/api';
+import { useTasksData, type Task } from '../../tasks/api';
 import { useNow } from '../../../lib/use-now';
 import { useRingSources } from './use-ring-sources';
 
@@ -13,22 +13,27 @@ export type UpcomingItemReminder = UpcomingReminder<EventOccurrence, Task, Routi
  * What the reminders to come are read from: the event occurrences from yesterday to the 30 days plus the most days a
  * reminder rings before (the same query key all day long), the tasks and the routines of `useRingSources` with when a
  * reminder of a routine rings out of its slots (`deferRoutine`), and now (refreshed every minute).
- * @returns {object} Occurrences, tasks and routines data (undefined while loading), `deferRoutine`, `now`, and whether a query failed.
+ * @returns {object} Occurrences, tasks and routines data (undefined while loading), `deferRoutine`, `now`, and whether one of the three queries failed without data.
  */
 export function useUpcomingSources() {
   const now = useNow(true, 60_000);
   const { tasksData, routinesData, deferRoutine } = useRingSources();
   const { from, to } = reminderDayRange(new Date(now), UPCOMING_REMINDER_DAYS + REMINDER_LOOKAHEAD_DAYS);
   const range = useMemo(() => ({ from, to }), [from, to]);
-  const { data: occurrences, isError } = useCalendarEvents(range);
-  return { occurrences, tasksData, routinesData, deferRoutine, now, isError };
+  const events = useCalendarEvents(range);
+  // The same queries as `useRingSources` (shared cache): whether one of them failed.
+  const tasks = useTasksData();
+  const routines = useRoutinesData();
+  // An error only without data: a refresh that fails keeps the list shown.
+  const isError = [events, tasks, routines].some((query) => query.isError && !query.data);
+  return { occurrences: events.data, tasksData, routinesData, deferRoutine, now, isError };
 }
 
 /**
  * Reminders to come of the workspace open (`upcomingReminders`, the column « Rappels à venir »): for each event, task
  * and routine, those of its next occurrence that ring within 30 days, the soonest first; the routines moved to their
  * next free moment as they ring (`deferRoutine`).
- * @returns {{ reminders: UpcomingItemReminder[], isPending: boolean, isError: boolean }} Reminders, whether their data is loading, whether the occurrences failed to load.
+ * @returns {{ reminders: UpcomingItemReminder[], isPending: boolean, isError: boolean }} Reminders, whether their data is loading, whether one of their queries failed.
  */
 export function useUpcomingReminders(): { reminders: UpcomingItemReminder[]; isPending: boolean; isError: boolean } {
   const { occurrences, tasksData, routinesData, deferRoutine, now, isError } = useUpcomingSources();

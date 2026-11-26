@@ -1,4 +1,17 @@
+import { taggedKey } from '../core/tagged-key';
 import { eventRings, routineRingOf, routineRings, taskRings, type PlannedRing, type RemindedOccurrence, type RemindedRoutine, type RemindedTask } from './reminder-rings';
+
+/**
+ * Where a ring of a task belongs: its reminders « À HH:MM » of each day it reminds on make one occurrence per day (the
+ * next day only is listed); each « N jours avant » its « Échéance » is its own (rung once, always listed).
+ * @param {PlannedRing & { task: RemindedTask }} ring Ring of a task (key `task:<id>:<day>:at:<HH:MM>` or `task:<id>:<due day>:days:<N>:<HH:MM>`).
+ * @returns {RingPlace} Item, occurrence and rank.
+ */
+function taskRingPlace(ring: PlannedRing & { task: RemindedTask }): RingPlace {
+  const [day = '', kind] = ring.key.slice(taggedKey('task', ring.task.id).length + 1).split(':');
+  if (kind === 'days') return { item: ring.key, occurrence: ring.key, rank: 0 };
+  return { item: ring.task.id, occurrence: day, rank: Date.parse(day) || 0 };
+}
 
 /**
  * Reminders to come of the events, tasks and routines of a workspace (the column « Rappels à venir » of the page
@@ -75,7 +88,7 @@ export function nextOccurrenceRings<P extends PlannedRing>(rings: readonly P[], 
 
 /**
  * Reminders to come of the events, tasks and routines: for each item, those of its next occurrence (an event: its
- * series; a task: itself; a routine: the occurrences its reminders ring for, by due day) that ring from now to `days` days ahead,
+ * series; a task: its next day for its reminders « À HH:MM », with its « N jours avant » its « Échéance »; a routine: the occurrences its reminders ring for, by due day) that ring from now to `days` days ahead,
  * the soonest first (then by title). Only the reminders of the item itself: a parent routine rings nothing; cancelled
  * occurrences, closed or archived tasks and archived routines have none (as for the rings).
  * @template {UpcomingOccurrence} O
@@ -94,7 +107,7 @@ export function upcomingReminders<O extends UpcomingOccurrence, T extends Remind
     days,
   ).map(({ occurrence, ...ring }) => ({ ...ring, kind: 'event', item: occurrence, due: { day: occurrence.startDate, time: occurrence.allDay ? null : (occurrence.startTime ?? null) } }));
 
-  const tasks: UpcomingReminder<O, T, R>[] = nextOccurrenceRings(taskRings(sources.tasks, now, days), ({ task }) => ({ item: task.id, occurrence: task.id, rank: 0 }), now, days).map(({ task, ...ring }) => ({
+  const tasks: UpcomingReminder<O, T, R>[] = nextOccurrenceRings(taskRings(sources.tasks, now, days), taskRingPlace, now, days).map(({ task, ...ring }) => ({
     ...ring,
     kind: 'task',
     item: task,

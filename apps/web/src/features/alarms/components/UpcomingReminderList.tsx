@@ -14,7 +14,7 @@ import { UpcomingKindIcon } from './UpcomingKindIcon';
  * « Rappels à venir »: the reminders of the events, tasks and routines of the workspace for the next 30 days, of the
  * next occurrence of each item only, the soonest first (`useUpcomingReminders`), one card each: its ring time, the
  * icon of its kind, the title of its item and its due day. A card opens the panel of the reminders of its item
- * (`openReminderPanel`). An error when the occurrences fail to load; skeleton while loading; empty: « Aucun rappel dans les 30 prochains jours. ».
+ * (`openReminderPanel`). An error when the events, tasks or routines fail to load; skeleton while loading; empty: « Aucun rappel dans les 30 prochains jours. ».
  * @returns {JSX.Element} List.
  */
 export function UpcomingReminderList() {
@@ -25,9 +25,9 @@ export function UpcomingReminderList() {
   return (
     <Stack gap="sm">
       {reminders.map((reminder) => {
-        const due = upcomingDueText(reminder.due);
+        const due = upcomingDueText(reminder.due, reminder.kind);
         return (
-          <ListCard key={reminder.key} onClick={() => openReminderPanel(reminder)}>
+          <ListCard key={reminder.key} onClick={() => openReminderPanel(reminder)} label={`Rappels de « ${reminder.title} », sonne ${fmt.dateTimeShort(reminder.at)}`}>
             <Group gap="sm" wrap="nowrap" align="flex-start">
               <UpcomingKindIcon reminder={reminder} />
               <Stack gap={0} miw={0}>

@@ -3,6 +3,7 @@ import { taskPath, type Reminder, type ReminderFields } from '@ordo/shared';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { EventRemindersField, RoutineRemindersField, TaskRemindersField } from '../../../components/inputs/ItemReminders';
 import { onMutationError } from '../../../lib/notify';
@@ -20,15 +21,23 @@ import { UpcomingKindIcon } from './UpcomingKindIcon';
 
 /**
  * The reminder to come with its item as the cache has it now (changed elsewhere since the card was clicked: in its own
- * panel, in another tab); the item as it was when it is no longer there (done, archived, its occurrence gone).
+ * panel, in another tab), and whether it is missing there (deleted, an occurrence moved to other days, or not loaded):
+ * then nothing is saved from the item as it was.
  * @param {UpcomingItemReminder} reminder Reminder to come, as clicked.
- * @returns {UpcomingItemReminder} Reminder with its current item.
+ * @returns {{ reminder: UpcomingItemReminder, missing: boolean }} Reminder with its current item, and whether it is missing.
  */
-function useCurrentItem(reminder: UpcomingItemReminder): UpcomingItemReminder {
+function useCurrentItem(reminder: UpcomingItemReminder): { reminder: UpcomingItemReminder; missing: boolean } {
   const { occurrences, tasksData, routinesData } = useUpcomingSources();
-  if (reminder.kind === 'task') return { ...reminder, item: tasksData?.tasks.find((task) => task.id === reminder.item.id) ?? reminder.item };
-  if (reminder.kind === 'routine') return { ...reminder, item: routinesData?.routines.find((routine) => routine.id === reminder.item.id) ?? reminder.item };
-  return { ...reminder, item: occurrences?.find((occurrence) => occurrence.key === reminder.item.key) ?? reminder.item };
+  if (reminder.kind === 'task') {
+    const item = tasksData?.tasks.find((task) => task.id === reminder.item.id);
+    return { reminder: { ...reminder, item: item ?? reminder.item }, missing: !item };
+  }
+  if (reminder.kind === 'routine') {
+    const item = routinesData?.routines.find((routine) => routine.id === reminder.item.id);
+    return { reminder: { ...reminder, item: item ?? reminder.item }, missing: !item };
+  }
+  const item = occurrences?.find((occurrence) => occurrence.key === reminder.item.key);
+  return { reminder: { ...reminder, item: item ?? reminder.item }, missing: !item };
 }
 
 /**
@@ -58,17 +67,18 @@ function useItemRemindersSave() {
 /**
  * « Ouvrir » of the item of a reminder to come: the page of a task (its panel open), the panel of a routine, the panel
  * of the occurrence of an event; the panel of the reminders closes first (the whole panel takes over).
- * @param {{ reminder: UpcomingItemReminder, close: () => void }} props Reminder to come (its current item), closing of the panel.
+ * @param {{ reminder: UpcomingItemReminder, close: () => void, disabled: boolean }} props Reminder to come (its current item), closing of the panel, disabled (its item missing).
  * @returns {JSX.Element} Button.
  */
-function OpenItemButton({ reminder, close }: { reminder: UpcomingItemReminder; close: () => void }) {
+function OpenItemButton({ reminder, close, disabled }: { reminder: UpcomingItemReminder; close: () => void; disabled: boolean }) {
   const { context } = useTaskContext();
   const openEvent = useEventForm(context);
   const icon = <ArrowSquareOutIcon aria-hidden />;
-  const hint = `Ouvre « ${reminder.title} ».`;
-  if (reminder.kind === 'task')
+  const hint = disabled ? 'Élément introuvable.' : `Ouvre « ${reminder.title} ».`;
+  // Disabled: no link (a disabled link stays reachable by the keyboard).
+  if (reminder.kind === 'task' && !disabled)
     return (
-      <ActionButton priority="secondary" icon={icon} hint={hint} to={taskPath(reminder.item)} onClick={close}>
+      <ActionButton priority="secondary" icon={icon} hint={hint} to={taskPath(reminder.item)} onClick={close} disabled={disabled}>
         Ouvrir
       </ActionButton>
     );
@@ -78,11 +88,12 @@ function OpenItemButton({ reminder, close }: { reminder: UpcomingItemReminder; c
    */
   const open = () => {
     close();
+    if (reminder.kind === 'task') return;
     if (reminder.kind === 'routine') openRoutineForm({ routine: reminder.item, occurrenceDate: reminder.occurrenceDate });
     else openEvent({ occurrence: reminder.item });
   };
   return (
-    <ActionButton priority="secondary" icon={icon} hint={hint} disabled={reminder.kind === 'event' && !context} onClick={open}>
+    <ActionButton priority="secondary" icon={icon} hint={hint} disabled={disabled || (reminder.kind === 'event' && !context)} onClick={open}>
       Ouvrir
     </ActionButton>
   );
@@ -91,18 +102,19 @@ function OpenItemButton({ reminder, close }: { reminder: UpcomingItemReminder; c
 /**
  * Side panel of a reminder to come (« Rappels à venir » of the page « Alarmes »): the item (its kind, title and due
  * day) and its « Rappels » only, as the cache has them, each change saved at once (« Enregistrement… » then
- * « Enregistré »; a failure shows them as saved, in an error toast), and « Ouvrir » for its whole panel or page.
+ * « Enregistré »; a failure shows them as saved, in an error toast), and « Ouvrir » for its whole panel or page; its
+ * item missing from the cache, both are disabled, told by a warning.
  * @param {{ reminder: UpcomingItemReminder, close: () => void }} props Reminder to come (as clicked), closing of the panel.
  * @returns {JSX.Element} Panel content.
  */
 export function ReminderItemPanel({ reminder: clicked, close }: { reminder: UpcomingItemReminder; close: () => void }) {
-  const reminder = useCurrentItem(clicked);
+  const { reminder, missing } = useCurrentItem(clicked);
   const { save, saving } = useItemRemindersSave();
   // The reminders chosen here, until the cache tells them (a new list of the item drops them).
   const [draft, setDraft] = useState<{ base: readonly ReminderFields[]; value: readonly ReminderFields[] } | null>(null);
   const saved = reminder.item.reminders;
   const value = draft && draft.base === saved ? draft.value : saved;
-  const due = upcomingDueText(reminder.due);
+  const due = upcomingDueText(reminder.due, reminder.kind);
 
   /**
    * Saves the reminders chosen; a failure shows those saved again.
@@ -131,16 +143,21 @@ export function ReminderItemPanel({ reminder: clicked, close }: { reminder: Upco
           )}
         </Stack>
       </Group>
+      {missing && (
+        <NoticeAlert kind="warning" title="Élément introuvable">
+          Il a été supprimé ou déplacé ailleurs : ses rappels ne peuvent plus être changés ici.
+        </NoticeAlert>
+      )}
       {reminder.kind === 'task' ? (
-        <TaskRemindersField value={value} minDate={reminder.item.effectiveMinDate} deadline={reminder.item.effectiveDeadline} onChange={change} />
+        <TaskRemindersField value={value} minDate={reminder.item.effectiveMinDate} deadline={reminder.item.effectiveDeadline} onChange={change} disabled={missing} />
       ) : reminder.kind === 'routine' ? (
-        <RoutineRemindersField timed={routineHasHoursOf(reminder.item)} value={value} onChange={change} />
+        <RoutineRemindersField timed={routineHasHoursOf(reminder.item)} value={value} onChange={change} disabled={missing} />
       ) : (
         // Saved for the whole series: its description is the one of the series.
-        <EventRemindersField allDay={seriesInput(reminder.item).allDay} value={value} onChange={change} />
+        <EventRemindersField allDay={seriesInput(reminder.item).allDay} value={value} onChange={change} disabled={missing} />
       )}
       <Group justify="flex-end">
-        <OpenItemButton reminder={reminder} close={close} />
+        <OpenItemButton reminder={reminder} close={close} disabled={missing} />
       </Group>
     </Stack>
   );

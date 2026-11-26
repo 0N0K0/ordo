@@ -4,7 +4,7 @@ Affichage des éléments des listes paramétrables (statuts, catégories, étiqu
 
 ## `ListCard.tsx` et `ListCard.module.css`
 
-`ListCard({ children, onClick?, label?, muted? })` : une carte d’une liste de cartes posées l’une sous l’autre (les colonnes de la page « Alarmes » : une alarme, un minuteur enregistré, un rappel à venir), la même partout : bordée, arrondie (`md`), marges `md`. `muted` : estompée (`--onoko-muted-opacity`, une alarme inactive). Avec `onClick`, toute la carte est un bouton (`Paper` en `button`, nom accessible `label` ou son texte) : teintée sous le pointeur, contour au focus clavier. Utilisé par `AlarmList`, `SavedCountdownCards`, `UpcomingReminderList` (alarmes).
+`ListCard({ children, onClick?, label?, muted? })` (`label` requis avec `onClick`) : une carte d’une liste de cartes posées l’une sous l’autre (les colonnes de la page « Alarmes » : une alarme, un minuteur enregistré, un rappel à venir), la même partout : bordée, arrondie (`md`), marges `md`. `muted` : estompée (`--onoko-muted-opacity`, une alarme inactive). Avec `onClick`, un bouton nommé `label` (`UnstyledButton`, `.cover`) couvre toute la carte, son contenu restant hors du bouton (des blocs y sont permis) : teintée sous le pointeur, contour au focus clavier. Utilisé par `AlarmList`, `SavedCountdownCards`, `UpcomingReminderList` (alarmes).
 
 ## `ItemAvatar.tsx`
 

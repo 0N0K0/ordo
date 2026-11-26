@@ -155,7 +155,7 @@ Ce que montre la colonne « Rappels à venir » de la page « Alarmes » (voir [
 | `UPCOMING_REMINDER_DAYS` | 30 : jours regardés devant. |
 | `UpcomingReminderKind`, `UpcomingDue`, `UpcomingReminder`, `UpcomingOccurrence`, `UpcomingRoutine`, `UpcomingSources` (types) | Genre (`event`, `task`, `routine`) ; échéance (`day`, `time`) ; un rappel à venir (`PlannedRing` + `kind`, `item`, `due`, et `occurrenceDate` pour une routine) ; une occurrence avec son `eventId` ; une routine avec `hasSubRoutines` ; occurrences, tâches, routines et `deferRoutine`. |
 | `nextOccurrenceRings(rings, placeOf, now, days)` | Les sonneries entre `now` et `days` jours de la première occurrence (par rang) de chaque élément qui en a dans cette fenêtre. |
-| `upcomingReminders(sources, now, days?)` | Rappels à venir des évènements (par série, rang : début), des tâches (`taskRings` sur `days` jours, une seule occurrence) et des routines non parentes (`routineRings`, rang : échéance de l’occurrence, `deferRoutine`), triés par instant puis titre. |
+| `upcomingReminders(sources, now, days?)` | Rappels à venir des évènements (par série, rang : début), des tâches (`taskRings` sur `days` jours ; ses « À HH:MM » : le prochain jour seulement, interne `taskRingPlace` ; ses « N jours avant » tous) et des routines non parentes (`routineRings`, rang : échéance de l’occurrence, `deferRoutine`), triés par instant puis titre. |
 
 ## `weeks.ts` — semaine de l'espace
 
