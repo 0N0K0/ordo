@@ -429,12 +429,12 @@ builder.queryFields((t) => ({
   }),
   calendarSubscriptions: t.field({
     type: [CalendarSubscription],
-    description: 'Calendars of other workspaces shown in this one (read only).',
+    description: 'Calendars of other workspaces shown in this one (read only); archived ones never.',
     resolve: () => calendars.listSubscriptions(),
   }),
   subscribableCalendars: t.field({
     type: [SubscribableCalendar],
-    description: 'Calendars of the other workspaces.',
+    description: 'Calendars of the other workspaces, archived ones left out.',
     resolve: () => calendars.subscribableCalendars(),
   }),
   subscribedCalendarEvents: t.field({
@@ -505,7 +505,7 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id }) => done(calendars.deleteCalendar(id)),
   }),
   subscribeCalendar: t.boolean({
-    description: 'Shows a calendar of another workspace in this one (read only).',
+    description: 'Shows a calendar of another workspace in this one (read only); an archived one is refused.',
     args: { calendarId: t.arg.id({ required: true }) },
     resolve: (_root, { calendarId }) => done(calendars.subscribe(calendarId)),
   }),

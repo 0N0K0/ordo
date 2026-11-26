@@ -160,7 +160,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   // Slots of the chosen schedules: their hours in the background, their name in the all-day row.
   const shownSchedules = new Set(layers.scheduleIds);
   const slotSources = scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind, true).filter(({ schedule }) => shownSchedules.has(schedule.id));
-  for (const { schedule, rule, color, label, foreign, ephemeris } of slotSources) {
+  for (const { schedule, rule, archived, color, label, foreign, ephemeris } of slotSources) {
     const slots = plannedSlots([rule], day, day);
     if (slots.length === 0) continue;
     events.push({
@@ -169,7 +169,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       allDay: true,
       start: day,
       end: addDays(day, 1),
-      ...slotBarLook({ color, foreign, ephemeris }),
+      ...slotBarLook({ color, foreign, ephemeris, archived }),
     });
     for (const slot of slots) {
       events.push({
@@ -178,7 +178,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
         end: slot.allDay ? `${addDays(day, 1)}T00:00:00` : `${day}T${slot.end}:00`,
         display: 'background',
         ...(color ? { backgroundColor: color } : {}),
-        classNames: [color ? calendarClasses.typedSlot : calendarClasses.workHours, ...slotLookClasses({ foreign, ephemeris })],
+        classNames: [color ? calendarClasses.typedSlot : calendarClasses.workHours, ...slotLookClasses({ foreign, ephemeris, archived })],
       });
     }
   }

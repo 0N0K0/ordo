@@ -357,23 +357,24 @@ export function CalendarPage() {
        * @param {ShownSlots} source Look of its kind and its slots.
        * @returns {void}
        */
-      const showSlots = ({ color, label, foreign, display, ephemeris, slots }: ShownSlots) => {
-        // Hatched from another workspace, dotted an éphéméride.
-        const hatched = slotLookClasses({ foreign, ephemeris });
+      const showSlots = ({ color, label, foreign, display, ephemeris, archived, slots }: ShownSlots) => {
+        // Hatched from another workspace, dotted an éphéméride, faded when archived.
+        const hatched = slotLookClasses({ foreign, ephemeris, archived });
         const background = {
           display: 'background',
           ...(color ? { backgroundColor: color } : {}),
           classNames: [color ? classes.typedSlot : classes.workHours, ...hatched],
         };
         /**
-         * Thin line of planned slots: a background event narrowed, in the full color.
+         * Thin line of planned slots: a background event narrowed, in the full color (faded when archived).
          * @param {string} className Line on the left or at the bottom.
+         * @param {number} lane Lane of the line that day.
          * @returns {EventInput} Event props.
          */
         const line = (className: string, lane: number) => ({
           display: 'background',
           backgroundColor: color ?? 'var(--mantine-color-green-6)',
-          classNames: [className],
+          classNames: [className, ...(archived ? [classes.archived] : [])],
           extendedProps: { slotLane: lane },
         });
         const days = new Set<string>();
@@ -405,7 +406,7 @@ export function CalendarPage() {
                 });
             } else {
               // Its bar on the day, in the all-day row.
-              if (display.dayBar) result.push({ ...day, title: label, editable: false, extendedProps: { kind: 'slot' }, ...slotBarLook({ color, foreign, ephemeris }) });
+              if (display.dayBar) result.push({ ...day, title: label, editable: false, extendedProps: { kind: 'slot' }, ...slotBarLook({ color, foreign, ephemeris, archived }) });
               if (display.dayDisplay === 'DAY_BACKGROUND')
                 result.push({
                   id: `work-whole:${slot.scheduleId}:${slot.date}`,
@@ -460,7 +461,7 @@ export function CalendarPage() {
           continue;
         }
         if (!config.schedules || (archived && !showArchived) || config.hiddenScheduleIds.includes(rule.id) || !kept.schedule(schedule.id)) continue;
-        showSlots({ color, label, foreign, display, ephemeris, slots: plannedSlots([rule], range.from, range.to) });
+        showSlots({ color, label, foreign, display, ephemeris, archived, slots: plannedSlots([rule], range.from, range.to) });
       }
       // Slots in the background at the same time stand side by side, each part of a slot as wide as the slots there
       // are then (alone, the whole day).

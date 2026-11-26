@@ -2788,7 +2788,7 @@ type Mutation {
   setAccountingDocumentProject(id: ID!, projectId: ID): Boolean!
 
   """
-  Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored.
+  Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored; an archived calendar loses the subscriptions of the other workspaces to it, for good.
   """
   setArchived(
     archived: Boolean!
@@ -2987,7 +2987,9 @@ type Mutation {
   """
   stopTimer(id: ID!): TimeEntry
 
-  """Shows a calendar of another workspace in this one (read only)."""
+  """
+  Shows a calendar of another workspace in this one (read only); an archived one is refused.
+  """
   subscribeCalendar(calendarId: ID!): Boolean!
 
   """
@@ -3440,7 +3442,9 @@ type Query {
   """Occurrences of the events overlapping a period (dates included)."""
   calendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!
 
-  """Calendars of other workspaces shown in this one (read only)."""
+  """
+  Calendars of other workspaces shown in this one (read only); archived ones never.
+  """
   calendarSubscriptions: [CalendarSubscription!]!
 
   """Calendars of the workspace, in their order."""
@@ -3763,7 +3767,7 @@ type Query {
   """Movements of the stock, latest first: all, or those of an item."""
   stockMovements(itemId: ID): [StockMovement!]!
 
-  """Calendars of the other workspaces."""
+  """Calendars of the other workspaces, archived ones left out."""
   subscribableCalendars: [SubscribableCalendar!]!
 
   """

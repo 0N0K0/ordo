@@ -142,32 +142,36 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
 
 /**
  * Look of the bar of a schedule on a day (the all-day row of the week and the day): in the color of its kind (working
- * hours without one), hatched for a schedule of another workspace, dotted and in italics for an éphéméride.
- * @param {{ color: string | null, foreign: boolean, ephemeris?: boolean }} source Schedule shown.
+ * hours without one), hatched for a schedule of another workspace, dotted and in italics for an éphéméride, faded when
+ * archived (or of an archived kind) in its workspace.
+ * @param {{ color: string | null, foreign: boolean, ephemeris?: boolean, archived?: boolean }} source Schedule shown.
  * @returns {Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'>} Event props.
  */
-export function slotBarLook({ color, foreign, ephemeris = false }: { color: string | null; foreign: boolean; ephemeris?: boolean }): Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'> {
+export function slotBarLook({ color, foreign, ephemeris = false, archived = false }: { color: string | null; foreign: boolean; ephemeris?: boolean; archived?: boolean }): Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'> {
   return {
     backgroundColor: color ?? 'var(--mantine-color-green-light)',
     borderColor: color ?? 'var(--mantine-color-green-light)',
     textColor: 'var(--mantine-color-text)',
-    classNames: [classes.slotBar, ...slotLookClasses({ foreign, ephemeris })],
+    classNames: [classes.slotBar, ...slotLookClasses({ foreign, ephemeris, archived })],
   };
 }
 
 /**
- * Classes telling a schedule shown apart: hatched from another workspace, dotted an éphéméride.
- * @param {{ foreign: boolean, ephemeris?: boolean }} source Schedule shown.
+ * Classes telling a schedule shown apart: hatched from another workspace, dotted an éphéméride, faded as an archived
+ * event when archived (or of an archived kind) in its workspace.
+ * @param {{ foreign: boolean, ephemeris?: boolean, archived?: boolean }} source Schedule shown.
  * @returns {string[]} Classes.
  */
-export function slotLookClasses({ foreign, ephemeris = false }: { foreign: boolean; ephemeris?: boolean }): string[] {
-  return [...(foreign ? [classes.subscribedSlot] : []), ...(ephemeris ? [classes.ephemeris, classes.ephemerisBar] : [])];
+export function slotLookClasses({ foreign, ephemeris = false, archived = false }: { foreign: boolean; ephemeris?: boolean; archived?: boolean }): string[] {
+  return [...(foreign ? [classes.subscribedSlot] : []), ...(ephemeris ? [classes.ephemeris, classes.ephemerisBar] : []), ...(archived ? [classes.archived] : [])];
 }
 
 /** Slots of a source as the agenda shows them: the look of its kind and its slots of the period. */
 export interface ShownSlots {
   /** An éphéméride: dotted. */
   ephemeris: boolean;
+  /** Archived, or of an archived kind, in its workspace (shown with « Afficher les archivés »): faded. */
+  archived: boolean;
   color: string | null;
   label: string;
   foreign: boolean;
