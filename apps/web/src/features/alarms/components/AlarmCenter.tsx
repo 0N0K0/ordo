@@ -75,7 +75,7 @@ export function AlarmCenter() {
       const { routinesData: data, birthdays: people, openPerson: open } = latest.current;
       const reminded = routineRingOf(key);
       const routine = reminded && data?.routines.find((item) => item.id === reminded.routineId);
-      if (reminded && routine && routine.currentDate === reminded.date && !routine.tickedWithSubRoutines) {
+      if (reminded && routine && routine.currentDate === reminded.date) {
         // A reminder « À HH:MM » ticks the first time of the day not ticked, as when it rang.
         const slot = reminded.slot ?? routine.slots.find((item) => !item.done)?.index ?? 0;
         return [markDoneAction(() => tickLatest(routine, slot))];

@@ -1068,6 +1068,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser CountBadge (components/feedback/CountBadge) : un compte seul, la même pastille partout.',
   },
   {
+    // A progress « 3/5 » written by hand in a badge.
+    selector: "JSXElement[openingElement.name.name='Badge']:has(> JSXExpressionContainer + JSXText[value=/^\\s*\\/\\s*$/] + JSXExpressionContainer)",
+    message: 'Utiliser ProgressBadge (components/feedback/ProgressBadge) : un avancement « 2/3 », le même partout.',
+  },
+  {
     // A badge of the navigation written by hand instead of a component of its own on NavBadge.
     selector: "CallExpression[callee.name='pageLink'] > JSXElement.arguments:not([openingElement.name.name=/NavBadge$/])",
     message: 'Une pastille du menu : un composant *NavBadge sur NavBadge (features/projects/components/NavBadges), calculé par le code de la page ou de l’accueil.',

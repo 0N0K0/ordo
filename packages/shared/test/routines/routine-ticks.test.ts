@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { routineSlotShownOn, routineBulkDoneAt, routineTickPrefill } from '../../src/routines/routine-ticks';
+import {
+  routineBulkDoneAt,
+  routineDayEntries,
+  routineGroupIds,
+  routineGroupStatesOn,
+  routineSlotShownOn,
+  routineTickPrefill,
+  type RoutineDayRoutine,
+  type RoutineTickOccurrence,
+  type RoutineTickSlot,
+} from '../../src/routines/routine-ticks';
 
 /** 25 Nov 2026, 14:30 in Paris (UTC+1 in winter). */
 const NOW = new Date('2026-11-25T13:30:00Z');
@@ -97,5 +107,152 @@ describe('routineBulkDoneAt', () => {
 
   it('reads the day and its time in Paris (summer time)', () => {
     expect(routineBulkDoneAt('2026-07-01', { fromTime: null, dueTime: '08:00' }, NOW).toISOString()).toBe('2026-07-01T06:00:00.000Z');
+  });
+});
+
+const DAY = '2026-11-25';
+
+/**
+ * A routine of a test, its current occurrence on the day.
+ * @param {string} id Id.
+ * @param {string | null} [parentId] Parent. Optional. Default = none.
+ * @param {Partial<RoutineDayRoutine>} [fields] Other fields. Optional.
+ * @returns {RoutineDayRoutine} Routine.
+ */
+const routine = (id: string, parentId: string | null = null, fields: Partial<RoutineDayRoutine> = {}): RoutineDayRoutine => ({
+  id,
+  parentId,
+  archived: false,
+  currentDate: DAY,
+  currentDueDate: DAY,
+  done: false,
+  slots: [],
+  ...fields,
+});
+
+/**
+ * A time of the day of a test.
+ * @param {number} index Rank.
+ * @param {boolean} done Ticked.
+ * @param {Partial<RoutineTickSlot>} [fields] Other fields. Optional.
+ * @returns {RoutineTickSlot} Time of the day.
+ */
+const slot = (index: number, done: boolean, fields: Partial<RoutineTickSlot> = {}): RoutineTickSlot => ({ index, optional: false, doneAt: done ? '2026-11-25T08:00:00Z' : null, ...fields });
+
+/**
+ * An occurrence of a test, open and due on the day.
+ * @param {string} routineId Routine.
+ * @param {RoutineTickSlot[]} slots Times of the day.
+ * @param {Partial<RoutineTickOccurrence>} [fields] Other fields. Optional.
+ * @returns {RoutineTickOccurrence} Occurrence.
+ */
+const occurrence = (routineId: string, slots: RoutineTickSlot[], fields: Partial<RoutineTickOccurrence> = {}): RoutineTickOccurrence => ({
+  routineId,
+  date: DAY,
+  startDate: DAY,
+  dueDate: DAY,
+  slots,
+  ...fields,
+});
+
+describe('routineGroupIds', () => {
+  it('a routine with a sub-routine not archived is a group', () => {
+    expect(routineGroupIds([routine('p'), routine('a', 'p')])).toEqual(new Set(['p']));
+  });
+
+  it('a routine whose sub-routines are all archived is an ordinary one again', () => {
+    expect(routineGroupIds([routine('p'), routine('a', 'p', { archived: true })])).toEqual(new Set());
+  });
+});
+
+describe('routineGroupStatesOn', () => {
+  const tree = [routine('p'), routine('a', 'p'), routine('b', 'p'), routine('c', 'p')];
+
+  it('a group is present only on a day one of its sub-routines is due', () => {
+    // Open that day but due later: it does not count.
+    const later = [occurrence('a', [slot(0, false)], { dueDate: '2026-11-28' })];
+    expect(routineGroupStatesOn(tree, later, DAY).has('p')).toBe(false);
+    expect(routineGroupStatesOn(tree, [], DAY).has('p')).toBe(false);
+    expect(routineGroupStatesOn(tree, [...later, occurrence('b', [slot(0, false)])], DAY).get('p')).toMatchObject({ due: 1, done: 0, complete: false });
+  });
+
+  it('a cancelled occurrence does not count', () => {
+    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, false)], { cancelled: true })], DAY).has('p')).toBe(false);
+  });
+
+  it('counts the sub-routines due done out of those due (« 2/3 »), done once all are', () => {
+    const occurrences = [occurrence('a', [slot(0, true)]), occurrence('b', [slot(0, true)]), occurrence('c', [slot(0, false)])];
+    expect(routineGroupStatesOn(tree, occurrences, DAY).get('p')).toMatchObject({ due: 3, done: 2, complete: false });
+    const all = [occurrence('a', [slot(0, true)]), occurrence('b', [slot(0, true)]), occurrence('c', [slot(0, true)])];
+    expect(routineGroupStatesOn(tree, all, DAY).get('p')).toMatchObject({ due: 3, done: 3, complete: true });
+  });
+
+  it('a sub-routine is done once every required moment of its occurrence is, whichever day it was ticked', () => {
+    const occurrences = [occurrence('a', [slot(0, true), slot(1, false)]), occurrence('b', [slot(0, true, { doneAt: '2026-11-23T08:00:00Z' })])];
+    expect(routineGroupStatesOn(tree, occurrences, DAY).get('p')).toMatchObject({ due: 2, done: 1, complete: false });
+  });
+
+  it('optional moments do not count', () => {
+    const occurrences = [occurrence('a', [slot(0, true), slot(1, false, { optional: true })])];
+    const state = routineGroupStatesOn(tree, occurrences, DAY).get('p');
+    expect(state).toMatchObject({ due: 1, done: 1, complete: true });
+    expect(state?.moments.map((moment) => moment.index)).toEqual([0]);
+  });
+
+  it('moment M is done once every sub-routine due having it did it', () => {
+    const occurrences = [
+      occurrence('a', [slot(0, true, { fromTime: '08:00' }), slot(1, false, { fromTime: '12:00' })]),
+      occurrence('b', [slot(0, true), slot(1, true)]),
+      // Without moment 2: moment 2 of the group is that of « a » alone.
+      occurrence('c', [slot(0, false), slot(1, true), slot(2, true)]),
+    ];
+    expect(routineGroupStatesOn(tree, occurrences, DAY).get('p')?.moments).toEqual([
+      { index: 0, fromTime: '08:00', dueTime: null, done: false },
+      { index: 1, fromTime: '12:00', dueTime: null, done: false },
+      { index: 2, fromTime: null, dueTime: null, done: true },
+    ]);
+  });
+
+  it('two occurrences of a sub-routine due the same day must both be done', () => {
+    const occurrences = [occurrence('a', [slot(0, true)]), occurrence('a', [slot(0, false)], { date: '2026-11-24' })];
+    expect(routineGroupStatesOn(tree, occurrences, DAY).get('p')).toMatchObject({ due: 1, done: 0 });
+  });
+
+  it('archived sub-routines do not count', () => {
+    const routines = [routine('p'), routine('a', 'p'), routine('b', 'p', { archived: true })];
+    const occurrences = [occurrence('a', [slot(0, true)]), occurrence('b', [slot(0, false)])];
+    expect(routineGroupStatesOn(routines, occurrences, DAY).get('p')).toMatchObject({ due: 1, done: 1, complete: true });
+  });
+
+  it('a sub-routine that is a group counts by its own sub-routines, never by its own ticks', () => {
+    const routines = [routine('p'), routine('g', 'p'), routine('a', 'g'), routine('b', 'p')];
+    // Ticks of « g » itself, of before it had sub-routines: not read.
+    const occurrences = [occurrence('g', [slot(0, true)]), occurrence('a', [slot(0, false)]), occurrence('b', [slot(0, true)])];
+    const states = routineGroupStatesOn(routines, occurrences, DAY);
+    expect(states.get('g')).toMatchObject({ due: 1, done: 0 });
+    expect(states.get('p')).toMatchObject({ due: 2, done: 1, complete: false });
+  });
+});
+
+describe('routineDayEntries', () => {
+  it('never lists a group, nor its ticks; lists it again once it has no sub-routine not archived', () => {
+    const occurrences = [occurrence('p', [slot(0, true)]), occurrence('a', [slot(0, false)])];
+    const listed = (routines: RoutineDayRoutine[]) => routineDayEntries(routines, occurrences, DAY, { today: DAY }).map((entry) => entry.routine.id);
+    expect(listed([routine('p'), routine('a', 'p')])).toEqual(['a']);
+    expect(listed([routine('p'), routine('a', 'p', { archived: true })])).toEqual(['p']);
+  });
+
+  it('lists a cancelled occurrence on its due day only, and today the late ones within the hours allowed', () => {
+    const late = routine('l', null, { currentDate: '2026-11-20', currentDueDate: '2026-11-20', slots: [slot(0, false, { fromTime: '08:00', dueTime: '09:00' }), slot(1, false, { optional: true })] });
+    const occurrences = [occurrence('a', [slot(0, false)], { cancelled: true, startDate: '2026-11-20' })];
+    const entries = routineDayEntries([routine('a'), late], occurrences, DAY, { today: DAY, allowedToday: () => null });
+    expect(entries.map((entry) => [entry.routine.id, entry.late])).toEqual([
+      ['a', false],
+      ['l', true],
+    ]);
+    // Nothing allowed today: the late one is not listed; another day, no late one.
+    expect(routineDayEntries([late], [], DAY, { today: DAY, allowedToday: () => [] })).toEqual([]);
+    expect(routineDayEntries([late], [], '2026-11-24', { today: DAY, allowedToday: () => null })).toEqual([]);
+    expect(routineDayEntries([routine('a')], occurrences, '2026-11-21', { today: DAY })).toEqual([]);
   });
 });

@@ -11,6 +11,7 @@ import { useRoutineDayCount } from '../../routines/hooks/use-routine-day-count';
 import { useNextRing } from '../../alarms/hooks/use-ring-sources';
 import * as fmt from '../../../lib/format';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { ProgressBadge } from '../../../components/feedback/ProgressBadge';
 
 // Each badge is its own component: a running timer refreshes its badge every second, not the whole sidebar.
 
@@ -63,20 +64,14 @@ export function TasksNavBadge() {
 }
 
 /**
- * Routines of today, done out of planned (« 3/7 »), each time of the day counted, as « Ma journée » places them
- * (`useRoutineDayCount`).
+ * Routines of today, done out of planned (« 3/7 », `ProgressBadge`), each time of the day counted, the very ones
+ * « Ma journée » lists (`useRoutineDayCount`).
  * @returns {JSX.Element | null} Badge.
  */
 export function RoutinesNavBadge() {
   const { shown, done, loading } = useRoutineDayCount(useToday());
   if (loading) return null;
-  return (
-    <NavBadge
-      value={shown ? `${done}/${shown}` : null}
-      color={done === shown ? 'green' : undefined}
-      label={`${countOf(done, 'routine faite', 'routines faites')} sur ${countOf(shown, 'prévue')} aujourd’hui`}
-    />
-  );
+  return <ProgressBadge done={done} total={shown} label={`${countOf(done, 'routine faite', 'routines faites')} sur ${countOf(shown, 'prévue')} aujourd’hui`} />;
 }
 
 /**

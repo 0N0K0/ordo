@@ -3,8 +3,11 @@ import { minutesToTime, timeToMinutes } from '../dates/times';
 import { slotSpan, type TimeWindow } from './slot-conditions';
 import type { PlannedSlot } from './work-schedules';
 
-/** What « Ma journée » lists, in the order the head of the day tells them: éphémérides, events, birthdays, routines, tasks. */
-export const MY_DAY_KINDS = ['ephemeris', 'event', 'birthday', 'routine', 'task'] as const;
+/**
+ * What « Ma journée » lists, in the order the head of the day tells them: éphémérides, events, birthdays, groups of
+ * routines (a parent routine, its sub-routines under it), routines, tasks.
+ */
+export const MY_DAY_KINDS = ['ephemeris', 'event', 'birthday', 'routineGroup', 'routine', 'task'] as const;
 export type MyDayKind = (typeof MY_DAY_KINDS)[number];
 
 /** Times of an item on a day, HH:MM (null: none): its start and its end (on the last day of an event over several days). */
@@ -40,6 +43,11 @@ export interface MyDayItem {
   cancelled?: boolean;
   /** Events it is linked to (their keys): shown under the first one shown that day, not on its own. Optional. Default = none. */
   eventKeys?: readonly string[];
+  /**
+   * Group it belongs to (the key of a `routineGroup` item of the day: its parent routine): shown under it, not on its
+   * own, unless it is under an event. Optional. Default = none.
+   */
+  groupKey?: string;
 }
 
 /** A slot of the day as « Ma journée » colours its hours: a planned slot, « Indisponible » or not. */
@@ -51,7 +59,7 @@ export interface MyDaySlot extends Pick<PlannedSlot, 'scheduleId' | 'start' | 'e
 /** Day of an event over several days its row stands for: its first day (at its start) or its last day (at its end). */
 export type MyDayPart = 'start' | 'end';
 
-/** Row of « Ma journée »: an item, where it is placed, and the items linked to it (under an event). */
+/** Row of « Ma journée »: an item, where it is placed, and the items under it (linked to an event, of a group). */
 export interface MyDayRow<T extends MyDayItem> {
   item: T;
   /** Time it is placed at (HH:MM; done: the time it was done); null: none. */
@@ -62,7 +70,7 @@ export interface MyDayRow<T extends MyDayItem> {
   window: TimeWindow | null;
   /** Its other windows that day, in order. */
   otherWindows: TimeWindow[];
-  /** Items linked to it (an event), in the order of the day, those done or cancelled last. */
+  /** Items under it (linked to an event, of a group), in the order of the day, those done or cancelled last. */
   children: MyDayRow<T>[];
 }
 
@@ -102,6 +110,9 @@ export interface MyDayOptions<S extends MyDaySlot> {
 }
 
 type Block = 'header' | 'unscheduled' | 'hour' | 'finished';
+
+/** Order of the blocks in the day. */
+const BLOCKS: readonly Block[] = ['header', 'unscheduled', 'hour', 'finished'];
 
 /** Where an item goes in the day. */
 interface Placement {
@@ -222,7 +233,10 @@ function finished(item: MyDayItem): boolean {
  *   whether one is « Indisponible »;
  * - at the bottom: those done, in the order they were done, then those cancelled (an event cancelled stays at its
  *   place);
- * - an item linked to an event shown that day is under that event (the first of its linked events shown), nowhere else.
+ * - an item linked to an event shown that day is under that event (the first of its linked events shown), nowhere else;
+ * - otherwise an item of a group (`groupKey`) is under the group, nowhere else; a group is placed where the first of
+ *   its items still to do is (the head, without hours, or its hour), at the bottom once they are all done or
+ *   cancelled; without any item under it, by its own times.
  * @param {readonly T[]} items Items of the day.
  * @param {MyDayOptions<S>} options Day shown, now, slots of the day.
  * @returns {MyDayLayout<T, S>} Blocks.
@@ -242,11 +256,36 @@ export function myDayRows<T extends MyDayItem, S extends MyDaySlot = MyDaySlot>(
    * @returns {(typeof placed)[number] | undefined} Event.
    */
   const parentOf = (item: T) => (item.kind === 'event' ? undefined : (item.eventKeys ?? []).map((key) => events.get(key)).find(Boolean));
+  const groups = new Map(placed.filter(({ row }) => row.item.kind === 'routineGroup').map((entry) => [entry.row.item.key, entry]));
+  const entryOf = new Map(placed.map((entry) => [entry.row, entry]));
   const own = placed.filter((entry) => {
-    const parent = parentOf(entry.row.item);
+    const event = parentOf(entry.row.item);
+    const group = event ? undefined : entry.row.item.groupKey ? groups.get(entry.row.item.groupKey) : undefined;
+    const parent = event ?? (group !== entry ? group : undefined);
     if (parent) parent.row.children.push(entry.row);
     return !parent;
   });
+  /**
+   * Places a group where the first of its items still to do is (its groups inside it placed first), at the bottom once
+   * all are done or cancelled (at the time the last was done); without items, it keeps its own place.
+   * @param {(typeof placed)[number]} entry Group.
+   * @param {Set<string>} seen Groups being placed (a loop stops).
+   * @returns {void}
+   */
+  const placeGroup = (entry: (typeof placed)[number], seen: Set<string>): void => {
+    if (seen.has(entry.row.item.key)) return;
+    seen.add(entry.row.item.key);
+    const children = entry.row.children.flatMap((child) => entryOf.get(child) ?? []);
+    for (const child of children) if (child.row.item.kind === 'routineGroup') placeGroup(child, seen);
+    if (!children.length) return;
+    const open = children.filter((child) => child.block !== 'finished').sort((a, b) => BLOCKS.indexOf(a.block) - BLOCKS.indexOf(b.block) || (a.row.time ?? '').localeCompare(b.row.time ?? ''));
+    const first = open[0];
+    const last = children.map((child) => child.row.time).filter((time): time is string => time !== null).sort().pop() ?? null;
+    entry.block = first ? first.block : 'finished';
+    Object.assign(entry.row, { time: first ? first.row.time : last, part: null, window: null, otherWindows: [] });
+  };
+  const placedGroups = new Set<string>();
+  for (const entry of groups.values()) placeGroup(entry, placedGroups);
   const indexOf = new Map(placed.map(({ row, index }) => [row, index]));
   // Linked items in the order of the day, those done or cancelled last.
   for (const { row } of placed) {

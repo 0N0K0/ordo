@@ -1,6 +1,7 @@
 import { PAGES } from '../../../app/pages';
 import { inheritedCells } from '../../../components/inheritance/inherited-cells';
-import { ROUTINE_CELL_FIELDS, routineParentName } from '../lib/routine-inheritance';
+import { ROUTINE_CELL_FIELDS, ROUTINE_HEIRS_MENTION, routineHeirsFields, routineParentName } from '../lib/routine-inheritance';
+import { RoutineGroupProgress } from '../../../components/routines/RoutineGroupProgress';
 import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -77,7 +78,8 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const { move } = useRoutineMutations();
   const selectionActions = useRoutineSelectionActions();
   const menuOf = useRoutineOccurrenceMenu();
-  const { columns, byId, doable } = useRoutineColumns(routines, categories, today);
+  // With today's progress of the parent routines (groups), read from their sub-routines due today.
+  const { columns, byId, doable, groupStates } = useRoutineColumns(routines, categories, today);
   // Of the project on a project page; in their manual order.
   const rows = useMemo(() => routines.filter((routine) => !projectIds || (routine.projectId && projectIds.has(routine.projectId))), [routines, projectIds]);
   const view = useDataView({
@@ -120,6 +122,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
    */
   const routineCells = (routine: Routine, readOnly: boolean, waiting: ReturnType<typeof waitingFor>, done: boolean): Record<string, ReactNode> => {
     if (!context) return {};
+    const groupState = groupStates.get(routine.id);
     return {
       ...readOnlyCells(columns, routine),
       label: (
@@ -134,7 +137,12 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       ),
       currentDate: (
         <RepetitionCell routine={routine} readOnly={readOnly}>
-          <StateCell routine={routine} today={today} doable={doable(routine)} />
+          {/* A parent (a group): today's progress of its sub-routines, nothing when none is due today. */}
+          {routine.hasSubRoutines ? (
+            groupState && <RoutineGroupProgress state={groupState} when="aujourd’hui" />
+          ) : (
+            <StateCell routine={routine} today={today} doable={doable(routine)} />
+          )}
         </RepetitionCell>
       ),
       repetition: <RepetitionText routine={routine} />,
@@ -177,8 +185,9 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     const done = isDone(routine);
     // Being created: nothing to change on it until it is saved (the server does not know it yet).
     const readOnly = routine.archived || isDraftRoutine(routine);
-    // Its inherited fields greyed with their mention.
-    return inheritedCells(routineCells(routine, readOnly, waiting, done), routine, ROUTINE_CELL_FIELDS, routineParentName(routine, byId));
+    // Its inherited fields greyed with their mention; those of its « quand » its sub-routines inherit marked.
+    const heirs = routine.hasSubRoutines ? { fields: routineHeirsFields(routine, routines), mention: ROUTINE_HEIRS_MENTION } : undefined;
+    return inheritedCells(routineCells(routine, readOnly, waiting, done), routine, ROUTINE_CELL_FIELDS, routineParentName(routine, byId), heirs);
   };
 
   /**

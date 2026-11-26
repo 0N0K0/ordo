@@ -1,5 +1,5 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
-import { ROUTINE_REPETITIONS, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
+import { ROUTINE_REPETITIONS, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase, type RoutineState } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
 import { BADGE_COLUMN, DURATION_COLUMN, multiValues, TIME_COLUMN, WARNING_YES_ICONS, withArchived, type DataColumn, DONE_STATES } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
@@ -53,7 +53,17 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       .map((id) => scheduleLabel.get(id) ?? '')
       .filter(Boolean);
   const blockers = (routine: Routine) => blockedRoutineIds(routines, routine.id);
-  const state = (routine: Routine) => currentRoutineState(routine, env.today, env.doable(routine));
+  /**
+   * State of a routine today, for its filters and sorts: a parent routine by today's progress of its sub-routines
+   * (« fait » once all due today are, « à faire » while some are, « à venir » when none is due today), never late.
+   * @param {Routine} routine Routine.
+   * @returns {RoutineState} State.
+   */
+  const state = (routine: Routine): RoutineState => {
+    if (!routine.hasSubRoutines) return currentRoutineState(routine, env.today, env.doable(routine));
+    const group = env.groupStates?.get(routine.id);
+    return group ? (group.complete ? 'done' : 'due') : 'upcoming';
+  };
   const minutes = (value: number | null) => (value ? formatDuration(value * 60) : '');
   /**
    * Column of a list of the tasks a routine takes one item of (its priority, its type), sorted in the order of the list.

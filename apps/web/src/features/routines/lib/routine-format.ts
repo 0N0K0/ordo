@@ -38,11 +38,12 @@ export function ruleOf(routine: Routine): Recurrence | null {
 }
 
 /**
- * Whether the current occurrence of a routine is ticked.
+ * Whether the current occurrence of a routine is ticked; never a routine that has sub-routines (a group, never ticked:
+ * its ticks of before, kept, are not read).
  * @param {Routine} routine Routine.
  * @returns {boolean} Done.
  */
-export const isDone = (routine: Routine) => routine.done;
+export const isDone = (routine: Routine) => routine.done && !routine.hasSubRoutines;
 
 /**
  * When a time of the day of a routine was done, in words: « faite le 5 nov. à 08:12 ».
@@ -62,13 +63,15 @@ export const doneAtParts = (doneAt: string): RoutineDoneAt => {
 };
 
 /**
- * State of a routine today: « à faire » only while its slots allow it now (« à venir » otherwise).
+ * State of a routine today: « à faire » only while its slots allow it now (« à venir » otherwise). A routine that has
+ * sub-routines (a group) is never to do itself, nor late: « à venir » (its progress is read from its sub-routines).
  * @param {Routine} routine Routine.
  * @param {string} today Today.
  * @param {boolean} [doable] Its slot rule allows now. Optional. Default = true.
  * @returns {RoutineState} State.
  */
 export const currentRoutineState = (routine: Routine, today: string, doable = true): RoutineState => {
+  if (routine.hasSubRoutines) return 'upcoming';
   const state = routineState(routine.currentDueDate, isDone(routine), today);
   return state === 'due' && !doable ? 'upcoming' : state;
 };
@@ -125,7 +128,8 @@ export function routinePath(routine: Routine, byId: ReadonlyMap<string, Routine>
 }
 
 /**
- * Required routines of a routine still to do for their current occurrence ("étendre le linge" waits for "laver le linge").
+ * Required routines of a routine still to do for their current occurrence ("étendre le linge" waits for "laver le linge");
+ * a routine that has sub-routines (a group, never ticked) is not waited for.
  * @param {Routine} routine Routine.
  * @param {Map<string, Routine>} byId Routines by id.
  * @returns {Routine[]} Routines it waits for.
@@ -133,7 +137,8 @@ export function routinePath(routine: Routine, byId: ReadonlyMap<string, Routine>
 export function waitingFor(routine: Routine, byId: Map<string, Routine>): Routine[] {
   return routine.requiredIds.flatMap((id) => {
     const required = byId.get(id);
-    return required && !required.archived && required.currentDate !== null && !isDone(required) ? [required] : [];
+    // A group is never ticked: nothing to wait for.
+    return required && !required.archived && !required.hasSubRoutines && required.currentDate !== null && !isDone(required) ? [required] : [];
   });
 }
 

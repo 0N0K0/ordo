@@ -21,7 +21,7 @@ export const TaskInheritableFieldEnum = builder.enumType('TaskInheritableField',
 
 /** Inherited fields of a routine. */
 export const RoutineInheritableFieldEnum = builder.enumType('RoutineInheritableField', {
-  description: 'Field a sub-routine inherits from its parent; START_DATE, RECURRENCE, CASES, MOVES and OPENS_ON make its « quand » (its moments are its own).',
+  description: 'Field a sub-routine inherits from its parent; START_DATE, RECURRENCE, CASES, MOMENTS, MOVES and OPENS_ON make its « quand ».',
   values: ROUTINE_INHERITABLE_FIELDS,
 });
 

@@ -34,8 +34,9 @@ const movable = (occurrence: RoutineMenuOccurrence): boolean => !occurrence.canc
  * ou annuler… » (that occurrence, while it can be moved), « Dupliquer », « Héritage… » (a sub-routine), « Transformer en
  * tâche », « Archiver » / « Restaurer », « Supprimer », then « Lancer » its dead times for that occurrence. An
  * archived routine: « Restaurer » and « Supprimer » only. Without an occurrence, its
- * current one (the next one once ticked), as the routines table.
- * @returns {(routine: Routine, occurrence?: RoutineMenuOccurrence) => RoutineRowMenu} Actions of a routine.
+ * current one (the next one once ticked), as the routines table; `null`: none that day (a parent routine in a list of a
+ * day without an occurrence of its own then), nothing to move.
+ * @returns {(routine: Routine, occurrence?: RoutineMenuOccurrence | null) => RoutineRowMenu} Actions of a routine.
  */
 export function useRoutineOccurrenceMenu() {
   const { data } = useRoutinesData();
@@ -44,17 +45,17 @@ export function useRoutineOccurrenceMenu() {
   const convert = useConvertActivity();
   const countdownEntries = useCountdownMenuEntries();
   const routines = data?.routines ?? [];
-  return (routine: Routine, occurrence?: RoutineMenuOccurrence): RoutineRowMenu => {
+  return (routine: Routine, occurrence?: RoutineMenuOccurrence | null): RoutineRowMenu => {
     const readOnly = routine.archived;
     const rowActions = rowActionsOf([routine]);
-    const canMove = occurrence ? movable(occurrence) : Boolean(movableOccurrence(routine));
+    const canMove = occurrence === null ? false : occurrence ? movable(occurrence) : Boolean(movableOccurrence(routine));
     const date = occurrence?.date ?? null;
     return {
       primary: !readOnly && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRoutineForm(occurrence ? { routine, occurrenceDate: occurrence.date } : { routine }) },
       items: [
         !readOnly && { label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) },
         !readOnly && canMove && 'divider',
-        !readOnly && canMove && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine, occurrence) },
+        !readOnly && canMove && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine, occurrence ?? undefined) },
         !readOnly && canMove && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine, date) },
         'divider',
         !readOnly && rowMenuEntry(rowActions.duplicate),

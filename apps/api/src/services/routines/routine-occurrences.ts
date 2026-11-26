@@ -141,6 +141,26 @@ async function loadApartTicks(routines: ReadonlyMap<string, StoredInheritingRout
   return new Map([...groupBy(ticks, (tick) => tick.routineId)].map(([id, list]) => [id, list.map(({ date, slot, doneAt }) => ({ date, slot, doneAt }))]));
 }
 
+/** Key of the routines that have sub-routines not archived, in the memo of a context. */
+const GROUPS_MEMO = 'routine-groups';
+
+/**
+ * Whether a routine has sub-routines not archived (among the routines of the context): a group of them and their
+ * template, never ticked (its ticks of before are not read), never late, ringing no reminder of its own.
+ * @param {string | undefined} id Routine id.
+ * @param {ScheduleContext} context Schedules (with the routines of the workspace).
+ * @returns {boolean} It has some.
+ */
+export function hasSubRoutines(id: string | undefined, context: ScheduleContext): boolean {
+  if (!id || !context.routines) return false;
+  let groups = context.memo?.get(GROUPS_MEMO) as Set<string> | undefined;
+  if (!groups) {
+    groups = new Set([...context.routines.values()].flatMap((item) => (item.parentId && !item.archivedAt ? [item.parentId] : [])));
+    context.memo?.set(GROUPS_MEMO, groups);
+  }
+  return groups.has(id);
+}
+
 /**
  * Ticks of a routine its occurrences are told done from: those it is loaded with (its latest ones), and those of its
  * occurrences kept apart (`apartTicks` of the context), each once.
@@ -149,6 +169,8 @@ async function loadApartTicks(routines: ReadonlyMap<string, StoredInheritingRout
  * @returns {readonly RoutineTick[] | undefined} Ticks (undefined: none asked).
  */
 export function ticksOf(routine: { id?: string; checks?: readonly RoutineTick[] }, schedules: ScheduleContext): readonly RoutineTick[] | undefined {
+  // A group is never ticked: its ticks of before, kept, are not read.
+  if (routine.checks && hasSubRoutines(routine.id, schedules)) return [];
   const apart = routine.id ? schedules.apartTicks?.get(routine.id) : undefined;
   if (!routine.checks || !apart?.length) return routine.checks;
   const key = (tick: RoutineTick) => joinedKey(formatDay(tick.date), tick.slot);

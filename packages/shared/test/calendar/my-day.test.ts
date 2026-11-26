@@ -154,3 +154,39 @@ describe('myDayRows: the blocks of a day', () => {
     expect(myDayRows([], { day: TODAY, now: new Date('2026-11-24T23:10:00Z') }).hours.map((hour) => hour.hour)).toEqual([0]);
   });
 });
+
+describe('myDayRows: groups of routines', () => {
+  it('a routine of a group is under the group, which is placed where its first one still to do is', () => {
+    const items = [
+      item('group', 'routineGroup'),
+      item('a', 'routine', { groupKey: 'group', time: { start: '14:00', end: null } }),
+      item('b', 'routine', { groupKey: 'group', time: { start: '09:00', end: null } }),
+      item('done', 'routine', { groupKey: 'group', done: true, doneAt: '08:10' }),
+    ];
+    const layout = myDayRows(items, { day: '2026-11-26', now: NOW });
+    expect(keys(layout)).toEqual({ header: [], unscheduled: [], hours: ['9: group'], finished: [] });
+    expect(layout.hours[0].rows[0].children.map((row) => row.item.key)).toEqual(['b', 'a', 'done']);
+  });
+
+  it('a group whose routines are all done is at the bottom, at the time the last was done', () => {
+    const items = [item('group', 'routineGroup', { done: true }), item('a', 'routine', { groupKey: 'group', done: true, doneAt: '08:10' }), item('b', 'routine', { groupKey: 'group', done: true, doneAt: '09:40' })];
+    const layout = myDayRows(items, { day: TODAY, now: NOW });
+    expect(keys(layout).finished).toEqual(['group']);
+    expect(layout.finished[0].time).toBe('09:40');
+  });
+
+  it('a routine linked to an event shown stays under the event; a group inside a group is under it', () => {
+    const items = [
+      item('meeting', 'event', { time: { start: '11:00', end: '12:00' } }),
+      item('top', 'routineGroup'),
+      item('inner', 'routineGroup', { groupKey: 'top' }),
+      item('a', 'routine', { groupKey: 'inner', time: { start: '15:00', end: null } }),
+      item('b', 'routine', { groupKey: 'top', eventKeys: ['meeting'] }),
+    ];
+    const layout = myDayRows(items, { day: '2026-11-26', now: NOW });
+    expect(keys(layout).hours).toEqual(['11: meeting', '15: top']);
+    expect(layout.hours[0].rows[0].children.map((row) => row.item.key)).toEqual(['b']);
+    expect(layout.hours[1].rows[0].children.map((row) => row.item.key)).toEqual(['inner']);
+    expect(layout.hours[1].rows[0].children[0].children.map((row) => row.item.key)).toEqual(['a']);
+  });
+});

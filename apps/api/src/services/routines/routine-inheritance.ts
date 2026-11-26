@@ -82,6 +82,7 @@ export function clearedRoutineInput(fields: readonly RoutineInheritableField[] |
     ...(cleared.has('CATEGORIES') && { categoryIds: [] }),
     ...(cleared.has('PRIORITY') && { priorityId: null }),
     ...(cleared.has('CASES') && { cases: [] }),
+    ...(cleared.has('MOMENTS') && { moments: [], fromTime: null, dueTime: null }),
     ...(cleared.has('MOVES') && { moves: [] }),
   };
 }
@@ -130,6 +131,7 @@ export async function freezeRoutineInheritance(ids: readonly string[]): Promise<
           ...(inherited.has('START_DATE') && { startDate: routine.startDate }),
           ...(inherited.has('RECURRENCE') && { recurrence: toJson(routine.recurrence), scheduleId: routine.scheduleId, scheduleAnchor: routine.scheduleAnchor }),
           ...(inherited.has('CASES') && { cases: toJson(routine.cases) }),
+          ...(inherited.has('MOMENTS') && { moments: toJson(routine.moments), fromTime: routine.fromTime, dueTime: routine.dueTime }),
           ...(inherited.has('MOVES') && { moves: toJson(routine.moves) }),
         },
       });

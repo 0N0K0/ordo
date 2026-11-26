@@ -76,7 +76,8 @@ export function RoutinesCard({ today }: { today: string }) {
           group={list.group}
           render={({ key, row: routine }) => {
             const waiting = waitingFor(routine, byId);
-            const late = routine.currentDueDate !== null && routine.currentDueDate < today;
+            // A routine that has sub-routines (a group) is never late.
+            const late = !routine.hasSubRoutines && routine.currentDueDate !== null && routine.currentDueDate < today;
             return (
               <Group key={key} justify="space-between" wrap="nowrap" gap="xs" className={`${tile.tile} ${classes.row}`}>
                 <Group gap="xs" wrap="nowrap" miw={0}>

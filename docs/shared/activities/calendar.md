@@ -114,18 +114,18 @@ Calcul pur : les éléments du jour, déjà choisis et filtrés par l'app, sont 
 
 | Export | Rôle |
 | ------ | ---- |
-| `MY_DAY_KINDS`, `MyDayKind` | `ephemeris`, `event`, `birthday`, `routine`, `task` : l'ordre de la tête du jour, puis à heure égale. |
+| `MY_DAY_KINDS`, `MyDayKind` | `ephemeris`, `event`, `birthday`, `routineGroup` (une routine parente, tête de ses sous-routines du jour), `routine`, `task` : l'ordre de la tête du jour, puis à heure égale. |
 | `MyDayTime` | Heures d'un élément ce jour (`start`, `end`, HH:MM ou `null`). |
-| `MyDayItem` | Élément : `key`, `kind`, `startDate?` / `endDate?` (évènement sur plusieurs jours), `allDay?`, `time?`, `windows?` (fenêtres où il peut se faire, `itemWindowsOn` ou celles d'un moment de routine ; `null` : sans limite ; aucune : il n'est pas dans le jour), `late?` (routine ou tâche en retard : en tête aujourd'hui), `done?`, `doneAt?` (HH:MM à Paris), `cancelled?`, `eventKeys?` (évènements liés). |
+| `MyDayItem` | Élément : `key`, `kind`, `startDate?` / `endDate?` (évènement sur plusieurs jours), `allDay?`, `time?`, `windows?` (fenêtres où il peut se faire, `itemWindowsOn` ou celles d'un moment de routine ; `null` : sans limite ; aucune : il n'est pas dans le jour), `late?` (routine ou tâche en retard : en tête aujourd'hui), `done?`, `doneAt?` (HH:MM à Paris), `cancelled?`, `eventKeys?` (évènements liés), `groupKey?` (clé de l'élément `routineGroup` sous lequel il se range). |
 | `MyDaySlot` | Créneau du jour : `scheduleId`, `start`, `end`, `allDay`, `unavailable?`. |
 | `MyDayPart` | `start` / `end` : premier ou dernier jour d'un évènement sur plusieurs jours. |
-| `MyDayRow<T>` | Ligne : `item`, `time` (heure où elle est placée ; faite : l'heure où elle l'a été), `part`, `window` (fenêtre où elle est placée), `otherWindows`, `children` (éléments liés, sous un évènement). |
+| `MyDayRow<T>` | Ligne : `item`, `time` (heure où elle est placée ; faite : l'heure où elle l'a été), `part`, `window` (fenêtre où elle est placée), `otherWindows`, `children` (éléments sous elle : liés à un évènement, ou d'un groupe). |
 | `MyDayHour<T, S>` | Heure affichée (une ligne, un créneau qui n'est pas de toute la journée, ou l'heure de maintenant) : `hour` (0 à 23), `current`, `slots` (créneaux rencontrés pendant l'heure), `unavailable`, `rows`. |
 | `MyDayLayout<T, S>` | Blocs : `header`, `unscheduled`, `hours`, `finished`. |
 | `MyDayOptions<S>` | `day`, `now` (aujourd'hui et l'heure lus à Paris), `slots?`. |
-| `myDayRows(items, options)` | Range les éléments d'un jour (sans ceux qui n'ont aucune fenêtre ce jour, sauf faits ou annulés) : tête, sans horaire, heures (seulement celles qui ont une ligne ou un créneau, et l'heure de maintenant aujourd'hui), faits puis annulés en bas, éléments liés sous leur évènement. |
+| `myDayRows(items, options)` | Range les éléments d'un jour (sans ceux qui n'ont aucune fenêtre ce jour, sauf faits ou annulés) : tête, sans horaire, heures (seulement celles qui ont une ligne ou un créneau, et l'heure de maintenant aujourd'hui), faits puis annulés en bas, éléments liés sous leur évènement, sinon ceux d'un groupe (`groupKey`) sous lui ; un groupe se place où est le premier de ses éléments encore à faire, en bas une fois tous faits ou annulés (à l'heure du dernier fait), à sa place à lui sans élément sous lui. |
 
-Internes : `Block`, `Placement`, `placementOf` (où va un élément ce jour, `null` : il n'y est pas), `wholeDay` (créneau de toute la journée : colore les heures affichées sans les faire afficher), `hourStart`, `hourOf`, `byTime` (heure, type, ordre donné), `byDone` (faits dans l'ordre où ils l'ont été, puis annulés), `finished`.
+Internes : `Block`, `BLOCKS` (ordre des blocs), `placeGroup` (place d'un groupe d'après ses éléments), `Placement`, `placementOf` (où va un élément ce jour, `null` : il n'y est pas), `wholeDay` (créneau de toute la journée : colore les heures affichées sans les faire afficher), `hourStart`, `hourOf`, `byTime` (heure, type, ordre donné), `byDone` (faits dans l'ordre où ils l'ont été, puis annulés), `finished`.
 
 ## `my-day-settings.ts` — réglages de « Ma journée »
 

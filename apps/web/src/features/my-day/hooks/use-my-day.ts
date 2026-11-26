@@ -2,7 +2,6 @@ import {
   addDays,
   birthdayLabel,
   birthdaysBetween,
-  routineSlotShownOn,
   itemWindowsOn,
   joinedKey,
   mapById,
@@ -11,14 +10,16 @@ import {
   readBirthDate,
   readSlotCondition,
   readTaskHours,
+  routineDayEntries,
+  routineGroupStatesOn,
   taskDayReasons,
   type MyDayItem,
   type MyDayLayout,
   type MyDaySettings,
   type MyDaySlot,
+  type RoutineGroupState,
   type TaskStatusCategory,
   type TimeWindow,
-  windowsAllowed,
 } from '@ordo/shared';
 import { useMemo } from 'react';
 import { unarchived } from '../../../lib/archive';
@@ -30,7 +31,6 @@ import { useSlotRules } from '../../calendar/hooks/use-slot-rules';
 import { scheduleSources } from '../../calendar/lib/calendar-events';
 import { useRoutineOccurrences, useRoutinesData, type Routine, type RoutineOccurrence } from '../../routines/api';
 import type { RoutineMenuOccurrence } from '../../routines/hooks/use-routine-occurrence-menu';
-import { isDone } from '../../routines/lib/routine-format';
 import type { Task } from '../../tasks/api';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeEntriesSince } from '../../time/api';
@@ -63,6 +63,16 @@ export interface MyDayRoutine extends MyDayItem {
   missed: boolean;
 }
 
+/** A group of routines of the day: a parent routine, its sub-routines of the day under it; never ticked. */
+export interface MyDayRoutineGroup extends MyDayItem {
+  kind: 'routineGroup';
+  routine: Routine;
+  /** Its state that day, read from its sub-routines due that day (`routineGroupStatesOn`). */
+  state: RoutineGroupState;
+  /** Its own occurrence due that day (its menu moves it, with the sub-routines following its exceptions); null: none. */
+  occurrence: RoutineOccurrence | null;
+}
+
 /** An éphéméride of the day (of the workspace, or of a kind of another workspace it subscribes to). */
 export interface MyDayEphemeris extends MyDayItem {
   kind: 'ephemeris';
@@ -80,7 +90,7 @@ export interface MyDayBirthday extends MyDayItem {
 }
 
 /** What « Ma journée » lists. */
-export type MyDayEntry = MyDayEvent | MyDayTask | MyDayRoutine | MyDayEphemeris | MyDayBirthday;
+export type MyDayEntry = MyDayEvent | MyDayTask | MyDayRoutineGroup | MyDayRoutine | MyDayEphemeris | MyDayBirthday;
 
 /** A slot of the day on the hours: its schedule, its name and colour. */
 export interface MyDayHourSlot extends MyDaySlot {
@@ -146,8 +156,9 @@ function routineWindows(slot: RoutineSlot): TimeWindow[] | null {
  * - tasks: those `taskDayReasons` gives a reason that day (their times of that day loaded on a past day, for « en
  *   cours »), placed by their windows (`itemWindowsOn`: their hours, their condition, the slots « Indisponible »);
  * - routines: each time of the day of an occurrence open that day (done: on the day it was done; on a past day, not
- *   done: « non faite »), cancelled on its due day, and today the late ones (their current occurrence past due); a
- *   parent routine through its sub-routines only, archived ones left out;
+ *   done: « non faite »), cancelled on its due day, and today the late ones (their current occurrence past due)
+ *   (`routineDayEntries`); a parent routine (a group) as the head of its sub-routines of the day, its progress read from
+ *   those due that day (`routineGroupStatesOn`), present only when one is; archived ones left out;
  * - event occurrences of the workspace (cancelled ones struck through, those over several days on each of their
  *   days), éphémérides and birthdays of the day;
  * - the slots of the hours: the créneaux of the workspace and of the kinds of other workspaces it subscribes to,
@@ -236,71 +247,59 @@ export function useMyDay(day: string): MyDay {
         for (const { age } of birth ? birthdaysBetween(birth, day, day) : []) items.push({ kind: 'birthday', key: joinedKey('birthday', birthday.id), birthday, label: birthdayLabel(birthday.name, age) });
       }
     }
-    // Routines: a parent through its sub-routines only; archived ones left out.
-    const routines = unarchived(routinesData.data?.routines ?? NONE);
-    const parents = new Set(routines.flatMap((routine) => (routine.parentId ? [routine.parentId] : [])));
+    // Routines: a parent as the head of its sub-routines of the day (a group, never ticked); archived ones left out.
+    const routines = routinesData.data?.routines ?? NONE;
     const routineById = mapById(routines);
-    const routineKeys = new Set<string>();
+    const dayRoutineOccurrences = occurrences.data ?? NONE;
+    const groups = routineGroupStatesOn(routines, dayRoutineOccurrences, day);
     /**
-     * Adds a time of the day of an occurrence of a routine, once.
+     * Whether a routine is shown: routines shown, kept by the filter of the routines (with all its occurrences).
      * @param {Routine} routine Routine.
-     * @param {RoutineMenuOccurrence} occurrence Occurrence.
-     * @param {RoutineSlot} slot Time of the day.
-     * @param {boolean} late Late (today, its current occurrence past due).
-     * @param {TimeWindow[] | null} [windows] Windows it is placed by. Optional. Default = those of the time of the day (`routineWindows`).
-     * @returns {void}
+     * @returns {boolean} Shown.
      */
-    const addRoutine = (routine: Routine, occurrence: RoutineMenuOccurrence, slot: RoutineSlot, late: boolean, windows: TimeWindow[] | null = routineWindows(slot)) => {
-      const key = joinedKey(routine.id, occurrence.date, slot.index);
+    const routineShown = (routine: Routine) => settings.routines && kept.routine(routine.id);
+    /**
+     * Key of the head of the group a routine is under that day (its parent, present and shown that day).
+     * @param {Routine} routine Routine.
+     * @returns {string | undefined} Key.
+     */
+    const groupKeyOf = (routine: Routine): string | undefined => {
+      const parent = routine.parentId ? routineById.get(routine.parentId) : undefined;
+      return parent && groups.has(parent.id) && routineShown(parent) ? joinedKey('routineGroup', parent.id) : undefined;
+    };
+    for (const [id, state] of groups) {
+      const routine = routineById.get(id);
+      if (!routine || routine.archived || !routineShown(routine)) continue;
+      const occurrence = unarchived(dayRoutineOccurrences, null, (item) => item.date).find((item) => item.routineId === id && !item.cancelled && item.dueDate === day) ?? null;
+      items.push({ kind: 'routineGroup', key: joinedKey('routineGroup', id), routine, state, occurrence, done: state.complete, groupKey: groupKeyOf(routine) });
+    }
+    // Each time of the day shown that day; today, the late ones kept to the hours their condition and the slots
+    // « Indisponible » allow today (none: not in the day).
+    const routineEntries = routineDayEntries(routines, dayRoutineOccurrences, day, {
+      today,
+      shown: routineShown,
+      allowedToday: (routine) => itemWindowsOn(readSlotCondition(routine.slotCondition), slotsOn, today),
+    });
+    for (const { routine, occurrence, slot, late, windows } of routineEntries) {
       const done = Boolean(slot.doneAt);
-      if (routineKeys.has(key)) return;
-      routineKeys.add(key);
       items.push({
         kind: 'routine',
-        key,
+        key: joinedKey(routine.id, occurrence.date, slot.index),
         routine,
         occurrence,
         slot,
         // Missed once its due day is past, an optional one skipped.
         missed: past && !done && !occurrence.cancelled && occurrence.dueDate < today && !slot.optional,
         time: { start: slot.fromTime ?? null, end: slot.dueTime ?? null },
-        windows,
+        windows: windows ?? routineWindows(slot),
         late,
         done,
         doneAt: parisTime(slot.doneAt),
         cancelled: occurrence.cancelled,
         eventKeys: linkedKeys(dayOccurrences, (event) => event.routineLinks.some((link) => link.routineId === routine.id && link.date === occurrence.date)),
+        // Under its parent only when it counts for it that day (due that day, not cancelled); else on its own.
+        groupKey: !occurrence.cancelled && occurrence.dueDate === day ? groupKeyOf(routine) : undefined,
       });
-    };
-    /**
-     * Whether a routine is shown: routines shown, not a parent (seen through its sub-routines), kept by the filter of
-     * the routines (with all its occurrences).
-     * @param {Routine} routine Routine.
-     * @returns {boolean} Shown.
-     */
-    const routineShown = (routine: Routine) => settings.routines && !parents.has(routine.id) && kept.routine(routine.id);
-    for (const occurrence of occurrences.data ?? NONE) {
-      const routine = routineById.get(occurrence.routineId);
-      if (!routine || !routineShown(routine) || occurrence.archived) continue;
-      for (const slot of occurrence.slots) {
-        // Cancelled: on its due day; else on each day it is open, once done on the day it was done.
-        const shown = occurrence.cancelled ? occurrence.dueDate === day : routineSlotShownOn(occurrence, slot.doneAt ?? null, day);
-        if (shown) addRoutine(routine, occurrence, slot, false);
-      }
-    }
-    // Today, the late ones: the times of the day of their current occurrence, past due, neither done nor optional,
-    // kept to the hours their condition and the slots « Indisponible » allow today (none: not in the day).
-    if (day === today) {
-      for (const routine of routines) {
-        if (!routineShown(routine) || !routine.currentDate || !routine.currentDueDate || routine.currentDueDate >= today || isDone(routine)) continue;
-        const occurrence: RoutineMenuOccurrence = { date: routine.currentDate, dueDate: routine.currentDueDate, cancelled: false, archived: false, slots: routine.slots };
-        const allowed = itemWindowsOn(readSlotCondition(routine.slotCondition), slotsOn, today);
-        for (const slot of routine.slots) {
-          if (slot.done || slot.optional) continue;
-          const windows = windowsAllowed({ fromTime: slot.fromTime ?? null, dueTime: slot.dueTime ?? null }, allowed);
-          if (windows.length) addRoutine(routine, occurrence, slot, true, windows);
-        }
-      }
     }
     // Tasks: every task of the workspace with a reason that day, kept by the filter of the tasks.
     const times = entries.data ?? NONE;

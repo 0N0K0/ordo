@@ -3394,7 +3394,7 @@ model Routine {
   parent               Routine?               @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
   children             Routine[]              @relation("RoutineTree")
   /// Fields it takes from its parent, live: PROJECT, ASSIGNEES, BENEFICIARIES, SLOT_CONDITION, OPENS_ON,
-  /// LOCATION, CATEGORIES, PRIORITY, START_DATE, RECURRENCE, CASES, MOVES (not its moments: its own). A field not listed is its own value (emptied
+  /// LOCATION, CATEGORIES, PRIORITY, START_DATE, RECURRENCE, CASES, MOMENTS, MOVES. A field not listed is its own value (emptied
   /// on purpose when it has none); always empty for a top-level routine. Its effective values: `effectiveRoutine`.
   inheritedFields      String[]               @default([])
   /// First occurrence: the rule repeats from it.
@@ -3421,8 +3421,7 @@ model Routine {
   scheduleIds          String[]               @default([])
   /// Former form: calendar schedules it was done out of, read into its condition.
   excludedScheduleIds  String[]               @default([])
-  /// Times of the day, following its rule: [{ fromTime, dueTime, optional }]; none: fromTime / dueTime. Its own, never
-  /// inherited; none for a routine that has sub-routines.
+  /// Times of the day, following its rule: [{ fromTime, dueTime, optional }]; none: fromTime / dueTime.
   moments              Json                   @default("[]")
   /// On or out of calendar schedules, in groups (and / or), following its rule; none: any time (or, saved before
   /// it, scheduleIds / excludedScheduleIds).

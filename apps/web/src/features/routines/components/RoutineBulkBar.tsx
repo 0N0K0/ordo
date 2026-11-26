@@ -49,8 +49,8 @@ export function useRoutineRowsActions() {
     const label = routinesLabel(ids.length);
     const allArchived = routines.every((routine) => routine.archived);
     const active = unarchived(routines);
-    // Ticked by hand: not a routine that has sub-routines (its ticks follow theirs).
-    const tickable = active.filter((routine) => !routine.tickedWithSubRoutines);
+    // Ticked: not a routine that has sub-routines (a group, never ticked).
+    const tickable = active.filter((routine) => !routine.hasSubRoutines);
     const activeIds = active.map((routine) => routine.id);
     const activeLabel = routinesLabel(activeIds.length);
     const allDone = tickable.every((routine) => routine.currentDate === null || isDone(routine));
@@ -64,7 +64,7 @@ export function useRoutineRowsActions() {
      * @returns {SelectionAction} Action.
      */
     // The occurrence each shows (unticked: those done; ticked: those still to do), the same for its « Annuler ».
-    // A routine that has sub-routines is left aside (its ticks follow theirs).
+    // A routine that has sub-routines is left aside (a group, never ticked).
     const shown = tickable.filter((routine) => routine.currentDate !== null && (allDone || !isDone(routine)));
     const shownIds = shown.map((routine) => routine.id);
     const shownDates = shown.map((routine) => routine.currentDate as string);

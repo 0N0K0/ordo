@@ -177,6 +177,9 @@ const RoutineEffectiveRef = builder.objectRef<StoredInheritingRoutine>('RoutineE
   }),
 });
 
+/** Selection of one sub-routine not archived: a routine that has one is a group (never ticked). */
+const ACTIVE_CHILD = { children: { where: { archivedAt: null }, select: { id: true }, take: 1 } } as const;
+
 builder.prismaObject('Routine', {
   description: 'Task repeating on a calendar rule, ticked once done for its current occurrence.',
   fields: (t) => ({
@@ -330,22 +333,23 @@ builder.prismaObject('Routine', {
         return current !== null && slots.length > 0 && slots.every((slot) => slot.done || slot.optional);
       },
     }),
-    tickedWithSubRoutines: t.boolean({
-      description: 'It has sub-routines not archived: its ticks follow theirs (never ticked by hand).',
-      select: { children: { where: { archivedAt: null }, select: { id: true }, take: 1 } },
+    hasSubRoutines: t.boolean({
+      description: 'It has sub-routines not archived: a group of them and their template, never ticked nor late, no reminder of its own; its state of a day is read from those due that day.',
+      select: ACTIVE_CHILD,
       resolve: (routine) => routine.children.length > 0,
     }),
     doneDates: t.field({
       type: ['Date'],
-      description: `Latest ticked occurrences (${RECENT_CHECKS} at most), latest first.`,
-      select: { checks: { orderBy: { date: 'desc' }, take: RECENT_CHECKS, select: { date: true } } },
-      resolve: (routine) => [...new Set(routine.checks.map((check) => formatDay(check.date)))].map(parseDay),
+      description: `Latest ticked occurrences (${RECENT_CHECKS} at most), latest first; none for a routine that has sub-routines not archived (its ticks of before are not read).`,
+      select: { checks: { orderBy: { date: 'desc' }, take: RECENT_CHECKS, select: { date: true } }, ...ACTIVE_CHILD },
+      resolve: (routine) => (routine.children.length ? [] : [...new Set(routine.checks.map((check) => formatDay(check.date)))].map(parseDay)),
     }),
     lastDoneAt: t.field({
       type: 'DateTime',
       nullable: true,
-      select: { checks: { orderBy: { doneAt: 'desc' }, take: 1, select: { doneAt: true } } },
-      resolve: (routine) => routine.checks[0]?.doneAt ?? null,
+      description: 'Last time one of its times of the day was ticked; none for a routine that has sub-routines not archived (its ticks of before are not read).',
+      select: { checks: { orderBy: { doneAt: 'desc' }, take: 1, select: { doneAt: true } }, ...ACTIVE_CHILD },
+      resolve: (routine) => (routine.children.length ? null : (routine.checks[0]?.doneAt ?? null)),
     }),
     trackedSeconds: t.int({
       description: 'Time tracked on it, finished entries only; a time on several routines is shared equally between them.',
@@ -645,7 +649,8 @@ builder.queryFields((t) => ({
       return found.flatMap(({ routine, spans }) => {
         // Its exceptions as it goes (its parent's when it inherits them).
         const moves = occurrences.liveMoves(occurrences.occurrenceTiming(routine, context), context);
-        const checks = [...routine.checks, ...more.filter((check) => check.routineId === routine.id)];
+        // A group (sub-routines not archived) is never ticked: its ticks of before are not read.
+        const checks = occurrences.hasSubRoutines(routine.id, context) ? [] : [...routine.checks, ...more.filter((check) => check.routineId === routine.id)];
         return spans.map(({ start, end, date, cancelled = false }) => {
           const ruleDay = movedFrom(moves, date);
           const ticks = new Map(checks.filter((check) => formatDay(check.date) === date).map((check) => [check.slot, check.doneAt]));

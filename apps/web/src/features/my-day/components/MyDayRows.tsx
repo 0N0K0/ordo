@@ -6,6 +6,7 @@ import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { LateBadge } from '../../../components/feedback/LateBadge';
+import { RoutineGroupProgress } from '../../../components/routines/RoutineGroupProgress';
 import * as fmt from '../../../lib/format';
 import { EventTimerToggle } from '../../calendar/components/EventTimerToggle';
 import { useEventForm } from '../../calendar/hooks/use-event-form';
@@ -22,7 +23,7 @@ import { useTaskActions } from '../../tasks/hooks/use-task-actions';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTaskLink } from '../../tasks/hooks/use-task-link';
 import { routineTimer, useRunningTimers } from '../../time/api';
-import type { MyDayBirthday, MyDayEntry, MyDayEphemeris, MyDayEvent, MyDayRoutine, MyDayTask } from '../hooks/use-my-day';
+import type { MyDayBirthday, MyDayEntry, MyDayEphemeris, MyDayEvent, MyDayRoutine, MyDayRoutineGroup, MyDayTask } from '../hooks/use-my-day';
 import classes from './MyDay.module.css';
 
 /** What every row of the day reads: the task context, today and the day shown. */
@@ -207,6 +208,28 @@ function RoutineRow({ row, item, today, day }: RowContext & { row: Row<MyDayEntr
 }
 
 /**
+ * Head of a group of routines (a parent routine): no state button (it is never ticked), its name (its panel), its
+ * progress « 2/3 » read from its sub-routines due that day, and its menu; its sub-routines of the day under it. Dimmed
+ * once they are all done.
+ * @param {RowContext & { row: Row<MyDayEntry>, item: MyDayRoutineGroup }} props Component props.
+ * @returns {JSX.Element} Row.
+ */
+function RoutineGroupRow({ row, item, today, day }: RowContext & { row: Row<MyDayEntry>; item: MyDayRoutineGroup }) {
+  const { routine, state, occurrence } = item;
+  // Its own occurrence of that day, if any (moving it moves the sub-routines following its exceptions).
+  const menu = useRoutineOccurrenceMenu()(routine, occurrence);
+  return (
+    <RowLine
+      time={row.time}
+      finished={state.complete ? 'done' : null}
+      label={<OpenLabel onClick={() => openRoutineForm(occurrence ? { routine, occurrenceDate: occurrence.date } : { routine })}>{routine.label}</OpenLabel>}
+      details={<RoutineGroupProgress state={state} when={day === today ? 'aujourd’hui' : 'ce jour-là'} />}
+      actions={<RowActions name={routine.label} primary={menu.primary || null} items={menu.items} />}
+    />
+  );
+}
+
+/**
  * Row of an occurrence of an event: no state button (« Annuler l’évènement » / « Reporter » in its menu), its name (its
  * panel), its chrono and its menu; cancelled, struck through; over several days, its first or last day told.
  * @param {RowContext & { row: Row<MyDayEntry>, item: MyDayEvent }} props Component props.
@@ -283,7 +306,8 @@ function BirthdayRow({ item }: { item: MyDayBirthday }) {
 }
 
 /**
- * A row of « Ma journée », by the kind of its item, with the tasks and routines linked to it (an event) under it.
+ * A row of « Ma journée », by the kind of its item, with the tasks and routines under it (linked to an event, of a
+ * group).
  * @param {RowContext & { row: Row<MyDayEntry> }} props Component props.
  * @returns {JSX.Element} Row.
  */
@@ -294,6 +318,8 @@ export function MyDayRowView({ row, ...rest }: RowContext & { row: Row<MyDayEntr
       <TaskRow row={row} item={item} {...rest} />
     ) : item.kind === 'routine' ? (
       <RoutineRow row={row} item={item} {...rest} />
+    ) : item.kind === 'routineGroup' ? (
+      <RoutineGroupRow row={row} item={item} {...rest} />
     ) : item.kind === 'event' ? (
       <EventRow row={row} item={item} {...rest} />
     ) : item.kind === 'ephemeris' ? (

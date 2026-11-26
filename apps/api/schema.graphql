@@ -4030,7 +4030,9 @@ type Routine {
   """Its current occurrence is done: every required time of the day ticked."""
   done: Boolean!
 
-  """Latest ticked occurrences (30 at most), latest first."""
+  """
+  Latest ticked occurrences (30 at most), latest first; none for a routine that has sub-routines not archived (its ticks of before are not read).
+  """
   doneDates: [Date!]!
 
   """Latest time to do it by (HH:MM)."""
@@ -4047,6 +4049,11 @@ type Routine {
 
   """Time to do it from (HH:MM), its own (see windowFrom)."""
   fromTime: String
+
+  """
+  It has sub-routines not archived: a group of them and their template, never ticked nor late, no reminder of its own; its state of a day is read from those due that day.
+  """
+  hasSubRoutines: Boolean!
   id: ID!
 
   """
@@ -4057,6 +4064,10 @@ type Routine {
   """Fields it takes from its parent, live; none for a top-level routine."""
   inheritedFields: [RoutineInheritableField!]!
   label: String!
+
+  """
+  Last time one of its times of the day was ticked; none for a routine that has sub-routines not archived (its ticks of before are not read).
+  """
   lastDoneAt: DateTime
 
   """Documents of the library linked to it (not inherited)."""
@@ -4136,11 +4147,6 @@ type Routine {
   """
   slots: [RoutineSlot!]!
   startDate: Date!
-
-  """
-  It has sub-routines not archived: its ticks follow theirs (never ticked by hand).
-  """
-  tickedWithSubRoutines: Boolean!
 
   """
   Time tracked on it, finished entries only; a time on several routines is shared equally between them.
@@ -4283,7 +4289,7 @@ type RoutineEffective {
 }
 
 """
-Field a sub-routine inherits from its parent; START_DATE, RECURRENCE, CASES, MOVES and OPENS_ON make its « quand » (its moments are its own).
+Field a sub-routine inherits from its parent; START_DATE, RECURRENCE, CASES, MOMENTS, MOVES and OPENS_ON make its « quand ».
 """
 enum RoutineInheritableField {
   ASSIGNEES
@@ -4291,6 +4297,7 @@ enum RoutineInheritableField {
   CASES
   CATEGORIES
   LOCATION
+  MOMENTS
   MOVES
   OPENS_ON
   PRIORITY

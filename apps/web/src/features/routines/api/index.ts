@@ -81,7 +81,7 @@ const RoutinesDataDocument = graphql(`
       cases
       moves
       done
-      tickedWithSubRoutines
+      hasSubRoutines
       slots {
         index
         fromTime
@@ -423,7 +423,7 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     priorityId: input.priorityId ?? null,
     typeId: input.typeId ?? null,
     parentId: input.parentId ?? null,
-    tickedWithSubRoutines: false,
+    hasSubRoutines: false,
     startDate: input.startDate,
     recurrence: input.recurrence,
     estimate: input.estimate ?? null,
@@ -694,7 +694,11 @@ export function useRoutineMutations() {
     // out the former links of the routine copied out of its project tree (the API does).
     create: useRoutineMutation(
       async ({ copyOf, ...input }: RoutineInput & { copyOf?: string | null }) => (await execute(CreateRoutineDocument, { input, copyOf })).createRoutine,
-      (data, input) => ({ ...data, routines: [...data.routines, draftRoutine(input, data.routines)] }),
+      // A routine given a sub-routine becomes a parent at once (no « Faite » button any more).
+      (data, input) => ({
+        ...data,
+        routines: [...data.routines.map((routine) => (routine.id === input.parentId ? { ...routine, hasSubRoutines: true } : routine)), draftRoutine(input, data.routines)],
+      }),
     ),
     // A change of project attaches the assignees to it: the contributors (task data) are refreshed too.
     update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => withLossConfirmation(async (confirmLoss) => (await execute(UpdateRoutineDocument, { ...variables, confirmLoss })).updateRoutine), undefined, [tasksQueryKey]),

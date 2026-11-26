@@ -3,8 +3,7 @@ import { emptyInheritedFields, inheritanceChain, inheritedFieldsGiven, marksInhe
 /**
  * Fields a sub-routine inherits from its parent: project, assignees, beneficiaries (people and
  * relations), slot condition, « Ouverture », place (not the travel times), categories, priority (as a sub-task; not its
- * type), and its « quand »: first time, repetition, cases, exceptions. Not its times of the day: a parent has none (its
- * sub-routines have their own).
+ * type), and its « quand »: first time, repetition, cases, times of the day, exceptions.
  */
 export const ROUTINE_INHERITABLE_FIELDS = [
   'PROJECT',
@@ -18,12 +17,13 @@ export const ROUTINE_INHERITABLE_FIELDS = [
   'START_DATE',
   'RECURRENCE',
   'CASES',
+  'MOMENTS',
   'MOVES',
 ] as const;
 export type RoutineInheritableField = (typeof ROUTINE_INHERITABLE_FIELDS)[number];
 
 /** Fields of the « quand » of a routine (their occurrences follow them): never emptied (first time, repetition), or a rule of their own. */
-export const ROUTINE_WHEN_FIELDS: readonly RoutineInheritableField[] = ['START_DATE', 'RECURRENCE', 'CASES', 'MOVES', 'OPENS_ON'];
+export const ROUTINE_WHEN_FIELDS: readonly RoutineInheritableField[] = ['START_DATE', 'RECURRENCE', 'CASES', 'MOMENTS', 'MOVES', 'OPENS_ON'];
 
 /** Inherited fields of a routine that cannot be emptied: it always has a first time and a repetition. */
 export const ROUTINE_REQUIRED_FIELDS: readonly RoutineInheritableField[] = ['START_DATE', 'RECURRENCE'];
@@ -71,6 +71,7 @@ export const ROUTINE_INHERITED_COLUMNS: InheritedColumns<InheritingRoutine, Rout
   START_DATE: ['startDate'],
   RECURRENCE: ['recurrence', 'scheduleId', 'scheduleAnchor'],
   CASES: ['cases'],
+  MOMENTS: ['moments', 'fromTime', 'dueTime'],
   MOVES: ['moves'],
 };
 
@@ -164,6 +165,7 @@ export const ROUTINE_FIELD_INPUTS: Record<RoutineInheritableField, readonly stri
   // A repetition of its own leaves its cases too.
   RECURRENCE: ['recurrence'],
   CASES: ['cases', 'recurrence'],
+  MOMENTS: ['moments', 'fromTime', 'dueTime'],
   MOVES: [],
 };
 
@@ -179,10 +181,10 @@ export function routineFieldsGiven(input: object): RoutineInheritableField[] {
 
 /**
  * Fields of its « quand » a routine placed under a parent after the fact never takes when empty: its first time and
- * its repetition are never empty; no case means it follows its own repetition, and no exception none on the days of
- * its own rule. Its « Ouverture », none, is taken as any empty field.
+ * its repetition are never empty; no case means it follows its own repetition, no moment one moment without hours, and
+ * no exception none on the days of its own rule. Its « Ouverture », none, is taken as any empty field.
  */
-const NEVER_ADOPTED: readonly RoutineInheritableField[] = ['START_DATE', 'RECURRENCE', 'CASES', 'MOVES'];
+const NEVER_ADOPTED: readonly RoutineInheritableField[] = ['START_DATE', 'RECURRENCE', 'CASES', 'MOMENTS', 'MOVES'];
 
 /**
  * Fields of a top-level routine without any value of its own: those it inherits once placed under a parent after the

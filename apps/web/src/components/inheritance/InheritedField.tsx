@@ -1,5 +1,5 @@
 import { Group, Stack, Text, Tooltip } from '@mantine/core';
-import { ArrowUUpLeftIcon, EraserIcon } from '@phosphor-icons/react';
+import { ArrowUUpLeftIcon, EraserIcon, TreeViewIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { ActionButton } from '../actions/ActionButton';
 import { INHERITANCE_WORDS, type FieldOriginValue } from './inheritance';
@@ -92,5 +92,28 @@ export function InheritanceNote({ origin, from, onClear, onInherit, parts, about
         </ActionButton>
       )}
     </Group>
+  );
+}
+
+/**
+ * A value of a parent item that its sub-items inherit, in a table cell: the value as it is, and under it its mention in
+ * small dimmed text, after a small tree icon (« Hérité par ses sous-routines »). The value stays editable: changing it
+ * changes theirs.
+ * @param {{ mention: string, children: ReactNode }} props Component props.
+ * @param {string} props.mention What it says.
+ * @param {ReactNode} props.children Value.
+ * @returns {JSX.Element} Value with its mark.
+ */
+export function HeirsMark({ mention, children }: { mention: string; children: ReactNode }) {
+  return (
+    <Stack gap={0}>
+      {children}
+      <Group gap={4} wrap="nowrap">
+        <TreeViewIcon aria-hidden size={12} color="var(--mantine-color-dimmed)" style={{ flexShrink: 0 }} />
+        <Text size="xs" c="dimmed">
+          {mention}
+        </Text>
+      </Group>
+    </Stack>
   );
 }

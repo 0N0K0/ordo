@@ -131,9 +131,6 @@ function MomentsEditor({
   );
 }
 
-/** Why a routine that has sub-routines has no moments of its own. */
-const PARENT_MOMENTS = 'Aucun : une routine qui a des sous-routines n’a pas de moments à elle, chacune de ses sous-routines a les siens.';
-
 /**
  * Moments as text: "avant 08:00, 12:00–14:00 (facultatif)".
  * @param {readonly RoutineSlot[]} moments Moments.
@@ -143,24 +140,14 @@ const describeMoments = (moments: readonly RoutineSlot[]) => moments.map((moment
 
 /**
  * Moments and condition of the rule or cases of a routine, for the common repetition editor: committed (a panel saved
- * field by field) once chosen, an hour or a number once left, a condition at once. Without moments (a routine that has
- * sub-routines, its rule), a line says why instead.
+ * field by field) once chosen, an hour or a number once left, a condition at once.
  * @param {Map<string, string>} names Names of the calendar schedules.
- * @param {boolean} [withMoments] Its moments are edited. Optional. Default = true.
  * @returns {RepetitionTimes<RoutineTimes>} Times.
  */
-const routineTimes = (names: Map<string, string>, withMoments = true): RepetitionTimes<RoutineTimes> => ({
+const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes> => ({
   render: (times, onChange, index, rule, onCommit) => (
     <Stack gap="sm">
-      {withMoments ? (
-        <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} onCommit={onCommit} />
-      ) : (
-        <LabeledField label="Moments de la journée">
-          <Text size="sm" c="dimmed">
-            {PARENT_MOMENTS}
-          </Text>
-        </LabeledField>
-      )}
+      <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} onCommit={onCommit} />
       <SlotConditionBuilder
         item="routine"
         value={times.condition}
@@ -239,7 +226,7 @@ function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<Ro
  * Every repetition setting of a routine: its first day (unless its panel shows it apart), then one rule or cases, each
  * with its moments and its condition on calendar schedules; its « Ouverture ». In the common modal (a table cell), or
  * right in the panel with `onCommit` (called once a value is chosen, an hour or a number left).
- * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string>, withStart?: boolean, withMoments?: boolean, onCommit?: () => void }} props Draft, its change, names of the schedules, first day asked (default true), moments of its rule edited (default true: false for a routine that has sub-routines), commit. Optional.
+ * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string>, withStart?: boolean, onCommit?: () => void }} props Draft, its change, names of the schedules, first day asked (default true), commit. Optional.
  * @returns {JSX.Element} Settings.
  */
 function RoutineRepetitionEditor({
@@ -247,14 +234,12 @@ function RoutineRepetitionEditor({
   setDraft,
   names,
   withStart = true,
-  withMoments = true,
   onCommit,
 }: {
   draft: RoutineRepetitionValue;
   setDraft: (value: RoutineRepetitionValue) => void;
   names: Map<string, string>;
   withStart?: boolean;
-  withMoments?: boolean;
   onCommit?: () => void;
 }) {
   const start = draft.startDate || parisToday();
@@ -286,7 +271,7 @@ function RoutineRepetitionEditor({
         multiple
         allowNone={false}
         durations={DURATION_UNITS}
-        times={routineTimes(names, withMoments || draft.mode === 'CASES')}
+        times={routineTimes(names)}
         onCommit={onCommit}
       />
     </Stack>
@@ -351,8 +336,7 @@ export function RoutineRepetitionModal({
       draft={draft}
       setDraft={setDraft}
       valid={validRepetition}
-      // A routine that has sub-routines has no moments of its own.
-      editor={(value, change) => <RoutineRepetitionEditor draft={value} setDraft={change} names={names} withMoments={!routine.tickedWithSubRoutines} />}
+      editor={(value, change) => <RoutineRepetitionEditor draft={value} setDraft={change} names={names} />}
       onApply={(value) =>
         onApply({
           startDate: value.startDate,
@@ -391,11 +375,11 @@ const inheritedProps = (inherited: RoutineFieldsProps['inherited']) => ({ ...(in
  * « Répétition et moments » of a routine, right in its panel (no modal; its first day apart): one rule or cases, each
  * with its moments, condition and « Ouverture ». Each change is given at once (`onChange`); `onCommit` saves them
  * once a value is chosen (a frequency, a weekday, a case, a condition…), an hour or a number once left. Greyed while
- * inherited (its moments are its own). A routine that has sub-routines has no moments of its rule (`withMoments`).
- * @param {RoutineFieldsProps & { withMoments?: boolean }} props Component props (`withMoments`: its moments edited, default true).
+ * inherited.
+ * @param {RoutineFieldsProps} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function RoutineRepetition({ values, errors, onChange, onCommit, inherited, withMoments = true }: RoutineFieldsProps & { withMoments?: boolean }) {
+export function RoutineRepetition({ values, errors, onChange, onCommit, inherited }: RoutineFieldsProps) {
   const { names } = useSlotChoices();
   const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
   return (
@@ -414,7 +398,6 @@ export function RoutineRepetition({ values, errors, onChange, onCommit, inherite
           }
           names={names}
           withStart={false}
-          withMoments={withMoments}
           onCommit={onCommit && (() => onCommit([...ROUTINE_REPETITION_KEYS]))}
         />
       </LabeledField>

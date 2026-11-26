@@ -18,7 +18,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { parisCalendarOptions } from '../lib/paris-calendar';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
-import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength, taskPlacement, type TaskSpanKind } from '@ordo/shared';
+import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineGroupIds, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength, taskPlacement, type TaskSpanKind } from '@ordo/shared';
 import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -531,8 +531,8 @@ export function CalendarPage() {
       const routineCategory = mapById(routinesData?.routineCategories ?? []);
       // Manual order of the routines: those of a same window follow it.
       const order = manualOrder(routinesData?.routines ?? []);
-      // A parent routine is done through its sub-routines: only they show.
-      const parents = new Set((routinesData?.routines ?? []).flatMap((routine) => (routine.parentId && (!routine.archived || showArchived) ? [routine.parentId] : [])));
+      // A parent routine (a group of sub-routines not archived) is never done itself: only its sub-routines show.
+      const parents = routineGroupIds(routinesData?.routines ?? []);
       type RoutineEvent = { block: RoutineBlock | null; event: EventInput };
       const events: RoutineEvent[] = [];
       for (const occurrence of routineOccurrences.data ?? []) {
