@@ -833,8 +833,8 @@ function writeHeader(
   if (registration)
     doc
       .font('regular')
-      .fontSize(8.5)
-      .fillColor(COLORS.muted)
+      .fontSize(9.5)
+      .fillColor(COLORS.text)
       .text(registration, right, doc.y + 1, { width: ENVELOPE_WINDOW.width });
   if (postalLines.length)
     doc
