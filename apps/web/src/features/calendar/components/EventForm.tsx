@@ -6,7 +6,7 @@ import { notifySuccess } from '../../../lib/notify';
 import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Anchor, Badge, Fieldset, Select, Text } from '@mantine/core';
-import { mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, type Recurrence, cutSeries, seriesOn, sharePeople, shiftedSeries, shiftTime } from '@ordo/shared';
+import { mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, type Recurrence, cutSeries, seriesOn, sharePeople, shiftedSeries, shiftTime } from '@ordo/shared';
 import { ArrowArcRightIcon, CalendarXIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
@@ -36,7 +36,7 @@ import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { useCalendarCategoryItems } from '../hooks/use-settings-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
+import { EventRemindersField } from '../../../components/inputs/ItemReminders';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { FormDescription } from '../../../components/markdown/DescriptionSection';
 import { DetailLayout, PanelGroup } from '../../../components/panels/DetailLayout';
@@ -518,17 +518,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
             </PanelGroup>
             <PanelGroup title={PANEL_GROUPS.alarms}>
               {series(
-                <RemindersSelect
-                  label="Rappels"
-                  description={
-                    values.allDay
-                      ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant ; ou de même depuis la fin (minuit après le dernier jour).'
-                      : 'Avant le début, 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant ; ou de même depuis la fin.'
-                  }
-                  anchors={EVENT_REMINDER_ANCHORS}
-                  value={values.reminders}
-                  onChange={(reminders) => form.setFieldValue('reminders', reminders)}
-                />,
+                <EventRemindersField allDay={values.allDay} value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} />,
               )}
               {occurrence && (
                 <SavedCountdownsField

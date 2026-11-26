@@ -396,18 +396,21 @@ export function taskRemindsOn(task: TaskReminderDays, day: string): boolean {
 
 /**
  * Reminders of a task around now: those « À HH:MM » of the day before and of today in Paris (a late one may still ring
- * after midnight), on the days it reminds on; those « N jours avant, à HH:MM » once, counted from its « Échéance ».
+ * after midnight), and of the next `ahead` days, on the days it reminds on; those « N jours avant, à HH:MM » once,
+ * counted from its « Échéance ».
  * @param {string} key Key of the task.
  * @param {TaskReminderDays & { reminders: readonly ReminderValue[] }} task Task.
  * @param {Date} now Now.
+ * @param {number} [ahead] Days after today whose « À HH:MM » are given too. Optional. Default = 0 (yesterday and today).
  * @returns {PlannedReminder[]} Reminders.
  */
-export function taskReminders(key: string, task: TaskReminderDays & { reminders: readonly ReminderValue[] }, now: Date): PlannedReminder[] {
+export function taskReminders(key: string, task: TaskReminderDays & { reminders: readonly ReminderValue[] }, now: Date, ahead = 0): PlannedReminder[] {
   const today = dayIn(now, PARIS_ZONE);
   const onDays = task.reminders.filter((reminder) => !reminder.days);
+  const days = Array.from({ length: ahead + 2 }, (_, index) => addDays(today, index - 1));
   return [
     ...(task.deadline ? remindersAt(`${key}:${task.deadline}`, task.deadline, task.reminders, false) : []),
-    ...[addDays(today, -1), today].filter((day) => taskRemindsOn(task, day)).flatMap((day) => remindersAt(`${key}:${day}`, day, onDays)),
+    ...days.filter((day) => taskRemindsOn(task, day)).flatMap((day) => remindersAt(`${key}:${day}`, day, onDays)),
   ];
 }
 

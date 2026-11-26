@@ -1,6 +1,10 @@
 # Éléments des listes de réglages : avatars, badges, options
 
-Affichage des éléments des listes paramétrables (statuts, catégories, étiquettes, drapeaux…), des fichiers et des liens : avatars, badges, options de sélection avec avatar, archivés exclus. Source : `apps/web/src/components/items/`. Les listes elles-mêmes (`SettingsList`) sont dans [Réglages](settings.md).
+Affichage des éléments des listes paramétrables (statuts, catégories, étiquettes, drapeaux…), des fichiers et des liens : avatars, badges, options de sélection avec avatar, archivés exclus. Source : `apps/web/src/components/items/` ; aussi la carte des listes de cartes (`ListCard`). Les listes elles-mêmes (`SettingsList`) sont dans [Réglages](settings.md).
+
+## `ListCard.tsx` et `ListCard.module.css`
+
+`ListCard({ children, onClick?, label?, muted? })` : une carte d’une liste de cartes posées l’une sous l’autre (les colonnes de la page « Alarmes » : une alarme, un minuteur enregistré, un rappel à venir), la même partout : bordée, arrondie (`md`), marges `md`. `muted` : estompée (`--onoko-muted-opacity`, une alarme inactive). Avec `onClick`, toute la carte est un bouton (`Paper` en `button`, nom accessible `label` ou son texte) : teintée sous le pointeur, contour au focus clavier. Utilisé par `AlarmList`, `SavedCountdownCards`, `UpcomingReminderList` (alarmes).
 
 ## `ItemAvatar.tsx`
 

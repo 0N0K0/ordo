@@ -117,6 +117,20 @@ Le « N jours avant » dépasse la limite de 24 heures des « avant » (30 jours
 - Anniversaires : rappels de la personne (`birthdayRemindersSchema`), sur les anniversaires d'hier à J+31 de la requête `birthdays` (personnes non archivées). Toast : « Anniversaire de Paul — 40 ans » (l'âge ce jour-là quand l'année de naissance est connue), le jour, « Ouvrir la fiche » (le panneau du contributeur ou de la relation ; d'un autre espace : son agenda).
 - Les rappels sont **à côté** des alarmes, qui restent telles quelles (objets à part, avec leur propre répétition, sur une tâche ou un projet, et les alarmes de chrono). Une alarme `REMINDER` sur une tâche peut faire le même office qu’un rappel de tâche ; rien ne les relie.
 
+## Rappels à venir
+
+La colonne « Rappels à venir » de la page « Alarmes » (`upcomingReminders`, `packages/shared/src/dates/upcoming-reminders.ts`) liste ce qui sonnera, calculé par les mêmes briques que les sonneries (`eventRings`, `taskRings`, `routineRings` : mêmes clés, instants et textes), pour l’espace ouvert :
+
+- **Éléments** : les évènements, les tâches et les routines (pas les alarmes, qui ont leur colonne, ni les éphémérides et anniversaires). Ce qui ne sonne pas n’y est pas : occurrence annulée, évènement ou calendrier archivé, tâche fermée ou archivée ou sans échéance, routine archivée.
+- **Fenêtre** : les rappels qui sonnent entre maintenant et dans 30 jours (`UPCOMING_REMINDER_DAYS`) ; un rappel déjà passé n’y est plus.
+- **Prochaine occurrence seulement** : pour chaque élément, la première de ses occurrences qui a encore un rappel dans la fenêtre, et tous ses rappels dans la fenêtre ; les occurrences suivantes n’apparaissent qu’une fois celle-ci passée. Un évènement : ses occurrences par début (les rappels sont ceux de sa série) ; une occurrence dont les rappels ont tous sonné, ou annulée, laisse la place à la suivante. Une routine : les occurrences où ses rappels sonnent (`reminderOccurrences` de l’API), par échéance (une occurrence déplacée plus tard et gardée à part vient après). Une tâche n’a qu’une occurrence : ses rappels « À HH:MM » de chaque jour d’ici son échéance et ses « N jours avant » l’échéance.
+- **Rappels propres à l’élément** : seulement ceux enregistrés sur lui (les rappels ne s’héritent pas) ; une routine parente ne sonne rien et n’y est pas, ses sous-routines y sont avec les leurs.
+- **Instant** : celui de la sonnerie ; un rappel de routine reporté au prochain moment libre (évènement de ses assignés, créneau « Indisponible ») y est à ce moment (`deferRoutine`, comme dans l’app).
+- **Ordre** : par heure de sonnerie, puis par titre.
+- **Échéance** montrée : le début de l’occurrence d’un évènement (jour et heure, le jour seul en journée entière), l’échéance suivie d’une tâche (`effectiveDeadline`), l’échéance de l’occurrence d’une routine.
+- **Modifier** : le panneau d’un rappel à venir ne change que les rappels de son élément, par les mutations habituelles (`updateTask`, `patchRoutine`, `updateCalendarEvent` portée `ALL` : toute la série d’un évènement, ses autres champs envoyés tels qu’ils sont), avec leurs règles (voir [Rappels des tâches, routines et évènements](#rappels-des-tâches-routines-et-évènements)) ; il lit l’élément tel qu’il est à chaque instant (changé ailleurs depuis le clic, il suit), et « Ouvrir » le ferme avant d’ouvrir l’élément entier.
+- Les occurrences d’évènements lues vont d’hier à 30 + 31 jours (`reminderDayRange` avec `UPCOMING_REMINDER_DAYS + REMINDER_LOOKAHEAD_DAYS`) : de quoi trouver un « N jours avant » qui sonne dans les 30 jours.
+
 ## Sonnerie
 
 Une seule brique pour tout ce qui sonne, alarmes et rappels, espace ouvert et autres (`startRinging`, `apps/web/src/features/alarms/lib/ringing.tsx`) :

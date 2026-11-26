@@ -18,7 +18,7 @@ Onglets de page, onglets des réglages, barre d’onglets triables (vues des tab
 
 ## `use-page-tab.ts`
 
-`usePageTab(tabs, fallback?, moved?)` — onglet d’une page (`PageTabs`), dans `?tab=`. Même retour que `useUrlTab`. Utilisé par `accounting`, `projects`, `routines`, `shopping`, `stock`, `treasury`.
+`usePageTab(tabs, fallback?, moved?)` — onglet d’une page (`PageTabs`), dans `?tab=`. Même retour que `useUrlTab`. Utilisé par `accounting`, `alarms`, `projects`, `routines`, `shopping`, `stock`, `treasury`.
 
 ## `use-settings-tab.ts`
 
@@ -41,7 +41,7 @@ Rendu (CSS) :
 - défilement horizontal quand la fenêtre est trop étroite ;
 - collants en haut de la fenêtre (`position: sticky`) seulement en densité large (largeur ≥ tablette et hauteur ≥ `md`).
 
-Utilisé par `accounting`, `projects`, `routines`, `shopping`, `stock`, `treasury`.
+Utilisé par `accounting`, `alarms` (ses trois colonnes sur un écran étroit), `projects`, `routines`, `shopping`, `stock`, `treasury`.
 
 ## `SettingsTabs.tsx`
 

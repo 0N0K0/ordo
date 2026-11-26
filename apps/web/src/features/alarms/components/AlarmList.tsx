@@ -1,7 +1,8 @@
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { StateSwitch } from '../../../components/inputs/StateSwitch';
-import { Anchor, Badge, Group, Paper, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, Group, Stack, Text } from '@mantine/core';
+import { ListCard } from '../../../components/items/ListCard';
 import { PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
@@ -75,7 +76,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
             )
           : null;
         return (
-          <Paper key={alarm.id} withBorder radius="md" p="md" style={{ opacity: alarm.enabled ? undefined : 'var(--onoko-muted-opacity)' }}>
+          <ListCard key={alarm.id} muted={!alarm.enabled}>
             <Group justify="space-between" wrap="nowrap" align="flex-start">
               <Stack gap={4} style={{ minWidth: 0 }}>
                 <Group gap="xs">
@@ -128,7 +129,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                 />
               </Group>
             </Group>
-          </Paper>
+          </ListCard>
         );
       })}
     </Stack>

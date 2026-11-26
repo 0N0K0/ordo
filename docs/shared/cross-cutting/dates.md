@@ -122,7 +122,7 @@ Les rappels des tâches, routines, évènements, éphémérides et anniversaires
 | `reminderDaysAhead(reminders)`             | Le plus de jours d'un « N jours avant » parmi des rappels (0 sans).                                                                       |
 | `TaskReminderDays` (type)                  | « Ouverture » et « Échéance » d'une tâche.                                                                                                 |
 | `taskRemindsOn(task, day)`                 | Vrai les jours de l’ouverture à l’échéance (le jour de l’échéance sans ouverture ou avec une ouverture après elle) ; jamais sans échéance. |
-| `taskReminders(key, task, now)`            | « À HH:MM » d'une tâche la veille et le jour de Paris de `now` (clé `<clé>:<jour>:at:<HH:MM>`) et ses « N jours avant » son échéance, une fois (clé `<clé>:<échéance>:days:<N>:<HH:MM>`). |
+| `taskReminders(key, task, now, ahead?)`    | « À HH:MM » d'une tâche la veille et le jour de Paris de `now`, et des `ahead` jours suivants (défaut 0 ; « Rappels à venir » : 30) (clé `<clé>:<jour>:at:<HH:MM>`) et ses « N jours avant » son échéance, une fois (clé `<clé>:<échéance>:days:<N>:<HH:MM>`). |
 
 ## `reminder-rings.ts` — ce qui sonne et ses textes
 
@@ -133,7 +133,7 @@ Ce que l'app ouverte (`ringPlannedReminders`, `dueAlarms`) et le serveur qui son
 | `RingText`, `PlannedRing`, `RingPage` (types) | Titre et lignes ; un rappel planifié (`PlannedReminder` + texte) ; un lien (`label`, `path`). |
 | `calendarRingPage(espace?)`, `routinesRingPage(espace?)`, `workspaceRingPage(espace)` | « Voir l’agenda » (« … de « X » » pour un autre espace), « Voir les routines », « Ouvrir « X » ». |
 | `RemindedOccurrence`, `eventRings(occurrences)` | Rappels des occurrences d’évènements (non annulées ; journée entière : minuit de Paris, fin à minuit après le dernier jour) ; ligne « ven. 13 nov., 14:05 · lieu » (heure de Paris de son début) ou « Journée entière · lieu ». |
-| `RemindedTask`, `taskRings(tasks, now)` | Rappels des tâches ouvertes non archivées (`taskReminders`) ; ligne « Échéance : 13 nov. 2026 ». |
+| `RemindedTask`, `taskRings(tasks, now, ahead?)` | Rappels des tâches ouvertes non archivées (`taskReminders`, `ahead` jours de plus) ; ligne « Échéance : 13 nov. 2026 ». |
 | `RemindedRoutine`, `RemindedRoutineOccurrence`, `RemindedRoutineSlot`, `RoutineRing`, `routineRings(routines, defer?)` | Rappels des routines non archivées (avec leur temps estimé, `estimate`), par occurrence donnée par l’API et moment non coché (avec ses heures), depuis les quatre repères (`routineSlotAnchors`), reportés par `defer` (`nextAllowedMoment` dans l'app et sur le serveur) ; ligne fenêtre (`windowText`) · lieu ; avec le moment et si l’occurrence est celle en cours. |
 | `routineSlotAnchors(occurrence, slot, minutes)` | Instants des quatre repères d'un moment d'une occurrence : son début et sa fin (`routineSlotSpan` avec le temps estimé de la routine, 30 min sans lui) le jour de l'ouverture et celui de l'échéance (`dueDate` de l'occurrence quand elle est gardée à part, sinon `date`), heure de Paris (fin absente : minuit après le jour) ; null pour un moment sans aucune heure (pas de rappel « avant »). |
 | `routineRingPrefix(routineId, date)`, `routineRingOf(key)` | Début de clé des rappels d'une occurrence de routine (`routine:<id>\|<échéance>`) ; routine, échéance et moment (null : « À HH:MM ») d'une clé de sonnerie : les actions d'une sonnerie remontrée. |
@@ -145,6 +145,17 @@ Ce que l'app ouverte (`ringPlannedReminders`, `dueAlarms`) et le serveur qui son
 | `timerCountsForAlarm(alarm, timer, projects)` | Un chrono en cours compte-t-il pour une alarme de durée : celle d’une tâche compte les chronos de cette tâche, celle d’un projet (sans tâche) ceux de ce projet et de ses sous-projets (`subtreeOf` sur `projects`, chaque projet avec son parent), une alarme sans tâche ni projet tous les chronos. |
 | `alarmTaskLabel(task, projectLabel?)`, `AlarmTarget`, `alarmTarget(alarm, taskOf, projectOf)` | « Projet #12 Libellé » ; lien d’une alarme : sa tâche, sinon son projet (aussi pour le serveur). |
 | `alarmRingText(alarm)` | Titre (libellé) et ligne (note) de la sonnerie d’une alarme. |
+
+## `upcoming-reminders.ts` — rappels à venir
+
+Ce que montre la colonne « Rappels à venir » de la page « Alarmes » (voir [Rappels à venir](../../business-rules/activities/alarms.md#rappels-à-venir)), sur les briques de `reminder-rings.ts`.
+
+| Export | Rôle |
+| --- | --- |
+| `UPCOMING_REMINDER_DAYS` | 30 : jours regardés devant. |
+| `UpcomingReminderKind`, `UpcomingDue`, `UpcomingReminder`, `UpcomingOccurrence`, `UpcomingRoutine`, `UpcomingSources` (types) | Genre (`event`, `task`, `routine`) ; échéance (`day`, `time`) ; un rappel à venir (`PlannedRing` + `kind`, `item`, `due`, et `occurrenceDate` pour une routine) ; une occurrence avec son `eventId` ; une routine avec `hasSubRoutines` ; occurrences, tâches, routines et `deferRoutine`. |
+| `nextOccurrenceRings(rings, placeOf, now, days)` | Les sonneries entre `now` et `days` jours de la première occurrence (par rang) de chaque élément qui en a dans cette fenêtre. |
+| `upcomingReminders(sources, now, days?)` | Rappels à venir des évènements (par série, rang : début), des tâches (`taskRings` sur `days` jours, une seule occurrence) et des routines non parentes (`routineRings`, rang : échéance de l’occurrence, `deferRoutine`), triés par instant puis titre. |
 
 ## `weeks.ts` — semaine de l'espace
 

@@ -1,0 +1,40 @@
+@layer app {
+  /* A card of a list of cards (the columns of the page « Alarmes »). */
+  .root {
+    /* Dimension */
+    width: 100%;
+  }
+
+  /* Muted: an item turned off. */
+  .muted {
+    /* Effets */
+    opacity: var(--onoko-muted-opacity);
+  }
+
+  /* A card opening something: a tint under the pointer, an outline on keyboard focus. */
+  .clickable {
+    /* Agencement */
+    display: block;
+
+    /* Typographie */
+    font: inherit;
+    color: inherit;
+    text-align: left;
+
+    /* Interaction */
+    cursor: pointer;
+
+    /* Animation */
+    transition: background-color 120ms ease;
+
+    &:hover {
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    /* Effets */
+    &:focus-visible {
+      outline: 2px solid var(--mantine-primary-color-filled);
+      outline-offset: 2px;
+    }
+  }
+}

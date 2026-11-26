@@ -141,7 +141,7 @@ Styles (`AppLayout.module.css`) : marges horizontales de page `--page-gutter` 16
   - `--onoko-stale-opacity` : 0,6 (liste en cours de rafraîchissement) ;
   - `--onoko-overlay-color` : voile sous un panneau (le neutre le plus sombre de la palette à 35 %, pas de noir pur) ;
   - `--onoko-transition` : 150 ms `ease`, les petites transitions (survol, révélation, pliage).
-- `breakpoints.json` : `tablet` 48em, `desktop` 70em, `gridSm` 29em, `heightMd` 67.5em ; lu par `postcss.config.cjs` (variables `$tablet-breakpoint`, `$desktop-breakpoint`, `$grid-sm-max`) et par `useIsPhone`.
+- `breakpoints.json` : `tablet` 48em, `desktop` 70em, `gridSm` 29em, `heightMd` 67.5em ; lu par `postcss.config.cjs` (variables `$tablet-breakpoint`, `$desktop-breakpoint`, `$grid-sm-max`) et par `useIsPhone`, `useIsBelowDesktop`.
 - `reveal.css` : un élément `[data-reveal]` (actions de ligne, poignée, case) reste caché jusqu'au survol, au focus ou au menu ouvert de son hôte `[data-reveal-host]` ; toujours visible sur écran tactile.
 - `drop.css` (couche `states`) : futur parent d'un élément glissé (`[data-drop-target]` dans un tableau, `[data-drop='INSIDE']` dans un arbre) teinté et encadré de la couleur primaire.
 - `tabs.css` : les onglets horizontaux restent sur une ligne et défilent de côté quand la place manque (sauf les onglets de page `PageTabs`) ; la ligne sous les onglets est dessinée par la liste.

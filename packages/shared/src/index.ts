@@ -65,3 +65,4 @@ export * from './people/contributor-link';
 export * from './core/tagged-key';
 export * from './core/app-paths';
 export * from './dates/reminder-rings';
+export * from './dates/upcoming-reminders';
