@@ -14,7 +14,7 @@ Les alarmes sonnent dans Ordo ouvert dans un onglet du navigateur ; app fermée,
 
 ## Page « Alarmes » (`/alarms`)
 
-Route `PAGES.alarms.path` = `/alarms`, composant `AlarmsPage`. Contenu centré, 12 colonnes au plus.
+Route `PAGES.alarms.path` = `/alarms`, composant `AlarmsPage`. Contenu sur toute la largeur de la page.
 
 - En-tête « Alarmes » avec « Nouvelle alarme » (désactivé tant que le contexte des tâches n’est pas chargé).
 - Tant que le navigateur n’a ni autorisé ni refusé les notifications : encart « Notifications du navigateur » (« Autorisez-les pour voir les alarmes même quand l’onglet d’Ordo n’est pas au premier plan. ») avec « Autoriser les notifications ».

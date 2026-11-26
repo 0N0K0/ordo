@@ -1,15 +1,11 @@
 @layer app {
-  /* Content of the page: 12 columns of the design system at most (12 × 96 + 11 × 16 = 1328px), centered. */
+  /* Content of the page: the whole width of the page. */
   .root {
     --column: 96px;
     --gutter: 16px;
 
     /* Dimension */
     width: 100%;
-    max-width: calc(12 * var(--column) + 11 * var(--gutter));
-
-    /* Espacement */
-    margin-inline: auto;
   }
 
   /* The three columns side by side (alarms, timers, reminders to come), each its cards one under the other. */
