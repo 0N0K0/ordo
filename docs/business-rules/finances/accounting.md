@@ -295,7 +295,7 @@ Paiement (`recordPayment`, schéma `documentPaymentSchema`) :
 - téléphones : 10 au plus, libellé 250, numéro de 3 à 30 caractères (« Numéro invalide. ») ;
 - email (« Adresse email invalide. ») et site http(s) (« Adresse invalide (http ou https). ») ; vides → null ;
 - SIREN 9 chiffres avec clé de Luhn (« SIREN invalide (9 chiffres). »), SIRET 14 chiffres avec clé de Luhn sauf établissements de La Poste (`356000000…`) (« SIRET invalide (14 chiffres). ») ; espaces retirés ;
-- le SIREN ou le SIRET d’un client professionnel est une mention obligatoire de tous les documents comptables (devis, factures, factures d’acompte, avoirs) : au moins le SIREN, ou le SIRET ; un document émis ne se modifie pas (une mention manquante se corrige par un avoir puis un nouveau document) ;
+- le SIREN ou le SIRET d’un client société (`COMPANY`, « Professionnel » ; un particulier n’en a pas, rien n’est exigé pour lui) est une mention obligatoire de tous les documents comptables (devis, factures, factures d’acompte, avoirs) : au moins le SIREN, ou le SIRET ; un document émis ne se modifie pas (une mention manquante se corrige par un avoir puis un nouveau document) ;
 - service : libellé obligatoire (250), adresse, email, téléphones ; position en fin de liste ;
 - contact : prénom obligatoire (« Le prénom est requis. »), nom (règle des noms de personne), email, fonction (250), téléphones, service facultatif du même client ;
 - toute modification est refusée sur un client archivé ou un contact archivé ; un contact archivé reste supprimable (menu « … » de sa ligne), pas un contact d’un client archivé ; supprimer un service garde ses contacts (rattachés au client) ; un contact ou un service supprimé est retiré des documents (`SetNull`) ;
