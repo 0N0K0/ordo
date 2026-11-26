@@ -1293,6 +1293,12 @@ const RESTRICTED_SYNTAX = [
       'Utiliser useSlotSourceArchiving(kind) (features/calendar/api) : archiver un créneau, un type ou une personne (contact compris) confirme les occurrences de routines perdues et recharge ce qui en dépend (un type : confirmLoss de useScheduleTypeItems).',
   },
   {
+    // A new item on a day (« Ma journée », the header there) is prefilled by one rule.
+    selector:
+      "CallExpression[callee.name='openRoutineForm'] Property[key.name='startDate'], CallExpression[callee.object.name=/askActions$/][callee.property.name='create'] Property[key.name=/^(minDate|deadline)$/]",
+    message: 'Utiliser useDayAdd (features/my-day/hooks/use-day-add) : une tâche, un évènement ou une routine ajoutés sur un jour, préremplis par la même règle.',
+  },
+  {
     // A panel is resized one way, its width kept by useResizablePanel (limits in panel-widths).
     selector: "CallExpression[callee.name='useLocalStorage'] Property[key.name='key'][value.value=/width$/i]",
     message: 'Utiliser useResizablePanel + ResizeHandle (components/panels), ses limites dans panel-widths : un panneau se redimensionne d’une seule façon.',

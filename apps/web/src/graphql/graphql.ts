@@ -2392,7 +2392,7 @@ export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspac
 export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeLabel: string | null, typeId: string | null, ephemeris: boolean, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, unavailable: boolean, workspaceId: string, workspaceLabel: string }> };
+export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, archived: boolean, kindArchived: boolean, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeLabel: string | null, typeId: string | null, ephemeris: boolean, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, unavailable: boolean, workspaceId: string, workspaceLabel: string }> };
 
 export type OtherWorkspaceSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -7366,6 +7366,8 @@ export const SubscribedWorkSchedulesDocument = new TypedDocumentString(`
     query SubscribedWorkSchedules {
   subscribedWorkSchedules {
     id
+    archived
+    kindArchived
     label
     startDate
     endDate

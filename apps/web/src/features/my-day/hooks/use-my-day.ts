@@ -22,7 +22,7 @@ import {
   windowsAllowed,
 } from '@ordo/shared';
 import { useMemo } from 'react';
-import { archivedIds, unarchived } from '../../../lib/archive';
+import { unarchived } from '../../../lib/archive';
 import { parisMidnight, parisParts, parisToday } from '../../../lib/dates';
 import { useNow } from '../../../lib/use-now';
 import { useBirthdays, useCalendarCategories, useCalendarEvents, useCalendars, useScheduleSources, type EventOccurrence, type PersonBirthday } from '../../calendar/api';
@@ -215,10 +215,10 @@ export function useMyDay(day: string): MyDay {
         cancelled: occurrence.calledOff,
       });
     }
-    // Éphémérides and the slots of the hours: neither archived nor of an archived kind; with « Créneaux et
-    // éphémérides », each one shown, kept by the filter of its kind (those of another workspace are not filtered).
-    const archivedKinds = archivedIds(types);
-    const sources = scheduleSources(schedules, foreign, types, defaultKind).filter(({ rule }) => countedSchedules([{ ...rule, kindArchived: Boolean(rule.typeId && archivedKinds.has(rule.typeId)) }]).length);
+    // Éphémérides and the slots of the hours: neither archived nor of an archived kind, in their workspace (another
+    // one's too); with « Créneaux et éphémérides », each one shown, kept by the filter of its kind (those of another
+    // workspace are not filtered).
+    const sources = scheduleSources(schedules, foreign, types, defaultKind).filter(({ rule }) => countedSchedules([rule]).length);
     const slots: MyDayHourSlot[] = [];
     for (const { schedule, rule, color, label, ephemeris } of settings.schedules ? sources : NONE) {
       if (hiddenSchedules.has(schedule.id) || !kept.schedule(schedule.id)) continue;

@@ -125,7 +125,7 @@ Section « Exporter » :
 
 ## Formulaire d’évènement
 
-Ouvert dans le panneau latéral (large) : « Nouvel évènement » ou « Évènement » (existant, une copie qui vient d’être enregistrée comprise). Accessible depuis l’agenda, les actions rapides « Ajouter › Évènement » (pré-rempli avec le projet ouvert), les cellules d’évènements des tâches.
+Ouvert dans le panneau latéral (large) : « Nouvel évènement » ou « Évènement » (existant, une copie qui vient d’être enregistrée comprise). Accessible depuis l’agenda, les actions rapides « Ajouter › Évènement » (pré-rempli avec le projet ouvert ; sur « Ma journée », toute la journée du jour affiché), « Ajouter » de [« Ma journée »](my-day.md), les cellules d’évènements des tâches.
 
 Un évènement existant s’enregistre champ par champ : chaque champ est enregistré dès qu’il change (libellé, description, liens, lieu et trajets en les quittant ; Entrée dans le libellé aussi ; « Dates et heures » dès qu’un choix est fait — fréquence, jours de la semaine, fin, pause, période, journée entière… — et ses nombres — intervalle, nombre de fois, jour du mois… — en les quittant, jamais à chaque touche), sans bouton « Enregistrer » ; « Enregistrement… » puis « Enregistré » dans l’en-tête. Un champ invalide garde son erreur dessous et n’est pas enregistré ; un échec le remet comme il était, dans un toast d’erreur. Seule la création garde son bouton « Créer l’évènement », en bas ; un évènement existant n’a aucun bouton en bas : ses actions sont dans son menu « … ».
 

@@ -1382,6 +1382,7 @@ type ForeignScheduleKind {
 Schedule of another workspace: of a kind this one subscribes to (shown read only), or one a slot condition can name.
 """
 type ForeignWorkSchedule {
+  """Archived in its workspace."""
   archived: Boolean!
   cases: JSON!
 
@@ -1395,6 +1396,9 @@ type ForeignWorkSchedule {
   ephemeris: Boolean!
   exceptions: JSON!
   id: ID!
+
+  """Of a kind archived in its workspace."""
+  kindArchived: Boolean!
   label: String!
   monthDisplay: String!
   startDate: String!

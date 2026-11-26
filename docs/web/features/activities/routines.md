@@ -275,7 +275,7 @@ Interne : `movable(occurrence)`.
 
 | Export                    | Rôle                                                                                                                                      |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `useAgendaLayerOptions()` | Options des calques de l'historique : créneaux (de l'espace, non archivés, et des espaces suivis) et calendriers (propres et abonnements). |
+| `useAgendaLayerOptions()` | Options des calques de l'historique : créneaux (de l'espace, non archivés, et des espaces suivis, ni archivés ni d'un type archivé là-bas : `countedSchedules`) et calendriers (propres et abonnements). |
 
 ### `hooks/use-category-items.tsx`
 

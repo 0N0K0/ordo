@@ -23,6 +23,7 @@ import { HeaderClock } from './HeaderClock';
 import { HeaderTitle } from './HeaderTitle';
 import { QuickActions } from './QuickActions';
 import { PageSettingsContext, useSettingsOpened } from './page-settings';
+import { PageAddContext, type AddDay } from './page-add';
 import { SettingsAside } from './SettingsAside';
 import { SettingsButton } from './SettingsButton';
 import { SettingsOverlay } from './SettingsOverlay';
@@ -71,101 +72,106 @@ export function AppLayout() {
   const closeSettings = useCallback(() => setSettingsOpened(false), [setSettingsOpened]);
   const settingsShown = settingsOpened && settingsTitle !== null;
   const pageSettings = useMemo(() => ({ title: settingsTitle, setTitle: setSettingsTitle, container: settingsContainer }), [settingsTitle, settingsContainer]);
+  // Day the page shown adds onto (« Ma journée »): the header « Ajouter » prefills its items with it.
+  const [addDay, setAddDay] = useState<AddDay | null>(null);
+  const pageAdd = useMemo(() => ({ addDay, setAddDay }), [addDay]);
 
   return (
     <ModalsProvider modalProps={{ centered: true, closeButtonProps: { 'aria-label': 'Fermer' } }}>
       <PageSettingsContext.Provider value={pageSettings}>
-        <WorkspaceGate>
-          <AppShell
-            header={{ height: 56 }}
-            navbar={{
-              width: sidebar.width,
-              breakpoint: 'sm',
-              // One open state for both: at exactly the breakpoint, Mantine applies its mobile and its desktop rules at
-              // once, which must not disagree (the sidebar could then not be closed).
-              collapsed: { mobile: !sidebarOpened, desktop: !sidebarOpened },
-            }}
-            // Settings of the page, on the right (closed by default; the same state for both rules, as the navbar).
-            aside={{ width: aside.width, breakpoint: 'sm', collapsed: { mobile: !settingsShown, desktop: !settingsShown } }}
-            padding="md"
-            data-resizing={sidebar.resizing || aside.resizing || undefined}
-            className={classes.shell}
-          >
-            <AppShell.Header>
-              <div className={classes.header}>
-                <Group gap="sm" wrap="nowrap">
-                  <Burger
-                    opened={sidebarOpened}
-                    onClick={mobile ? mobileSidebar.toggle : () => setSidebarShown((current) => !current)}
-                    size="sm"
-                    aria-label={sidebarOpened ? 'Masquer la barre latérale' : 'Afficher la barre latérale'}
-                  />
-                  {/* Date and time above the sidebar (none on a phone). */}
-                  <HeaderClock />
-                  {/* On a phone, the workspace as a button; from the tablet on, it is in the middle, before the page. */}
-                  <div className={classes.phoneOnly}>
-                    <WorkspaceSwitcher />
-                  </div>
-                </Group>
-                <HeaderTitle />
-                <Group gap="sm" wrap="nowrap" justify="flex-end">
-                  {/* The running timers and the timers counting down, not on a phone. */}
-                  <div className={classes.fromTablet}>
-                    <Group gap="xs" wrap="nowrap">
-                      <CountdownWidget />
-                      <TimerWidget />
-                    </Group>
-                  </div>
-                  <SettingsButton />
-                  <QuickActions />
-                  {/* The logged-in account: its page and the logout, on hover (or a click, by touch or keyboard). */}
-                  <ActionsMenu
-                    about="mon compte"
-                    hover
-                    items={[
-                      { label: 'Mon compte', icon: <UserIcon aria-hidden />, to: PAGES.account.path },
-                      'divider',
-                      { label: 'Me déconnecter', icon: <SignOutIcon aria-hidden />, onClick: handleLogout },
-                    ]}
-                    target={
-                      <ActionButton priority="tertiary" icon={<UserIcon aria-hidden />} loading={logout.isPending} maw={200}>
-                        {user?.username ?? 'Mon compte'}
-                      </ActionButton>
-                    }
-                  />
-                </Group>
-              </div>
-            </AppShell.Header>
+        <PageAddContext.Provider value={pageAdd}>
+          <WorkspaceGate>
+            <AppShell
+              header={{ height: 56 }}
+              navbar={{
+                width: sidebar.width,
+                breakpoint: 'sm',
+                // One open state for both: at exactly the breakpoint, Mantine applies its mobile and its desktop rules at
+                // once, which must not disagree (the sidebar could then not be closed).
+                collapsed: { mobile: !sidebarOpened, desktop: !sidebarOpened },
+              }}
+              // Settings of the page, on the right (closed by default; the same state for both rules, as the navbar).
+              aside={{ width: aside.width, breakpoint: 'sm', collapsed: { mobile: !settingsShown, desktop: !settingsShown } }}
+              padding="md"
+              data-resizing={sidebar.resizing || aside.resizing || undefined}
+              className={classes.shell}
+            >
+              <AppShell.Header>
+                <div className={classes.header}>
+                  <Group gap="sm" wrap="nowrap">
+                    <Burger
+                      opened={sidebarOpened}
+                      onClick={mobile ? mobileSidebar.toggle : () => setSidebarShown((current) => !current)}
+                      size="sm"
+                      aria-label={sidebarOpened ? 'Masquer la barre latérale' : 'Afficher la barre latérale'}
+                    />
+                    {/* Date and time above the sidebar (none on a phone). */}
+                    <HeaderClock />
+                    {/* On a phone, the workspace as a button; from the tablet on, it is in the middle, before the page. */}
+                    <div className={classes.phoneOnly}>
+                      <WorkspaceSwitcher />
+                    </div>
+                  </Group>
+                  <HeaderTitle />
+                  <Group gap="sm" wrap="nowrap" justify="flex-end">
+                    {/* The running timers and the timers counting down, not on a phone. */}
+                    <div className={classes.fromTablet}>
+                      <Group gap="xs" wrap="nowrap">
+                        <CountdownWidget />
+                        <TimerWidget />
+                      </Group>
+                    </div>
+                    <SettingsButton />
+                    <QuickActions />
+                    {/* The logged-in account: its page and the logout, on hover (or a click, by touch or keyboard). */}
+                    <ActionsMenu
+                      about="mon compte"
+                      hover
+                      items={[
+                        { label: 'Mon compte', icon: <UserIcon aria-hidden />, to: PAGES.account.path },
+                        'divider',
+                        { label: 'Me déconnecter', icon: <SignOutIcon aria-hidden />, onClick: handleLogout },
+                      ]}
+                      target={
+                        <ActionButton priority="tertiary" icon={<UserIcon aria-hidden />} loading={logout.isPending} maw={200}>
+                          {user?.username ?? 'Mon compte'}
+                        </ActionButton>
+                      }
+                    />
+                  </Group>
+                </div>
+              </AppShell.Header>
 
-            <AlarmCenter />
-            <ElsewhereNotifier />
-            <MailWatcher />
-            <TaskAutomationToasts />
-            <AppShell.Navbar aria-label="Clients et projets">
-              <Sidebar />
-              {!mobile && (
-                <ResizeHandle edge="right" label="Redimensionner la barre latérale" resizing={sidebar.resizing} onResizeStart={sidebar.onResizeStart} onResizeReset={sidebar.onResizeReset} />
-              )}
-            </AppShell.Navbar>
+              <AlarmCenter />
+              <ElsewhereNotifier />
+              <MailWatcher />
+              <TaskAutomationToasts />
+              <AppShell.Navbar aria-label="Clients et projets">
+                <Sidebar />
+                {!mobile && (
+                  <ResizeHandle edge="right" label="Redimensionner la barre latérale" resizing={sidebar.resizing} onResizeStart={sidebar.onResizeStart} onResizeReset={sidebar.onResizeReset} />
+                )}
+              </AppShell.Navbar>
 
-            <SettingsOverlay opened={settingsShown} onClose={closeSettings} />
-            <SettingsAside onContainer={setSettingsContainer} resize={aside} />
+              <SettingsOverlay opened={settingsShown} onClose={closeSettings} />
+              <SettingsAside onContainer={setSettingsContainer} resize={aside} />
 
-            {/* Pages use the full available width. */}
-            <AppShell.Main>
-              <Stack gap="md">
-                {/* A page loads its code when first opened. */}
-                <Suspense fallback={<DetailSkeleton />}>
-                  <Outlet />
-                </Suspense>
-              </Stack>
-              {/* Task of ?task=12, over any page. */}
-              <TaskPanel />
-              {/* Forms opened in the side panel, over any page. */}
-              <SidePanelHost />
-            </AppShell.Main>
-          </AppShell>
-        </WorkspaceGate>
+              {/* Pages use the full available width. */}
+              <AppShell.Main>
+                <Stack gap="md">
+                  {/* A page loads its code when first opened. */}
+                  <Suspense fallback={<DetailSkeleton />}>
+                    <Outlet />
+                  </Suspense>
+                </Stack>
+                {/* Task of ?task=12, over any page. */}
+                <TaskPanel />
+                {/* Forms opened in the side panel, over any page. */}
+                <SidePanelHost />
+              </AppShell.Main>
+            </AppShell>
+          </WorkspaceGate>
+        </PageAddContext.Provider>
       </PageSettingsContext.Provider>
     </ModalsProvider>
   );

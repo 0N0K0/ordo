@@ -98,7 +98,7 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 
 ### `components/TaskCreateForm.tsx`
 
-- `TaskCreateForm({ context, defaults?, onDone })` : formulaire « Nouvelle tâche » (schéma `taskFormSchema`), lieu (`EventLocation`), liens (`LinksField`) et horaires (`TaskHoursField`, hérités comme la condition de créneaux) compris. `defaults` : projet et parent présélectionnés. Changer de projet retire parent, jalon et sprints d’une autre arborescence. Une sous-tâche hérite de son parent : les valeurs du parent montrées grisées (`InheritedField`, `formInheritance` sur les clés `FORM_COLUMNS`, interne `parentValues`), la liste des champs encore hérités envoyée (`inheritedFields`) ; choisir un autre parent reprend les siennes, n’en choisir aucun ne garde que les valeurs. Après création : toast et ouverture de la tâche (`useTaskLink`). Ouvert par `useTaskActions().create`.
+- `TaskCreateForm({ context, defaults?, onDone })` : formulaire « Nouvelle tâche » (schéma `taskFormSchema`), lieu (`EventLocation`), liens (`LinksField`) et horaires (`TaskHoursField`, hérités comme la condition de créneaux) compris. `defaults` (`TaskCreateDefaults`, exporté) : projet, parent, « Ouverture » (`minDate`) et « Échéance » (`deadline`) présélectionnés, modifiables (une sous-tâche prend celles de son parent). Changer de projet retire parent, jalon et sprints d’une autre arborescence. Une sous-tâche hérite de son parent : les valeurs du parent montrées grisées (`InheritedField`, `formInheritance` sur les clés `FORM_COLUMNS`, interne `parentValues`), la liste des champs encore hérités envoyée (`inheritedFields`) ; choisir un autre parent reprend les siennes, n’en choisir aucun ne garde que les valeurs. Après création : toast et ouverture de la tâche (`useTaskLink`). Ouvert par `useTaskActions().create`.
 
 ### `components/TaskLinks.tsx`
 
@@ -332,7 +332,7 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 ### `hooks/use-task-actions.tsx`
 
-- `useTaskActions(context)` : `{ menu(task), create(defaults?) }` : entrées du menu d’une tâche (« Annuler » sauf une tâche annulée, « Dupliquer », « Transférer », « Héritage… » (une sous-tâche), « Transformer en routine » — `useConvertActivity().toRoutine` —, « Envoyer sur GitHub » (`github` de `useTaskRowsActions`, quand il existe), « Archiver », « Supprimer », puis « Lancer » chacun de ses temps morts et de ses minuteurs enregistrés — `useCountdownMenuEntries` — ; « Restaurer », « Supprimer » si archivée) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
+- `useTaskActions(context)` : `{ menu(task), create(defaults?) }` : entrées du menu d’une tâche (« Annuler » sauf une tâche annulée, « Dupliquer », « Transférer », « Héritage… » (une sous-tâche), « Transformer en routine » — `useConvertActivity().toRoutine` —, « Envoyer sur GitHub » (`github` de `useTaskRowsActions`, quand il existe), « Archiver », « Supprimer », puis « Lancer » chacun de ses temps morts et de ses minuteurs enregistrés — `useCountdownMenuEntries` — ; « Restaurer », « Supprimer » si archivée) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche », `defaults` : `TaskCreateDefaults`). Utilisé par `TaskBoard`, `TaskPanel`, `useDayAdd` (« Ajouter » de « Ma journée » et de l’en-tête).
 
 ### `hooks/use-task-columns.ts`
 

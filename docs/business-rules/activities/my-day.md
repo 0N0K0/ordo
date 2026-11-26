@@ -1,6 +1,6 @@
 # Règles de « Ma journée »
 
-Règles de la page « Ma journée » (menu Activités) : quelles tâches y sont un jour, où chaque élément du jour se range, et ses réglages. « Ma journée » est une liste du jour, pas une vue d’agenda : les routines, tâches et évènements du jour de l’espace courant, avec leurs horaires. Sources : `packages/shared/src/tasks/task-day.ts` (`taskDayReasons`, `isTaskOverdue`, `taskPlacement`), `packages/shared/src/calendar/my-day.ts` (`myDayRows`), `packages/shared/src/calendar/slot-conditions.ts` (`itemWindowsOn`), `packages/shared/src/calendar/my-day-settings.ts` (`readMyDaySettings`, `myDaySettingsSchema`), `apps/web/src/features/my-day/hooks/use-my-day.ts` (`useMyDay`), `apps/web/src/features/calendar/hooks/use-calendar-filters.ts` (`useCalendarFilters`, le filtre de l’agenda), `apps/api/src/services/calendar/my-day-settings.ts`, `apps/api/src/graphql/modules/my-day.ts`. Tout est lu en jours et heures de Paris.
+Règles de la page « Ma journée » (menu Activités) : quelles tâches y sont un jour, où chaque élément du jour se range, et ses réglages. « Ma journée » est une liste du jour, pas une vue d’agenda : les routines, tâches et évènements du jour de l’espace courant, avec leurs horaires. Sources : `packages/shared/src/tasks/task-day.ts` (`taskDayReasons`, `isTaskOverdue`, `taskPlacement`), `packages/shared/src/calendar/my-day.ts` (`myDayRows`), `packages/shared/src/calendar/slot-conditions.ts` (`itemWindowsOn`), `packages/shared/src/calendar/my-day-settings.ts` (`readMyDaySettings`, `myDaySettingsSchema`), `apps/web/src/features/my-day/hooks/use-my-day.ts` (`useMyDay`), `apps/web/src/features/my-day/hooks/use-day-add.ts` (`useDayAdd`), `apps/web/src/features/calendar/hooks/use-calendar-filters.ts` (`useCalendarFilters`, le filtre de l’agenda), `apps/api/src/services/calendar/my-day-settings.ts`, `apps/api/src/graphql/modules/my-day.ts`. Tout est lu en jours et heures de Paris.
 
 Voir aussi : [Tâches](tasks.md), [Routines](routines.md), [Agenda](calendar.md), [Dates](../cross-cutting/dates.md), [Espaces et accès](../cross-cutting/workspaces-and-access.md).
 
@@ -36,8 +36,8 @@ La page « Ma journée » (menu Activités, espace courant) montre aujourd'hui �
 - **Tâches** : toutes les tâches non archivées de l'espace qui ont une raison ce jour (voir [Tâches du jour](#tâches-du-jour)) ; un jour passé, leurs temps de ce jour sont chargés (requête `timeEntries` sur le jour), pour « En cours ». Elles se rangent par leurs fenêtres (`itemWindowsOn` : leurs « Horaires », leur condition de créneaux, les créneaux « Indisponible »).
 - **Routines** : chaque moment d'une occurrence ouverte ce jour (de son premier jour à son échéance) ; fait, le jour où il a été fait seulement ; une occurrence annulée, le jour de son échéance ; aujourd'hui, en plus, les moments non faits et non facultatifs de l'occurrence en cours d'une routine en retard (échéance passée, « Depuis … »), réduits aux heures que sa condition de créneaux et les créneaux « Indisponible » permettent aujourd'hui (aucune : pas dans la page). Un jour passé, un moment non fait d'une occurrence dont l'échéance est passée est « Non faite » (un moment facultatif non : comme l'historique des routines). Une routine parente ne s'y voit que par ses sous-routines ; une routine archivée n'y est pas. Un moment coupé par des créneaux (plusieurs fenêtres) se range à l'une d'elles ; sinon à son heure « dès », sinon « jusqu'à ».
 - **Évènements** : les occurrences des calendriers de l'espace ce jour (pas celles des calendriers abonnés, ni les archivées), annulées comprises (barrées), celles sur plusieurs jours chacun de leurs jours.
-- **Éphémérides** de l'espace et des types abonnés d'un autre espace ce jour, et **anniversaires** des personnes de l'espace (archivées exclues), en tête.
-- **Créneaux des heures** : ceux de l'espace et des types abonnés d'un autre espace (ni archivés, ni d'un type archivé), « Indisponible » tel que l'espace le règle.
+- **Éphémérides** de l'espace et des types abonnés d'un autre espace ce jour (ni archivées, ni d'un type archivé, dans leur espace), et **anniversaires** des personnes de l'espace (archivées exclues), en tête.
+- **Créneaux des heures** : ceux de l'espace et des types abonnés d'un autre espace (ni archivés, ni d'un type archivé, dans leur espace : un créneau d'un autre espace archivé là-bas, ou d'un type archivé là-bas, n'y est pas), « Indisponible » tel que l'espace le règle.
 
 Rien d'archivé n'est dans la page, et elle n'a pas d'« Afficher les archivés » : ni tâche archivée, ni routine archivée ou occurrence archivée, ni évènement archivé ou d'un calendrier archivé, ni créneau ou éphéméride archivé ou d'un type archivé, ni anniversaire d'une personne archivée ; les calendriers proposés dans les réglages sont ceux non archivés de l'espace. Elle n'a pas non plus de graduation « Par 5 minutes » : c'est une liste rangée par heure, pas une grille.
 
@@ -45,12 +45,13 @@ Chaque ligne a son bouton d'état (une tâche : faite / à faire ; un moment de 
 
 ## Ajouter un élément du jour
 
-« Ajouter » crée, dans le panneau latéral, par les formulaires de création habituels, un élément prérempli avec le jour affiché (passé, aujourd'hui ou à venir) :
+« Ajouter » crée, dans le panneau latéral, par les formulaires de création habituels, un élément prérempli avec le jour affiché, quel qu’il soit : aujourd’hui, un jour à venir, et aussi un jour passé :
 
-- **Évènement** : comme un jour choisi dans l'agenda, toute la journée ce jour-là, dans le premier calendrier non archivé de l'espace que les réglages ne masquent pas (aucun : sans calendrier, à choisir).
+- **Tâche** : son « Ouverture » et son « Échéance » sont ce jour.
+- **Évènement** : comme un jour choisi dans l’agenda, toute la journée ce jour-là, dans le premier calendrier non archivé de l’espace que les réglages ne masquent pas (aucun : sans calendrier, à choisir).
 - **Routine** : sa « Première fois » est ce jour.
 
-Tout le reste est celui d'un nouvel élément, modifiable avant « Créer ». Une tâche ne s'ajoute pas depuis « Ma journée » : aucune règle ne dit encore quelle date d'une nouvelle tâche prend le jour.
+Tout le reste est celui d’un nouvel élément, et tout, dates comprises, est modifiable avant « Créer ». Le menu « Ajouter » de l’en-tête, ouvert sur « Ma journée », préremplit de même sa « Tâche » et son « Évènement » avec le jour affiché (`useDayAdd`, la même règle) ; il n’a pas de « Routine ». Le jour n’est prérempli qu’une fois les réglages et les calendriers chargés (« Ajouter » de la page est désactivé jusque-là ; celui de l’en-tête ajoute alors sans jour).
 
 ## Placement
 

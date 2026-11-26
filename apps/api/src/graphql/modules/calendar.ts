@@ -258,7 +258,8 @@ const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('Foreign
   description: 'Schedule of another workspace: of a kind this one subscribes to (shown read only), or one a slot condition can name.',
   fields: (t) => ({
     id: t.id({ resolve: (item) => item.rule.id }),
-    archived: t.exposeBoolean('archived'),
+    archived: t.exposeBoolean('archived', { description: 'Archived in its workspace.' }),
+    kindArchived: t.boolean({ description: 'Of a kind archived in its workspace.', resolve: (item) => item.rule.kindArchived ?? false }),
     label: t.string({ resolve: (item) => item.rule.label }),
     startDate: t.string({ resolve: (item) => item.rule.startDate }),
     endDate: t.string({ nullable: true, resolve: (item) => item.rule.endDate }),

@@ -14,6 +14,7 @@ import {
   type WorkScheduleRule,
 } from '@ordo/shared';
 import { scheduleRules, type PersonBirthday, type ScheduleType, type useBirthdayLook, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
+import { archivedIds } from '../../../lib/archive';
 import classes from '../pages/CalendarPage.module.css';
 import { inWorkspace } from './layer-label';
 
@@ -53,7 +54,10 @@ export function isArchivedOccurrence(occurrence: { archived: boolean; calendarId
 /** Color of the éphémérides without kind (they have no default kind). */
 export const EPHEMERIS_COLOR = 'var(--mantine-color-gray-6)';
 
-/** Schedule shown as slots: its rule, the color of its kind, its label, whether of another workspace, and its display. */
+/**
+ * Schedule shown as slots: its rule (archived, or of an archived kind, in its workspace: `countedSchedules` leaves it
+ * out), the color of its kind, its label, whether of another workspace, and its display.
+ */
 interface ScheduleSource {
   schedule: WorkSchedule | ForeignSchedule;
   rule: WorkScheduleRule;
@@ -79,7 +83,9 @@ export function scheduleLayerLabel(label: string, type: string | null | undefine
 
 /**
  * Schedules shown as slots: those of the workspace (in the color of their kind, the default kind without one), then
- * those of other workspaces subscribed to, each labelled « Libellé (Type) » (`scheduleLayerLabel`).
+ * those of other workspaces subscribed to, each labelled « Libellé (Type) » (`scheduleLayerLabel`). Each rule says
+ * whether the schedule is archived or of an archived kind, in its own workspace (for one of another workspace, as that
+ * workspace says), the same for both.
  * @param {readonly WorkSchedule[]} own Schedules of the workspace.
  * @param {readonly ForeignSchedule[]} foreign Schedules subscribed to.
  * @param {readonly ScheduleType[]} types Kinds of slots.
@@ -88,13 +94,14 @@ export function scheduleLayerLabel(label: string, type: string | null | undefine
  */
 export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly ForeignSchedule[], types: readonly ScheduleType[], defaultKind: DefaultKind): ScheduleSource[] {
   const typeOf = mapById(types);
+  const archivedKinds = archivedIds(types);
   return [
     ...own.map((schedule) => {
       // Without kind: the default kind of the workspace; an éphéméride without kind, its own look.
       const kind = (schedule.typeId ? typeOf.get(schedule.typeId) : undefined) ?? (schedule.ephemeris ? { label: UNTYPED_EPHEMERIS_LABEL, color: EPHEMERIS_COLOR, ...DEFAULT_SCHEDULE_DISPLAY } : defaultKind);
       return {
         schedule,
-        rule: scheduleRules([schedule])[0],
+        rule: scheduleRules([schedule], archivedKinds)[0],
         ephemeris: schedule.ephemeris,
         color: kind?.color ?? null,
         label: scheduleLayerLabel(schedule.label, kind?.label),

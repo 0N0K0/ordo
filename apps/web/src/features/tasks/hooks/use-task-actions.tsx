@@ -2,7 +2,7 @@ import { openFormPanel } from '../../../components/panels/panels';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import type { Task } from '../api';
-import { TaskCreateForm } from '../components/TaskCreateForm';
+import { TaskCreateForm, type TaskCreateDefaults } from '../components/TaskCreateForm';
 import type { TaskContext } from './use-task-context';
 import { useTaskRowsActions } from '../components/BulkBar';
 import { useConvertActivity } from '../../routines/hooks/use-convert-activity';
@@ -46,10 +46,10 @@ export function useTaskActions(context: TaskContext | null) {
 
     /**
      * Opens the new task form.
-     * @param {{ projectId?: string, parentId?: string }} [defaults] Preselected project or parent. Optional.
+     * @param {TaskCreateDefaults} [defaults] Preselected project, parent, « Ouverture » and « Échéance ». Optional.
      * @returns {void}
      */
-    create: (defaults?: { projectId?: string; parentId?: string }) => {
+    create: (defaults?: TaskCreateDefaults) => {
       if (!context) return;
       openFormPanel(defaults?.parentId ? 'Nouvelle sous-tâche' : 'Nouvelle tâche', (close) => <TaskCreateForm context={context} defaults={defaults} onDone={close} />, 'lg');
     },

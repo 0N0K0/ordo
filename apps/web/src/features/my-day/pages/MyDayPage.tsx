@@ -5,8 +5,9 @@ import {
   type MyDayRow,
   type MyDaySettings,
 } from "@ordo/shared";
-import { ArrowsClockwiseIcon, CalendarPlusIcon, PlusIcon, SunIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CalendarPlusIcon, CheckSquareOffsetIcon, PlusIcon, SunIcon } from "@phosphor-icons/react";
 import { useMemo, useState, type CSSProperties } from "react";
+import { useProvideAddDay, type AddDay } from "../../../app/layout/page-add";
 import { PageSettings } from "../../../app/layout/PageSettings";
 import { PAGES } from "../../../app/pages";
 import { ActionButton } from "../../../components/actions/ActionButton";
@@ -22,10 +23,7 @@ import { unarchived } from "../../../lib/archive";
 import { useCalendars, useScheduleSources } from "../../calendar/api";
 import { CalendarDisplayChoices } from "../../calendar/components/CalendarDisplayChoices";
 import { CalendarFilters } from "../../calendar/components/CalendarFilters";
-import { useEventForm } from "../../calendar/hooks/use-event-form";
 import { scheduleSources } from "../../calendar/lib/calendar-events";
-import { newEventDefaults } from "../../calendar/lib/event-input";
-import { openRoutineForm } from "../../routines/lib/open-routine-form";
 import {
   calendarChoices,
   scheduleChoices,
@@ -33,6 +31,7 @@ import {
 import type { TaskContext } from "../../tasks/hooks/use-task-context";
 import { MyDayRowView } from "../components/MyDayRows";
 import classes from "../components/MyDay.module.css";
+import { useDayAdd } from "../hooks/use-day-add";
 import {
   useMyDay,
   type MyDayEntry,
@@ -189,45 +188,35 @@ function MyDaySettingsPanel({
 }
 
 /**
- * « Ajouter » of the day, as in the agenda: a new event or a new routine on the day shown, in the side panel (an event
- * all day in the first calendar shown, as a day picked in the agenda; a routine done the first time that day).
- * @param {{ day: string, context: TaskContext | null, hiddenCalendarIds: readonly string[], ready: boolean }} props Component props: the day shown, the task context (null while loading), the calendars hidden, the saved settings loaded.
+ * « Ajouter » of the day, as in the agenda: a new task, event or routine on the day shown (past days too), in the side
+ * panel, prefilled as the header « Ajouter » prefills it on this page (`useDayAdd`): a task opened and due that day, an
+ * event all day in the first calendar shown, a routine done the first time that day.
+ * @param {{ addDay: AddDay | null, context: TaskContext | null }} props Component props: the day shown and the calendars hidden (null until the saved settings and the calendars are loaded), the task context (null while loading).
  * @returns {JSX.Element} Button and its menu.
  */
-function MyDayAdd({
-  day,
-  context,
-  hiddenCalendarIds,
-  ready,
-}: {
-  day: string;
-  context: TaskContext | null;
-  hiddenCalendarIds: readonly string[];
-  ready: boolean;
-}) {
-  const { data: calendarsData } = useCalendars();
-  const openEvent = useEventForm(context);
+function MyDayAdd({ addDay, context }: { addDay: AddDay | null; context: TaskContext | null }) {
+  const add = useDayAdd(context);
   return (
     <ActionButton
       icon={<PlusIcon aria-hidden />}
       menu={[
         {
+          label: "Tâche",
+          icon: <CheckSquareOffsetIcon aria-hidden />,
+          disabled: !context || !addDay,
+          onClick: () => add.task(addDay),
+        },
+        {
           label: "Évènement",
           icon: <CalendarPlusIcon aria-hidden />,
-          disabled: !context || !calendarsData || !ready,
-          onClick: () =>
-            openEvent({
-              defaults: newEventDefaults(
-                calendarsData?.calendars ?? [],
-                new Set(hiddenCalendarIds),
-                { startDate: day, endDate: day },
-              ),
-            }),
+          disabled: !context || !addDay,
+          onClick: () => add.event(addDay),
         },
         {
           label: "Routine",
           icon: <ArrowsClockwiseIcon aria-hidden />,
-          onClick: () => openRoutineForm({ startDate: day }),
+          disabled: !addDay,
+          onClick: () => add.routine(addDay),
         },
       ]}
     >
@@ -257,6 +246,16 @@ export function MyDayPage() {
     loading,
     error,
   } = useMyDay(day);
+  const { data: calendarsData } = useCalendars();
+  // The day the items are added onto, here and in the header, once the calendars shown are known.
+  const addDay = useMemo(
+    () =>
+      settingsReady && calendarsData
+        ? { day, hiddenCalendarIds: settings.hiddenCalendarIds }
+        : null,
+    [settingsReady, calendarsData, day, settings.hiddenCalendarIds],
+  );
+  useProvideAddDay(addDay);
   const empty =
     layout !== null &&
     !layout.header.length &&
@@ -282,12 +281,7 @@ export function MyDayPage() {
             />
           )}
         </Group>
-        <MyDayAdd
-          day={day}
-          context={context}
-          hiddenCalendarIds={settings.hiddenCalendarIds}
-          ready={settingsReady}
-        />
+        <MyDayAdd addDay={addDay} context={context} />
       </Group>
       <PageSettings title="Paramètres de Ma journée">
         {/* Shown once the saved settings are loaded: a change before would save the defaults over them. */}
