@@ -213,7 +213,7 @@ export function storedCondition(routine: Pick<RoutineTiming, 'slotCondition' | '
  */
 export function storedRule(routine: Pick<RoutineTiming, 'recurrence' | 'scheduleIds' | 'slotCondition'>): Recurrence | null {
   const rule = storedRecurrence(routine.recurrence);
-  if (routine.scheduleIds.length && routine.slotCondition === null && rule) return { ...rule, frequency: 'DAILY', interval: 1, weekdays: [], duration: null };
+  if (routine.scheduleIds.length && routine.slotCondition === null && rule) return { ...rule, frequency: 'DAILY', interval: 1, weekdays: [], weekParity: null, parityInterval: null, weekdayParity: null, duration: null };
   return rule;
 }
 

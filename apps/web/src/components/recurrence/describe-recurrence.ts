@@ -1,4 +1,19 @@
-import { dayOfMonthText, LAST_DAY, lastDayWords, MONTH_LABELS, ofMonth, POSITION_LABELS, ruleValues, WEEKDAY_LABELS, type Duration, type Recurrence, type RepetitionCase } from '@ordo/shared';
+import {
+  dayOfMonthText,
+  LAST_DAY,
+  lastDayWords,
+  MONTH_LABELS,
+  ofMonth,
+  POSITION_LABELS,
+  ruleValues,
+  WEEK_PARITY_WORDS,
+  WEEK_POSITION_LABELS,
+  WEEKDAY_LABELS,
+  type Duration,
+  type Recurrence,
+  type RepetitionCase,
+  type WeekParity,
+} from '@ordo/shared';
 import type { RepetitionTimes } from './RepetitionEditor';
 import * as fmt from '../../lib/format';
 import { countOf } from '../../lib/text';
@@ -14,6 +29,25 @@ function nthWeekday(position: number, weekday: number): string {
 }
 
 /**
+ * Weekday of the nth (or last) even or odd week of the month as text: « le mardi de la 1re semaine paire ».
+ * @param {number} position 1 to 3, or -1 for the last one.
+ * @param {number} weekday 1 (Monday) to 7.
+ * @param {WeekParity} parity Parity of the week.
+ * @returns {string} Label.
+ */
+function weekdayOfParityWeek(position: number, weekday: number, parity: WeekParity): string {
+  return `le ${WEEKDAY_LABELS[weekday - 1]} de la ${WEEK_POSITION_LABELS[position]} semaine ${WEEK_PARITY_WORDS[parity]}`;
+}
+
+/**
+ * Even or odd weeks of a weekly rule as text: « Les semaines paires », « Toutes les 2 semaines impaires ».
+ * @param {WeekParity} parity Parity.
+ * @param {number} every One week of that parity out of n.
+ * @returns {string} Label.
+ */
+const parityWeeks = (parity: WeekParity, every: number): string => `${every === 1 ? 'Les' : `Toutes les ${every}`} semaines ${WEEK_PARITY_WORDS[parity]}s`;
+
+/**
  * Day of the month of a monthly or yearly rule as text: « le 14 », « le 1er »; the last day: « le dernier jour du mois »
  * (monthly), « le dernier jour de février » (yearly, its month).
  * @param {number} monthDay Day number, or `LAST_DAY`.
@@ -26,7 +60,8 @@ function dayOfRule(monthDay: number, month: number | null): string {
 }
 
 /**
- * Readable repetition: "Toutes les 2 semaines le lundi et le jeudi, jusqu’au 20 décembre 2026".
+ * Readable repetition: "Toutes les 2 semaines le lundi et le jeudi, jusqu’au 20 décembre 2026", « Toutes les 2 semaines
+ * paires le lundi », « Le mardi de la 1re semaine paire de chaque mois ».
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.
  * @param {boolean} [weekdays] Weekdays told (weekly rules). Optional. Default = true.
@@ -43,11 +78,16 @@ export function describeRecurrence(rule: Recurrence, start: string, weekdays = t
     case 'WEEKLY': {
       const days = (rule.weekdays.length ? rule.weekdays : [values.weekday]).map((weekday) => WEEKDAY_LABELS[weekday - 1]);
       const list = days.length === 5 && !days.includes('samedi') && !days.includes('dimanche') ? 'du lundi au vendredi' : `le ${days.join(', le ')}`;
-      const weeks = rule.weekParity ? `Les semaines ${rule.weekParity === 'EVEN' ? 'paires' : 'impaires'}` : n === 1 ? 'Toutes les semaines' : `Toutes les ${n} semaines`;
+      const weeks = rule.weekParity ? parityWeeks(rule.weekParity, rule.parityInterval ?? 1) : n === 1 ? 'Toutes les semaines' : `Toutes les ${n} semaines`;
       text = weekdays ? `${weeks} ${list}` : weeks;
       break;
     }
     case 'MONTHLY':
+      if (rule.monthlyMode === 'WEEKDAY' && rule.weekdayParity) {
+        const day = weekdayOfParityWeek(values.position, values.weekday, rule.weekdayParity);
+        text = n === 1 ? `${fmt.capitalize(day)} de chaque mois` : `Tous les ${n} mois ${day} du mois`;
+        break;
+      }
       text = `${n === 1 ? 'Tous les mois' : `Tous les ${n} mois`} ${rule.monthlyMode === 'WEEKDAY' ? nthWeekday(values.position, values.weekday) : dayOfRule(values.monthDay, null)}`;
       break;
     case 'YEARLY':

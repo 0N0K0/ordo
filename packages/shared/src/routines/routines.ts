@@ -15,6 +15,7 @@ import {
   occurrencesBefore,
   proposedMovedRule,
   recurrenceSchema,
+  rhythmInterval,
   RuleChoiceRequired,
   ruleMovedTo,
   shiftedDates,
@@ -375,7 +376,7 @@ export function routineOccurrences(rule: Recurrence, start: string, today: strin
     return found;
   }
   // A period of the rule plus a year, for the paused periods and excluded dates.
-  const span = PERIOD_DAYS[rule.frequency] * rule.interval + 366;
+  const span = PERIOD_DAYS[rule.frequency] * rhythmInterval(rule) + 366;
   let current: string | null = null;
   if (start <= today) {
     const from = daysBetween(start, today) > span ? addDays(today, -span) : start;
@@ -945,7 +946,7 @@ function otherWeekdays(rule: Recurrence, date: string, to: string): number[] | n
 export function weekdayMovedEnd(rule: Recurrence, start: string, date: string, to: string, until: string): string {
   if (!otherWeekdays(rule, date, to)?.length) return until;
   // Its last occurrence: within a few periods of its rhythm before the end.
-  const back = addDays(until, -7 * (Math.max(rule.interval, 2) + 1));
+  const back = addDays(until, -7 * (Math.max(rhythmInterval(rule), 2) + 1));
   const last = occurrenceDates(weekdayPattern(rule, [weekdayOfDate(date)]), start, back > start ? back : start, until).at(-1);
   const reached = last ? addDays(last, daysBetween(date, to)) : until;
   return reached > until ? reached : until;
@@ -965,7 +966,7 @@ export function weekdayMovedEnd(rule: Recurrence, start: string, date: string, t
  */
 export function listedWeeklyStart(rule: Recurrence, start: string, date: string, to: string): string {
   if (!otherWeekdays(rule, date, to)) return start;
-  const first = occurrenceDates(weekdayPattern(rule, [weekdayOfDate(date)]), start, start, addDays(start, 7 * Math.max(rule.interval, 2) + 6))[0];
+  const first = occurrenceDates(weekdayPattern(rule, [weekdayOfDate(date)]), start, start, addDays(start, 7 * Math.max(rhythmInterval(rule), 2) + 6))[0];
   const moved = first ? addDays(first, daysBetween(date, to)) : start;
   return moved < start ? moved : start;
 }
@@ -1037,7 +1038,7 @@ export function exactMovedRule(
   gap: number,
   trim: boolean,
 ): Recurrence | null {
-  const period = 7 * Math.max(before.weekParity ? 2 : before.interval, after.weekParity ? 2 : after.interval, 1);
+  const period = 7 * Math.max(rhythmInterval(before), rhythmInterval(after), 1);
   const margin = 2 * period + 2 * gap + 7;
   const limit = addDays(beforeStart, SCAN_DAYS);
   const expected = (from: string, to: string) =>

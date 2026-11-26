@@ -1,6 +1,6 @@
 import { dayInMonth, dayOfMonthOf, daysInMonth, lastDayOfMonth } from './months';
 import { z } from 'zod';
-import { addDays, DAY_MS, formatDay, isoWeek, isoWeekday, monthOfYear, parseDay, weekdayOfDate, yearOfDay } from './days';
+import { addDays, DAY_MS, formatDay, isoWeek, isoWeekday, isoWeekHasParity, isoWeeksInYear, isoYear, monthOfYear, parseDay, WEEK_PARITIES, weekdayOfDate, yearOfDay, type WeekParity } from './days';
 import { daySchema } from './times';
 import { endAfter, UserError } from '../core/rules';
 import { groupBy } from '../core/collections';
@@ -115,6 +115,13 @@ export function maxSpanDays(duration: Duration): number {
   }
 }
 
+/** Refusal of a number of even or odd weeks on a rule that has none. */
+export const PARITY_INTERVAL_REFUSAL = 'Toutes les n semaines paires ou impaires : choisissez d’abord les semaines paires ou impaires.';
+/** Refusal of an even or odd week of the month outside a monthly rule by weekday. */
+export const WEEKDAY_PARITY_REFUSAL = 'Une semaine paire ou impaire du mois va seulement avec « Un jour de semaine du mois », chaque mois.';
+/** Refusal of a 4th even or odd week of the month: a month has 3 of them at most. */
+export const FOURTH_PARITY_WEEK_REFUSAL = 'Un mois n’a jamais de 4e semaine paire ou impaire : choisissez la 1re, la 2e, la 3e ou la dernière.';
+
 /**
  * Repetition of an event or a task, computed on calendar dates (from its first date).
  * Paused periods and excluded dates do not occur, and do not count in `count`.
@@ -126,8 +133,13 @@ export const recurrenceSchema = z
     interval: z.number().int().min(1, 'Au moins 1.').max(999, '999 maximum.'),
     /** Weekly: days, 1 (Monday) to 7 (Sunday); empty: the weekday of the first date. */
     weekdays: z.array(z.number().int().min(1).max(7)).max(7),
-    /** Weekly: only on even or odd ISO weeks (instead of every n weeks); null: every n weeks. */
-    weekParity: z.enum(['EVEN', 'ODD']).nullable().default(null),
+    /** Weekly: only on even or odd ISO weeks (instead of every n weeks, `interval` then unused); null: every n weeks. */
+    weekParity: z.enum(WEEK_PARITIES).nullable().default(null),
+    /**
+     * Weekly on even or odd weeks: one of those weeks out of n, counted from the first one of the series (the week of
+     * its first date, or the next one when it has not that parity); none: every one of them.
+     */
+    parityInterval: z.number().int().min(1, 'Au moins 1.').max(999, '999 maximum.').nullish(),
     /**
      * Monthly and yearly: same day number (the 14th), or same weekday of the month (the 2nd Tuesday, the first Saturday
      * of April); yearly only: same weekday of the same ISO week (the Monday of week 51).
@@ -144,6 +156,11 @@ export const recurrenceSchema = z
     weekday: z.number().int().min(1).max(7).nullish(),
     month: z.number().int().min(1).max(12).nullish(),
     week: z.number().int().min(1).max(53).nullish(),
+    /**
+     * Monthly by weekday: the nth (1 to 3, -1 the last) of that weekday among those of the even or odd ISO weeks of
+     * the month (« le mardi de la 1re semaine paire »); none: among all of them.
+     */
+    weekdayParity: z.enum(WEEK_PARITIES).nullish(),
     /** Last date, included. */
     until: daySchema().nullable(),
     /** Number of occurrences. */
@@ -155,7 +172,15 @@ export const recurrenceSchema = z
     /** Paused periods, dates included. */
     pauses: z.array(z.object({ from: daySchema(), to: daySchema() }).refine(...endAfter('from', 'to'))).max(100),
   })
-  .refine((rule) => rule.until === null || rule.count === null, 'Choisissez une date de fin ou un nombre d’occurrences.');
+  .refine((rule) => rule.until === null || rule.count === null, 'Choisissez une date de fin ou un nombre d’occurrences.')
+  .superRefine((rule, context) => {
+    if ((rule.parityInterval ?? 1) > 1 && !(rule.frequency === 'WEEKLY' && rule.weekParity)) {
+      context.addIssue({ code: 'custom', path: ['parityInterval'], message: PARITY_INTERVAL_REFUSAL });
+    }
+    if (!rule.weekdayParity) return;
+    if (rule.frequency !== 'MONTHLY' || rule.monthlyMode !== 'WEEKDAY') context.addIssue({ code: 'custom', path: ['weekdayParity'], message: WEEKDAY_PARITY_REFUSAL });
+    else if (rule.position === 4) context.addIssue({ code: 'custom', path: ['position'], message: FOURTH_PARITY_WEEK_REFUSAL });
+  });
 export type Recurrence = z.infer<typeof recurrenceSchema>;
 
 /**
@@ -180,13 +205,22 @@ export function storedRecurrence(value: unknown): Recurrence | null {
 }
 
 /**
- * Whether the occurrences of a rule depend on the day it counts from: every n days / weeks / months / years (n > 1,
- * not the even or odd weeks), or a number of occurrences.
+ * Whether the occurrences of a rule depend on the day it counts from: every n days / weeks / months / years (n > 1),
+ * every n even or odd weeks (n > 1), or a number of occurrences.
  * @param {Recurrence | null} rule Rule (none: a single occurrence).
  * @returns {boolean} It counts from a day.
  */
 export const ruleCountsFromDay = (rule: Recurrence | null): boolean =>
-  Boolean(rule && ((rule.interval > 1 && !(rule.frequency === 'WEEKLY' && rule.weekParity)) || rule.count !== null));
+  Boolean(rule && ((rule.frequency === 'WEEKLY' && rule.weekParity ? (rule.parityInterval ?? 1) > 1 : rule.interval > 1) || rule.count !== null));
+
+/**
+ * Periods (days, weeks, months, years) after which the rhythm of a rule comes back: its interval; weekly on even or
+ * odd weeks, two weeks per week of that parity (about: a year of 53 weeks has two odd weeks in a row). Sizes the
+ * scans that look for an occurrence.
+ * @param {Recurrence} rule Rule.
+ * @returns {number} Periods.
+ */
+export const rhythmInterval = (rule: Recurrence): number => (rule.frequency === 'WEEKLY' && rule.weekParity ? 2 * (rule.parityInterval ?? 1) : rule.interval);
 
 /** Default rule for a first date: every week on its weekday. */
 export const DEFAULT_RECURRENCE: Recurrence = {
@@ -224,6 +258,85 @@ function weekdayPosition(date: Date): number {
 }
 
 /**
+ * Weeks of a parity counted in half the weeks of an ISO year up to a week: even weeks 2, 4…; odd weeks 1, 3…
+ * @param {number} weeks Last week counted (52 or 53: the whole year).
+ * @param {WeekParity} parity Parity.
+ * @returns {number} Weeks.
+ */
+const weeksOfParity = (weeks: number, parity: WeekParity): number => (parity === 'EVEN' ? Math.floor(weeks / 2) : Math.ceil(weeks / 2));
+
+/**
+ * Weeks of a parity from the first ISO week of an ISO year up to the week of a date, that week included.
+ * @param {string} date YYYY-MM-DD.
+ * @param {WeekParity} parity Parity.
+ * @param {number} fromYear ISO year counted from (that of the date or before).
+ * @returns {number} Weeks.
+ */
+function parityWeeksUpTo(date: string, parity: WeekParity, fromYear: number): number {
+  let count = 0;
+  for (let year = fromYear; year < isoYear(date); year += 1) count += weeksOfParity(isoWeeksInYear(year), parity);
+  return count + weeksOfParity(isoWeek(date), parity);
+}
+
+/**
+ * Weeks of a parity from the first one of a series (the week of its first date, or the next one when it has not that
+ * parity) to the week of a date of that parity: 0 for that first one, 1 for the next one of that parity… (week 53 and
+ * week 1 both odd follow each other).
+ * @param {string} start First date of the series.
+ * @param {string} date Date, in a week of that parity, not before the week of the first date.
+ * @param {WeekParity} parity Parity.
+ * @returns {number} Weeks.
+ */
+function parityWeeksSince(start: string, date: string, parity: WeekParity): number {
+  const from = isoYear(start);
+  const first = parityWeeksUpTo(start, parity, from) + (isoWeekHasParity(start, parity) ? 0 : 1);
+  return parityWeeksUpTo(date, parity, from) - first;
+}
+
+/**
+ * Same weekdays as a date in its month lying in ISO weeks of a parity, in order.
+ * @param {string} date YYYY-MM-DD.
+ * @param {WeekParity} parity Parity.
+ * @returns {string[]} Days (2 or 3).
+ */
+function parityWeekdaysOfMonth(date: string, parity: WeekParity): string[] {
+  const days: string[] = [];
+  const lastDay = daysInMonth(yearOfDay(date), monthOfYear(date));
+  for (let day = ((dayOfMonthOf(date) - 1) % 7) + 1; day <= lastDay; day += 7) {
+    const candidate = dayInMonth(yearOfDay(date), monthOfYear(date), day);
+    if (isoWeekHasParity(candidate, parity)) days.push(candidate);
+  }
+  return days;
+}
+
+/**
+ * Position of a date among the same weekdays of its month in ISO weeks of a parity: 1 to 3, or -1 when it is the last
+ * one; null when its week has not that parity.
+ * @param {string} date YYYY-MM-DD.
+ * @param {WeekParity} parity Parity.
+ * @returns {number | null} Position.
+ */
+function parityWeekdayPosition(date: string, parity: WeekParity): -1 | 1 | 2 | 3 | null {
+  const days = parityWeekdaysOfMonth(date, parity);
+  const index = days.indexOf(date);
+  if (index < 0) return null;
+  return index === days.length - 1 ? -1 : ((index + 1) as 1 | 2 | 3);
+}
+
+/**
+ * Whether a date is the nth (1 to 3, -1 the last) of its weekday in its month among those of ISO weeks of a parity;
+ * a month without an nth one has none.
+ * @param {string} date YYYY-MM-DD.
+ * @param {WeekParity} parity Parity.
+ * @param {number} position 1 to 3, or -1.
+ * @returns {boolean} That day.
+ */
+function isParityWeekday(date: string, parity: WeekParity, position: number): boolean {
+  const days = parityWeekdaysOfMonth(date, parity);
+  return position === -1 ? days.at(-1) === date : days[position - 1] === date;
+}
+
+/**
  * Whether a date is the day of its month a monthly or yearly rule asks for: its day number (the last day of a shorter
  * month), or its nth (or last) weekday; chosen, or else those of the first date.
  * @param {Recurrence} rule Rule.
@@ -235,6 +348,8 @@ function dayOfMonthMatches(rule: Recurrence, start: Date, day: Date): boolean {
   const lastDay = daysInMonth(day.getUTCFullYear(), day.getUTCMonth() + 1);
   if (rule.monthlyMode === 'WEEKDAY') {
     if (isoWeekday(day) !== (rule.weekday ?? isoWeekday(start))) return false;
+    // Among the weekdays of the even or odd weeks of the month (monthly only).
+    if (rule.weekdayParity && rule.frequency === 'MONTHLY') return isParityWeekday(formatDay(day), rule.weekdayParity, ruleValues(rule, formatDay(start)).position);
     // Not chosen: the position of the first date (-1 when it was the last one of its month).
     if (rule.position === null || rule.position === undefined) return weekdayPosition(day) === weekdayPosition(start);
     return rule.position === -1 ? day.getUTCDate() + 7 > lastDay : Math.ceil(day.getUTCDate() / 7) === rule.position;
@@ -261,8 +376,13 @@ function matches(rule: Recurrence, start: Date, day: Date): boolean {
       const weekdays = rule.weekdays.length ? rule.weekdays : [isoWeekday(start)];
       const startMonday = start.getTime() - (isoWeekday(start) - 1) * DAY_MS;
       if (!weekdays.includes(isoWeekday(day))) return false;
-      // Even or odd weeks of the year, whatever the interval.
-      if (rule.weekParity) return weekOfYear(day) % 2 === (rule.weekParity === 'EVEN' ? 0 : 1);
+      // Even or odd weeks of the year (`interval` unused): every one, or one out of n from the first one of the series.
+      if (rule.weekParity) {
+        const date = formatDay(day);
+        if (!isoWeekHasParity(date, rule.weekParity)) return false;
+        const every = rule.parityInterval ?? 1;
+        return every === 1 || parityWeeksSince(formatDay(start), date, rule.weekParity) % every === 0;
+      }
       const weeks = Math.floor(Math.round((day.getTime() - startMonday) / DAY_MS) / 7);
       return weeks % rule.interval === 0;
     }
@@ -274,8 +394,7 @@ function matches(rule: Recurrence, start: Date, day: Date): boolean {
     case 'YEARLY': {
       if (rule.monthlyMode === 'WEEK') {
         // A weekday of an ISO week, counted in ISO years (those of their Thursday).
-        const isoYear = (date: Date) => new Date(date.getTime() + (4 - isoWeekday(date)) * DAY_MS).getUTCFullYear();
-        const years = isoYear(day) - isoYear(start);
+        const years = isoYear(formatDay(day)) - isoYear(formatDay(start));
         return years >= 0 && years % rule.interval === 0 && isoWeekday(day) === (rule.weekday ?? isoWeekday(start)) && weekOfYear(day) === (rule.week ?? weekOfYear(start));
       }
       const years = day.getUTCFullYear() - start.getUTCFullYear();
@@ -323,8 +442,17 @@ export function occurrenceDates(rule: Recurrence, start: string, from: string, t
 function valuesOfDay(rule: Recurrence, to: string): Recurrence {
   const day = dayOfMonthOf(to);
   const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
+  const values = { monthDay: day, weekday: weekdayOfDate(to), month: monthOfYear(to), week: isoWeek(to) };
+  if (rule.weekdayParity) {
+    // Even or odd week of the month: that of the new day, and its place among them.
+    const weekdayParity: WeekParity = isoWeekHasParity(to, 'EVEN') ? 'EVEN' : 'ODD';
+    const place = parityWeekdayPosition(to, weekdayParity) ?? 1;
+    // The last one stays the last one; another rank keeps its number.
+    const position = place === -1 && rule.position !== -1 ? (parityWeekdaysOfMonth(to, weekdayParity).length as 2 | 3) : place;
+    return { ...rule, ...values, weekdayParity, position };
+  }
   const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
-  return { ...rule, monthDay: day, weekday: weekdayOfDate(to), position, month: monthOfYear(to), week: isoWeek(to) };
+  return { ...rule, ...values, position };
 }
 
 /**
@@ -393,13 +521,15 @@ export const crossedWeeks = (weekday: number, days: number): number => Math.floo
 
 /**
  * Whether a weekly rule moved into another week by a number of weeks counts its weeks otherwise: an odd number of
- * weeks for the even or odd weeks, a number that is not a multiple of n for every n weeks.
+ * weeks for the even or odd weeks (or, one out of n of them, a number of their weeks that is not a multiple of n), a
+ * number that is not a multiple of n for every n weeks.
  * @param {Recurrence} rule Rule.
  * @param {number} weeks Weeks moved.
  * @returns {boolean} Its weeks change.
  */
 export const weeksChange = (rule: Recurrence, weeks: number): boolean =>
-  rule.frequency === 'WEEKLY' && (rule.weekParity ? Math.abs(weeks) % 2 === 1 : rule.interval > 1 && weeks % rule.interval !== 0);
+  rule.frequency === 'WEEKLY' &&
+  (rule.weekParity ? Math.abs(weeks) % 2 === 1 || (weeks / 2) % (rule.parityInterval ?? 1) !== 0 : rule.interval > 1 && weeks % rule.interval !== 0);
 
 /** Rule of a piece of a repetition, with the day its rhythm counts from (none: that of the repetition, moved as much). */
 export interface RulePiece {
@@ -441,7 +571,8 @@ export function movedWeekdays(rule: Recurrence, anchor: string | null, weekdays:
   };
   if (anchor === null) return { rule: turned, anchor: null };
   const pattern: Recurrence = { ...rule, weekdays: weekdays.length ? [...weekdays] : rule.weekdays, until: null, count: null, exceptions: [], pauses: [] };
-  const first = occurrenceDates(pattern, anchor, anchor, addDays(anchor, 7 * rule.interval + 13))[0] ?? anchor;
+  // Its rhythm and two weeks more (a year of 53 weeks has two odd weeks in a row).
+  const first = occurrenceDates(pattern, anchor, anchor, addDays(anchor, 7 * rhythmInterval(rule) + 20))[0] ?? anchor;
   return { rule: turned, anchor: addDays(first, days) };
 }
 
@@ -655,7 +786,9 @@ interface RuleValues {
  */
 export function ruleValues(rule: Recurrence, start: string): RuleValues {
   const day = parseDay(start);
-  const position = weekdayPosition(day) as RuleValues['position'];
+  // Not chosen: the position of the first date, among the weekdays of the even or odd weeks of its month (monthly).
+  const parity = rule.weekdayParity && rule.frequency === 'MONTHLY' ? rule.weekdayParity : null;
+  const position = (parity ? (parityWeekdayPosition(start, parity) ?? 1) : weekdayPosition(day)) as RuleValues['position'];
   return {
     monthDay: rule.monthDay ?? day.getUTCDate(),
     position: (rule.position ?? position) as RuleValues['position'],

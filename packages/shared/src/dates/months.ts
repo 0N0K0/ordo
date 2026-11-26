@@ -26,12 +26,14 @@ export function ofMonth(month: number): string {
 export const lastDayWords = (month: number | null): string => `dernier jour ${month === null ? 'du mois' : ofMonth(month)}`;
 
 /**
- * Ordinal of a number in French, the same everywhere: « 1er », « 2e », « 3e ».
+ * Ordinal of a number in French, the same everywhere: « 1er », « 2e », « 3e »; feminine: « 1re », « 2e ».
  * @param {number} value Number (1 or more).
+ * @param {boolean} [feminine] Of a feminine word (« la 1re semaine »). Optional. Default = false.
  * @returns {string} Ordinal.
  */
-export function ordinal(value: number): string {
-  return value === 1 ? '1er' : `${value}e`;
+export function ordinal(value: number, feminine = false): string {
+  if (value === 1) return feminine ? '1re' : '1er';
+  return `${value}e`;
 }
 
 /**
@@ -58,6 +60,15 @@ export const POSITION_LABELS: Record<number, string> = { 1: ordinal(1), 2: ordin
 
 /** Options of a choice of the position of a weekday in its month (« le 2e mardi »), the last one at the end. */
 export const positionOptions: { value: string; label: string }[] = [1, 2, 3, 4, -1].map((position) => ({ value: String(position), label: POSITION_LABELS[position] }));
+
+/**
+ * Names of the positions of an even or odd week in its month (« la 1re semaine paire »): « 1re » to « 3e », and
+ * « dernière » (-1); a month never has a 4th one.
+ */
+export const WEEK_POSITION_LABELS: Record<number, string> = { 1: ordinal(1, true), 2: ordinal(2, true), 3: ordinal(3, true), [-1]: 'dernière' };
+
+/** Options of a choice of the position of an even or odd week in its month, the last one at the end. */
+export const weekPositionOptions: { value: string; label: string }[] = [1, 2, 3, -1].map((position) => ({ value: String(position), label: WEEK_POSITION_LABELS[position] }));
 /**
  * Number of days of a month.
  * @param {number} year Year.

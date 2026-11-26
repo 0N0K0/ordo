@@ -6,6 +6,8 @@ import { PeriodField } from '../inputs/PeriodField';
 import {
   DEFAULT_RECURRENCE,
   dayOfMonthOf,
+  isoWeekHasParity,
+  weekdayOfDate,
   ruleValues,
   withRuleValues,
   type Recurrence,
@@ -14,6 +16,9 @@ import {
   weekdayOptions,
   monthOptions,
   positionOptions,
+  WEEK_PARITY_WORDS,
+  weekPositionOptions,
+  type WeekParity,
 } from '@ordo/shared';
 import { PauseIcon } from '@phosphor-icons/react';
 import { DeletedDates } from './DeletedDates';
@@ -29,6 +34,25 @@ const FREQUENCIES: { value: RecurrenceFrequency | 'NONE'; label: string }[] = [
   { value: 'MONTHLY', label: 'Tous les mois' },
   { value: 'YEARLY', label: 'Tous les ans' },
 ];
+
+/**
+ * Options of a choice of the weeks counted: all of them, or the even or odd ones only (weekly rules, monthly ones by
+ * weekday).
+ * @param {string} all Label of all the weeks.
+ * @returns {{ value: string, label: string }[]} Options.
+ */
+const parityOptions = (all: string) => [
+  { value: 'ALL', label: all },
+  { value: 'EVEN', label: 'Semaines paires' },
+  { value: 'ODD', label: 'Semaines impaires' },
+];
+
+/**
+ * Parity chosen in a choice of `parityOptions`.
+ * @param {string} value Option.
+ * @returns {WeekParity | null} Parity, none for all the weeks.
+ */
+const parityOf = (value: string): WeekParity | null => (value === 'EVEN' || value === 'ODD' ? value : null);
 
 /** Unit of the interval of each frequency: its singular and plural. */
 const UNITS: Record<RecurrenceFrequency, [string, string]> = { DAILY: ['jour', 'jours'], WEEKLY: ['semaine', 'semaines'], MONTHLY: ['mois', 'mois'], YEARLY: ['an', 'ans'] };
@@ -54,7 +78,8 @@ interface RecurrenceEditorProps {
 }
 
 /**
- * Rule of a repetition: frequency, interval, weekdays and even / odd weeks, the day of the month or of the year
+ * Rule of a repetition: frequency, interval, weekdays and even / odd weeks (every one, or one out of n), the day of
+ * the month (by number, or nth weekday of the month or of its even / odd weeks) or of the year
  * (chosen, prefilled from the first date; or « Le dernier jour du mois », whatever its length), end (date or number),
  * paused periods and deleted dates, with a readable summary.
  * Each change is given at once (`onChange`); `onCommit` follows a choice at once, and a number once it is left.
@@ -81,6 +106,18 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
     onCommit?.();
   };
   const end = rule?.until ? 'UNTIL' : rule?.count ? 'COUNT' : 'NEVER';
+  /**
+   * Rank of the weekday of a monthly rule once its weeks are chosen (all, or the even or odd ones): that of the first
+   * date when it is that weekday (in a week of that parity), so that it stays an occurrence; else the rank kept (a 4th
+   * becoming the 3rd, a month having 3 even or odd weeks at most).
+   * @param {WeekParity | null} parity Weeks chosen.
+   * @returns {Recurrence['position']} Rank.
+   */
+  const rankFor = (parity: WeekParity | null): Recurrence['position'] => {
+    if (!rule || !values) return null;
+    if (weekdayOfDate(start) === values.weekday && (!parity || isoWeekHasParity(start, parity))) return ruleValues({ ...rule, weekdayParity: parity, position: null }, start).position;
+    return parity && values.position === 4 ? 3 : values.position;
+  };
   // Weekday of a monthly or yearly rule by week (« le 2e mardi »).
   const weekdaySelect = values && (
     <Select
@@ -113,6 +150,9 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                     {
                       ...(rule ?? DEFAULT_RECURRENCE),
                       frequency: frequency as RecurrenceFrequency,
+                      // One even or odd week out of n is weekly, an even or odd week of the month monthly.
+                      parityInterval: frequency === 'WEEKLY' ? rule?.parityInterval : null,
+                      weekdayParity: frequency === 'MONTHLY' ? rule?.weekdayParity : null,
                       // The week of the year is a yearly choice.
                       ...(frequency !== 'YEARLY' && rule?.monthlyMode === 'WEEK' ? { monthlyMode: 'DAY' as const } : {}),
                     },
@@ -122,6 +162,19 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
             onCommit?.();
           }}
         />
+        {rule?.frequency === 'WEEKLY' && rule.weekParity && (
+          // One week of that parity out of n (the interval is not used then).
+          <NumberInput
+            label="Toutes les"
+            suffix={` ${plural(rule.parityInterval ?? 1, `semaine ${WEEK_PARITY_WORDS[rule.weekParity]}`, `semaines ${WEEK_PARITY_WORDS[rule.weekParity]}s`)}`}
+            min={1}
+            max={999}
+            w={210}
+            value={rule.parityInterval ?? 1}
+            onChange={(every) => update({ parityInterval: typeof every === 'number' && every > 1 ? every : null })}
+            onBlur={onCommit}
+          />
+        )}
         {rule && !(rule.frequency === 'WEEKLY' && rule.weekParity) && (
           <NumberInput
             label="Tous les"
@@ -141,12 +194,9 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
           size="xs"
           aria-label="Semaines"
           value={rule.weekParity ?? 'ALL'}
-          onChange={(value) => choose({ weekParity: value === 'ALL' ? null : (value as 'EVEN' | 'ODD') })}
-          data={[
-            { value: 'ALL', label: rule.interval > 1 ? `Toutes les ${rule.interval} semaines` : 'Toutes les semaines' },
-            { value: 'EVEN', label: 'Semaines paires' },
-            { value: 'ODD', label: 'Semaines impaires' },
-          ]}
+          // All the weeks: the number of even or odd weeks is dropped.
+          onChange={(value) => choose(parityOf(value) ? { weekParity: parityOf(value) } : { weekParity: null, parityInterval: null })}
+          data={parityOptions(rule.interval > 1 ? `Toutes les ${rule.interval} semaines` : 'Toutes les semaines')}
         />
       )}
       {weekly && rule?.frequency === 'WEEKLY' && (
@@ -166,7 +216,8 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
             size="xs"
             value={rule.monthlyMode}
             // A month repeats a day or a weekday: the week of the year is a yearly choice.
-            onChange={(monthlyMode) => choose({ ...values, monthlyMode: monthlyMode as Recurrence['monthlyMode'] })}
+            // An even or odd week of the month goes with the weekday of the month only.
+            onChange={(monthlyMode) => choose({ ...values, monthlyMode: monthlyMode as Recurrence['monthlyMode'], ...(monthlyMode === 'WEEKDAY' ? {} : { weekdayParity: null }) })}
             data={[
               { value: 'DAY', label: 'Un jour du mois' },
               { value: 'WEEKDAY', label: 'Un jour de semaine du mois' },
@@ -193,13 +244,22 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                   size="xs"
                   w={110}
                   aria-label="Rang"
-                  data={positionOptions}
+                  data={rule.weekdayParity ? weekPositionOptions : positionOptions}
                   value={String(values.position)}
                   allowDeselect={false}
                   comboboxProps={comboboxProps}
                   onChange={(position) => position && choose({ ...values, position: Number(position) as Recurrence['position'] })}
                 />
                 {weekdaySelect}
+                {rule.frequency === 'MONTHLY' && (
+                  <SegmentedControl
+                    size="xs"
+                    aria-label="Semaines du mois"
+                    value={rule.weekdayParity ?? 'ALL'}
+                    onChange={(value) => choose({ ...values, weekdayParity: parityOf(value), position: rankFor(parityOf(value)) })}
+                    data={parityOptions('Toutes les semaines')}
+                  />
+                )}
               </>
             )}
             {rule.frequency === 'YEARLY' && rule.monthlyMode !== 'WEEK' && (
