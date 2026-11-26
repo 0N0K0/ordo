@@ -20,7 +20,7 @@ import { defaultStatusId } from '../lib/new-task-defaults';
 import { formRange } from '../../../components/inputs/date-range';
 import { PeriodField } from '../../../components/inputs/PeriodField';
 import { EffortInput } from './EffortInput';
-import { TaskReminders } from './TaskReminders';
+import { TaskRemindersField } from '../../../components/inputs/ItemReminders';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf, locationOf } from '../../geo/lib/location';
 import { LinksField } from '../../../components/inputs/LinksField';
@@ -276,7 +276,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
             {...formRange(form, 'minDate', 'deadline')}
           />
         </SimpleGrid>
-        <TaskReminders
+        <TaskRemindersField
           value={form.values.reminders ?? []}
           minDate={form.values.minDate}
           deadline={form.values.deadline}

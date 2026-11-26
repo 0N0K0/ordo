@@ -1,14 +1,33 @@
 @layer app {
-  /* Content of the page: 7 columns of the design system at most (7 × 96 + 6 × 16 = 768px), centered. */
+  /* Content of the page: 12 columns of the design system at most (12 × 96 + 11 × 16 = 1328px), centered. */
   .root {
     --column: 96px;
     --gutter: 16px;
 
     /* Dimension */
     width: 100%;
+    max-width: calc(12 * var(--column) + 11 * var(--gutter));
+
+    /* Espacement */
+    margin-inline: auto;
+  }
+
+  /* The three columns side by side (alarms, timers, reminders to come), each its cards one under the other. */
+  .columns {
+    /* Agencement */
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--gutter);
+  }
+
+  /* A column shown in its tab (narrow window): 7 columns of the design system at most, centered. */
+  .tab {
+    /* Dimension */
     max-width: calc(7 * var(--column) + 6 * var(--gutter));
 
     /* Espacement */
     margin-inline: auto;
+    padding-top: var(--onoko-vertical-step);
   }
 }

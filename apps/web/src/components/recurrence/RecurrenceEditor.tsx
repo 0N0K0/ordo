@@ -152,6 +152,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                       frequency: frequency as RecurrenceFrequency,
                       // One even or odd week out of n is weekly, an even or odd week of the month monthly.
                       parityInterval: frequency === 'WEEKLY' ? rule?.parityInterval : null,
+                      parityShift: frequency === 'WEEKLY' ? rule?.parityShift : null,
                       weekdayParity: frequency === 'MONTHLY' ? rule?.weekdayParity : null,
                       // The week of the year is a yearly choice.
                       ...(frequency !== 'YEARLY' && rule?.monthlyMode === 'WEEK' ? { monthlyMode: 'DAY' as const } : {}),
@@ -194,8 +195,8 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
           size="xs"
           aria-label="Semaines"
           value={rule.weekParity ?? 'ALL'}
-          // All the weeks: the number of even or odd weeks is dropped.
-          onChange={(value) => choose(parityOf(value) ? { weekParity: parityOf(value) } : { weekParity: null, parityInterval: null })}
+          // All the weeks: the number of even or odd weeks is dropped; another choice: the ISO weeks of that parity as they are.
+          onChange={(value) => choose(parityOf(value) ? { weekParity: parityOf(value), parityShift: null } : { weekParity: null, parityInterval: null, parityShift: null })}
           data={parityOptions(rule.interval > 1 ? `Toutes les ${rule.interval} semaines` : 'Toutes les semaines')}
         />
       )}

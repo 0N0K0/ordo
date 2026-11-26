@@ -28,11 +28,17 @@ Fragments `AlarmFields`, `ReminderFields` (un rappel : `before`, `at`, `days`, `
 
 ### `pages/AlarmsPage.tsx`
 
-`AlarmsPage()` : page `/alarms` (route dans `app/router.tsx`, `PAGES.alarms`). `PageHeader` avec « Nouvelle alarme » (`useAlarmForm`), encart d’autorisation des notifications (état `permission` : `Notification.permission`, `Notification.requestPermission()`), section « Minuteurs » (`CountdownList`), puis section « Alarmes » : `ListSkeleton`, `EmptyState` « Aucune alarme. », sinon `AlarmList` ; réglages de la page (`PageSettings` « Paramètres des alarmes ») : `SavedCountdownsSettings` (voir [minuteurs](countdowns.md)).
+`AlarmsPage()` : page `/alarms` (route dans `app/router.tsx`, `PAGES.alarms`). `PageHeader` avec « Nouvelle alarme » (`useAlarmForm`), encart d’autorisation des notifications (état `permission` : `Notification.permission`, `Notification.requestPermission()`), puis trois colonnes (`ALARM_COLUMNS` : `alarms`, `countdowns`, `reminders` ; titres et icônes `COLUMN_TITLES`), côte à côte dans une `SubSection` chacune, ou en onglets (`PageTabs`, `usePageTab`, `?tab=`) sous le point de rupture `desktop` (`useIsBelowDesktop`) :
+
+- « Alarmes » (interne `AlarmsColumn`) : `ListSkeleton`, `EmptyState` « Aucune alarme. » avec « Nouvelle alarme », sinon `AlarmList` ;
+- « Minuteurs » : `CountdownList withSaved={false}` (les minuteurs en cours, « Lancer un minuteur », « Minuteurs enregistrés »), puis `SavedCountdownCards` ;
+- « Rappels à venir » : `UpcomingReminderList`.
+
+Réglages de la page (`PageSettings` « Paramètres des alarmes ») : `SavedCountdownsSettings` (voir [minuteurs](countdowns.md)).
 
 ### `pages/AlarmsPage.module.css`
 
-`.root` : largeur maximale de 7 colonnes de la grille (7 × 96 px + 6 × 16 px), centrée.
+`.root` : largeur maximale de 12 colonnes de la grille (12 × 96 px + 11 × 16 px), centrée ; `.columns` : les trois colonnes côte à côte (grille de trois parts égales, gouttière 16 px, alignées en haut) ; `.tab` : une colonne dans son onglet, 7 colonnes de la grille au plus, centrée, un pas du rythme vertical au-dessus.
 
 ## components
 
@@ -68,6 +74,22 @@ Rappels des éphémérides et des anniversaires.
 | `RemindedSchedule` (type : le type partagé et de quoi lire sa règle, `ephemerisRule`), `ringEphemerisReminders(schedules, now, links, workspace?)` | Rappels des éphémérides non archivées (`ephemerisRings` : un créneau n'en sonne aucun ; pour chaque suite de jours d’hier à J+31 depuis son premier horaire ; clé `ephemeris:<id>:<jour>:…` ; toast libellé, jour) | `AlarmCenter`, `ElsewhereNotifier` |
 | `RemindedBirthday` (type partagé, réexporté), `ringBirthdayReminders(birthdays, now, links, workspace?)` | Rappels des anniversaires (`birthdayRings` : d’hier à J+31 ; clé `birthday:<contributor\|relation>:<id>:<jour>:…` ; toast `birthdayLabel` (« Anniversaire de Paul — 40 ans »), jour) | `AlarmCenter`, `ElsewhereNotifier` |
 
+### `components/UpcomingReminderList.tsx`
+
+`UpcomingReminderList()` : colonne « Rappels à venir » : `useUpcomingReminders` ; `ErrorAlert` « Les rappels à venir n’ont pas pu être chargés. » si les occurrences d’évènements, les tâches ou les routines n’ont pas pu l’être ; `ListSkeleton` au chargement ; vide : `EmptyState` « Aucun rappel dans les 30 prochains jours. » ; sinon une `ListCard` par rappel (clé du rappel), cliquable (`openReminderPanel`, nommée « Rappels de « X », sonne … ») : l’icône de son genre (`UpcomingKindIcon`), l’heure de sa sonnerie (`fmt.dateTimeShort`, « Ven. 27 nov., 09:45 »), le titre de son élément, son jour (`upcomingDueText` : « Début » ou « Échéance »).
+
+### `components/UpcomingKindIcon.tsx`
+
+`UpcomingKindIcon({ reminder })` : l’icône d’un rappel à venir, celle de sa sonnerie (`ringIcon` de sa clé : agenda, tâche, routine), nommée « Évènement », « Tâche » ou « Routine » (`UPCOMING_KIND_LABELS`). Utilisé par `UpcomingReminderList`, `ReminderItemPanel`.
+
+### `components/ReminderItemPanel.tsx`
+
+`ReminderItemPanel({ reminder, close })` : contenu du panneau latéral d’un rappel à venir : `SaveStatus`, l’icône, le titre et l’échéance de l’élément, puis ses « Rappels » seulement, par le champ de sa sorte (`TaskRemindersField` avec son ouverture et son échéance suivies ; `RoutineRemindersField` avec `routineHasHoursOf` ; `EventRemindersField` avec sa journée entière ; voir [Composants de saisie](../../components/inputs.md#itemreminderstsx)), lus dans le cache tels qu’ils sont (interne `useCurrentItem` : la tâche, la routine ou l’occurrence actuelle, `useUpcomingSources` ; et s’il manque ; manquant : avertissement `NoticeAlert` « Élément introuvable », champ et « Ouvrir » désactivés (sans lien vers la tâche), rien n’est enregistré depuis l’élément cliqué), enregistrés à chaque changement (les rappels choisis restent affichés jusqu’à ce que le cache change ; un échec remontre ceux enregistrés et le dit dans un toast d’erreur, `onMutationError`) ; « Ouvrir » (`ActionButton` secondaire) ferme d’abord ce panneau, puis ouvre la page de la tâche (`taskPath`, son panneau ouvert), le panneau de la routine sur l’occurrence du rappel (`openRoutineForm`), le panneau de l’occurrence de l’évènement (`useEventForm`, qui demande la portée pour un évènement récurrent). Interne `useItemRemindersSave(reminder)` : tâche `useUpdateTask` (`{ reminders }`), routine `useRoutineMutations().patch` (`{ reminders }`), évènement `useCalendarEventMutations().update` sur toute la série (`seriesInput` de l’occurrence actuelle avec les nouveaux rappels, portée `ALL`, comme le panneau « Toutes les occurrences » ; l’aide du champ suit la journée entière de la série). Utilisé par `openReminderPanel`.
+
+### `components/SavedCountdownCards.tsx`
+
+`SavedCountdownCards()` : les minuteurs enregistrés non archivés de l’espace, dans l’ordre de leur liste, une `ListCard` chacun : `ItemAvatar` (image ou couleur), nom, durée en badge (`formatDuration`), « Lancer » (`useStartSavedCountdown`, aussitôt ; « Lancer « Œufs durs » »). `ListSkeleton` au chargement ; vide : `EmptyState` « Aucun minuteur enregistré. » avec « Minuteurs enregistrés » (les réglages de la page). Utilisé par `AlarmsPage`.
+
 ### `components/AlarmForm.tsx`
 
 - `AlarmForm({ context, alarm?, defaults?, onDone })` : formulaire de création (« Créer l’alarme ») ou panneau d’une alarme existante enregistré champ par champ (`useFieldSave` : libellé, description et minutes en les quittant, le reste dès qu’il change, projet et tâche ensemble ; `SaveStatus` en tête ; l’alarme du cache suivie, `useAlarms`) — `useAppForm` + `alarmFormSchema` (interne : `alarmInputSchema` appliqué à l’entrée telle qu’envoyée, `alarmInputOf`, car les anciens champs de répétition n’existent pas dans le formulaire) : libellé, type (`SegmentedControl` + aide), minutes de chrono (`optionalNumberProps`) ou `RepetitionField` + `RuleEditor` (date, heure, répétition ; résumé `describeAlarmTiming`), `ProjectSelect` / `TaskSelect` (tâches `timeTasks`), description, « Active ». À l’envoi (`alarmInputOf`) : `legacyFields(recurrence)` ajouté, `minutes` vidé hors chrono ; création par `formCallbacks` (« Alarme créée. »). Pas de mode copie : « Dupliquer » de `AlarmList` (`duplicateRowsAction`) enregistre la copie (`toAlarmInput` + `copyName`), puis ouvre le formulaire sur elle (`cachedItem`, `alarmsQueryKey`, exporté).
@@ -77,7 +99,7 @@ Rappels des éphémérides et des anniversaires.
 
 ### `components/AlarmList.tsx`
 
-`AlarmList({ alarms, context, openForm, showTarget = true })` : cartes d’alarmes (libellé, badge « Terminée », `describeAlarm`, « Prochaine : … » via `nextRing`, lien `alarmTarget` si `showTarget`, note), `StateSwitch` actif/inactif, `InlineActions` « Modifier », « Dupliquer », « Supprimer » (`confirmDestructive`). Interne `toAlarmInput(alarm, changes)` : renvoie l’alarme entière avec un changement (interrupteur). Utilisé par `AlarmsPage`.
+`AlarmList({ alarms, context, openForm, showTarget = true })` : cartes d’alarmes (`ListCard`, estompée inactive ; libellé, badge « Terminée », `describeAlarm`, « Prochaine : … » via `nextRing`, lien `alarmTarget` si `showTarget`, note), `StateSwitch` actif/inactif, `InlineActions` « Modifier », « Dupliquer », « Supprimer » (`confirmDestructive`). Interne `toAlarmInput(alarm, changes)` : renvoie l’alarme entière avec un changement (interrupteur). Utilisé par `AlarmsPage`.
 
 ## hooks
 
@@ -86,12 +108,27 @@ Rappels des éphémérides et des anniversaires.
 - `AlarmFormOpener` (type) : `(alarm?, { defaults? }) => void`.
 - `useAlarmForm(context)` : ouvre `AlarmForm` dans `openFormPanel` (« Nouvelle alarme », « Alarme ») ; sans contexte : rien. Utilisé par `AlarmsPage`, `AlarmsCell` (`extra-cells`, tâches), `ChronoCard` (accueil), `QuickActions` (app).
 
+### `hooks/use-upcoming-reminders.ts`
+
+- `UpcomingItemReminder` (type) : un rappel à venir de l’espace ouvert (`UpcomingReminder` partagé, sur `EventOccurrence`, `Task`, `Routine`).
+- `useUpcomingSources()` : de quoi les rappels à venir se lisent : les occurrences d’évènements d’hier à 30 + 31 jours (`useCalendarEvents`, `reminderDayRange(now, UPCOMING_REMINDER_DAYS + REMINDER_LOOKAHEAD_DAYS)`, la même clé toute la journée), les tâches et les routines de `useRingSources` et son report `deferRoutine`, `now` (chaque minute, `useNow(true, 60_000)`), `isError` (occurrences, tâches ou routines en échec sans données : un rechargement raté garde la liste). Utilisé par `useUpcomingReminders`, `ReminderItemPanel`.
+- `useUpcomingReminders()` : `{ reminders, isPending, isError }` : `upcomingReminders` de `@ordo/shared` sur `useUpcomingSources`. Utilisé par `UpcomingReminderList`.
+
 ### `hooks/use-ring-sources.ts`
 
-- `useRingSources()` : ce dont `AlarmCenter` fait sonner : `useAlarms`, `useRunningTimers`, `useTasksData`, `useProjectTree`, `useRoutinesData`, `useWorkSchedules`, `useBirthdays`, `useReminderOccurrences` (agenda), `useCountdowns` (minuteurs de l’utilisateur), et `deferRoutine(routine, at)` (premier moment permis par ses créneaux, `useSlotRules().nextAllowedAt`). Utilisé par `AlarmCenter`, `useNextRing`.
+- `useRingSources()` : ce dont `AlarmCenter` fait sonner : `useAlarms`, `useRunningTimers`, `useTasksData`, `useProjectTree`, `useRoutinesData`, `useWorkSchedules`, `useBirthdays`, `useReminderOccurrences` (agenda), `useCountdowns` (minuteurs de l’utilisateur), et `deferRoutine(routine, at)` (premier moment permis par ses créneaux, `useSlotRules().nextAllowedAt`). Utilisé par `AlarmCenter`, `useNextRing`, `useUpcomingReminders`.
 - `useNextRing()` : `{ at, now }`, la prochaine sonnerie après maintenant (`nextRingAt` sur `useRingSources`, null : rien de prévu), recalculée chaque minute (`useNow(true, 60_000)`). Utilisé par `AlarmsNavBadge` (barre latérale).
 
 ## lib
+
+### `lib/upcoming-reminders.ts`
+
+- `UPCOMING_KIND_LABELS` : « Évènement », « Tâche », « Routine » (nom de l’icône d’un rappel à venir).
+- `upcomingDueText(due, kind)` : « Début : ven. 13 nov., 14:05 » pour un évènement (l’heure quand il en a), « Échéance : ven. 13 nov. » pour une tâche ou une routine ; null sans jour.
+
+### `lib/open-reminder-panel.tsx`
+
+`openReminderPanel(reminder)` : ouvre `ReminderItemPanel` (avec sa fermeture) dans le panneau latéral (`openFormPanel`, « Rappels de « X » », un panneau par élément : `panelId` `reminders-<genre>-<id>`, rouvert il se remplace). Utilisé par `UpcomingReminderList`.
 
 ### `lib/next-ring.ts`
 
@@ -129,7 +166,9 @@ La sonnerie de l’app, une brique pour tout ce qui sonne (rappels et alarmes, e
 | `refreshRestoredRings()`                  | Remontre les sonneries remontrées de l’API avec leurs actions refaites (routines et anniversaires chargés) | `AlarmCenter` |
 | `ringPushed(key)`                          | Une sonnerie poussée par le serveur pendant que cet onglet est visible (le service worker ne montre alors pas de notification) : `loadRings`, puis elle sonne ici comme les autres (un seul onglet : `claim` `…:again`) | `lib/push.ts`                    |
 
-Internes : `ActiveRing` (sonnerie montrée : début, prochaine, arrêt du son, minuteries), `RingContext`, `RingMessage`, `RING_ICONS` / `ringIcon(key)` (icône selon le genre de la clé : évènement, tâche, routine, éphéméride, anniversaire, minuteur `countdown`, sinon alarme), `quiet`, `show` (toast : en train de sonner, couleur d’avertissement ; en attente, « Sonne à nouveau à HH:MM » ; silencieuse ; un lien cliqué garde le toast), `schedule`, `ringNow`, `record`, `ringAgain` (une répétition ne sonne que dans l’onglet qui la réserve, `ordo.alarm.<clé>:again` pour la durée d’une sonnerie ; les autres la montrent), `finish`, `wait`.
+Exporté aussi : `ringIcon(key)` : l’icône d’une sonnerie selon le genre de sa clé (`RING_ICONS`), celle de son toast ; utilisé aussi par `UpcomingKindIcon`.
+
+Internes : `ActiveRing` (sonnerie montrée : début, prochaine, arrêt du son, minuteries), `RingContext`, `RingMessage`, `RING_ICONS` (icône selon le genre de la clé : évènement, tâche, routine, éphéméride, anniversaire, minuteur `countdown`, sinon alarme), `quiet`, `show` (toast : en train de sonner, couleur d’avertissement ; en attente, « Sonne à nouveau à HH:MM » ; silencieuse ; un lien cliqué garde le toast), `schedule`, `ringNow`, `record`, `ringAgain` (une répétition ne sonne que dans l’onglet qui la réserve, `ordo.alarm.<clé>:again` pour la durée d’une sonnerie ; les autres la montrent), `finish`, `wait`.
 
 ### `lib/ring-routines.tsx`
 

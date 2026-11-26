@@ -35,6 +35,8 @@ graphql(`
     label
     description
     location
+    locationLat
+    locationLon
     links {
       url
       label
@@ -87,6 +89,8 @@ graphql(`
       label
       description
       location
+      locationLat
+      locationLon
       links {
         url
         label

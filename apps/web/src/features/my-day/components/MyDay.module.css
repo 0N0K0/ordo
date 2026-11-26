@@ -104,8 +104,7 @@
     min-width: 0;
   }
 
-  /* Name of an item opening its panel: text, so underlined under the pointer and outlined on keyboard focus (no
-     ripple). */
+  /* Name of an item opening its panel: text, so underlined under the pointer and outlined on keyboard focus. */
   .open {
     /* Bordures */
     border-radius: var(--mantine-radius-xs);

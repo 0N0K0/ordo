@@ -141,6 +141,12 @@ export const recurrenceSchema = z
      */
     parityInterval: z.number().int().min(1, 'Au moins 1.').max(999, '999 maximum.').nullish(),
     /**
+     * Weekly on even or odd weeks, moved with its occurrences by a number of weeks (negative: earlier): its weeks are
+     * its former ones moved as much, counted in their order (`weekParity` is the parity they have outside the weeks
+     * around a week 53, swapped for an odd number); none: its weeks as they are.
+     */
+    parityShift: z.number().int().nullish(),
+    /**
      * Monthly and yearly: same day number (the 14th), or same weekday of the month (the 2nd Tuesday, the first Saturday
      * of April); yearly only: same weekday of the same ISO week (the Monday of week 51).
      */
@@ -256,6 +262,13 @@ function weekdayPosition(date: Date): number {
   if (date.getUTCDate() + 7 > daysInMonth(date.getUTCFullYear(), date.getUTCMonth() + 1)) return -1;
   return Math.ceil(date.getUTCDate() / 7);
 }
+
+/**
+ * The other parity: odd for even, even for odd.
+ * @param {WeekParity} parity Parity.
+ * @returns {WeekParity} Other parity.
+ */
+const otherParity = (parity: WeekParity): WeekParity => (parity === 'EVEN' ? 'ODD' : 'EVEN');
 
 /**
  * Weeks of a parity counted in half the weeks of an ISO year up to a week: even weeks 2, 4…; odd weeks 1, 3…
@@ -376,12 +389,15 @@ function matches(rule: Recurrence, start: Date, day: Date): boolean {
       const weekdays = rule.weekdays.length ? rule.weekdays : [isoWeekday(start)];
       const startMonday = start.getTime() - (isoWeekday(start) - 1) * DAY_MS;
       if (!weekdays.includes(isoWeekday(day))) return false;
-      // Even or odd weeks of the year (`interval` unused): every one, or one out of n from the first one of the series.
+      // Even or odd weeks of the year (`interval` unused): every one, or one out of n from the first one of the series;
+      // moved by some weeks, those of its former weeks (the days as many weeks before).
       if (rule.weekParity) {
-        const date = formatDay(day);
-        if (!isoWeekHasParity(date, rule.weekParity)) return false;
+        const shift = rule.parityShift ?? 0;
+        const date = addDays(formatDay(day), -7 * shift);
+        const parity = Math.abs(shift) % 2 === 1 ? otherParity(rule.weekParity) : rule.weekParity;
+        if (!isoWeekHasParity(date, parity)) return false;
         const every = rule.parityInterval ?? 1;
-        return every === 1 || parityWeeksSince(formatDay(start), date, rule.weekParity) % every === 0;
+        return every === 1 || parityWeeksSince(addDays(formatDay(start), -7 * shift), date, parity) % every === 0;
       }
       const weeks = Math.floor(Math.round((day.getTime() - startMonday) / DAY_MS) / 7);
       return weeks % rule.interval === 0;
@@ -520,16 +536,15 @@ export class RuleChoiceRequired extends UserError {
 export const crossedWeeks = (weekday: number, days: number): number => Math.floor((weekday - 1 + days) / 7);
 
 /**
- * Whether a weekly rule moved into another week by a number of weeks counts its weeks otherwise: an odd number of
- * weeks for the even or odd weeks (or, one out of n of them, a number of their weeks that is not a multiple of n), a
- * number that is not a multiple of n for every n weeks.
+ * Whether a weekly rule moved into another week by a number of weeks counts its weeks otherwise: any number of weeks
+ * for the even or odd weeks (its weeks move with it, in their order: past a week 53, followed by week 1 odd too, they
+ * are not those of the same parity), a number that is not a multiple of n for every n weeks.
  * @param {Recurrence} rule Rule.
  * @param {number} weeks Weeks moved.
  * @returns {boolean} Its weeks change.
  */
 export const weeksChange = (rule: Recurrence, weeks: number): boolean =>
-  rule.frequency === 'WEEKLY' &&
-  (rule.weekParity ? Math.abs(weeks) % 2 === 1 || (weeks / 2) % (rule.parityInterval ?? 1) !== 0 : rule.interval > 1 && weeks % rule.interval !== 0);
+  rule.frequency === 'WEEKLY' && (rule.weekParity ? weeks !== 0 : rule.interval > 1 && weeks % rule.interval !== 0);
 
 /** Rule of a piece of a repetition, with the day its rhythm counts from (none: that of the repetition, moved as much). */
 export interface RulePiece {
@@ -552,7 +567,8 @@ export const shiftedDates = (rule: Recurrence, days: number): Recurrence => ({
 
 /**
  * Weekly rule kept to some of its weekdays, all moving into the same week, moved by a number of days: those weekdays
- * turned, even or odd weeks swapped when they change week an odd number of times, and the day its rhythm counts from
+ * turned, even or odd weeks moved with them in their order (`parityShift`; their parity swapped when they change week
+ * an odd number of times), and the day its rhythm counts from
  * (every n weeks) moved with them: the first of those weekdays on its rhythm from the anchor, moved (its week goes with
  * them). Its end, excluded dates and pauses are left as given.
  * @param {Recurrence} rule Rule (its weeks before the move).
@@ -563,10 +579,12 @@ export const shiftedDates = (rule: Recurrence, days: number): Recurrence => ({
  */
 export function movedWeekdays(rule: Recurrence, anchor: string | null, weekdays: readonly number[], days: number): RulePiece {
   const crossed = weekdays.length ? crossedWeeks(weekdays[0], days) : Math.floor(days / 7);
-  const weekParity = rule.weekParity && Math.abs(crossed) % 2 === 1 ? (rule.weekParity === 'EVEN' ? 'ODD' : 'EVEN') : rule.weekParity;
+  const weekParity = rule.weekParity && Math.abs(crossed) % 2 === 1 ? otherParity(rule.weekParity) : rule.weekParity;
+  // Even or odd weeks: its former weeks moved as many weeks, in their order (`parityShift`).
   const turned: Recurrence = {
     ...rule,
     weekParity,
+    ...(rule.weekParity && { parityShift: (rule.parityShift ?? 0) + crossed || null }),
     weekdays: rule.weekdays.length ? weekdays.map((weekday) => ((((weekday - 1 + days) % 7) + 7) % 7) + 1).sort((a, b) => a - b) : [],
   };
   if (anchor === null) return { rule: turned, anchor: null };

@@ -1,0 +1,46 @@
+@layer app {
+  /* A card of a list of cards (the columns of the page « Alarmes »). */
+  .root {
+    /* Positionnement */
+    position: relative;
+
+    /* Dimension */
+    width: 100%;
+  }
+
+  /* Muted: an item turned off. */
+  .muted {
+    /* Effets */
+    opacity: var(--onoko-muted-opacity);
+  }
+
+  /* A card opening something: a tint under the pointer. */
+  .clickable {
+    /* Animation */
+    transition: background-color 120ms ease;
+
+    &:hover {
+      background-color: var(--mantine-color-default-hover);
+    }
+  }
+
+  /* The button of a card opening something, over the whole card: an outline on keyboard focus. */
+  .cover {
+    /* Positionnement */
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+
+    /* Bordures */
+    border-radius: inherit;
+
+    /* Interaction */
+    cursor: pointer;
+
+    /* Effets */
+    &:focus-visible {
+      outline: 2px solid var(--mantine-primary-color-filled);
+      outline-offset: 2px;
+    }
+  }
+}

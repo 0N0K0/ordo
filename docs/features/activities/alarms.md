@@ -14,13 +14,15 @@ Les alarmes sonnent dans Ordo ouvert dans un onglet du navigateur ; app fermée,
 
 ## Page « Alarmes » (`/alarms`)
 
-Route `PAGES.alarms.path` = `/alarms`, composant `AlarmsPage`. Contenu centré, 7 colonnes au plus.
+Route `PAGES.alarms.path` = `/alarms`, composant `AlarmsPage`. Contenu centré, 12 colonnes au plus.
 
 - En-tête « Alarmes » avec « Nouvelle alarme » (désactivé tant que le contexte des tâches n’est pas chargé).
 - Tant que le navigateur n’a ni autorisé ni refusé les notifications : encart « Notifications du navigateur » (« Autorisez-les pour voir les alarmes même quand l’onglet d’Ordo n’est pas au premier plan. ») avec « Autoriser les notifications ».
-- Section « Minuteurs » : les minuteurs en cours (voir plus bas), « Aucun minuteur en cours. », « Lancer un minuteur », un bouton par minuteur enregistré de l’espace (« Œufs durs (9 min) », lancé en un clic) et « Minuteurs enregistrés » (les réglages de la page).
+- Trois colonnes de cartes, posées l’une sous l’autre dans chaque colonne : « Alarmes », « Minuteurs », « Rappels à venir ». Sur un écran plus étroit qu’un ordinateur (tablette, téléphone), elles deviennent trois onglets du même nom (gardés dans l’adresse, `?tab=`).
+- Colonne « Alarmes » : chargement : squelette de liste. Vide : « Aucune alarme. » avec « Nouvelle alarme ». Liste des alarmes, triées par date, heure puis création : une carte par alarme.
+- Colonne « Minuteurs » : les minuteurs en cours (voir plus bas), « Aucun minuteur en cours. », « Lancer un minuteur » et « Minuteurs enregistrés » (les réglages de la page) ; puis une carte par minuteur enregistré de l’espace (non archivé, dans l’ordre de sa liste) : son image ou sa couleur, son nom, sa durée, « Lancer » (lancé en un clic). Chargement : squelette. Vide : « Aucun minuteur enregistré. » avec « Minuteurs enregistrés ».
+- Colonne « Rappels à venir » : les rappels des évènements, des tâches et des routines de l’espace qui sonneront dans les 30 jours, de la prochaine occurrence de chaque élément seulement, du plus proche au plus lointain (voir [Rappels à venir](../../business-rules/activities/alarms.md#rappels-à-venir)). Erreur : « Les rappels à venir n’ont pas pu être chargés. ». Chargement : squelette. Vide : « Aucun rappel dans les 30 prochains jours. ».
 - Réglages de la page (⚙ de l’en-tête, « Paramètres des alarmes ») : la liste « Minuteurs enregistrés » (voir plus bas).
-- Section « Alarmes » : chargement : squelette de liste. Vide : « Aucune alarme. ». Liste des alarmes, triées par date, heure puis création : une carte par alarme.
 
 ### Carte d’une alarme
 
@@ -31,6 +33,11 @@ Route `PAGES.alarms.path` = `/alarms`, composant `AlarmsPage`. Contenu centré, 
 - Description (note), sur plusieurs lignes.
 - Interrupteur « Activer « X » » / « Désactiver « X » » : une alarme inactive est estompée.
 - Actions : « Modifier », « Dupliquer », « Supprimer » (confirmation « Supprimer l’alarme » : « L’alarme « X » sera supprimée définitivement et ne sonnera plus. », toast « Alarme supprimée. »).
+
+### Carte d’un rappel à venir
+
+- L’heure de sa sonnerie (« Ven. 27 nov., 09:45 », heure de Paris) ; l’icône de son élément (agenda, tâche, routine, celle de sa sonnerie ; nommée « Évènement », « Tâche », « Routine ») ; le titre de l’élément ; son jour : « Début : ven. 27 nov., 10:00 » pour un évènement, « Échéance : ven. 27 nov. » pour une tâche ou l’occurrence d’une routine. Une tâche « Chaque jour à 08:00 » n’a qu’une carte, celle de son prochain jour (plus ses « N jours avant » l’échéance).
+- Un clic ouvre le panneau latéral « Rappels de « X » » : l’élément (icône, titre, son jour) et seulement ses « Rappels », le même champ que dans son panneau (une tâche : « Chaque jour » à une heure ou « N jours avant », désactivé sans échéance ; une routine : depuis ses quatre repères, à une heure seulement sans aucune heure ; un évènement : depuis le début ou la fin, pour toute sa série). Chaque changement s’enregistre aussitôt (« Enregistrement… » puis « Enregistré » en haut du panneau ; un échec remet les rappels comme ils étaient, dans un toast d’erreur). Un élément supprimé ou déplacé ailleurs depuis le clic : avertissement « Élément introuvable » (« Il a été supprimé ou déplacé ailleurs : ses rappels ne peuvent plus être changés ici. »), le champ et « Ouvrir » désactivés. « Ouvrir » ferme ce panneau et mène à l’élément entier : la page de la tâche (son panneau ouvert), le panneau de la routine (sur l’occurrence du rappel), le panneau de l’évènement (sur son occurrence ; un évènement récurrent demande d’abord à quelles occurrences s’appliquent les changements).
 
 ## Formulaire d’alarme
 

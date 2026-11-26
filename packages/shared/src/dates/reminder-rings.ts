@@ -130,14 +130,15 @@ export interface RemindedTask {
  * @template {RemindedTask} T
  * @param {readonly T[]} tasks Tasks.
  * @param {Date} now Now.
+ * @param {number} [ahead] Days after today whose « À HH:MM » are given too (`taskReminders`). Optional. Default = 0.
  * @returns {(PlannedRing & { task: T })[]} Reminders.
  */
-export function taskRings<T extends RemindedTask>(tasks: readonly T[], now: Date): (PlannedRing & { task: T })[] {
+export function taskRings<T extends RemindedTask>(tasks: readonly T[], now: Date, ahead = 0): (PlannedRing & { task: T })[] {
   return tasks.flatMap((task) => {
     if (task.closed || task.archived || !task.reminders.length) return [];
     const days = { minDate: task.effectiveMinDate, deadline: task.effectiveDeadline, reminders: task.reminders };
     const lines = shownLines([task.effectiveDeadline && `Échéance : ${dayText(task.effectiveDeadline)}`]);
-    return taskReminders(taggedKey('task', task.id), days, now).map((reminder) => ({ ...reminder, title: task.label, lines, task }));
+    return taskReminders(taggedKey('task', task.id), days, now, ahead).map((reminder) => ({ ...reminder, title: task.label, lines, task }));
   });
 }
 

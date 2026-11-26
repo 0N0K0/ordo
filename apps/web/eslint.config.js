@@ -90,6 +90,14 @@ const RESTRICTED_PATHS = [
   },
 ];
 
+// The « Rappels » of a task, a routine or an event: one field each, the same in their panel and in the panel of their
+// reminders (page « Alarmes »), never a RemindersSelect set up by hand.
+const ITEM_REMINDERS_PATH = {
+  name: '../../../components/inputs/RemindersSelect',
+  importNames: ['RemindersSelect'],
+  message: 'Utiliser TaskRemindersField, RoutineRemindersField ou EventRemindersField (components/inputs/ItemReminders) : les « Rappels » d’une tâche, d’une routine ou d’un évènement, les mêmes partout.',
+};
+
 // The same, Menu allowed: the genuinely special menus.
 const RESTRICTED_PATHS_BUT_MENU = RESTRICTED_PATHS.filter((path) => !path.importNames.includes('Menu'));
 
@@ -1404,6 +1412,7 @@ export default defineConfig([
         {
           paths: [
             ...RESTRICTED_PATHS,
+            ITEM_REMINDERS_PATH,
             { name: '@mantine/core', importNames: ['Grid', 'SimpleGrid', 'Divider'], message: 'Utiliser DetailLayout et PanelGroup (components/panels/DetailLayout) : la disposition commune des panneaux.' },
           ],
           patterns: [
@@ -1415,6 +1424,11 @@ export default defineConfig([
         },
       ],
     },
+  },
+  {
+    // The other places where the « Rappels » of a task, a routine or an event are edited: their field (ItemReminders).
+    files: ['src/features/tasks/components/TaskCreateForm.tsx', 'src/features/routines/components/RoutineSchedule.tsx', 'src/features/alarms/{components,hooks,lib}/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-imports': ['error', { paths: [...RESTRICTED_PATHS, ITEM_REMINDERS_PATH] }] },
   },
   {
     // Several values of a cell are shown one under the other (StackedValues, StackedLines, the `values` of a column),

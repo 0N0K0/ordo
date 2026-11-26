@@ -148,7 +148,7 @@ function excludedDates(rule: Recurrence, start: string, cancelled: string[]): st
  * @returns {Recurrence | null} Rule, or null.
  */
 function icsApproximation(rule: Recurrence, start: string): Recurrence | null {
-  if (rule.frequency === 'WEEKLY' && rule.weekParity) return { ...rule, weekParity: null, parityInterval: null, interval: rhythmInterval(rule) };
+  if (rule.frequency === 'WEEKLY' && rule.weekParity) return { ...rule, weekParity: null, parityInterval: null, parityShift: null, interval: rhythmInterval(rule) };
   if (rule.frequency === 'MONTHLY' && rule.monthlyMode === 'WEEKDAY' && rule.weekdayParity) {
     const values = ruleValues(rule, start);
     return { ...rule, weekdayParity: null, position: values.position, weekday: values.weekday };

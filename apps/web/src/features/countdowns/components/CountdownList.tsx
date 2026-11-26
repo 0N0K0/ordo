@@ -15,11 +15,12 @@ import { CountdownRow } from './CountdownRow';
  * Timers of the user (every workspace), the soonest end first, each with its commands, « Lancer un
  * minuteur » (the form of « Ajouter › Minuteur »), the saved timers of the workspace started in one click, and
  * « Minuteurs enregistrés » (their settings, on the page « Alarmes »): the page « Alarmes », the header, the home card.
- * @param {{ compact?: boolean, bare?: boolean }} props In a popover (`compact`: small button), or in a card (`bare`):
- *   no empty state text but the button (optional).
+ * @param {{ compact?: boolean, bare?: boolean, withSaved?: boolean }} props In a popover (`compact`: small button), or in
+ *   a card (`bare`): no empty state text but the button (optional); without the buttons of the saved timers
+ *   (`withSaved` false: they have their cards beside, the page « Alarmes »; optional, default = with them).
  * @returns {JSX.Element} List.
  */
-export function CountdownList({ compact = false, bare = compact }: { compact?: boolean; bare?: boolean }) {
+export function CountdownList({ compact = false, bare = compact, withSaved = true }: { compact?: boolean; bare?: boolean; withSaved?: boolean }) {
   const { data: countdowns, isPending } = useCountdowns();
   const { data: savedCountdowns = [] } = useSavedCountdowns();
   const startSaved = useStartSavedCountdown();
@@ -37,7 +38,7 @@ export function CountdownList({ compact = false, bare = compact }: { compact?: b
         <ActionButton priority="secondary" size={size} icon={<TimerIcon aria-hidden />} onClick={() => openCountdownForm()}>
           Lancer un minuteur
         </ActionButton>
-        {unarchived(savedCountdowns).map((saved) => (
+        {(withSaved ? unarchived(savedCountdowns) : []).map((saved) => (
           <ActionButton key={saved.id} priority="tertiary" size="xs" icon={<PlayIcon aria-hidden />} hint="Lance ce minuteur enregistré." onClick={() => startSaved(saved)}>
             {timerLabel(saved)}
           </ActionButton>

@@ -16,7 +16,7 @@ Fragments `DeadTimeFields` (`label`, `minutes`, `ringtone` : repris par les frag
 | `sendCountdownRung(id)`        | La fin d’un minuteur a sonné (`ringCountdown`) ; renvoie s’il a été noté sonné                                                 | `useCountdownRinger`                           |
 | `useCountdownMutations()`      | `{ start, setPaused({ id, paused }), extend({ id, minutes }), cancel(id) }`, qui relisent les minuteurs                        | `CountdownForm`, `CountdownControls`, `useStartSavedCountdown` |
 | `SavedCountdown`, `SavedCountdownTarget` (types) | Un minuteur enregistré ; l’élément qui en cite (`TASK`, `ROUTINE`, `EVENT`, `SHEET`)                         | ici, les éléments                              |
-| `savedCountdownsQueryKey`, `useSavedCountdowns()` | Clé `['savedCountdowns']` ; les minuteurs enregistrés de l’espace, dans leur ordre (archivés compris)        | `CountdownForm`, `CountdownList`, `SavedCountdownsField`, `SavedCountdownsSettings`, `useItemLaunchers` |
+| `savedCountdownsQueryKey`, `useSavedCountdowns()` | Clé `['savedCountdowns']` ; les minuteurs enregistrés de l’espace, dans leur ordre (archivés compris)        | `CountdownForm`, `CountdownList`, `SavedCountdownsField`, `SavedCountdownsSettings`, `useItemLaunchers`, `SavedCountdownCards` (alarmes) |
 | `useSavedCountdownMutations()` | `{ create, update({ id, input }), remove({ id }) }` (la suppression relit tout : les éléments le perdent)                       | `useSavedCountdownItems`, `SavedCountdownsSettings` |
 | `useSetSavedCountdownLinks(invalidate)` | Les minuteurs enregistrés d’un élément (`setSavedCountdownLinks`), puis les requêtes données relues                  | `SavedCountdownsField`, `EventForm` (copie d’un évènement dupliqué) |
 
@@ -36,7 +36,7 @@ Interne : `useCountdownMutation`.
 
 ### `components/CountdownList.tsx`
 
-- `CountdownList({ compact?, bare? })` : les minuteurs (`CountdownRow`), « Aucun minuteur en cours. » (pas en `compact` ni `bare`), « Lancer un minuteur » (`openCountdownForm`, le formulaire de « Ajouter › Minuteur » ; petit en `compact`), un bouton par minuteur enregistré non archivé (`useStartSavedCountdown`, en un clic) et « Minuteurs enregistrés » (`settingsPath` de la page « Alarmes »). Utilisé par la page « Alarmes », la bulle de `CountdownWidget` (`compact`) et la carte « Chrono et alarmes » de l’accueil (`bare`).
+- `CountdownList({ compact?, bare?, withSaved? })` : les minuteurs (`CountdownRow`), « Aucun minuteur en cours. » (pas en `compact` ni `bare`), « Lancer un minuteur » (`openCountdownForm`, le formulaire de « Ajouter › Minuteur » ; petit en `compact`), un bouton par minuteur enregistré non archivé (`useStartSavedCountdown`, en un clic ; pas avec `withSaved` faux : la page « Alarmes » les montre en cartes, `SavedCountdownCards`) et « Minuteurs enregistrés » (`settingsPath` de la page « Alarmes »). Utilisé par la page « Alarmes », la bulle de `CountdownWidget` (`compact`) et la carte « Chrono et alarmes » de l’accueil (`bare`).
 
 ### `components/CountdownWidget.tsx`
 
@@ -61,7 +61,7 @@ Interne : `useCountdownMutation`.
 
 - `ItemLaunchers` (type) : ce qu’un élément lance (`deadTimes`, `savedCountdownIds`).
 - `linkedSavedCountdowns(all, ids)` : les minuteurs enregistrés d’un élément, dans l’ordre de la liste, sans les archivés.
-- `useStartSavedCountdown()` : lance un minuteur enregistré aussitôt (nom, durée, sonnerie), seul ou pour un élément ; toast « Minuteur lancé : 9 min. ».
+- `useStartSavedCountdown()` : lance un minuteur enregistré aussitôt (nom, durée, sonnerie), seul ou pour un élément ; toast « Minuteur lancé : 9 min. ». Utilisé aussi par `SavedCountdownCards` (alarmes).
 - `useItemLaunchers()` : les lanceurs d’un élément (libellé `timerLabel`, action) : les temps morts ouvrent le formulaire, les minuteurs enregistrés démarrent aussitôt. Utilisé par `useCountdownMenuEntries`.
 - `useCountdownMenuEntries()` : entrées du menu « … » d’un élément, sections « Temps morts » et « Minuteurs », « Lancer « … » » ; rien sans eux. Utilisé par `useTaskActions`, `useRoutineOccurrenceMenu`, `RoutineForm`, `useEventMenu`, `SheetPage`.
 - `SavedCountdownExtra` (type), `useSavedCountdownItems()` : la liste et le formulaire des minuteurs enregistrés (`SettingsItemKind` : « Nom », « Durée » tapée enregistrée en la quittant, « Sonnerie » `RingtoneSelect` ; `savedCountdownFormSchema`, minutes par `parseDuration`).

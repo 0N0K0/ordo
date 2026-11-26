@@ -162,11 +162,11 @@ const RING_ICONS: Record<string, ReactNode> = {
 };
 
 /**
- * Icon of a ring, from the kind its key tells.
+ * Icon of a ring, from the kind its key tells (its toast, the card of a reminder to come).
  * @param {string} key Key.
  * @returns {ReactNode} Icon.
  */
-const ringIcon = (key: string): ReactNode => RING_ICONS[parseTaggedKey(key)?.tag ?? ''] ?? <AlarmIcon />;
+export const ringIcon = (key: string): ReactNode => RING_ICONS[parseTaggedKey(key)?.tag ?? ''] ?? <AlarmIcon />;
 
 /**
  * Clears the timers of a ring and stops its ringtone.

@@ -252,9 +252,10 @@ describe('crossedWeeks / weeksChange', () => {
     expect(crossedWeeks(3, -10)).toBe(-2);
   });
 
-  it('even / odd weeks change on an odd number of weeks; every n weeks on a number that is not a multiple of n', () => {
+  it('even / odd weeks change on any number of weeks; every n weeks on a number that is not a multiple of n', () => {
     expect(weeksChange(rule({ weekParity: 'EVEN' }), 1)).toBe(true);
-    expect(weeksChange(rule({ weekParity: 'EVEN' }), -2)).toBe(false);
+    expect(weeksChange(rule({ weekParity: 'EVEN' }), -2)).toBe(true);
+    expect(weeksChange(rule({ weekParity: 'EVEN' }), 0)).toBe(false);
     expect(weeksChange(rule({ interval: 3 }), 3)).toBe(false);
     expect(weeksChange(rule({ interval: 3 }), -1)).toBe(true);
     expect(weeksChange(rule({}), 1)).toBe(false);
@@ -368,11 +369,11 @@ describe('shiftedSeries', () => {
     expect(datesOf(shiftedSeries(even, '2026-11-09', 3))).toEqual(allDates(even, '2026-11-09').map((date) => addDays(date, 3)));
   });
 
-  it('even / odd weeks moved across a year with week 53: accepted limit, the day moved from week 53 to week 1 is lost', () => {
+  it('even / odd weeks moved across a year with week 53: the same occurrences, moved (the Friday of week 53 to the Monday of week 1 too)', () => {
     const odd = rule({ weekdays: [1, 5], weekParity: 'ODD', until: '2027-01-31' });
     const moved = allDates(odd, '2026-12-14').map((date) => addDays(date, 3));
     expect(moved).toContain('2027-01-04');
-    expect(datesOf(shiftedSeries(odd, '2026-12-14', 3))).toEqual(moved.filter((date) => date !== '2027-01-04'));
+    expect(datesOf(shiftedSeries(odd, '2026-12-14', 3))).toEqual(moved);
   });
 
   it('every week: one series from the first day moved', () => {
@@ -497,9 +498,10 @@ describe('seriesHolding', () => {
   });
 
   it('an occurrence that no series has once moved: none (its comments, checklist and routine links go with it)', () => {
-    // Odd Mon + Fri from 12-14, +3 days: the Friday 2027-01-01 (week 53) becomes Monday 2027-01-04 (week 1), lost.
-    const odd = shiftedSeries(rule({ weekdays: [1, 5], weekParity: 'ODD', until: '2027-01-31' }), '2026-12-14', 3);
-    expect(seriesHolding(odd, addDays('2027-01-01', 3))).toBeUndefined();
-    expect(seriesHolding(odd, addDays('2026-12-28', 3))).toBeDefined();
+    // The 2nd Tuesday from 2026-11-10, +1 day: the 2nd Wednesday; the 2nd Tuesday 2027-09-14 becomes the 3rd Wednesday, lost.
+    const tuesday = rule({ frequency: 'MONTHLY', monthlyMode: 'WEEKDAY', weekday: 2, position: 2, until: '2027-12-31' });
+    const moved = shiftedSeries(tuesday, '2026-11-10', 1);
+    expect(seriesHolding(moved, addDays('2027-09-14', 1))).toBeUndefined();
+    expect(seriesHolding(moved, addDays('2027-10-12', 1))).toBeDefined();
   });
 });

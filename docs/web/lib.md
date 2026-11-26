@@ -225,5 +225,6 @@ La banque de sonneries, générées en Web Audio, sans fichier (une brique commu
 ## Mise en page
 
 - `fill-height.ts` : `useRoomBelow(ref, onMeasure)` (place restante sous un élément pour que la page tienne dans la fenêtre, remesurée au redimensionnement et quand le contenu de la page change ; utilisé par `data-table`) et `useFillHeight(minimum = 320)` (ref + hauteur disponible, au moins le minimum ; mails, carte).
-- `use-is-phone.ts` : `PHONE_QUERY` (sous le point de rupture tablette, `styles/breakpoints.json`, 48em) et `useIsPhone()`.
+- `use-is-phone.ts` : `PHONE_QUERY` (sous le point de rupture tablette, `styles/breakpoints.json`, 48em) et `useIsPhone()` ; `BELOW_DESKTOP_QUERY` (sous le point de rupture `desktop`, 70em) et `useIsBelowDesktop()` : des colonnes côte à côte deviennent des onglets (page « Alarmes »).
+- `routine-hours.ts` : `RoutineHoursFields` (type) et `routineHasHoursOf(routine)` : `routineHasHours` sur les champs d’une routine tels que GraphQL les donne (heures, moments, condition, cas) ; sans heure, ses rappels ne sont qu’à une heure du jour. Utilisé par `RemindersCell` (routines) et `ReminderItemPanel` (alarmes).
 - `use-color-swatches.ts` : `useColorSwatches()`, la palette des sélecteurs de couleur : nuance 6 de chaque couleur Mantine sauf `dark` et `gray`.

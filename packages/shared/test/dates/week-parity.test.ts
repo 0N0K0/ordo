@@ -9,11 +9,13 @@ import {
   ruleCountsFromDay,
   ruleMovedTo,
   ruleValues,
+  shiftedSeries,
   WEEKDAY_PARITY_REFUSAL,
   weeksChange,
+  type Recurrence,
 } from '../../src/dates/recurrence';
 import { ordinal, WEEK_POSITION_LABELS } from '../../src/dates/months';
-import { isoWeek, isoWeekHasParity, isoWeeksInYear, isoYear, WEEK_PARITY_WORDS } from '../../src/dates/days';
+import { addDays, isoWeek, isoWeekHasParity, isoWeeksInYear, isoYear, WEEK_PARITY_WORDS } from '../../src/dates/days';
 import { rule } from '../rules';
 
 /** Monthly rule on a weekday of the even or odd weeks of the month. */
@@ -98,12 +100,12 @@ describe('weekly: every x even / odd weeks', () => {
     expect(rhythmInterval(rule({ interval: 3 }))).toBe(3);
   });
 
-  it('moved: its weeks change for an odd number of weeks, or a number of its weeks not a multiple of x', () => {
+  it('moved: its weeks change for any number of weeks (they move in their order), not within its week', () => {
     const twice = rule({ weekParity: 'EVEN', parityInterval: 2 });
     expect(weeksChange(twice, 1)).toBe(true);
-    expect(weeksChange(twice, 2)).toBe(true);
-    expect(weeksChange(twice, 4)).toBe(false);
-    expect(weeksChange(rule({ weekParity: 'EVEN' }), 2)).toBe(false);
+    expect(weeksChange(twice, 4)).toBe(true);
+    expect(weeksChange(rule({ weekParity: 'EVEN' }), 2)).toBe(true);
+    expect(weeksChange(rule({ weekParity: 'EVEN' }), 0)).toBe(false);
   });
 
   it('moved into the next week: parity swapped, its rhythm counted from its first occurrence moved', () => {
@@ -112,6 +114,92 @@ describe('weekly: every x even / odd weeks', () => {
     // First Friday: 2026-01-09 (week 2), moved to Monday 2026-01-12 (week 3).
     expect(moved.anchor).toBe('2026-01-12');
     expect(occurrenceDates(moved.rule, moved.anchor ?? '', '2026-01-12', '2026-02-28')).toEqual(['2026-01-12', '2026-02-09']);
+  });
+});
+
+/**
+ * Occurrences of the series a series becomes once moved by some days, up to a day.
+ * @param {Recurrence} recurrence Rule.
+ * @param {string} start First date.
+ * @param {number} days Days moved.
+ * @param {string} to Last day looked at.
+ * @returns {string[]} Dates.
+ */
+const movedDates = (recurrence: Recurrence, start: string, days: number, to: string): string[] =>
+  shiftedSeries(recurrence, start, days)
+    .flatMap((series) => occurrenceDates(series.rule, series.start, series.start, to))
+    .sort();
+
+/**
+ * Occurrences of a series, each moved by some days, up to a day (before the move).
+ * @param {Recurrence} recurrence Rule.
+ * @param {string} start First date.
+ * @param {number} days Days moved.
+ * @param {string} to Last day looked at, once moved.
+ * @returns {string[]} Dates.
+ */
+const eachMoved = (recurrence: Recurrence, start: string, days: number, to: string): string[] =>
+  occurrenceDates(recurrence, start, start, addDays(to, -days)).map((date) => addDays(date, days));
+
+describe('weekly even / odd weeks moved: their weeks in their order, across week 53 too', () => {
+  const odd = rule({ weekdays: [1], weekParity: 'ODD' });
+  const even = rule({ weekdays: [1], weekParity: 'EVEN' });
+
+  it('odd weeks from 2026-12-14 moved by 14 days: 28 Dec, 11 Jan, 18 Jan (week 53 then week 1, both odd, moved)', () => {
+    expect(movedDates(odd, '2026-12-14', 14, '2027-02-01')).toEqual(['2026-12-28', '2027-01-11', '2027-01-18', '2027-02-01']);
+    const [series] = shiftedSeries(odd, '2026-12-14', 14);
+    // Shown as odd weeks, its former weeks two weeks later.
+    expect(series.rule).toMatchObject({ weekParity: 'ODD', parityShift: 2 });
+  });
+
+  it('an even or odd number of weeks, later or earlier, across weeks 53 and 1: each occurrence moved', () => {
+    for (const [recurrence, start] of [
+      [odd, '2026-11-30'],
+      [even, '2026-11-23'],
+    ] as const) {
+      for (const days of [7, 14, 21, -7, -14, 28]) expect(movedDates(recurrence, start, days, '2033-03-01')).toEqual(eachMoved(recurrence, start, days, '2033-03-01'));
+    }
+  });
+
+  it('even weeks from week 52 moved by 14 days: the day moved into week 1 (odd) kept', () => {
+    expect(movedDates(even, '2026-12-21', 14, '2027-01-31')).toEqual(['2027-01-04', '2027-01-25']);
+  });
+
+  it('within years of 52 weeks: the same weeks as a plain rule, the parity swapped for an odd number of weeks', () => {
+    const start = '2027-03-01';
+    const until = { ...even, until: '2027-11-29' };
+    for (const days of [7, 14]) {
+      const [series] = shiftedSeries(until, start, days);
+      const plain = { ...series.rule, parityShift: null };
+      expect(series.rule.weekParity).toBe(days === 7 ? 'ODD' : 'EVEN');
+      expect(occurrenceDates(series.rule, series.start, series.start, '2027-12-31')).toEqual(occurrenceDates(plain, series.start, series.start, '2027-12-31'));
+      expect(occurrenceDates(series.rule, series.start, series.start, '2027-12-31')).toEqual(eachMoved(until, start, days, '2027-12-31'));
+    }
+  });
+
+  it('one out of x = 2, by an even or odd number of weeks across week 53: each occurrence moved', () => {
+    const twice = rule({ weekdays: [1], weekParity: 'ODD', parityInterval: 2 });
+    expect(movedDates(twice, '2026-12-14', 28, '2027-03-01')).toEqual(['2027-01-11', '2027-02-01', '2027-03-01']);
+    for (const days of [7, 14, 28, -14]) expect(movedDates(twice, '2026-11-30', days, '2033-03-01')).toEqual(eachMoved(twice, '2026-11-30', days, '2033-03-01'));
+  });
+
+  it('several weekdays changing week apart (Mon + Fri, 3 days later): the Friday of week 53 to the Monday of week 1 kept', () => {
+    const monFri = rule({ weekdays: [1, 5], weekParity: 'ODD' });
+    expect(movedDates(monFri, '2026-12-14', 3, '2027-01-31')).toEqual(eachMoved(monFri, '2026-12-14', 3, '2027-01-31'));
+    expect(movedDates(monFri, '2026-12-14', 3, '2027-01-31')).toContain('2027-01-04');
+  });
+
+  it('moved back as much: its weeks as they were', () => {
+    const [there] = shiftedSeries(odd, '2026-12-14', 14);
+    const [back] = shiftedSeries(there.rule, there.start, -14);
+    expect(back.rule.parityShift).toBeNull();
+    expect(occurrenceDates(back.rule, back.start, back.start, '2028-01-31')).toEqual(occurrenceDates(odd, '2026-12-14', '2026-12-14', '2028-01-31'));
+  });
+
+  it('every n weeks: no change (no parity shift)', () => {
+    const [series] = shiftedSeries(rule({ weekdays: [1], interval: 2 }), '2026-12-14', 14);
+    expect(series.rule).not.toHaveProperty('parityShift');
+    expect(movedWeekdays(rule({ weekdays: [5], interval: 2 }), '2026-01-05', [5], 3).rule).not.toHaveProperty('parityShift');
   });
 });
 
