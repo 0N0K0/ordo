@@ -18,6 +18,6 @@ interface RoutineGroupProgressProps {
  */
 export function RoutineGroupProgress({ state, when }: RoutineGroupProgressProps) {
   const moments = state.moments.length > 1 ? state.moments.map((moment) => `${windowText(moment) || `fois ${moment.index + 1}`} : ${moment.done ? 'fait' : 'à faire'}`) : [];
-  const label = [`${countOf(state.done, 'sous-routine faite', 'sous-routines faites')} sur ${countOf(state.due, 'ouverte', 'ouvertes')} ${when}`, ...moments].join(' · ');
-  return <ProgressBadge done={state.done} total={state.due} label={label} />;
+  const label = [`${countOf(state.done, 'sous-routine faite', 'sous-routines faites')} sur ${countOf(state.counted, 'ouverte', 'ouvertes')} ${when}`, ...moments].join(' · ');
+  return <ProgressBadge done={state.done} total={state.counted} label={label} />;
 }

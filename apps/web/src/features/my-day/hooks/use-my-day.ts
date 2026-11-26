@@ -162,7 +162,7 @@ function routineWindows(slot: RoutineSlot): TimeWindow[] | null {
  * - routines: each time of the day of an occurrence open that day (done: on the day it was done; on a past day, not
  *   done: « non faite »), cancelled on its due day, and today the late ones (their current occurrence past due)
  *   (`routineDayEntries`); a parent routine (a group) as the head of its sub-routines of the day, its progress read from
- *   those that count that day (`routineGroupStatesOn`: open that day until the day they are done), present only when
+ *   those that count that day (`routineGroupStatesOn`: open that day not done yet, or done that day), present only when
  *   one does; archived ones left out;
  * - event occurrences of the workspace (cancelled ones struck through, those over several days on each of their
  *   days), éphémérides and birthdays of the day;
@@ -302,7 +302,7 @@ export function useMyDay(day: string): MyDay {
         doneAt: parisTime(slot.doneAt),
         cancelled: occurrence.cancelled,
         eventKeys: linkedKeys(dayOccurrences, (event) => event.routineLinks.some((link) => link.routineId === routine.id && link.date === occurrence.date)),
-        // Under its parent only when it counts for it that day (open that day until the day it is done); else on its own.
+        // Under its parent only when it counts for it that day (open that day not done yet, or done that day); else on its own.
         groupKey: !late && routineCountsOn(occurrence, day) ? groupKeyOf(routine) : undefined,
       });
     }

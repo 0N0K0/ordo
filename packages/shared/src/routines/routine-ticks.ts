@@ -155,10 +155,10 @@ export function routineDoneDay({ startDate, slots }: Pick<RoutineTickOccurrence,
 }
 
 /**
- * Whether an occurrence of a sub-routine counts for its group on a day: on each day it is open, from its first day
- * (« Ouverture ») to its due day, both included, until the day it is done (`routineDoneDay`: that day counted, as done;
- * the following days of its window no longer); never when it is cancelled, nor without any required time of the day
- * (nothing to do). A late one (past due) never counts.
+ * Whether an occurrence of a sub-routine counts for its group on a day: not done yet, on each day it is open, from its
+ * first day (« Ouverture ») to its due day, both included; once done, on the day it was done only (`routineDoneDay`;
+ * neither the days of its window before, nor those after); never when it is cancelled, nor without any required time
+ * of the day (nothing to do). A late one (past due) never counts.
  * @param {Pick<RoutineTickOccurrence, 'startDate' | 'dueDate' | 'cancelled' | 'slots'>} occurrence Occurrence, with its ticks.
  * @param {string} day Day (YYYY-MM-DD).
  * @returns {boolean} It counts that day.
@@ -166,7 +166,7 @@ export function routineDoneDay({ startDate, slots }: Pick<RoutineTickOccurrence,
 export function routineCountsOn(occurrence: Pick<RoutineTickOccurrence, 'startDate' | 'dueDate' | 'cancelled' | 'slots'>, day: string): boolean {
   if (occurrence.cancelled || day < occurrence.startDate || day > occurrence.dueDate || !requiredSlots(occurrence.slots).length) return false;
   const doneDay = routineDoneDay(occurrence);
-  return doneDay === null || doneDay >= day;
+  return doneDay === null || doneDay === day;
 }
 
 /** A moment of a group on a day: moment `index` of its sub-routines that count that day (`routineCountsOn`). */
@@ -182,7 +182,7 @@ export interface RoutineGroupMoment {
 /** State of a group on a day, read from its sub-routines that count that day (`routineCountsOn`). */
 export interface RoutineGroupState {
   /** Sub-routines that count that day (`routineCountsOn`; not archived; a sub-routine that is a group itself: present that day). */
-  due: number;
+  counted: number;
   /** Those done (« 2/3 »: done / counted). */
   done: number;
   /** Every sub-routine counting that day is done. */
@@ -210,13 +210,13 @@ function gather(moments: Map<number, RoutineGroupMoment>, moment: RoutineGroupMo
 
 /**
  * State on a day of every group (`routineGroupIds`) present that day, computed from its sub-routines, never stored:
- * - a sub-routine counts when it is not archived and one of its occurrences counts that day (`routineCountsOn`: open
- *   that day, from its « Ouverture » to its due day, until the day it is done; a sub-routine that is a group itself:
- *   present that day); the others do not count;
+ * - a sub-routine counts when it is not archived and one of its occurrences counts that day (`routineCountsOn`: not
+ *   done, open that day, from its « Ouverture » to its due day; done, on the day it was done only; a sub-routine that
+ *   is a group itself: present that day); the others do not count;
  * - a group is present on a day when at least one of its sub-routines counts (absent from the map otherwise);
- * - a sub-routine is done when every required moment of each of its occurrences counting that day is ticked by that
- *   day (ticked on that day or before; a day shown again before the day it was ticked: not done), optional moments
- *   aside; a group when all those that count are (progress: done / due);
+ * - a sub-routine is done when every required moment of each of its occurrences counting that day is ticked, that day
+ *   or before (a moment ticked later: not done that day), optional moments aside; a group when all those that count
+ *   are (progress: done / counted);
  * - moment M of a group is done when moment M of every sub-routine that counts and has M as a required moment is.
  * @param {readonly RoutineGroupMember[]} routines Routines of the workspace.
  * @param {readonly RoutineTickOccurrence[]} occurrences Their occurrences around that day, with their ticks.
@@ -227,10 +227,10 @@ export function routineGroupStatesOn(routines: readonly RoutineGroupMember[], oc
   const groups = routineGroupIds(routines);
   const children = new Map<string, RoutineGroupMember[]>();
   for (const routine of routines) if (routine.parentId && !routine.archived) children.set(routine.parentId, [...(children.get(routine.parentId) ?? []), routine]);
-  const dueOf = new Map<string, RoutineTickOccurrence[]>();
+  const countedOf = new Map<string, RoutineTickOccurrence[]>();
   for (const occurrence of occurrences) {
     if (!routineCountsOn(occurrence, day)) continue;
-    dueOf.set(occurrence.routineId, [...(dueOf.get(occurrence.routineId) ?? []), occurrence]);
+    countedOf.set(occurrence.routineId, [...(countedOf.get(occurrence.routineId) ?? []), occurrence]);
   }
   const states = new Map<string, RoutineGroupState>();
   const memo = new Map<string, MemberState | null>();
@@ -253,14 +253,14 @@ export function routineGroupStatesOn(routines: readonly RoutineGroupMember[], oc
         const moments = new Map<number, RoutineGroupMoment>();
         for (const member of members) for (const moment of member.moments.values()) gather(moments, moment);
         const done = members.filter((member) => member.complete).length;
-        states.set(id, { due: members.length, done, complete: done === members.length, moments: [...moments.values()].sort((a, b) => a.index - b.index) });
+        states.set(id, { counted: members.length, done, complete: done === members.length, moments: [...moments.values()].sort((a, b) => a.index - b.index) });
         state = { complete: done === members.length, moments };
       }
     } else {
-      const due = dueOf.get(id) ?? [];
-      if (due.length) {
+      const counted = countedOf.get(id) ?? [];
+      if (counted.length) {
         const moments = new Map<number, RoutineGroupMoment>();
-        for (const occurrence of due) {
+        for (const occurrence of counted) {
           for (const slot of requiredSlots(occurrence.slots)) {
             const ticked = tickDay(slot);
             gather(moments, { index: slot.index, fromTime: slot.fromTime ?? null, dueTime: slot.dueTime ?? null, done: ticked !== null && ticked <= day });
@@ -328,8 +328,7 @@ export interface RoutineDayOptions<R> {
  * day of an occurrence open that day (`routineSlotShownOn`: done, on the day it was done), a cancelled occurrence on
  * its due day; today, the required times of the day not done of the current occurrence of a late routine (past due),
  * kept to the hours `allowedToday` allows (none: not listed). Neither an archived routine (nor an archived
- * occurrence), nor a group (`routineGroupIds`: seen through its sub-routines), nor the optional times of the day not
- * done of a sub-routine of a group done before that day (`routineDoneDay`).
+ * occurrence), nor a group (`routineGroupIds`: seen through its sub-routines).
  * @param {readonly R[]} routines Routines of the workspace.
  * @param {readonly O[]} occurrences Their occurrences around that day.
  * @param {string} day Day (YYYY-MM-DD).
@@ -361,10 +360,7 @@ export function routineDayEntries<R extends RoutineDayRoutine, O extends Routine
   for (const occurrence of occurrences) {
     const routine = byId.get(occurrence.routineId);
     if (!listed(routine) || occurrence.archived) continue;
-    // A sub-routine of a group done before that day: its optional times of the day not done are no longer shown.
-    const doneDay = routine.parentId && groups.has(routine.parentId) ? routineDoneDay(occurrence) : null;
     for (const slot of occurrence.slots) {
-      if (doneDay && doneDay < day && slot.optional && !slot.doneAt) continue;
       // Cancelled: on its due day; else on each day it is open, once done on the day it was done.
       const on = occurrence.cancelled ? occurrence.dueDate === day : routineSlotShownOn(occurrence, slot.doneAt ?? null, day);
       if (on) add({ routine, occurrence, slot, late: false, windows: null });
