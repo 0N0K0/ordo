@@ -70,7 +70,7 @@ Infobulle d'un bouton qui s'affiche aussi quand il est désactivé : le bouton e
 
 ### Types
 
-- `RowAction` : action d'un menu ou d'une ligne. Champs : `label`, `icon` (facultatif pour une entrée cochée), `checked` (choix d'un menu d'options : coche, sinon alignement ; avec icône, la coche va après le libellé), `description` (seconde ligne atténuée), `indent` (profondeur dans un arbre), `onClick`, `to`, `href`, `download`, `disabled`, `hint` (attribut `title`), `danger` (rouge, en dernier après un séparateur), `inMenu` (toujours dans le menu « … », jamais en bouton : « Archiver » / « Restaurer » : « Archiver » n'est jamais un bouton).
+- `RowAction` : action d'un menu ou d'une ligne. Champs : `label`, `icon` (facultatif pour une entrée cochée), `checked` (choix d'un menu d'options : coche, sinon alignement ; avec icône, la coche va après le libellé), `description` (seconde ligne atténuée), `indent` (profondeur dans un arbre), `onClick`, `to`, `href`, `download`, `disabled`, `hint` (attribut `title`), `danger` (rouge, en dernier après un séparateur), `inMenu` (toujours dans le menu « … », jamais en bouton : « Archiver » / « Restaurer » : « Archiver » n'est jamais un bouton), `loading` (en cours, quelque chose est vérifié avant d'agir : son bouton tourne ; gardée dans le menu « … », c'est le bouton de ce menu qui tourne, l'entrée désactivée pendant ce temps).
 - `RowMenuEntry` : `RowAction`, titre de section `{ section: string }`, `'divider'`, ou une valeur fausse (`null`, `false`, `undefined`, `''`) pour une entrée non proposée.
 
 ### `ActionsMenu`
@@ -87,7 +87,7 @@ Menu des actions de quelque chose (ligne, en-tête de page), le même partout. ~
 
 ### `InlineActions`
 
-Actions côte à côte en icônes (`IconAction`, rouges si destructives) pour une carte ou un élément de liste ; les actions `inMenu` vont dans un `ActionsMenu` « … » après elles. Séparateurs et titres ignorés. Utilisé dans la facturation, la trésorerie, les espaces, les réglages, les mails, les tâches.
+Actions côte à côte en icônes (`IconAction`, rouges si destructives) pour une carte ou un élément de liste ; les actions `inMenu` vont dans un `ActionsMenu` « … » après elles, dont le bouton tourne tant que l'une d'elles est `loading`. Séparateurs et titres ignorés. Utilisé dans la facturation, la trésorerie, les espaces, les réglages, les mails, les tâches.
 
 Fonction interne : `isAction(entry)`.
 
@@ -95,7 +95,7 @@ Fonction interne : `isAction(entry)`.
 
 - `ActionsSubject` (interface) : `{ name?: string | null; about?: string }`.
 - `subjectText(subject)` : texte du sujet dans un libellé caché : `« name »` cité, sinon `about`.
-- `actionIconProps(action, subject)` : props d'`IconAction` pour une `RowAction` (libellé, `item` ou `aria-label`, `hint`, rouge si `danger`, désactivation, clic, lien). Utilisé par `InlineActions` et les actions de ligne de `data-table`.
+- `actionIconProps(action, subject)` : props d'`IconAction` pour une `RowAction` (libellé, `item` ou `aria-label`, `hint`, rouge si `danger`, désactivation, chargement `loading`, clic, lien). Utilisé par `InlineActions` et les actions de ligne de `data-table`.
 
 ## `link-props.ts`
 

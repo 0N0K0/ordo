@@ -105,7 +105,7 @@ Utilisés par `useCalendarEdits`.
 
 ### `components/CalendarsManager.tsx`
 
-- `CalendarsManager()` : sections `OwnCalendars` (confirmation de suppression avec le nombre de temps supprimés, `LostOnDeleteRisk` sur `calendarId` ; archivage d’un calendrier qui a des abonnés confirmé d’abord, `archiveRisk` → `subscribersArchiveRisk`) + `OtherCalendars`. Utilisé par `CalendarPage` (onglet Paramètres).
+- `CalendarsManager()` : sections `OwnCalendars` (confirmation de suppression avec le nombre de temps supprimés, `LostOnDeleteRisk` sur `calendarId` ; archivage d’un calendrier qui a des abonnés confirmé d’abord, `archiveRisk` : les calendriers relus juste avant, `useCalendars().refetch`, puis `subscribersArchiveRisk`) + `OtherCalendars`. Utilisé par `CalendarPage` (onglet Paramètres).
 - Interne `OwnCalendars()` : `SettingsList` genre `CALENDAR` (`calendarFormSchema`, `listMutations`), export ICS par ligne (`IconAction` + `calendarIcsUrl`) et global (`CalendarsIcsButton`), `undeletable` pour le dernier.
 - Interne `OtherCalendars()` : `SettingsSection` « Calendriers des autres espaces », `ByWorkspace` + `SubscriptionRow`, état vide.
 
@@ -243,7 +243,7 @@ Utilisés par `ScheduleSettings`.
 ### `hooks/use-settings-items.tsx`
 
 - `useCalendarCategoryItems()` : `SettingsItemKind` des catégories (`CALENDAR_CATEGORY`, couleur requise, `calendarCategoryFormSchema`, `itemMutations` + `treeItemInput`). Utilisé par `CalendarCategoriesManager`, `EventForm` (création depuis la liste).
-- `useScheduleTypeItems({ ephemeris?, budgetContext? })` : `SettingsItemKind<ScheduleType, ScheduleTypeExtra>` des types (`SCHEDULE_TYPE`, `labelFormSchema`, champs supplémentaires `ScheduleLookEditor`, `UnavailableSwitch` et, pour un type d’éphémérides, « Sert de contexte au budget » / « Partagé entre espaces » ; initial `DEFAULT_SCHEDULE_DISPLAY` et la nature demandée ; `confirmLoss: withLossConfirmation` : archiver ou restaurer un type confirme les occurrences de routines perdues ; `archiveRisk` : archiver un type qui a des abonnés confirme d’abord la perte de leurs abonnements, `subscribersArchiveRisk`). `ScheduleTypeExtra` : affichage + `ephemeris`, `unavailable`, `budgetContext`, `sharedContext`. Utilisé par `ScheduleSettings`, `ScheduleForm`, `Contexts` (trésorerie).
+- `useScheduleTypeItems({ ephemeris?, budgetContext? })` : `SettingsItemKind<ScheduleType, ScheduleTypeExtra>` des types (`SCHEDULE_TYPE`, `labelFormSchema`, champs supplémentaires `ScheduleLookEditor`, `UnavailableSwitch` et, pour un type d’éphémérides, « Sert de contexte au budget » / « Partagé entre espaces » ; initial `DEFAULT_SCHEDULE_DISPLAY` et la nature demandée ; `confirmLoss: withLossConfirmation` : archiver ou restaurer un type confirme les occurrences de routines perdues ; `archiveRisk` : les types relus juste avant, `useScheduleTypes().refetch`, puis archiver un type qui a des abonnés confirme d’abord la perte de leurs abonnements, `subscribersArchiveRisk`). `ScheduleTypeExtra` : affichage + `ephemeris`, `unavailable`, `budgetContext`, `sharedContext`. Utilisé par `ScheduleSettings`, `WorkSchedulesManager`, `TeamPanel` (trésorerie).
 
 ### `hooks/use-slot-rules.ts`
 

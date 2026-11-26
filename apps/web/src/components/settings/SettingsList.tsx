@@ -1,7 +1,7 @@
 import { InlineActions, type RowMenuEntry } from '../actions/ActionsMenu';
 import { Group, Text, ThemeIcon } from '@mantine/core';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { capitalize, agreed } from '@ordo/shared';
 import { archivedMessage, archiveWithUndo, useSetArchived, useArchivedToggle, unarchived } from '../../lib/archive';
 import { ON_ERROR, onMutationError } from '../../lib/notify';
@@ -67,7 +67,8 @@ interface SettingsListProps<C extends SettingsItem, E extends object> extends Se
  * Settings list, flat or tree (every one of the app): each item with its avatar (its image, or its initials on its
  * color), its name and number of uses; added, edited (name, color, image, parent, fields of the list) in the side
  * panel (the item followed as the list refreshes), archived or restored (with an undo), deleted once confirmed, reordered — and in a tree put under another — by
- * drag and drop. An archive that loses something for good (`archiveRisk`) is confirmed first. Archived items are hidden behind « Afficher les archivés » (shown when there are some), with their
+ * drag and drop. An archive that loses something for good (`archiveRisk`, read on the items reloaded just before, the
+ * « Archiver » entry loading meanwhile) is confirmed first. Archived items are hidden behind « Afficher les archivés » (shown when there are some), with their
  * badge, read only (neither edited nor moved, nor given sub-items).
  * @param {SettingsListProps<C, E>} props Component props.
  * @returns {JSX.Element} List.
@@ -176,20 +177,38 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
     reorder.mutate({ kind, ids }, ON_ERROR);
   };
 
+  // Item whose archive risk is being reloaded: its « Archiver » entry loads.
+  const [checking, setChecking] = useState<string | null>(null);
+
   /**
-   * Archives or restores an item, told with an undo; an archive that loses something for good (`archiveRisk`) is
-   * confirmed first, then told without undo.
+   * Archives or restores an item, told with an undo; an archive that loses something for good (`archiveRisk`) is read
+   * on the items reloaded from the server just before (a subscription made meanwhile is not missed; a failed reload
+   * archives nothing), confirmed first, then told without undo.
    * @param {C} item Item.
    * @param {string} path Its full name.
-   * @returns {void}
+   * @returns {Promise<void>} Once archived, restored, or asked.
    */
-  const toggleArchived = (item: C, path: string) => {
+  const toggleArchived = async (item: C, path: string) => {
     /**
      * Archives or restores the item.
      * @returns {void}
      */
     const toggle = () => void archiveWithUndo(setArchived, { ids: [item.id], archived: !item.archived, label: `« ${path} »`, feminine });
-    const risk = item.archived ? null : archiveRisk?.(item);
+    if (item.archived || !archiveRisk) return toggle();
+    setChecking(item.id);
+    let reloaded: readonly C[] | undefined;
+    try {
+      reloaded = await archiveRisk.reload();
+    } catch (error) {
+      onMutationError(error as Error);
+      return;
+    } finally {
+      // Another row may be checking meanwhile: only its own loading ends.
+      setChecking((current) => (current === item.id ? null : current));
+    }
+    // Gone from the server meanwhile: nothing left to lose, the archive tells why it fails.
+    const fresh = reloaded?.find((other) => other.id === item.id);
+    const risk = fresh ? archiveRisk.risk(fresh) : null;
     if (!risk) return toggle();
     // No undo: restoring it does not bring back what is lost.
     confirmDestructive({
@@ -289,7 +308,8 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
                     // eslint-disable-next-line no-restricted-syntax -- told with the noun of the list (archiveEntry tells its type).
                     label: category.archived ? 'Restaurer' : 'Archiver',
                     icon: category.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                    onClick: () => toggleArchived(category, path),
+                    onClick: () => void toggleArchived(category, path),
+                    loading: checking === category.id,
                     // In the « … » menu, never a button.
                     inMenu: true,
                   },

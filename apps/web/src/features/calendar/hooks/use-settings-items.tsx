@@ -2,7 +2,7 @@ import { calendarCategoryFormSchema, DEFAULT_SCHEDULE_DISPLAY, labelFormSchema, 
 import { itemMutations, treeItemInput, type TreeItemValues } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
 import { Checkbox, Stack, Switch } from '@mantine/core';
-import { useCalendarCategoryMutations, useWorkScheduleMutations, type CalendarCategory, type ScheduleType, type ScheduleTypeFields } from '../api';
+import { useCalendarCategoryMutations, useScheduleTypes, useWorkScheduleMutations, type CalendarCategory, type ScheduleType, type ScheduleTypeFields } from '../api';
 import { ScheduleLookEditor } from '../components/ScheduleLookEditor';
 import { UnavailableSwitch } from '../components/UnavailableSwitch';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
@@ -40,6 +40,7 @@ export type ScheduleTypeExtra = ScheduleDisplay & { ephemeris: boolean; unavaila
  */
 export function useScheduleTypeItems({ ephemeris = false, budgetContext = false }: { ephemeris?: boolean; budgetContext?: boolean } = {}): SettingsItemKind<ScheduleType, ScheduleTypeExtra> {
   const { createType, updateType } = useWorkScheduleMutations();
+  const { refetch } = useScheduleTypes();
   /**
    * Input of a kind from the form values (a kind of créneaux is no context).
    * @param {{ label: string, color: string } & ScheduleTypeExtra} values Values.
@@ -59,7 +60,10 @@ export function useScheduleTypeItems({ ephemeris = false, budgetContext = false 
     // Archiving or restoring a kind changes what its schedules give the slot conditions.
     confirmLoss: withLossConfirmation,
     // Archiving a kind other workspaces subscribe to removes their subscriptions, for good: confirmed first.
-    archiveRisk: (type) => subscribersArchiveRisk(type.subscriberCount, 'ce type'),
+    archiveRisk: {
+      reload: async () => (await refetch({ throwOnError: true })).data,
+      risk: (type) => subscribersArchiveRisk(type.subscriberCount, 'ce type'),
+    },
     schema: labelFormSchema,
     extra: {
       initial: (type) => ({

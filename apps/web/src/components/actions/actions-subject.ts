@@ -18,7 +18,7 @@ export const subjectText = ({ name, about }: ActionsSubject): string => (name ? 
 
 /**
  * Props of the icon button of an action, the same in rows and lists (RowActions, InlineActions): its label, its subject,
- * its hint, red when destructive, its link.
+ * its hint, red when destructive, spinning while it runs, its link.
  * @param {RowAction} action Action.
  * @param {ActionsSubject} subject What it is about.
  * @returns {object} Props of IconAction (but its icon).
@@ -30,6 +30,7 @@ export function actionIconProps(action: RowAction, subject: ActionsSubject) {
     hint: action.hint,
     color: action.danger ? 'red' : 'gray',
     disabled: action.disabled,
+    loading: action.loading,
     onClick: action.onClick,
     ...linkProps(action),
   };

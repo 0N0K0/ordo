@@ -70,8 +70,16 @@ export interface SettingsItemKind<C extends SettingsItem, E extends object = Rec
   update: (id: string, values: SettingsItemValues<E>) => Promise<unknown>;
   /** Asks what archiving or restoring an item loses (the kinds of schedules: occurrences of routines). Optional. Default = never asked. */
   confirmLoss?: LossConfirmation;
-  /** What archiving an item loses for good (the subscriptions of other workspaces to a calendar or a kind); something: archiving asks a destructive confirmation telling it first. Optional. Default = archived at once. */
-  archiveRisk?: (item: C) => ReactNode;
+  /** What archiving an item loses for good (the subscriptions of other workspaces to a calendar or a kind), read on the items reloaded first. Optional. Default = archived at once. */
+  archiveRisk?: ArchiveRisk<C>;
+}
+
+/** What archiving an item of a settings list loses for good, read on the items as the server holds them just before. */
+export interface ArchiveRisk<C extends SettingsItem> {
+  /** Reloads the items from the server (what is lost may have changed meanwhile: a subscription made since). */
+  reload: () => Promise<readonly C[] | undefined>;
+  /** What archiving the item loses; something: archiving asks a destructive confirmation telling it first; nothing: archived at once. */
+  risk: (item: C) => ReactNode;
 }
 
 interface SettingsItemFormProps<C extends SettingsItem, E extends object> extends SettingsItemKind<C, E> {

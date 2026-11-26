@@ -24,7 +24,7 @@ import { subscribersArchiveRisk } from '../lib/layer-label';
  * @returns {JSX.Element} Section.
  */
 function OwnCalendars() {
-  const { data, isPending } = useCalendars();
+  const { data, isPending, refetch } = useCalendars();
   const { create, update, remove } = useCalendarMutations();
   const calendars = data?.calendars ?? [];
   return (
@@ -43,7 +43,10 @@ function OwnCalendars() {
           <DownloadSimpleIcon aria-hidden />
         </IconAction>
       )}
-      archiveRisk={(calendar) => subscribersArchiveRisk(calendar.subscriberCount, 'ce calendrier')}
+      archiveRisk={{
+        reload: async () => (await refetch({ throwOnError: true })).data?.calendars,
+        risk: (calendar) => subscribersArchiveRisk(calendar.subscriberCount, 'ce calendrier'),
+      }}
       undeletable={() => (calendars.length === 1 ? 'Le dernier calendrier ne peut pas être supprimé' : null)}
       deleteMessage={(calendar) => (
         <>
