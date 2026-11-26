@@ -31,15 +31,16 @@ export async function myDaySettingsOf(userId: string): Promise<MyDaySettings> {
 }
 
 /**
- * Saves the settings of « Ma journée » of a user in the current workspace, as a whole. Ids of projects or slots are not
- * checked against the workspace: one deleted since stays until the page sends settings read with the ids still known.
+ * Saves the settings of « Ma journée » of a user in the current workspace, as a whole, read as a view of the agenda is
+ * (`myDaySettingsSchema`: a field invalid takes its default, unknown keys dropped). Ids of calendars or schedules are not
+ * checked against the workspace: one deleted since stays listed, without effect.
  * @param {string} userId User of the session.
  * @param {MyDaySettings} input Settings.
  * @returns {Promise<MyDaySettings>} Settings saved.
  */
 export async function updateMyDaySettings(userId: string, input: MyDaySettings): Promise<MyDaySettings> {
   await assertMember(userId);
-  const settings = readMyDaySettings(parseInput(myDaySettingsSchema, input));
+  const settings = parseInput(myDaySettingsSchema, input);
   const myDay = toJson(settings);
   try {
     await prisma.userWorkspaceSettings.upsert({

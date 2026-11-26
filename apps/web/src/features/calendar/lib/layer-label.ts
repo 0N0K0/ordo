@@ -6,3 +6,36 @@
  * @returns {string} « Réunions · Perso ».
  */
 export const inWorkspace = (label: string, workspace?: string | null): string => (workspace ? `${label} · ${workspace}` : label);
+
+/** A layer that can be shown or left out (a calendar, a schedule), in its colour. */
+export interface LayerChoice {
+  id: string;
+  label: string;
+  color: string;
+}
+
+/**
+ * Calendars that can be shown: those of the workspace, then those of other workspaces it subscribes to (« Label ·
+ * Espace »).
+ * @param {readonly { id: string, label: string, color: string }[]} own Calendars of the workspace shown in the list.
+ * @param {readonly { calendarId: string, label: string, color: string, workspace: { label: string } }[]} subscriptions Calendars of other workspaces subscribed to.
+ * @returns {LayerChoice[]} Choices.
+ */
+export function calendarChoices(
+  own: readonly { id: string; label: string; color: string }[],
+  subscriptions: readonly { calendarId: string; label: string; color: string; workspace: { label: string } }[],
+): LayerChoice[] {
+  return [
+    ...own.map((calendar) => ({ id: calendar.id, label: calendar.label, color: calendar.color })),
+    ...subscriptions.map((subscription) => ({ id: subscription.calendarId, label: inWorkspace(subscription.label, subscription.workspace.label), color: subscription.color })),
+  ];
+}
+
+/**
+ * Créneaux and éphémérides that can be shown or left out, as `scheduleSources` gives them (of the workspace, then of
+ * the workspaces it subscribes to); the working hours, without colour, in green.
+ * @param {readonly { schedule: { id: string }, label: string, color: string | null }[]} sources Schedules.
+ * @returns {LayerChoice[]} Choices.
+ */
+export const scheduleChoices = (sources: readonly { schedule: { id: string }; label: string; color: string | null }[]): LayerChoice[] =>
+  sources.map(({ schedule, label, color }) => ({ id: schedule.id, label, color: color ?? 'green' }));

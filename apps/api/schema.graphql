@@ -3182,73 +3182,44 @@ type Mutation {
 }
 
 """
-Settings of the page « Ma journée » of the user in the current workspace (one set, saved on the server).
+Settings of the page « Ma journée » of the user in the current workspace (one set, saved on the server): those of a view of the agenda a list of the day uses.
 """
 type MyDaySettings {
   """
-  Slots hidden one by one, of this workspace or of a kind of another one it subscribes to (a slot created later is shown). A slot deleted since may stay listed.
+  Filter of each kind of items of the workspace ({ events, tasks, routines, timers, slots, ephemerides }), as those of a view of the agenda.
   """
-  hiddenSlotIds: [String!]!
-
-  """
-  Kinds of slots of other workspaces subscribed to (ws:<workspaceId>:<typeId | default>) hidden as a whole, their slots added later too. One no longer subscribed to may stay listed.
-  """
-  hiddenSlotKinds: [String!]!
-
-  """Only the items assigned to « Moi » or to nobody; false: everyone’s."""
-  mineOrUnassigned: Boolean!
+  filters: JSON!
 
   """
-  Projects whose items are shown; empty (and withoutProject false): every item. A project deleted since may stay listed.
+  Calendars left out (a calendar created later is shown). A calendar deleted since may stay listed.
   """
-  projectIds: [String!]!
+  hiddenCalendarIds: [String!]!
 
-  """Birthdays shown."""
-  showBirthdays: Boolean!
-
-  """Items cancelled shown."""
-  showCancelled: Boolean!
-
-  """Items done shown."""
-  showDone: Boolean!
-
-  """Éphémérides shown."""
-  showEphemerides: Boolean!
-
-  """Events shown."""
-  showEvents: Boolean!
+  """
+  Créneaux and éphémérides left out, of this workspace or of a kind of another one it subscribes to (one created later is shown). One deleted since may stay listed.
+  """
+  hiddenScheduleIds: [String!]!
 
   """Routines shown."""
-  showRoutines: Boolean!
+  routines: Boolean!
+
+  """Créneaux, éphémérides and birthdays shown."""
+  schedules: Boolean!
 
   """Tasks shown."""
-  showTasks: Boolean!
-
-  """
-  « Sans projet » chosen in the projects filter: the items of no project are shown too.
-  """
-  withoutProject: Boolean!
+  tasks: Boolean!
 }
 
-"""Settings of « Ma journée », saved as a whole."""
+"""
+Settings of « Ma journée », saved as a whole, read as a view of the agenda (a field invalid takes its default).
+"""
 input MyDaySettingsInput {
-  """500 at most."""
-  hiddenSlotIds: [String!]!
-
-  """500 at most."""
-  hiddenSlotKinds: [String!]!
-  mineOrUnassigned: Boolean!
-
-  """500 at most."""
-  projectIds: [String!]!
-  showBirthdays: Boolean!
-  showCancelled: Boolean!
-  showDone: Boolean!
-  showEphemerides: Boolean!
-  showEvents: Boolean!
-  showRoutines: Boolean!
-  showTasks: Boolean!
-  withoutProject: Boolean!
+  filters: JSON!
+  hiddenCalendarIds: [String!]!
+  hiddenScheduleIds: [String!]!
+  routines: Boolean!
+  schedules: Boolean!
+  tasks: Boolean!
 }
 
 """Kind of notification a workspace can give while another one is open."""

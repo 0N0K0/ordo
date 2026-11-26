@@ -67,7 +67,7 @@ Internes : `BusyItem` (`assigneeIds`, `taskId?`, `routineId?`), `peopleOf` (list
 | `CALENDAR_VIEW_KEY` | `calendar` : `tableKey` des vues de la page Agenda (vues `TABLE`). Utilisé par le web (`useCalendarViews`) et l’API (`task-views.ts`, qui valide leur configuration par `calendarViewConfigSchema`). |
 | `CALENDAR_DISPLAYS`, `CalendarDisplay` | Affichage d’une vue : `MONTH`, `WEEK` (semaine de l’espace), `DAY`. |
 | `CALENDAR_FILTER_KINDS`, `CalendarFilterKind` | Sortes d’éléments filtrées, chacune par son propre filtre : `events`, `tasks`, `routines`, `timers`, `slots`, `ephemerides`. |
-| `calendarViewConfigSchema` / `CalendarViewConfig` | Configuration d’une vue : `display` (défaut `WEEK`), `tasks` (vrai), `routines` (vrai), `schedules` (créneaux, éphémérides et anniversaires ; vrai), `timers` (faux), `includeArchived` (faux), `fineSlots` (faux), `hiddenCalendarIds` et `hiddenScheduleIds` (500 au plus), `filters` (un `tableFilterSchema` par sorte). Un champ invalide retombe sur son défaut (`catch`). |
+| `calendarViewConfigSchema` / `CalendarViewConfig` | Configuration d’une vue : `display` (défaut `WEEK`), `tasks` (vrai), `routines` (vrai), `schedules` (créneaux, éphémérides et anniversaires ; vrai), `timers` (faux), `includeArchived` (faux), `fineSlots` (faux), `hiddenCalendarIds` et `hiddenScheduleIds` (500 au plus), `filters` (un `tableFilterSchema` par sorte). Un champ invalide retombe sur son défaut (`catch`). Repris, réduit, par les réglages de « Ma journée » (`myDaySettingsSchema`). |
 | `calendarViewConfig(config?)` | Configuration lue (les valeurs par défaut si elle ne valide pas). |
 
 Interne : `HIDDEN_MAX`, `hiddenIdsSchema`, `kindFilterSchema`, `calendarFiltersSchema`.
@@ -133,17 +133,9 @@ Réglages de la page, par utilisateur et par espace (règles dans [Ma journée](
 
 | Export | Rôle |
 | ------ | ---- |
-| `MyDaySettings` | Réglages : `showRoutines`, `showTasks`, `showEvents`, `showEphemerides`, `showBirthdays`, `projectIds` (vide et sans `withoutProject` : tous), `withoutProject` (« Sans projet » choisi dans le filtre des projets), `mineOrUnassigned` (« à moi / sans assigné »), `showDone`, `showCancelled`, `hiddenSlotIds` (créneaux masqués, de l'espace ou des types abonnés d'un autre espace : un créneau créé ensuite est affiché), `hiddenSlotKinds` (types d'un autre espace abonnés masqués en entier, `foreignSlotKind`). |
-| `DEFAULT_MY_DAY_SETTINGS` | Réglages jamais choisis (figés) : tout affiché (anniversaires compris), tous les projets, tout le monde, aucun créneau ni type masqué. |
-| `MY_DAY_IDS_MAX` | 500 : ids au plus dans `projectIds`, `hiddenSlotIds` et `hiddenSlotKinds`. |
-| `myDaySettingsSchema` | Réglages envoyés (zod) : chaque champ requis, clés inconnues retirées, listes d'ids de 1 à 64 caractères (« Id invalide. »), 500 au plus (« 500 projets maximum. », « 500 créneaux maximum. », « 500 types de créneaux maximum. »). |
-| `MyDayKnownIds` | Ids encore connus de l'espace (`projectIds?`, `slotIds?` : créneaux de l'espace et des types abonnés, `slotKinds?` : types abonnés), pour écarter ceux supprimés depuis. |
-| `readMyDaySettings(value, known?)` | Réglages lus d'une valeur enregistrée : valeur par défaut pour un champ absent ou invalide, clés inconnues ignorées, ids de forme valide une fois chacun, dans leur ordre, 500 au plus ; avec `known`, les ids inconnus de l'espace écartés (un filtre de projets vidé ainsi montre tous les éléments, ou ceux sans projet seuls avec `withoutProject`). |
-| `MyDayFilterItem` | Élément tel que les réglages le filtrent : `kind`, `projectId?` (absent : pas filtré par projet, une éphéméride, un anniversaire), `done?`, `cancelled?`. |
-| `myDayShows(settings, item)` | Si les réglages montrent un élément : son type affiché, faits et annulés affichés ou non, filtre des projets (aucun choisi et pas « Sans projet » : tous ; sinon ceux des projets choisis, et ceux sans projet avec « Sans projet ») ; « à moi / sans assigné » n'y est pas appliqué. |
-| `myDayShowsSlot(settings, slot)` | Si les réglages montrent les créneaux d'un horaire sur les heures (`scheduleId`, `kind?` : `foreignSlotKind` d'un horaire d'un autre espace) : ni masqué un par un, ni d'un type abonné masqué. |
-
-Internes : `MY_DAY_ID_MAX` (64), `MY_DAY_FLAGS` (les réglages oui / non), `idList` (liste d'ids du schéma), `readIds`, `KIND_SETTINGS` (le réglage qui montre chaque type d'éléments).
+| `myDaySettingsSchema` | Réglages (zod), ceux d'une vue de l'agenda qu'une liste du jour utilise : `calendarViewConfigSchema` réduit à `tasks`, `routines`, `schedules` (avec les anniversaires), `hiddenCalendarIds`, `hiddenScheduleIds`, `filters` (un filtre par sorte, `CALENDAR_FILTER_KINDS`) ; un champ absent ou invalide prend sa valeur par défaut, les clés inconnues sont retirées. Sert à la lecture et à l'enregistrement (API). |
+| `MyDaySettings` | Réglages lus par `myDaySettingsSchema`. |
+| `readMyDaySettings(value)` | Réglages lus d'une valeur enregistrée (rien, ou autre chose qu'un objet : les valeurs par défaut, celles d'une vue de l'agenda : tâches, routines, créneaux et éphémérides affichés, rien de masqué, aucun filtre). |
 
 ## `slot-kinds.ts` — références des types de créneaux
 

@@ -1347,6 +1347,21 @@ export default defineConfig([
     },
   },
   {
+    // What a page of the agenda shows (calendars, créneaux and éphémérides, kinds of items) is chosen by one brick,
+    // CalendarDisplayChoices, the same in the agenda and in « Ma journée »: no list of the calendars or slots shown
+    // laid out by hand in a page.
+    files: ['src/features/**/pages/**/*.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: RESTRICTED_PATHS,
+          patterns: [{ group: ['**/HiddenChecklist'], message: 'Utiliser CalendarDisplayChoices (features/calendar/components) : les choix d’affichage de l’agenda, les mêmes partout.' }],
+        },
+      ],
+    },
+  },
+  {
     // The split of an entry is a DataTable (EntryLinesTable), like its other tables: no table of lines made by hand in a
     // form. TeamPanel is out of the single table.
     files: ['src/features/treasury/**/*.{ts,tsx}'],

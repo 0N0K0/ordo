@@ -1,46 +1,32 @@
-import { MY_DAY_IDS_MAX, type MyDaySettings } from '@ordo/shared';
+import type { MyDaySettings } from '@ordo/shared';
 import * as myDay from '../../services/calendar/my-day-settings';
 import { builder } from '../builder';
 import { signedInSession } from '../context';
 
 /** Settings of « Ma journée » of the user in the current workspace. */
 const MyDaySettingsRef = builder.objectRef<MyDaySettings>('MyDaySettings').implement({
-  description: 'Settings of the page « Ma journée » of the user in the current workspace (one set, saved on the server).',
+  description: 'Settings of the page « Ma journée » of the user in the current workspace (one set, saved on the server): those of a view of the agenda a list of the day uses.',
   fields: (t) => ({
-    showRoutines: t.exposeBoolean('showRoutines', { description: 'Routines shown.' }),
-    showTasks: t.exposeBoolean('showTasks', { description: 'Tasks shown.' }),
-    showEvents: t.exposeBoolean('showEvents', { description: 'Events shown.' }),
-    showEphemerides: t.exposeBoolean('showEphemerides', { description: 'Éphémérides shown.' }),
-    showBirthdays: t.exposeBoolean('showBirthdays', { description: 'Birthdays shown.' }),
-    projectIds: t.exposeStringList('projectIds', { description: 'Projects whose items are shown; empty (and withoutProject false): every item. A project deleted since may stay listed.' }),
-    withoutProject: t.exposeBoolean('withoutProject', { description: '« Sans projet » chosen in the projects filter: the items of no project are shown too.' }),
-    mineOrUnassigned: t.exposeBoolean('mineOrUnassigned', { description: 'Only the items assigned to « Moi » or to nobody; false: everyone’s.' }),
-    showDone: t.exposeBoolean('showDone', { description: 'Items done shown.' }),
-    showCancelled: t.exposeBoolean('showCancelled', { description: 'Items cancelled shown.' }),
-    hiddenSlotIds: t.exposeStringList('hiddenSlotIds', {
-      description: 'Slots hidden one by one, of this workspace or of a kind of another one it subscribes to (a slot created later is shown). A slot deleted since may stay listed.',
+    tasks: t.exposeBoolean('tasks', { description: 'Tasks shown.' }),
+    routines: t.exposeBoolean('routines', { description: 'Routines shown.' }),
+    schedules: t.exposeBoolean('schedules', { description: 'Créneaux, éphémérides and birthdays shown.' }),
+    hiddenCalendarIds: t.exposeStringList('hiddenCalendarIds', { description: 'Calendars left out (a calendar created later is shown). A calendar deleted since may stay listed.' }),
+    hiddenScheduleIds: t.exposeStringList('hiddenScheduleIds', {
+      description: 'Créneaux and éphémérides left out, of this workspace or of a kind of another one it subscribes to (one created later is shown). One deleted since may stay listed.',
     }),
-    hiddenSlotKinds: t.exposeStringList('hiddenSlotKinds', {
-      description: 'Kinds of slots of other workspaces subscribed to (ws:<workspaceId>:<typeId | default>) hidden as a whole, their slots added later too. One no longer subscribed to may stay listed.',
-    }),
+    filters: t.field({ type: 'JSON', description: 'Filter of each kind of items of the workspace ({ events, tasks, routines, timers, slots, ephemerides }), as those of a view of the agenda.', resolve: (settings) => settings.filters }),
   }),
 });
 
 const MyDaySettingsInput = builder.inputType('MyDaySettingsInput', {
-  description: 'Settings of « Ma journée », saved as a whole.',
+  description: 'Settings of « Ma journée », saved as a whole, read as a view of the agenda (a field invalid takes its default).',
   fields: (t) => ({
-    showRoutines: t.boolean({ required: true }),
-    showTasks: t.boolean({ required: true }),
-    showEvents: t.boolean({ required: true }),
-    showEphemerides: t.boolean({ required: true }),
-    showBirthdays: t.boolean({ required: true }),
-    projectIds: t.stringList({ required: true, description: `${MY_DAY_IDS_MAX} at most.` }),
-    withoutProject: t.boolean({ required: true }),
-    mineOrUnassigned: t.boolean({ required: true }),
-    showDone: t.boolean({ required: true }),
-    showCancelled: t.boolean({ required: true }),
-    hiddenSlotIds: t.stringList({ required: true, description: `${MY_DAY_IDS_MAX} at most.` }),
-    hiddenSlotKinds: t.stringList({ required: true, description: `${MY_DAY_IDS_MAX} at most.` }),
+    tasks: t.boolean({ required: true }),
+    routines: t.boolean({ required: true }),
+    schedules: t.boolean({ required: true }),
+    hiddenCalendarIds: t.stringList({ required: true }),
+    hiddenScheduleIds: t.stringList({ required: true }),
+    filters: t.field({ type: 'JSON', required: true }),
   }),
 });
 

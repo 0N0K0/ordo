@@ -72,9 +72,9 @@ import { ScheduleColumnDefaults } from '../components/ScheduleColumnDefaults';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { currentWeek, calendarFirstDay } from '../../../lib/week';
 import { useAsyncAction } from '../../../lib/use-async-action';
-import { HiddenChecklist } from '../components/HiddenChecklist';
+import { CalendarDisplayChoices } from '../components/CalendarDisplayChoices';
 import { archivedIds, unarchived } from '../../../lib/archive';
-import { inWorkspace } from '../lib/layer-label';
+import { calendarChoices, scheduleChoices } from '../lib/layer-label';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { taggedKey } from '../../../lib/tagged-key';
 import { ViewTabs, type ViewWords } from '../../../components/data-table/views/ViewTabs';
@@ -768,26 +768,10 @@ export function CalendarPage() {
 
   const api = () => calendarRef.current?.getApi();
   const [settingsTab, setSettingsTab] = useSettingsTab(SETTINGS_TABS);
-  // Calendars that can be shown: those of the workspace, and those of other workspaces it subscribes to.
-  const calendarChoices = [
-    ...ownCalendars.map((calendar) => ({
-      id: calendar.id,
-      label: calendar.label,
-      color: calendar.color,
-    })),
-    ...subscriptions.map((subscription) => ({
-      id: subscription.calendarId,
-      label: inWorkspace(subscription.label, subscription.workspace.label),
-      color: subscription.color,
-    })),
-  ];
-  // Slots that can be shown or hidden: of the workspace, then of the workspaces it subscribes to.
-  const scheduleChoices = scheduleSources(schedules ?? [], foreignSchedules ?? [], scheduleTypes ?? [], defaultKind).map(({ schedule, label, color }) => ({
-    id: schedule.id,
-    label,
-    color: color ?? 'green',
-  }));
-  const hiddenSchedules = new Set(config.hiddenScheduleIds);
+  // Calendars that can be shown: those of the workspace, and those of other workspaces it subscribes to; then the
+  // slots, of the workspace and of the workspaces it subscribes to.
+  const shownCalendars = calendarChoices(ownCalendars, subscriptions);
+  const shownSchedules = scheduleChoices(scheduleSources(schedules ?? [], foreignSchedules ?? [], scheduleTypes ?? [], defaultKind));
   // Downloads the displayed view as a PDF (calendars shown, tasks, slots and timers as displayed), to print.
   const { run: exportPdf, loading: exporting } = useAsyncAction(
     async () => {
@@ -868,34 +852,9 @@ export function CalendarPage() {
                 title={views.current ? `Affichage de la vue « ${views.current.label} »` : 'Affichage'}
                 description="Propres à la vue : enregistrez-les avec elle (menu de son onglet, « Enregistrer les modifications »)."
               >
-                <HiddenChecklist
-                  label="Calendriers"
-                  empty="Aucun calendrier."
-                  choices={calendarChoices}
-                  hidden={hidden}
-                  onChange={(hiddenCalendarIds) => change({ hiddenCalendarIds })}
-                />
-                <HiddenChecklist
-                  label={`${schedulesTitle(perso)} et ${EPHEMERIDES_TITLE.toLowerCase()}`}
-                  empty="Aucun créneau."
-                  choices={scheduleChoices}
-                  hidden={hiddenSchedules}
-                  disabled={!config.schedules}
-                  onChange={(hiddenScheduleIds) => change({ hiddenScheduleIds })}
-                />
-                <LabeledField label="Aussi dans l’agenda" gap="xs">
-                  {(
-                    [
-                      ['tasks', 'Tâches', config.tasks],
-                      ['routines', 'Routines', showRoutines],
-                      ['schedules', `${schedulesTitle(perso)} et ${EPHEMERIDES_TITLE.toLowerCase()}`, config.schedules],
-                      ['timers', 'Chronos', showTimers],
-                    ] as const
-                  ).map(([key, label, checked]) => (
-                    <Switch key={key} label={label} checked={checked} onChange={(event) => change({ [key]: event.currentTarget.checked })} />
-                  ))}
+                <CalendarDisplayChoices shown={config} calendars={shownCalendars} schedules={shownSchedules} alsoLabel="Aussi dans l’agenda" onChange={change}>
                   <ShowArchivedSwitch checked={showArchived} onChange={(includeArchived) => change({ includeArchived })} />
-                </LabeledField>
+                </CalendarDisplayChoices>
                 <LabeledField label="Heures (semaine, jour)" gap="xs">
                   <Switch
                     label="Par 5 minutes"

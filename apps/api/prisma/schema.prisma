@@ -189,8 +189,8 @@ model UserWorkspaceSettings {
   id          String    @id @default(cuid())
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// Settings of the page « Ma journée »: { showRoutines, showTasks, showEvents, showEphemerides, projectIds,
-  /// mineOrUnassigned, showDone, showCancelled, hiddenSlotIds }, read by the shared `readMyDaySettings`; none: the defaults.
+  /// Settings of the page « Ma journée »: { tasks, routines, schedules, hiddenCalendarIds, hiddenScheduleIds, filters },
+  /// as a view of the agenda, read by the shared `readMyDaySettings` (older keys dropped); none: the defaults.
   myDay       Json?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

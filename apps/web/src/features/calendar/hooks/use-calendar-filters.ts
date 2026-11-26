@@ -41,6 +41,12 @@ export interface CalendarKept {
   schedule: (id: string) => boolean;
 }
 
+/**
+ * What the filters read of the settings of a page: the kinds of items it shows and the filter of each (a view of the
+ * agenda, or the settings of « Ma journée », which shows no chronos).
+ */
+export type CalendarFilterConfig = Pick<CalendarViewConfig, 'tasks' | 'routines' | 'schedules' | 'timers' | 'filters'>;
+
 /** Items of the workspace the calendar filters (those of other workspaces are not filtered). */
 interface CalendarItems {
   context: TaskContext | null;
@@ -80,16 +86,16 @@ const keeps =
     ids === null || ids.has(id);
 
 /**
- * Filters of a view of the calendar: one section per kind of items the view shows, each with the fields of the table of
+ * Filters of a view of the calendar (or of « Ma journée »): one section per kind of items the view shows, each with the fields of the table of
  * that kind (tasks: the task table; routines: the routine table; chronos: the time table; créneaux and éphémérides:
  * their tables; events: the columns of the task table an event fills, with its calendar, categories, tasks, state…),
  * and what each filter keeps, by the same rules as these tables (`filterRows`). Items of other workspaces are not
  * filtered.
- * @param {CalendarViewConfig} config View.
+ * @param {CalendarFilterConfig} config Kinds shown and their filters (a view, or the settings of « Ma journée »).
  * @param {CalendarItems} items Items of the workspace.
  * @returns {{ sections: CalendarFilterSection[], kept: CalendarKept }} Sections of the editor, items kept.
  */
-export function useCalendarFilters(config: CalendarViewConfig, items: CalendarItems): { sections: CalendarFilterSection[]; kept: CalendarKept } {
+export function useCalendarFilters(config: CalendarFilterConfig, items: CalendarItems): { sections: CalendarFilterSection[]; kept: CalendarKept } {
   const { context, events, routines, routineCategories, entries, schedules, calendars, categories, perso } = items;
   const today = parisToday();
   const { filters } = config;

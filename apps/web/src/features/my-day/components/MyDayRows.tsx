@@ -128,7 +128,7 @@ function TaskRow({ row, item, context, today }: RowContext & { row: Row<MyDayEnt
       }
       actions={
         <>
-          {!task.closed && <TimerCell task={task} />}
+          {!task.closed && <TimerCell task={task} size="sm" />}
           <ActionsMenu name={task.label} items={actions.menu(task)} />
         </>
       }

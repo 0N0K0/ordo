@@ -274,7 +274,7 @@ type Documents = {
     "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": typeof types.DeleteMailSearchDocument,
     "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n      archived\n    }\n  }\n": typeof types.WatchedMailAccountsDocument,
     "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": typeof types.WatchedUnreadMailsDocument,
-    "\n  fragment MyDaySettingsFields on MyDaySettings {\n    showRoutines\n    showTasks\n    showEvents\n    showEphemerides\n    showBirthdays\n    projectIds\n    withoutProject\n    mineOrUnassigned\n    showDone\n    showCancelled\n    hiddenSlotIds\n    hiddenSlotKinds\n  }\n": typeof types.MyDaySettingsFieldsFragmentDoc,
+    "\n  fragment MyDaySettingsFields on MyDaySettings {\n    tasks\n    routines\n    schedules\n    hiddenCalendarIds\n    hiddenScheduleIds\n    filters\n  }\n": typeof types.MyDaySettingsFieldsFragmentDoc,
     "\n  query MyDaySettings {\n    myDaySettings {\n      ...MyDaySettingsFields\n    }\n  }\n": typeof types.MyDaySettingsDocument,
     "\n  mutation UpdateMyDaySettings($input: MyDaySettingsInput!) {\n    updateMyDaySettings(input: $input) {\n      ...MyDaySettingsFields\n    }\n  }\n": typeof types.UpdateMyDaySettingsDocument,
     "\n  fragment ClientFields on Client {\n    id\n    name\n    iconUrl\n    color\n    position\n    favorite\n    archived\n  }\n": typeof types.ClientFieldsFragmentDoc,
@@ -781,7 +781,7 @@ const documents: Documents = {
     "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": types.DeleteMailSearchDocument,
     "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n      archived\n    }\n  }\n": types.WatchedMailAccountsDocument,
     "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": types.WatchedUnreadMailsDocument,
-    "\n  fragment MyDaySettingsFields on MyDaySettings {\n    showRoutines\n    showTasks\n    showEvents\n    showEphemerides\n    showBirthdays\n    projectIds\n    withoutProject\n    mineOrUnassigned\n    showDone\n    showCancelled\n    hiddenSlotIds\n    hiddenSlotKinds\n  }\n": types.MyDaySettingsFieldsFragmentDoc,
+    "\n  fragment MyDaySettingsFields on MyDaySettings {\n    tasks\n    routines\n    schedules\n    hiddenCalendarIds\n    hiddenScheduleIds\n    filters\n  }\n": types.MyDaySettingsFieldsFragmentDoc,
     "\n  query MyDaySettings {\n    myDaySettings {\n      ...MyDaySettingsFields\n    }\n  }\n": types.MyDaySettingsDocument,
     "\n  mutation UpdateMyDaySettings($input: MyDaySettingsInput!) {\n    updateMyDaySettings(input: $input) {\n      ...MyDaySettingsFields\n    }\n  }\n": types.UpdateMyDaySettingsDocument,
     "\n  fragment ClientFields on Client {\n    id\n    name\n    iconUrl\n    color\n    position\n    favorite\n    archived\n  }\n": types.ClientFieldsFragmentDoc,
@@ -2068,7 +2068,7 @@ export function graphql(source: "\n  query WatchedUnreadMails($accountId: ID!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment MyDaySettingsFields on MyDaySettings {\n    showRoutines\n    showTasks\n    showEvents\n    showEphemerides\n    showBirthdays\n    projectIds\n    withoutProject\n    mineOrUnassigned\n    showDone\n    showCancelled\n    hiddenSlotIds\n    hiddenSlotKinds\n  }\n"): typeof import('./graphql').MyDaySettingsFieldsFragmentDoc;
+export function graphql(source: "\n  fragment MyDaySettingsFields on MyDaySettings {\n    tasks\n    routines\n    schedules\n    hiddenCalendarIds\n    hiddenScheduleIds\n    filters\n  }\n"): typeof import('./graphql').MyDaySettingsFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

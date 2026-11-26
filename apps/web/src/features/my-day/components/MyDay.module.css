@@ -25,12 +25,15 @@
       background-color: var(--mantine-color-gray-light);
     }
 
-    /* Bordures */
-    border-top: 1px solid var(--mantine-color-default-border);
-
     /* Effets */
+    /* The line between two hours is drawn inside the hour (a shadow, not a border): the hours stay on the vertical
+       rhythm. */
+    box-shadow: inset 0 1px 0 var(--mantine-color-default-border);
+
     &[data-current] {
-      box-shadow: inset 3px 0 0 var(--mantine-primary-color-filled);
+      box-shadow:
+        inset 3px 0 0 var(--mantine-primary-color-filled),
+        inset 0 1px 0 var(--mantine-color-default-border);
     }
   }
 
@@ -42,10 +45,22 @@
     line-height: var(--onoko-vertical-step);
   }
 
-  /* A line of the day: as tall as two steps. */
+  /* A line of the day: as tall as two steps, a subtle tint under the pointer. */
   .row {
     /* Dimension */
     min-height: calc(var(--onoko-vertical-step) * 2);
+
+    /* Espacement */
+    margin: 0 calc(var(--mantine-spacing-xs) * -1);
+    padding: 0 var(--mantine-spacing-xs);
+
+    /* Bordures */
+    border-radius: var(--mantine-radius-sm);
+
+    /* Arrière-Plan */
+    &:hover {
+      background-color: var(--mantine-color-default-hover);
+    }
 
     /* Typographie */
     &[data-finished='cancelled'] .open {
@@ -58,7 +73,9 @@
     }
 
     /* Animation */
-    transition: opacity var(--onoko-transition);
+    transition:
+      opacity var(--onoko-transition),
+      background-color var(--onoko-transition);
   }
 
   .state {
@@ -87,9 +104,25 @@
     min-width: 0;
   }
 
+  /* Name of an item opening its panel: text, so underlined under the pointer and outlined on keyboard focus (no
+     ripple). */
   .open {
+    /* Bordures */
+    border-radius: var(--mantine-radius-xs);
+
     /* Typographie */
     text-align: left;
+    text-underline-offset: 2px;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    /* Effets */
+    &:focus-visible {
+      outline: 2px solid var(--mantine-primary-color-filled);
+      outline-offset: 2px;
+    }
   }
 
   /* Tasks and routines linked to an event, under it. */

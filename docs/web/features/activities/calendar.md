@@ -61,7 +61,7 @@ Interne : `fetchCategories`, `occurrencesOf(data, includeArchived)` (filtre des 
 - `select` : ouvre `useEventForm` pré-rempli ; `eventClick` : selon le kind (tâche → `useTaskLink`, temps → `useTimeEntryDialogs`, abonné → `SubscribedEvent` dans `openFormPanel`, créneau → `edits.openSlot`, routine → `edits.openRoutine`, sinon `EventForm`).
 - Barre d’outils : interrupteur `StateSwitch` « Modifier les créneaux et éphémérides » (`editingSlots`) ; « Ajouter » (`ActionButton` à `menu`) : « Évènement » (`useEventForm`), `schedulesTitle(perso)` et `EPHEMERIDES_TITLE` (`openSchedulesManager`).
 - `eventDidMount` : variables CSS `--slot-lane`, `--slot-column`, `--slot-columns`.
-- Paramètres : `PageSettings` « Paramètres de l’agenda » avec `SettingsTabs` (`SETTINGS_TABS` = `display`, `settings`, `useSettingsTab`) : `HiddenChecklist` (calendriers, créneaux), interrupteurs, `ShowArchivedSwitch`, export PDF (`useAsyncAction` + `downloadCalendarPdf(pdfItems(items, classes.closed))`), `CalendarsIcsButton` ; `WeekSettings`, `CalendarsManager`, `CalendarCategoriesManager`, `ScheduleSettings`, puis en dernier `ScheduleColumnDefaults`.
+- Paramètres : `PageSettings` « Paramètres de l’agenda » avec `SettingsTabs` (`SETTINGS_TABS` = `display`, `settings`, `useSettingsTab`) : `CalendarDisplayChoices` (calendriers et créneaux : `calendarChoices`, `scheduleChoices` ; « Aussi dans l’agenda ») avec `ShowArchivedSwitch`, « Par 5 minutes », export PDF (`useAsyncAction` + `downloadCalendarPdf(pdfItems(items, classes.closed))`), `CalendarsIcsButton` ; `WeekSettings`, `CalendarsManager`, `CalendarCategoriesManager`, `ScheduleSettings`, puis en dernier `ScheduleColumnDefaults`.
 - Constantes internes : `FULL_CALENDAR_VIEWS`, `DISPLAYS` (« Mois », « Semaine », « Jour », `SegmentedControl` « Affichage »), `LOADING_VIEW`, `NONE`, `CALENDAR_VIEW_WORDS`, `DEFAULT_COLOR`, `LATE_BORDER` (couleur de retard `LATE_COLOR`), `ALL_DAY_ROWS` = 2 ; semaine `timeGridWeek` de `weekLength(currentWeek())` jours, `firstDay` = `calendarFirstDay(week)`.
 
 ### `pages/CalendarPage.module.css`
@@ -131,11 +131,16 @@ Utilisés par `useCalendarEdits`.
 
 ### `components/CalendarFilters.tsx`
 
-`CalendarFilters({ sections, onChange })` : « Filtrer » de l’agenda (`ToolbarFilter`, badge : les conditions de toutes les sections), un seul éditeur avec une section par sorte affichée (`LabeledField` à son titre, `FieldsFilterBuilder` sur ses champs) ; `onChange(kind, filter)` change le filtre d’une sorte. Utilisé par `CalendarPage`.
+`CalendarFilters({ sections, onChange })` : « Filtrer » de l’agenda (`ToolbarFilter`, badge : les conditions de toutes les sections), un seul éditeur avec une section par sorte affichée (`LabeledField` à son titre, `FieldsFilterBuilder` sur ses champs) ; `onChange(kind, filter)` change le filtre d’une sorte. Utilisé par `CalendarPage` et `MyDayPage` (« Ma journée »).
 
 ### `components/HiddenChecklist.tsx`
 
-`HiddenChecklist({ label, empty, choices, hidden, disabled?, onChange })` : cases à cocher de ce qui s’affiche (cochée = affiché), conservées comme liste des masqués (`toggledIn`). Utilisé par `CalendarPage`.
+`HiddenChecklist({ label, empty, choices, hidden, disabled?, onChange })` : cases à cocher de ce qui s’affiche (cochée = affiché), conservées comme liste des masqués (`toggledIn`). Utilisé par `CalendarDisplayChoices` seulement (garde eslint : pas importé dans une page).
+
+### `components/CalendarDisplayChoices.tsx`
+
+- `CalendarDisplayChoices({ shown, calendars, schedules, alsoLabel, onChange, children? })` : choix d’affichage d’une page de l’agenda, les mêmes partout : `HiddenChecklist` « Calendriers » (« Aucun calendrier. ») et « Créneaux de travail et éphémérides » / « Créneaux et éphémérides » (« Aucun créneau. », désactivée sans `schedules`), puis `alsoLabel` avec un interrupteur par sorte : « Tâches », « Routines », créneaux et éphémérides (avec les anniversaires), « Chronos » seulement quand `shown.timers` est donné ; `children` après (« Afficher les archivés » de l’agenda). `onChange(patch)` reçoit les champs changés. Utilisé par `CalendarPage` (« Aussi dans l’agenda ») et `MyDayPage` (« Aussi dans Ma journée »). Garde eslint : `HiddenChecklist` n’est pas importé dans une page.
+- `CalendarDisplayChoice` (type) : champs qu’il change (`tasks`, `routines`, `schedules`, `timers`, `hiddenCalendarIds`, `hiddenScheduleIds` de `CalendarViewConfig`).
 
 ### `components/LookToggle.tsx`
 
@@ -224,7 +229,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `hooks/use-calendar-filters.ts`
 
-- `useCalendarFilters(config, items)` : `{ sections, kept }`. Sections (`CalendarFilterSection` : `kind`, `title`, `fields`, `filter`), une par sorte affichée par la vue, dans l’ordre « Évènements », « Tâches », « Routines », « Chronos », créneaux (`schedulesTitle`), « Éphémérides » : `tableFilterFields` des colonnes du tableau de la sorte (`useTaskColumns` ; `useRoutineColumns` ; `useTimeColumns` ; `useScheduleColumns(false / true)` ; évènements : `eventFilterColumns`, leur « État » relu chaque minute tant qu’un filtre s’en sert, `useNow`), avec un texte vide propre. `kept` (`CalendarKept` : `event(key)`, `task(id)`, `routine(id)`, `timer(id)`, `schedule(id)`) : ce que garde le filtre de chaque sorte, par `filterRows` (tâches : `matchTasks`) sur les lignes du tableau de la sorte (`taskTableRows`/`eventRow`, routines, temps, `scheduleRows`) ; un filtre sans condition garde tout, un créneau d’un autre espace est toujours gardé. Les tâches faisables ne sont demandées qu’avec une condition sur « Faisable maintenant » (`filterUses`).
+- `useCalendarFilters(config, items)` : `{ sections, kept }`. `config` (`CalendarFilterConfig` : `tasks`, `routines`, `schedules`, `timers`, `filters` de `CalendarViewConfig`) : une vue de l’agenda, ou les réglages de « Ma journée » (`timers` faux : pas de « Chronos »). Sections (`CalendarFilterSection` : `kind`, `title`, `fields`, `filter`), une par sorte affichée par la vue, dans l’ordre « Évènements », « Tâches », « Routines », « Chronos », créneaux (`schedulesTitle`), « Éphémérides » : `tableFilterFields` des colonnes du tableau de la sorte (`useTaskColumns` ; `useRoutineColumns` ; `useTimeColumns` ; `useScheduleColumns(false / true)` ; évènements : `eventFilterColumns`, leur « État » relu chaque minute tant qu’un filtre s’en sert, `useNow`), avec un texte vide propre. `kept` (`CalendarKept` : `event(key)`, `task(id)`, `routine(id)`, `timer(id)`, `schedule(id)`) : ce que garde le filtre de chaque sorte, par `filterRows` (tâches : `matchTasks`) sur les lignes du tableau de la sorte (`taskTableRows`/`eventRow`, routines, temps, `scheduleRows`) ; un filtre sans condition garde tout, un créneau d’un autre espace est toujours gardé. Les tâches faisables ne sont demandées qu’avec une condition sur « Faisable maintenant » (`filterUses`).
 - Internes : `CalendarItems` (éléments de l’espace filtrés), `keptIds`, `keeps`.
 
 ### `hooks/use-schedule-conversion.tsx`
@@ -322,7 +327,10 @@ Utilisés par `ScheduleSettings`.
 
 ### `lib/layer-label.ts`
 
-`inWorkspace(label, workspace?)` : « Libellé · Espace ». Utilisé par la page, les abonnements, `calendar-events.ts`, `use-agenda-layers` (routines).
+- `inWorkspace(label, workspace?)` : « Libellé · Espace ». Utilisé par la page, les abonnements, `calendar-events.ts`, `use-agenda-layers` (routines).
+- `LayerChoice` (interface) : un calque à afficher ou masquer (`id`, `label`, `color`).
+- `calendarChoices(own, subscriptions)` : calendriers à afficher : ceux donnés de l’espace, puis les abonnés (« Libellé · Espace »). Utilisé par `CalendarPage` (abonnés compris) et `MyDayPage` (calendriers non archivés de l’espace seuls).
+- `scheduleChoices(sources)` : créneaux et éphémérides à afficher, tels que `scheduleSources` les donne (de l’espace, puis des espaces abonnés), les heures de travail sans couleur en vert. Utilisé par `CalendarPage` et `MyDayPage`.
 
 ### `lib/routine-layout.ts`
 

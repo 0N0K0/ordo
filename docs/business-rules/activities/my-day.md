@@ -1,6 +1,6 @@
 # Règles de « Ma journée »
 
-Règles de la page « Ma journée » (menu Activités) : quelles tâches y sont un jour, où chaque élément du jour se range, et ses réglages. « Ma journée » est une liste du jour, pas une vue d’agenda : les routines, tâches et évènements du jour de l’espace courant, avec leurs horaires. Sources : `packages/shared/src/tasks/task-day.ts` (`taskDayReasons`, `isTaskOverdue`, `taskPlacement`), `packages/shared/src/calendar/my-day.ts` (`myDayRows`), `packages/shared/src/calendar/slot-conditions.ts` (`itemWindowsOn`), `packages/shared/src/calendar/my-day-settings.ts` (`readMyDaySettings`, `myDaySettingsSchema`, `myDayShows`, `myDayShowsSlot`), `apps/web/src/features/my-day/hooks/use-my-day.ts` (`useMyDay`), `apps/api/src/services/calendar/my-day-settings.ts`, `apps/api/src/graphql/modules/my-day.ts`. Tout est lu en jours et heures de Paris.
+Règles de la page « Ma journée » (menu Activités) : quelles tâches y sont un jour, où chaque élément du jour se range, et ses réglages. « Ma journée » est une liste du jour, pas une vue d’agenda : les routines, tâches et évènements du jour de l’espace courant, avec leurs horaires. Sources : `packages/shared/src/tasks/task-day.ts` (`taskDayReasons`, `isTaskOverdue`, `taskPlacement`), `packages/shared/src/calendar/my-day.ts` (`myDayRows`), `packages/shared/src/calendar/slot-conditions.ts` (`itemWindowsOn`), `packages/shared/src/calendar/my-day-settings.ts` (`readMyDaySettings`, `myDaySettingsSchema`), `apps/web/src/features/my-day/hooks/use-my-day.ts` (`useMyDay`), `apps/web/src/features/calendar/hooks/use-calendar-filters.ts` (`useCalendarFilters`, le filtre de l’agenda), `apps/api/src/services/calendar/my-day-settings.ts`, `apps/api/src/graphql/modules/my-day.ts`. Tout est lu en jours et heures de Paris.
 
 Voir aussi : [Tâches](tasks.md), [Routines](routines.md), [Agenda](calendar.md), [Dates](../cross-cutting/dates.md), [Espaces et accès](../cross-cutting/workspaces-and-access.md).
 
@@ -19,7 +19,7 @@ Une tâche est dans « Ma journée » d’un jour pour au moins une de ces raiso
 | Annulée (`cancelled`) | Fermée comme annulée, le jour de Paris de sa fermeture (une tâche terminée puis annulée garde sa date de fermeture). |
 
 - Les raisons d’une tâche ouverte (retard, échéance, en cours, prévue, période) ne comptent que pour une tâche ouverte ; une tâche fermée n’est que le jour de sa fermeture, faite ou annulée, quelles que soient ses dates.
-- Toutes les tâches de l’espace sont regardées ; « à moi / sans assigné » est un filtre de la page, pas une règle.
+- Toutes les tâches de l’espace sont regardées ; le filtre de la page (voir [Réglages](#réglages)) n’est pas une règle.
 
 ## Fenêtres où un élément peut se faire
 
@@ -39,7 +39,7 @@ La page « Ma journée » (menu Activités, espace courant) montre aujourd'hui �
 - **Éphémérides** de l'espace et des types abonnés d'un autre espace ce jour, et **anniversaires** des personnes de l'espace (archivées exclues), en tête.
 - **Créneaux des heures** : ceux de l'espace et des types abonnés d'un autre espace (ni archivés, ni d'un type archivé), « Indisponible » tel que l'espace le règle.
 
-Chaque ligne a son bouton d'état (une tâche : faite / à faire ; un moment de routine : « Faite le » ; aucun pour un évènement, qui s'annule ou se reporte par son menu), son chrono (un évènement prend son projet et ses tâches liées), son nom qui ouvre son panneau, et son menu (celui de la tâche, de l'occurrence de la routine ou de l'occurrence de l'évènement). Les réglages ci-dessous filtrent ces éléments avant le placement.
+Chaque ligne a son bouton d'état (une tâche : faite / à faire ; un moment de routine : « Faite le » ; aucun pour un évènement, qui s'annule ou se reporte par son menu), son chrono (un évènement prend son projet et ses tâches liées), son nom qui ouvre son panneau, et son menu (celui de la tâche, de l'occurrence de la routine ou de l'occurrence de l'évènement). Le menu d'une occurrence d'un évènement répété l'annule ou la rétablit seule, sans demander la portée (« Supprimer » la demande) ; une occurrence de routine s'annule par « Reporter, changer l'horaire ou annuler… ». Les réglages ci-dessous filtrent ces éléments avant le placement.
 
 ## Placement
 
@@ -61,21 +61,21 @@ Une tâche ou une routine liée à un évènement affiché ce jour se range sous
 
 ## Réglages
 
-Les filtres et choix d'affichage de « Ma journée » sont enregistrés sur le serveur, **par utilisateur et par espace** : un seul jeu de réglages (pas de vues multiples), le même dans tous les onglets et appareils de l'utilisateur, différent d'un espace à l'autre (`UserWorkspaceSettings.myDay`, champ JSON, une ligne par utilisateur et par espace). Ce sont des filtres de la page : ils ne changent ni les tâches du jour ni le placement ci-dessus.
+Les filtres et choix d'affichage de « Ma journée » sont ceux de l'agenda, repris tels quels (mêmes champs, mêmes règles qu'une vue de l'agenda, voir [Agenda › Filtres](../../features/activities/calendar.md#filtres)) : un filtre par sorte d'éléments affichée, pas un filtre commun, pour ne rien approcher. Ils sont enregistrés sur le serveur, **par utilisateur et par espace** : un seul jeu de réglages (pas de vues multiples, pas de copie de travail), le même dans tous les onglets et appareils de l'utilisateur, différent d'un espace à l'autre (`UserWorkspaceSettings.myDay`, champ JSON, une ligne par utilisateur et par espace). Ce sont des filtres de la page : ils ne changent ni les tâches du jour ni le placement ci-dessus.
 
 | Réglage | Champ | Par défaut |
 | ------- | ----- | ---------- |
-| Types d'éléments affichés : routines, tâches, évènements, éphémérides, anniversaires | `showRoutines`, `showTasks`, `showEvents`, `showEphemerides`, `showBirthdays` | tous affichés |
-| Projets, et « Sans projet » | `projectIds`, `withoutProject` | aucun projet ni « Sans projet » : tous les éléments, avec ou sans projet |
-| « À moi / sans assigné » | `mineOrUnassigned` | non : ceux de tout le monde |
-| Faits affichés | `showDone` | oui |
-| Annulés affichés | `showCancelled` | oui |
-| Créneaux masqués, un par un : de l'espace, ou des types abonnés d'un autre espace | `hiddenSlotIds` | aucun : tous affichés |
-| Types de créneaux d'un autre espace (abonnements) masqués en entier | `hiddenSlotKinds` (`ws:<espace>:<type \| default>`, `foreignSlotKind`) | aucun |
+| Tâches affichées | `tasks` | oui |
+| Routines affichées | `routines` | oui |
+| Créneaux et éphémérides affichés, avec les anniversaires | `schedules` | oui |
+| Calendriers masqués (ceux de l'espace) | `hiddenCalendarIds` | aucun : tous affichés |
+| Créneaux et éphémérides masqués, un par un : de l'espace, ou des types abonnés d'un autre espace | `hiddenScheduleIds` | aucun : tous affichés |
+| Filtre de chaque sorte d'éléments : `events`, `tasks`, `routines`, `slots`, `ephemerides` (et `timers`, gardé vide : la page n'a pas de chronos) | `filters` | aucun filtre |
 
-- Les créneaux sont enregistrés par ceux qui sont **masqués** : un créneau créé ensuite est affiché ; un type abonné masqué masque tous ses créneaux, ceux ajoutés ensuite compris. Un créneau d'un autre espace se reconnaît à son espace (`workspaceId` de `subscribedWorkSchedules`) ; son id est unique comme celui d'un créneau de l'espace.
-- Application (`myDayShows`, `myDayShowsSlot`) : un élément d'un type masqué, fait (`showDone`) ou annulé (`showCancelled`, un évènement annulé aussi) masqué n'est pas dans la page ; avec des projets choisis, seuls leurs éléments (tâches, routines, évènements ; le projet de l'élément, sans ses sous-projets), et ceux sans projet avec « Sans projet » ; « Sans projet » seul : seulement les éléments sans projet. Les éphémérides et les anniversaires n'ont pas de projet : le filtre des projets les laisse. Un créneau masqué ne colore plus les heures, mais compte toujours pour les fenêtres (le placement ne change pas) ; les éphémérides suivent `showEphemerides` seul. « À moi / sans assigné » est enregistré mais pas encore appliqué.
-- Jamais choisis : les valeurs par défaut. Lecture (`readMyDaySettings`) : un champ absent ou invalide prend sa valeur par défaut, une clé inconnue est ignorée ; dans les listes d'ids, seuls les textes de forme d'id sont gardés (1 à 64 caractères), chacun une fois, dans leur ordre, 500 au plus.
-- Un projet, un créneau ou un abonnement supprimé depuis n'est pas une erreur : son id reste enregistré (le serveur garde les ids qu'il reçoit) ; la page l'ignore en lisant les réglages avec les ids encore connus de l'espace (`readMyDaySettings` : projets, créneaux de l'espace et des types abonnés, types abonnés), et ne le renvoie donc plus au prochain enregistrement, et un filtre de projets dont tous les projets ont été supprimés montre de nouveau tous les éléments (seulement ceux sans projet avec « Sans projet »).
-- Enregistrement : tout le jeu à la fois (`updateMyDaySettings`), validé par `myDaySettingsSchema` : chaque champ requis, de son type, ids de 1 à 64 caractères (« Id invalide. »), 500 projets au plus (« 500 projets maximum. »), 500 créneaux au plus (« 500 créneaux maximum. ») et 500 types au plus (« 500 types de créneaux maximum. ») ; sinon « Certains champs sont invalides. » (`BAD_USER_INPUT`, voir [Erreurs](../cross-cutting/errors.md#erreurs-rattachées-à-un-champ)). Les ids ne sont pas comparés aux projets, créneaux et abonnements de l'espace.
+- Application, comme dans l'agenda : un évènement d'un calendrier masqué n'est pas dans la page ; sans « Tâches » ou « Routines », aucune tâche ou aucune routine ; sans « Créneaux et éphémérides », ni éphémérides, ni anniversaires, ni créneaux sur les heures. Un créneau ou une éphéméride masqué n'est pas dans la page. Chaque filtre ne s'applique qu'aux éléments de sa sorte, dans l'espace, avec les règles du tableau de sa sorte (`useCalendarFilters`) : une routine gardée l'est avec toutes ses occurrences ; ce qui vient d'un autre espace (créneaux et éphémérides des types abonnés) n'est pas filtré, seuls les créneaux masqués s'y appliquent ; les anniversaires ne sont pas filtrés. Projet, assignés, faits ou annulés se filtrent par les colonnes du tableau de chaque sorte, comme dans l'agenda.
+- Un créneau masqué ou écarté par le filtre ne colore plus les heures, mais compte toujours pour les fenêtres (le placement ne change pas).
+- Les créneaux et les calendriers sont enregistrés par ceux qui sont **masqués** : un créneau ou un calendrier créé ensuite est affiché.
+- Jamais choisis : les valeurs par défaut. Lecture (`readMyDaySettings`, le schéma d'une vue de l'agenda réduit à ces champs) : un champ absent ou invalide prend sa valeur par défaut (une liste d'ids qui n'en est pas une, ou de plus de 500 ids : aucun masqué ; un filtre invalide : aucun filtre), une clé inconnue est ignorée, quelle qu'elle soit.
+- Un calendrier ou un créneau supprimé depuis n'est pas une erreur : son id reste enregistré, sans effet.
+- Enregistrement : tout le jeu à la fois (`updateMyDaySettings`), lu par `myDaySettingsSchema` comme une vue de l'agenda (un champ invalide prend sa valeur par défaut) ; les ids ne sont pas comparés aux calendriers et créneaux de l'espace. Les enregistrements faits coup sur coup attendent les uns les autres : celui qu'un plus récent attend n'est pas envoyé (le plus récent porte tout), et les réglages ne sont relus qu'après le dernier.
 - Accès : un utilisateur ne lit et n'écrit que **ses** réglages (l'utilisateur de la session, jamais un id envoyé), et seulement dans l'espace de la requête dont il est membre (il y a son profil « Moi », voir [Personnes](../cross-cutting/people.md#-moi-)) ; sinon « Espace introuvable. » (`NOT_FOUND`). Supprimer l'espace ou l'utilisateur supprime ses réglages.

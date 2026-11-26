@@ -178,7 +178,7 @@ Cellules non textuelles du tableau des tâches :
 | Nom                                      | Rôle                                                                                    |
 | ---------------------------------------- | --------------------------------------------------------------------------------------- |
 | `SlotsCell({ task })`                    | « Créneaux » : condition en mots (`useSlotRules().describe`, « N’importe quand » sans condition), modifiée dans une bulle (`SlotConditionBuilder`). |
-| `TimerCell({ task })`                    | « Chrono » : `TimerToggle` sur la tâche (le chrono qui tourne sur elle : `runningOn`, d’autres peuvent tourner). |
+| `TimerCell({ task, size? })`             | « Chrono » : `TimerToggle` sur la tâche (le chrono qui tourne sur elle : `runningOn`, d’autres peuvent tourner) ; `size` : celle du bouton (« sm » dans les lignes de « Ma journée », comme les chronos des routines et des évènements ; par défaut celle d’un tableau). |
 | `TrackedCell({ task })`                  | « Temps passé » : lien `timePath(task.id)`.                                             |
 | `SubtasksCell({ task, context, onAdd })` | « Sous-tâches » (`ChildrenCell`) avec « Ajouter une sous-tâche ».                       |
 | `ProgressCell({ task, context })`        | « Avancement » (`TaskProgress`).                                                        |
