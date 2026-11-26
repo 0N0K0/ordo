@@ -42,7 +42,7 @@ import { EffortInput } from './EffortInput';
 import { TaskLinks } from './TaskLinks';
 import { TaskDescription } from './TaskDescription';
 import { TaskLocation } from './TaskLocation';
-import { TaskReminders } from './TaskReminders';
+import { TaskRemindersField } from '../../../components/inputs/ItemReminders';
 import { DeadTimesField } from '../../countdowns/components/DeadTimesField';
 import { taskCountdownItem } from '../lib/task-countdowns';
 import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
@@ -382,7 +382,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               </InheritedField>
             </PanelGroup>
             <PanelGroup title={PANEL_GROUPS.alarms}>
-              <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
+              <TaskRemindersField value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
               <SavedCountdownsField target="TASK" id={task.id} value={task.savedCountdownIds} invalidate={[tasksQueryKey]} readOnly={locked} />
             </PanelGroup>
             <PanelGroup>

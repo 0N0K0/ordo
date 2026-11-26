@@ -1,4 +1,4 @@
-import { DAY_REMINDER_KINDS, REMINDER_KINDS, ROUTINE_REMINDER_ANCHORS, routineHasHours, type Reminder } from '@ordo/shared';
+import { routineHasHours, type Reminder } from '@ordo/shared';
 import { InheritedField, type InheritedFieldState } from '../../../components/inheritance/InheritedField';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
@@ -32,7 +32,7 @@ import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBui
 import { describeSlotCondition } from '../../calendar/lib/slot-condition-text';
 import { DAILY, ruleOf, windowText } from '../lib/routine-format';
 import type { Routine } from '../api';
-import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
+import { RoutineRemindersField } from '../../../components/inputs/ItemReminders';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { SlotTimesFields } from './SlotTimesFields';
 import { ROUTINE_REPETITION_KEYS } from '../lib/routine-inheritance';
@@ -435,21 +435,5 @@ export function RoutinePlace({ values, errors, onChange, onCommit, inherited }: 
  * @returns {JSX.Element} Field.
  */
 export function RoutineReminders({ values, errors, onChange }: RoutineFieldsProps) {
-  // Without any hour, only reminders at a time of the day.
-  const timed = routineHasHours(values);
-  return (
-    <RemindersSelect
-      label="Rappels"
-      description={
-        timed
-          ? 'Pour chaque occurrence : avant le début ou la fin de chaque moment non coché, le jour de l’ouverture ou celui de l’échéance (« dès » / « jusqu’à », l’autre heure selon le temps à y consacrer), 24 h au plus ; ou à une heure de l’un de ces jours ou de quelques jours avant.'
-          : 'À une heure du jour de l’ouverture ou de l’échéance, ou de quelques jours avant : donnez une heure « dès » ou « jusqu’à » à ses moments (ou un créneau) pour des rappels avant eux.'
-      }
-      kinds={timed ? REMINDER_KINDS : DAY_REMINDER_KINDS}
-      anchors={ROUTINE_REMINDER_ANCHORS}
-      value={values.reminders}
-      onChange={(reminders) => onChange({ reminders })}
-      error={errors.reminders}
-    />
-  );
+  return <RoutineRemindersField timed={routineHasHours(values)} value={values.reminders} onChange={(reminders) => onChange({ reminders })} error={errors.reminders} />;
 }
