@@ -49,6 +49,38 @@ export const PARIS_TIME_RULES = [
     message:
       'Lire un jour ou une heure à l’heure de Paris : dayIn / timeIn / parisParts / parisInstant (@ordo/shared ; dans le web parisDay / parisToday / parisParts / parisInstant de lib/dates), dateStyle / fmt.* ; jamais les parties d’une Date dans le fuseau de la machine.',
   },
+  {
+    // A date and a time without zone (« 2026-03-29T02:30 », `${day}T${time}`) are read in the zone of the machine.
+    selector: [
+      "Literal[value=/T\\d\\d:\\d\\d(:\\d\\d(\\.\\d+)?)?$/]",
+      "TemplateLiteral:not(:has(> TemplateElement[tail=true][value.raw=/(Z|[+-]\\d\\d:?\\d\\d)$/])) > TemplateElement[value.raw=/(^|[\\d-])T(\\d\\d:\\d\\d(:\\d\\d(\\.\\d+)?)?)?$/]",
+      "BinaryExpression[operator='+'] > Literal.right[value=/^T\\d\\d:\\d\\d(:\\d\\d(\\.\\d+)?)?$/]",
+      "BinaryExpression[operator='+']:not([right.value=/(Z|[+-]\\d\\d:?\\d\\d)$/]) Literal[value=/^T$/]",
+    ]
+      .flatMap((date) => [`NewExpression[callee.name='Date'] > ${date}`, `CallExpression[callee.object.name='Date'][callee.property.name='parse'] > ${date}`])
+      .join(', '),
+    message: 'Instant d’un jour et d’une heure de Paris : parisInstant(jour, heure) (@ordo/shared ; dans le web lib/dates) ; une date et une heure sans fuseau se lisent dans le fuseau de la machine.',
+  },
+  {
+    // dayjs reads and shows a date in the zone of the machine.
+    selector: "CallExpression[callee.name='dayjs'][arguments.length>0]",
+    message: 'Lire ou montrer un jour ou une heure à l’heure de Paris : parisParts / parisInstant, fmt.* (web) ou dateStyle (@ordo/shared) ; dayjs lit et montre une date dans le fuseau de la machine.',
+  },
+  {
+    // A format of a date without options shows it in the zone of the machine.
+    selector: ":matches(NewExpression, CallExpression)[callee.object.name='Intl'][callee.property.name='DateTimeFormat'][arguments.length=0]",
+    message: 'Utiliser dateStyle (@ordo/shared) ou fmt.* (web) : une date montrée à l’heure de Paris.',
+  },
+  {
+    // The text of a Date (toString, String(date), `${date}`) is in the zone of the machine.
+    selector: [
+      "CallExpression[callee.property.name='toString'][arguments.length=0][callee.object.type='NewExpression'][callee.object.callee.name='Date']",
+      "CallExpression[callee.property.name='toString'][arguments.length=0]:matches([callee.object.name=/^(date|day|instant|at|start|end|when|moment)$|[a-z](Date|Day|At|Instant|Moment)$/], [callee.object.property.name=/^(date|day|instant|at|start|end|when|moment)$|[a-z](Date|Day|At|Instant|Moment)$/])",
+      "CallExpression[callee.name='String'] > NewExpression.arguments[callee.name='Date']",
+      'TemplateLiteral > NewExpression.expressions[callee.name=\'Date\']',
+    ].join(', '),
+    message: 'Texte d’un instant : toISOString() pour le transmettre, dateStyle (@ordo/shared) ou fmt.* (web) pour le montrer à l’heure de Paris ; le texte d’une Date est dans le fuseau de la machine.',
+  },
 ];
 
 export const SHARED_SYNTAX_RULES = [
@@ -115,6 +147,10 @@ export const SHARED_SYNTAX_RULES = [
     message: 'Utiliser occurrenceKey(id, date) ou foreignSlotKind(workspaceId, typeId) (@ordo/shared) : un seul format de clé.',
   },
   // Shared constants: one value.
+  {
+    selector: "Literal[value='Choisissez un moment à venir.']",
+    message: 'Utiliser SCHEDULE_IN_PAST / canScheduleAt (@ordo/shared) : le même moment refusé dans le web et l’API.',
+  },
   {
     selector: 'Literal[value=/^#868e96$/i]',
     message: 'Utiliser DEFAULT_LABEL_COLOR (@ordo/shared).',

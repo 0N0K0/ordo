@@ -42,8 +42,8 @@ graphql(`
 `);
 
 const TimeEntriesDocument = graphql(`
-  query TimeEntries($projectId: ID, $since: DateTime) {
-    timeEntries(projectId: $projectId, since: $since) {
+  query TimeEntries($projectId: ID, $since: DateTime, $until: DateTime) {
+    timeEntries(projectId: $projectId, since: $since, until: $until) {
       ...TimeEntryFields
     }
   }
@@ -130,6 +130,8 @@ const LostOnDeleteDocument = graphql(`
     ) {
       times
       comments
+      checklists
+      links
     }
   }
 `);
@@ -156,16 +158,18 @@ export function useTimeEntries(projectId: string) {
 }
 
 /**
- * Time entries of every project, latest first, started since a moment or all of them.
+ * Time entries of every project, latest first, not ended before a moment (or all of them), and started before another
+ * one when given: those meeting a period.
  * @param {string | null} since Moment (ISO date-time), or null for every entry.
  * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
+ * @param {string | null} [until] Only those started before this moment (ISO date-time). Optional. Default = no limit.
  * @returns {UseQueryResult} Query state.
  */
-export function useTimeEntriesSince(since: string | null, enabled = true) {
+export function useTimeEntriesSince(since: string | null, enabled = true, until: string | null = null) {
   return useQuery({
     enabled,
-    queryKey: [...timeQueryKey, 'since', since],
-    queryFn: async () => (await execute(TimeEntriesDocument, { since })).timeEntries,
+    queryKey: [...timeQueryKey, 'since', since, ...(until ? [until] : [])],
+    queryFn: async () => (await execute(TimeEntriesDocument, { since, until })).timeEntries,
   });
 }
 
@@ -194,6 +198,24 @@ export function useRunningTimers() {
 export function runningOn(running: readonly TimeEntry[] | undefined, on: (entry: TimeEntry) => boolean): TimeEntry | null {
   return running?.find(on) ?? null;
 }
+
+/**
+ * Whether a time is spent on a routine.
+ * @param {string} routineId Routine.
+ * @returns {(entry: TimeEntry) => boolean} Test of a time.
+ */
+export const onRoutine =
+  (routineId: string) =>
+  (entry: Pick<TimeEntry, 'routines'>): boolean =>
+    entry.routines.some((item) => item.id === routineId);
+
+/**
+ * The running timer spent on a routine, if any (the first started).
+ * @param {readonly TimeEntry[] | undefined} running Running timers.
+ * @param {{ id: string }} routine Routine.
+ * @returns {TimeEntry | null} Its timer, null when none runs on it.
+ */
+export const routineTimer = (running: readonly TimeEntry[] | undefined, routine: { id: string }): TimeEntry | null => runningOn(running, onRoutine(routine.id));
 
 /**
  * Mutation refreshing the time data and the tasks (their tracked time) once done.
@@ -248,10 +270,15 @@ export interface LostOnDeleteQuery {
   routineOccurrence?: { id: string; date: string; scope: CalendarEventScope };
 }
 
-/** What a deletion takes with it: times without project left with nothing attached, comments of what is deleted. */
+/**
+ * What a deletion takes with it: times without project left with nothing attached, comments, checklists started (one
+ * item ticked) and links between routines and events of what is deleted.
+ */
 export interface LostOnDelete {
   times: number;
   comments: number;
+  checklists: number;
+  links: number;
 }
 
 /**

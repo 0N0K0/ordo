@@ -21,10 +21,12 @@ import {
   lineageOf,
   relativeSprintIds,
   sprintFilterValues,
+  isTaskOverdue,
 } from '@ordo/shared';
 import { BADGE_COLUMN, DURATION_COLUMN, LATE_GROUP_LABELS, WARNING_YES_ICONS, type ColumnChoice, type ColumnFilter, type DataColumn, type YesNoIcons, type YesNoLabels } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
+import { GITHUB_STATE_BADGES } from '../../github/lib/task-github-state';
 import { stateColumn, type ColumnState } from '../../../components/data-table/table/state-column';
 import { FEEDBACK_COLORS } from '../../../components/feedback/feedback-colors';
 import type { EventOccurrence } from '../../calendar/api';
@@ -35,7 +37,6 @@ import { eventCell, taskCell } from './export';
 import { eventSortValue, sortValue } from './task-rows';
 import { parisDay } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
-import { isTaskOverdue } from './task-overdue';
 import { taggedKey } from '../../../lib/tagged-key';
 import { documentsColumn } from '../../documents/lib/documents-column';
 
@@ -394,5 +395,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     }),
     // How a closed task was closed: done or cancelled (empty while open).
     stateColumn({ id: 'closeReason', label: 'Fermeture', size: 120, hiddenByDefault: true, states: CLOSE_REASON_BADGES, value: (row) => (row.kind === 'task' ? row.task.closeReason : null) }),
+    // On GitHub or not, in a project tree linked to a board (empty outside one).
+    stateColumn({ id: 'github', label: 'GitHub', size: 170, hiddenByDefault: true, states: GITHUB_STATE_BADGES, value: (row) => (row.kind === 'task' ? (row.task.githubState ?? null) : null) }),
   ];
 }

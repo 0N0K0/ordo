@@ -3,26 +3,40 @@ import { useMutation, useQueryClient, type QueryClient, type QueryKey } from '@t
 import { useSyncExternalStore } from 'react';
 
 /** What a mutation refreshes once done, and what it shows before. */
-interface InvalidatingOptions<V> {
+interface InvalidatingOptions<V, R = unknown> {
   /** Queries refreshed once the mutation is done (with what starts with these keys). */
   invalidate: readonly QueryKey[];
   /** Changes the data shown at once, before the answer; put back as it was on an error. Optional. */
   optimistic?: (queryClient: QueryClient, variables: V) => void;
   /** Refreshed in the background: the mutation does not wait for the reload (the change is shown already). Optional. Default = false. */
   background?: boolean;
+  /**
+   * Saves of one thing in a row (a set of settings saved as a whole): the mutations of the same `id` run one after the
+   * other, and the queries are refreshed after the last only (a reload between two saves would show the first one back
+   * for a moment); a save that fails while a newer one waits leaves the data shown as the newer one changed it. With
+   * `superseded`, a save a newer one waits behind is not sent (the newer one sends it all) and resolves with
+   * `superseded(variables)`. Optional. Default = each mutation on its own.
+   */
+  queue?: { id: string; superseded?: (variables: V) => R };
 }
 
 /**
  * Mutation of the app: its request, then the queries it changes refreshed; optionally, the data shown at once before
  * the answer (optimistic), put back as it was when the request fails.
  * @param {(variables: V) => Promise<R>} mutationFn Request.
- * @param {InvalidatingOptions<V>} options Queries refreshed, optimistic change, refresh in the background.
+ * @param {InvalidatingOptions<V, R>} options Queries refreshed, optimistic change, refresh in the background, queue.
  * @returns {UseMutationResult<R, Error, V>} Mutation state.
  */
-export function useInvalidatingMutation<V, R>(mutationFn: (variables: V) => Promise<R>, { invalidate, optimistic, background = false }: InvalidatingOptions<V>) {
+export function useInvalidatingMutation<V, R>(mutationFn: (variables: V) => Promise<R>, { invalidate, optimistic, background = false, queue }: InvalidatingOptions<V, R>) {
   const queryClient = useQueryClient();
+  /**
+   * Whether another mutation of the queue is pending (waiting behind the one running), the one running counted.
+   * @returns {boolean} Another one pending.
+   */
+  const othersQueued = () => Boolean(queue) && queryClient.isMutating({ predicate: (mutation) => mutation.options.scope?.id === queue?.id }) > 1;
   return useMutation<R, Error, V, { previous: (readonly [QueryKey, unknown])[] }>({
-    mutationFn,
+    mutationFn: (variables) => (queue?.superseded && othersQueued() ? Promise.resolve(queue.superseded(variables)) : mutationFn(variables)),
+    scope: queue ? { id: queue.id } : undefined,
     onMutate: async (variables) => {
       if (!optimistic) return { previous: [] };
       await Promise.all(invalidate.map((queryKey) => queryClient.cancelQueries({ queryKey })));
@@ -30,8 +44,11 @@ export function useInvalidatingMutation<V, R>(mutationFn: (variables: V) => Prom
       optimistic(queryClient, variables);
       return { previous };
     },
-    onError: (_error, _variables, context) => context?.previous.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data)),
+    // A newer save of the queue waiting holds the data shown: kept, the refresh after it shows what was saved.
+    onError: (_error, _variables, context) => !othersQueued() && context?.previous.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data)),
     onSettled: async () => {
+      // A save of the queue still waiting: the refresh comes after it.
+      if (othersQueued()) return;
       const refreshed = Promise.all(invalidate.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
       if (!background) await refreshed;
     },

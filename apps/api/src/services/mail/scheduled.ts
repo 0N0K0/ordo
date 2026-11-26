@@ -9,7 +9,7 @@ import { withImap } from './imap';
 import { specialFolder } from './organize';
 import { deliverMessage, type SendMailInput } from './sender';
 import { forEachWorkspace, schedulePerWorkspace } from '../workspaces/workspaces';
-import { NO_SUBJECT } from '@ordo/shared';
+import { canScheduleAt, NO_SUBJECT, SCHEDULE_IN_PAST } from '@ordo/shared';
 
 /**
  * Schedules a mail: the message is built now (files included, dated of its sending time) and kept until then;
@@ -19,9 +19,7 @@ import { NO_SUBJECT } from '@ordo/shared';
  * @returns {Promise<ScheduledMail>} Scheduled mail.
  */
 export async function scheduleMail(input: SendMailInput, sendAt: Date): Promise<ScheduledMail> {
-  if (Number.isNaN(sendAt.getTime()) || sendAt.getTime() < Date.now() + 30_000) {
-    throw fieldError('sendAt', 'Choisissez un moment à venir.');
-  }
+  if (!canScheduleAt(sendAt)) throw fieldError('sendAt', SCHEDULE_IN_PAST);
   const account = await findActiveAccount(input.accountId);
   await assertActive(prisma.project, input.projectId, 'Projet', { field: 'projectId' });
   const message = await buildMessage(account, input, { date: sendAt });

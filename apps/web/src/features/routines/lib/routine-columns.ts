@@ -1,7 +1,7 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
-import { ROUTINE_REPETITIONS, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
+import { ROUTINE_REPETITIONS, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase, type RoutineState } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
-import { BADGE_COLUMN, DURATION_COLUMN, multiValues, TIME_COLUMN, WARNING_YES_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
+import { BADGE_COLUMN, DURATION_COLUMN, multiValues, TIME_COLUMN, WARNING_YES_ICONS, withArchived, type DataColumn, DONE_STATES } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
@@ -17,11 +17,8 @@ import type { TaskLabel } from '../../tasks/api';
 import { documentsColumn } from '../../documents/lib/documents-column';
 
 
-/** States of « Faite » of a routine (or of one of its times of the day), on its state buttons. */
-export const ROUTINE_DONE_STATES = {
-  labels: { yes: 'Faite', no: 'À faire' },
-  toggleLabels: { yes: 'Marquer comme faite', no: 'Marquer comme à faire' },
-} satisfies YesNoStates;
+/** States of « Faite » of a routine (or of one of its times of the day), on its state buttons: those of every activity. */
+export const ROUTINE_DONE_STATES = DONE_STATES;
 /**
  * Short date of a calendar date: "lun. 10 nov.".
  * @param {string | null} date YYYY-MM-DD.
@@ -56,7 +53,17 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       .map((id) => scheduleLabel.get(id) ?? '')
       .filter(Boolean);
   const blockers = (routine: Routine) => blockedRoutineIds(routines, routine.id);
-  const state = (routine: Routine) => currentRoutineState(routine, env.today, env.doable(routine));
+  /**
+   * State of a routine today, for its filters and sorts: a parent routine by today's progress of its sub-routines
+   * (« fait » once all that count today are, « à faire » while some are not, « à venir » when none counts today), never late.
+   * @param {Routine} routine Routine.
+   * @returns {RoutineState} State.
+   */
+  const state = (routine: Routine): RoutineState => {
+    if (!routine.hasSubRoutines) return currentRoutineState(routine, env.today, env.doable(routine));
+    const group = env.groupStates?.get(routine.id);
+    return group ? (group.complete ? 'done' : 'due') : 'upcoming';
+  };
   const minutes = (value: number | null) => (value ? formatDuration(value * 60) : '');
   /**
    * Column of a list of the tasks a routine takes one item of (its priority, its type), sorted in the order of the list.

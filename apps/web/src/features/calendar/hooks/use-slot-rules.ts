@@ -11,6 +11,7 @@ import {
   readSlotCondition,
   readTaskHours,
   scheduleSlotsOn,
+  type SlotsOn,
   unavailableScheduleIds,
 } from '@ordo/shared';
 import { useMemo } from 'react';
@@ -100,6 +101,11 @@ export interface SlotRules {
    * @returns {string | null} Text.
    */
   describe: (value: unknown) => string | null;
+  /**
+   * Slots of some schedules on a day (`scheduleSlotsOn`: of the workspace, of the other workspaces of the user, the
+   * birthdays), what the windows of a task or a routine on a day are read from (`itemWindowsOn`).
+   */
+  slotsOn: SlotsOn;
 }
 
 /**
@@ -162,6 +168,7 @@ export function useSlotRules(): SlotRules {
       nextAllowedAt: (item, from) =>
         nextAllowedMoment(item, from, { events: events ?? [], meId, timeZone: PARIS_ZONE, nextInSlots: nextInSlotsOf(readSlotCondition(item.slotCondition), slotsOn, readTaskHours(item.hours)) }),
       describe: (value) => fmt.capitalize(describeSlotCondition(readSlotCondition(value), names)) || null,
+      slotsOn,
     };
   }, [sources, minute, events, meId]);
 }

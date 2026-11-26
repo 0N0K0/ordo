@@ -95,6 +95,7 @@ En-tête de la liste :
 - Case « Tout sélectionner sur la page » (cochée, partielle ou vide).
 - Sans sélection : tri et filtre « traité ».
   - Tri : « Plus récents » (défaut), « Plus anciens », « Expéditeur (A → Z) », « Expéditeur (Z → A) », « Objet (A → Z) », « Objet (Z → A) », « Plus lourds », « Plus légers ».
+  - « Plus récents » / « Plus anciens » suivent la date affichée de chaque mail (envoi, sinon réception par le serveur), dans tous les dossiers (Envoyés et mails déplacés compris), sur toutes les pages.
   - Filtre : « Tous » / « À traiter » / « Traités ».
 - Avec sélection : la barre d’actions de la sélection (voir plus bas).
 
@@ -217,7 +218,7 @@ Le focus va sur « À » s’il est vide, sinon au début du corps.
 « Programmer » (mêmes conditions que « Envoyer ») ouvre « Envoyer plus tard » :
 
 - Heures de Paris, quel que soit le fuseau du navigateur : « Cet après-midi » (14 h, proposé seulement avant 13 h), « Demain matin » (8 h), « \<Premier jour de la semaine\> matin » (8 h, le prochain premier jour de semaine de l’espace, ex. « Lundi matin ») ; l’heure exacte est affichée à droite.
-- « Date et heure » libres (à partir d’aujourd’hui, le jour et l’heure dans un seul sélecteur), puis « Programmer l’envoi ».
+- « Date et heure » libres (le jour et l’heure dans un seul sélecteur, à l’heure de Paris), puis « Programmer l’envoi ». Seuls les moments à venir se choisissent : les jours passés sont grisés et, aujourd’hui, les heures passées sont refusées (au plus tôt la minute qui suit dans 30 secondes, recalculé toutes les 30 secondes tant que « Envoyer plus tard » est ouvert) ; un moment devenu passé entre-temps est refusé au clic, « Choisissez un moment à venir. » sous le champ, comme l’API.
 
 Toast « Envoi programmé le \<date courte et heure\>. ». Le mail est construit tout de suite (fichiers compris) et son brouillon est supprimé.
 
@@ -247,7 +248,7 @@ Bouton « Recherche avancée » à côté de la recherche rapide. Panneau :
 - Note : « Les 200 mails les plus récents de chaque dossier sont examinés. ».
 - « Enregistrer en dossier de recherche », « Effacer », « Rechercher ».
 
-Les résultats remplacent la liste, avec l’en-tête « Recherche avancée », « Modifier » / « Masquer les critères » et « Quitter ». Chaque résultat porte un badge « Boîte · Dossier » (le nom de la boîte seulement s’il y a plusieurs boîtes). Les résultats sont triés du plus récent au plus ancien. Vide : « Aucun mail ne répond à la recherche. ».
+Les résultats remplacent la liste, avec l’en-tête « Recherche avancée », « Modifier » / « Masquer les critères » et « Quitter ». Chaque résultat porte un badge « Boîte · Dossier » (le nom de la boîte seulement s’il y a plusieurs boîtes). Les résultats sont triés du plus récent au plus ancien (date affichée de chaque mail), sans choix de tri. Vide : « Aucun mail ne répond à la recherche. ».
 
 ### Dossiers de recherche
 

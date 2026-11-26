@@ -1,7 +1,7 @@
 import { dayInMonth, daysInMonth } from '../dates/months';
 import { minutesToTime, timeToMinutes } from '../dates/times';
 import { z } from 'zod';
-import { endAfter, markdownSchema, optionalText, requiredText } from '../core/rules';
+import { endAfter, markdownSchema, optionalText, requiredText, UserError } from '../core/rules';
 import { locatedFields } from '../core/geo';
 import { itemLinksSchema } from '../core/links';
 import { linkedDocumentsFields } from '../core/documents';
@@ -15,6 +15,7 @@ import {
   occurrencesBefore,
   proposedMovedRule,
   recurrenceSchema,
+  rhythmInterval,
   RuleChoiceRequired,
   ruleMovedTo,
   shiftedDates,
@@ -375,7 +376,7 @@ export function routineOccurrences(rule: Recurrence, start: string, today: strin
     return found;
   }
   // A period of the rule plus a year, for the paused periods and excluded dates.
-  const span = PERIOD_DAYS[rule.frequency] * rule.interval + 366;
+  const span = PERIOD_DAYS[rule.frequency] * rhythmInterval(rule) + 366;
   let current: string | null = null;
   if (start <= today) {
     const from = daysBetween(start, today) > span ? addDays(today, -span) : start;
@@ -572,6 +573,15 @@ export function shiftedCaseUntil(until: string | null, days: number, others: rea
     .sort()[0];
   return next && moved >= next ? addDays(next, -1) : moved;
 }
+
+/**
+ * Whether a case starts after its last day: it has no occurrence (moved into the period of a case starting after it,
+ * its end held the day before that one, `shiftedCaseUntil`).
+ * @param {{ from?: string | null, until: string | null }} item Case.
+ * @param {string} start First time of the routine.
+ * @returns {boolean} Past its end.
+ */
+export const caseAfterItsEnd = (item: { from?: string | null; until: string | null }, start: string): boolean => item.until !== null && caseStart(item, start) > item.until;
 
 /**
  * Whether an exception takes the occurrence away from its day (moved elsewhere, merged into another or deleted).
@@ -936,7 +946,7 @@ function otherWeekdays(rule: Recurrence, date: string, to: string): number[] | n
 export function weekdayMovedEnd(rule: Recurrence, start: string, date: string, to: string, until: string): string {
   if (!otherWeekdays(rule, date, to)?.length) return until;
   // Its last occurrence: within a few periods of its rhythm before the end.
-  const back = addDays(until, -7 * (Math.max(rule.interval, 2) + 1));
+  const back = addDays(until, -7 * (Math.max(rhythmInterval(rule), 2) + 1));
   const last = occurrenceDates(weekdayPattern(rule, [weekdayOfDate(date)]), start, back > start ? back : start, until).at(-1);
   const reached = last ? addDays(last, daysBetween(date, to)) : until;
   return reached > until ? reached : until;
@@ -956,7 +966,7 @@ export function weekdayMovedEnd(rule: Recurrence, start: string, date: string, t
  */
 export function listedWeeklyStart(rule: Recurrence, start: string, date: string, to: string): string {
   if (!otherWeekdays(rule, date, to)) return start;
-  const first = occurrenceDates(weekdayPattern(rule, [weekdayOfDate(date)]), start, start, addDays(start, 7 * Math.max(rule.interval, 2) + 6))[0];
+  const first = occurrenceDates(weekdayPattern(rule, [weekdayOfDate(date)]), start, start, addDays(start, 7 * Math.max(rhythmInterval(rule), 2) + 6))[0];
   const moved = first ? addDays(first, daysBetween(date, to)) : start;
   return moved < start ? moved : start;
 }
@@ -976,6 +986,18 @@ const SCAN_DAYS = 36_600;
 const MAX_EXCLUDED = 5000;
 
 /**
+ * Refusal of a move of one weekday of several alone (« Celle-ci et les suivantes », « Toutes ») that no rule can make
+ * exact (`exactMovedRule`: too many excluded dates, counted too far, a day its pattern does not have).
+ */
+export const INEXACT_MOVE_REFUSAL = 'Ce déplacement ne peut pas garder exactement les occurrences de la routine (trop de dates exclues, ou trop d’occurrences) : choisissez « Cette occurrence » pour la déplacer seule, ou simplifiez sa répétition.';
+
+/** Refusal of a move of the occurrences of a case into the period of the case after it (none would be left in it). */
+export const NEXT_CASE_REFUSAL = 'Ce jour est dans la période du cas suivant : choisissez « Cette occurrence » pour l’y déplacer seule.';
+
+/** Most pauses a rule keeps (`recurrenceSchema`). */
+const MAX_PAUSES = 100;
+
+/**
  * Days of a rule, between two days, its number of occurrences aside (its end then given by `until`).
  * @param {Recurrence} rule Rule.
  * @param {string} start First day it counts from.
@@ -990,7 +1012,8 @@ const daysOf = (rule: Recurrence, start: string, from: string, to: string, until
 /**
  * Rule made to have exactly the occurrences expected from a former one (`expect`: where each former occurrence goes in
  * it, or nowhere): from the new rule (its weekdays, rhythm, first day), the days it would have more are excluded and a
- * pause that would hold an expected day is turned into excluded days; counted, it counts the expected occurrences
+ * pause that would hold an expected day is cut at that day (it goes on on both sides of it; past `MAX_PAUSES` pauses,
+ * it is left out and its days not expected are excluded); counted, it counts the expected occurrences
  * (excluded days are not counted), else it ends at the latest of its end and its last expected day (`trim`: at its last
  * expected day). Followed day by day over its whole span when it ends within about a hundred years; else (no end, or a
  * far one) from its first days to past its excluded days and pauses, and near its end: elsewhere both repeat alike.
@@ -1015,7 +1038,7 @@ export function exactMovedRule(
   gap: number,
   trim: boolean,
 ): Recurrence | null {
-  const period = 7 * Math.max(before.weekParity ? 2 : before.interval, after.weekParity ? 2 : after.interval, 1);
+  const period = 7 * Math.max(rhythmInterval(before), rhythmInterval(after), 1);
   const margin = 2 * period + 2 * gap + 7;
   const limit = addDays(beforeStart, SCAN_DAYS);
   const expected = (from: string, to: string) =>
@@ -1056,7 +1079,14 @@ export function exactMovedRule(
         const pause = rule.pauses.findIndex((item) => day >= item.from && day <= item.to);
         // A day its pattern does not have (or excluded): it cannot be made exact.
         if (pause < 0) return null;
-        rule = { ...rule, pauses: rule.pauses.filter((_, other) => other !== pause) };
+        // The pause cut at that day, going on on both sides of it (too many pauses: left out, its days excluded).
+        const { from, to } = rule.pauses[pause];
+        const parts = [
+          { from, to: addDays(day, -1) },
+          { from: addDays(day, 1), to },
+        ].filter((part) => part.from <= part.to);
+        const cut = rule.pauses.length - 1 + parts.length <= MAX_PAUSES ? parts : [];
+        rule = { ...rule, pauses: [...rule.pauses.slice(0, pause), ...cut, ...rule.pauses.slice(pause + 1)] };
       }
       if (extra.length) rule = { ...rule, exceptions: [...rule.exceptions, ...extra] };
       changed ||= extra.length > 0 || missing.length > 0;
@@ -1095,7 +1125,9 @@ function movedWeekdayPlace(date: string, to: string, part: 'all' | 'piece' | 'be
  * counts from: on listed weekdays, as much earlier when the first occurrence of the weekday moved falls before it
  * (`listedWeeklyStart`; cut, from the new day); one weekday of several moved alone, made exact (`exactMovedRule`: the
  * former occurrences, those of that weekday moved; cut, those from the cut on, the other weekdays' from the new day),
- * or as `shiftedRoutineRule` gives it when it cannot be.
+ * or, when it cannot be, refused (`INEXACT_MOVE_REFUSAL`); its only listed weekday moved (« Toutes »), made exact as
+ * well (no day gained between its first day and its first occurrence moved, the same number of occurrences), else as
+ * `shiftedRoutineRule` gives it.
  * @param {Recurrence} rule Rule.
  * @param {string} start First day it counts from.
  * @param {string} date Occurrence moved (the day of its rule).
@@ -1104,16 +1136,21 @@ function movedWeekdayPlace(date: string, to: string, part: 'all' | 'piece' | 'be
  * @param {Recurrence | null} [chosen] New rule chosen for a rule on the last day of the month (`shiftedRoutineRule`).
  * Optional. Default = none.
  * @returns {{ recurrence: Recurrence, start: string }} Rule and the first day it counts from.
+ * @throws {UserError} One weekday of several moved alone that cannot be made exact.
  */
 export function shiftedRoutinePiece(rule: Recurrence, start: string, date: string, to: string, split: boolean, chosen: Recurrence | null = null): { recurrence: Recurrence; start: string } {
   const recurrence = shiftedRoutineRule(rule, start, date, to, split, chosen);
   const first = split ? to : listedWeeklyStart(rule, start, date, to);
-  if (!otherWeekdays(rule, date, to)?.length) return { recurrence, start: first };
+  const others = otherWeekdays(rule, date, to);
+  // Its only listed weekday moved: made exact too when it goes on from its first day (« Toutes »: no day gained
+  // between that day and its first occurrence moved); cut, it starts on the new day.
+  if (!others || (split && !others.length)) return { recurrence, start: first };
   // Compared from the new day (cut), else from the earlier of its first days.
   let since = first < start ? first : start;
   if (split) since = to;
   const exact = exactMovedRule(rule, start, recurrence, first, since, movedWeekdayPlace(date, to, split ? 'piece' : 'all'), Math.abs(daysBetween(date, to)), false);
-  return { recurrence: exact ?? recurrence, start: first };
+  if (exact || !others.length) return { recurrence: exact ?? recurrence, start: first };
+  throw new UserError(INEXACT_MOVE_REFUSAL);
 }
 
 /**
@@ -1125,19 +1162,24 @@ export function shiftedRoutinePiece(rule: Recurrence, start: string, date: strin
  * @param {string} date Occurrence the cut starts at (the day of its rule).
  * @param {string} to New day of that occurrence.
  * @returns {Recurrence | null} Rule ended before the cut, or null.
+ * @throws {UserError} It cannot be made exact (`INEXACT_MOVE_REFUSAL`).
  */
 export function cutRoutineBefore(rule: Recurrence, start: string, date: string, to: string): Recurrence | null {
   if (to <= date || !otherWeekdays(rule, date, to)?.length) return null;
   // Nothing of it from the new day on.
   const ended = { ...rule, until: earliestDay(rule.until, addDays(to, -1)) };
-  return exactMovedRule(ended, start, rule, start, start, movedWeekdayPlace(date, to, 'before'), 0, true);
+  const exact = exactMovedRule(ended, start, rule, start, start, movedWeekdayPlace(date, to, 'before'), 0, true);
+  if (!exact) throw new UserError(INEXACT_MOVE_REFUSAL);
+  return exact;
 }
 
 /**
  * End and rule of a case once one weekday of its weekly rule on several listed weekdays moved alone: its end put off
  * as its rule's (`weekdayMovedEnd` on the case's own end), never into the period of a case starting after it
  * (`shiftedCaseUntil`), and its rule made exact within the case (`exactMovedRule`, its former occurrences within its
- * former period; those past its new end are the next case's).
+ * former period; those past its new end are the next case's); refused when it cannot be (`INEXACT_MOVE_REFUSAL`; none of
+ * its occurrences left within its period: `NEXT_CASE_REFUSAL`), returned as it is when it starts past its end (refused
+ * by the API, `caseAfterItsEnd`).
  * @param {{ until: string | null, recurrence: Recurrence }} item Case (before the move).
  * @param {Recurrence} recurrence Its rule once moved.
  * @param {string} own First day it counted from.
@@ -1148,6 +1190,7 @@ export function cutRoutineBefore(rule: Recurrence, start: string, date: string, 
  * @param {string} start First time of the routine (before the move).
  * @param {boolean} split It goes on from the occurrence (cut).
  * @returns {{ until: string | null, recurrence: Recurrence }} End and rule of the case.
+ * @throws {UserError} One weekday of several moved alone that cannot be made exact.
  */
 export function weekdayMovedCase(
   item: { until: string | null; recurrence: Recurrence },
@@ -1166,11 +1209,22 @@ export function weekdayMovedCase(
   const place = movedWeekdayPlace(date, to, split ? 'piece' : 'all');
   let since = from < own ? from : own;
   if (split) since = to;
+  // Starting past its end (into the period of the next case): no occurrence to make exact (`caseAfterItsEnd`).
+  if (since > until) return { until, recurrence };
   const exact = exactMovedRule(before, own, { ...recurrence, until: earliestDay(recurrence.until, until) }, from, since, (day) => {
     const moved = place(day);
     return moved && moved <= until ? moved : null;
   }, Math.abs(daysBetween(date, to)), false);
-  return { until, recurrence: exact ? { ...exact, until: recurrence.until === null ? null : exact.until } : recurrence };
+  if (exact) return { until, recurrence: { ...exact, until: recurrence.until === null ? null : exact.until } };
+  // Merged into another of its weekdays: as it is; moved alone, refused rather than inexact.
+  if (!otherWeekdays(item.recurrence, date, to)?.length) return { until, recurrence };
+  // None of its occurrences left within its period (moved into the next case's).
+  const gap = Math.abs(daysBetween(date, to));
+  const kept = occurrenceDates(before, own, addDays(since, -gap), addDays(until, gap)).some((day) => {
+    const moved = place(day);
+    return moved !== null && moved >= since && moved <= until;
+  });
+  throw new UserError(kept ? INEXACT_MOVE_REFUSAL : NEXT_CASE_REFUSAL);
 }
 
 /** Same changes for several routines: values set (null: none, undefined: unchanged), or ids added to and removed from their lists. */

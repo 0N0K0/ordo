@@ -467,6 +467,11 @@ type Calendar {
   id: ID!
   label: String!
   position: Int!
+
+  """
+  Number of other workspaces subscribed to it (archiving it removes their subscriptions, for good).
+  """
+  subscriberCount: Int!
 }
 
 type CalendarCategory {
@@ -1382,6 +1387,7 @@ type ForeignScheduleKind {
 Schedule of another workspace: of a kind this one subscribes to (shown read only), or one a slot condition can name.
 """
 type ForeignWorkSchedule {
+  """Archived in its workspace."""
   archived: Boolean!
   cases: JSON!
 
@@ -1395,6 +1401,9 @@ type ForeignWorkSchedule {
   ephemeris: Boolean!
   exceptions: JSON!
   id: ID!
+
+  """Of a kind archived in its workspace."""
+  kindArchived: Boolean!
   label: String!
   monthDisplay: String!
   startDate: String!
@@ -1539,6 +1548,15 @@ type GithubProjectLink {
   writeIterations: Boolean!
 }
 
+"""What « Envoyer sur GitHub » did."""
+type GithubSendResult {
+  """Why each other task is not."""
+  errors: [String!]!
+
+  """Tasks now on GitHub."""
+  sent: Int!
+}
+
 type GithubSyncSummary {
   comments: Int!
 
@@ -1571,6 +1589,15 @@ type GithubSyncSummary {
   """
   sprintsUnpaired: Int!
   unlinked: Int!
+}
+
+"""
+Where a task of a project tree linked to a GitHub board stands: on the board, not on GitHub, or removed from the board (not sent again by the sync).
+"""
+enum GithubTaskState {
+  NOT_SENT
+  REMOVED
+  SYNCED
 }
 
 """Quote or invoice issued before Ordo: main information and file."""
@@ -1746,8 +1773,18 @@ type LinkedMailAttachment {
 
 """What a deletion takes with it, for its confirmation."""
 type LostOnDelete {
+  """
+  Checklists started (one item ticked at least) of the items and occurrences deleted; those not started go too, uncounted.
+  """
+  checklists: Int!
+
   """Comments of the items and occurrences deleted."""
   comments: Int!
+
+  """
+  Links between routines and events of the items and occurrences deleted.
+  """
+  links: Int!
 
   """Times without project, not billed, left with nothing attached."""
   times: Int!
@@ -1873,7 +1910,9 @@ type MailPage {
 
 """Search folder, kept in Ordo (not on the mail server)."""
 type MailSearch {
-  """accountIds, scope, state, labelIds, unread, text."""
+  """
+  accountIds, scope, folder, state, labelIds, unread, text, from, to, subject, body, since, until, attachments, projectId.
+  """
   criteria: JSON!
   id: ID!
   label: String!
@@ -1911,6 +1950,9 @@ input MailSearchInput {
   from: String
   label: String!
   labelIds: [ID!]!
+
+  """Only the mails linked to this project (the sent ones too)."""
+  projectId: ID
 
   """inbox, all or folder."""
   scope: String!
@@ -2046,7 +2088,7 @@ type Mutation {
   """
   addTreasuryMember(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its own birthday applies (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its own birthday applies (slot conditions).
     """
     confirmLoss: Boolean
     contributorId: ID
@@ -2092,6 +2134,11 @@ type Mutation {
     """
     doneOn: Date
     ids: [ID!]!
+
+    """
+    Ticking: only these times of the day, each at the time it was done (the undo of an untick gives back those it unticked); by default every one of each occurrence.
+    """
+    ticks: [RoutineSlotTick!]
   ): Int!
 
   """
@@ -2111,7 +2158,7 @@ type Mutation {
     changes: RoutineBulkChanges!
 
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     ids: [ID!]!
@@ -2141,7 +2188,7 @@ type Mutation {
   """
   changeRoutineOccurrence(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     date: Date!
@@ -2200,7 +2247,7 @@ type Mutation {
   createClientService(clientId: ID!, input: ClientServiceInput!): ClientService!
   createContributor(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday (slot conditions).
     """
     confirmLoss: Boolean
     input: ContributorInput!
@@ -2274,7 +2321,7 @@ type Mutation {
   """
   createWorkSchedule(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     input: WorkScheduleInput!
@@ -2301,7 +2348,7 @@ type Mutation {
   deleteComment(id: ID!): Boolean!
   deleteContributor(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday gone (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday gone (slot conditions).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2353,7 +2400,7 @@ type Mutation {
   """
   deleteScheduleType(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2401,7 +2448,7 @@ type Mutation {
   """
   deleteTreasuryRelation(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday gone (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday gone (slot conditions).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2412,7 +2459,7 @@ type Mutation {
   """
   deleteWorkSchedule(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2521,7 +2568,7 @@ type Mutation {
     categoryIds: [ID!]
 
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2581,7 +2628,7 @@ type Mutation {
   """
   patchRoutine(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -2632,7 +2679,7 @@ type Mutation {
   """
   removeTreasuryMember(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday gone (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday gone (slot conditions).
     """
     confirmLoss: Boolean
     contributorId: ID!
@@ -2716,7 +2763,7 @@ type Mutation {
   """Creates a relation (without id) or changes one."""
   saveTreasuryRelation(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday moved or gone (birth date, contributor; slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday moved or gone (birth date, contributor; slot conditions).
     """
     confirmLoss: Boolean
     id: ID
@@ -2737,17 +2784,22 @@ type Mutation {
   """Sends a scheduled (or failed) mail now."""
   sendScheduledMail(id: ID!): Boolean!
 
+  """
+  « Envoyer sur GitHub »: sends tasks not on GitHub (never sent, created before the link, removed from the board) by a sync of their link.
+  """
+  sendTasksToGithub(ids: [ID!]!): GithubSendResult!
+
   """Moves a document (draft or final) to a project, or out of any."""
   setAccountingDocumentProject(id: ID!, projectId: ID): Boolean!
 
   """
-  Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored.
+  Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored; an archived calendar or kind of schedules loses the subscriptions of the other workspaces to it, for good.
   """
   setArchived(
     archived: Boolean!
 
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Schedules, kinds of schedules, contributors, relations and contacts (with the people linked to them).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Schedules, kinds of schedules, contributors, relations and contacts (with the people linked to them).
     """
     confirmLoss: Boolean
     ids: [ID!]!
@@ -2836,7 +2888,7 @@ type Mutation {
   """
   setScheduleSubscriptionUnavailable(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     typeId: ID
@@ -2849,7 +2901,7 @@ type Mutation {
   """
   setScheduleTypeEphemeris(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     ephemeris: Boolean!
@@ -2899,7 +2951,7 @@ type Mutation {
   """
   setWorkScheduleEphemeris(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     ephemeris: Boolean!
@@ -2940,11 +2992,13 @@ type Mutation {
   """
   stopTimer(id: ID!): TimeEntry
 
-  """Shows a calendar of another workspace in this one (read only)."""
+  """
+  Shows a calendar of another workspace in this one (read only); an archived one is refused.
+  """
   subscribeCalendar(calendarId: ID!): Boolean!
 
   """
-  Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only.
+  Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only; an archived kind is refused.
   """
   subscribeScheduleKind(typeId: ID, workspaceId: ID!): Boolean!
   syncGithubProject(projectId: ID!): GithubSyncSummary!
@@ -2984,7 +3038,7 @@ type Mutation {
   """
   updateCalendarEvent(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -3007,7 +3061,7 @@ type Mutation {
   updateCompanyProfile(input: CompanyProfileInput!): CompanyProfile!
   updateContributor(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday moved or gone (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday moved or gone (slot conditions).
     """
     confirmLoss: Boolean
     id: ID!
@@ -3021,6 +3075,11 @@ type Mutation {
   updateMailLabel(id: ID!, input: LabelColorPatch!): MailLabel!
   updateMailSearch(id: ID!, input: MailSearchInput!): Boolean!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
+
+  """
+  Saves the settings of « Ma journée » of the user in the current workspace.
+  """
+  updateMyDaySettings(input: MyDaySettingsInput!): MyDaySettings!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
   updateProjectCategory(id: ID!, input: LabelColorPatch!): ProjectCategory!
   updateProjectResource(id: ID!, label: String!, note: String, url: String): Boolean!
@@ -3035,7 +3094,7 @@ type Mutation {
   """
   updateRoutine(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -3050,7 +3109,7 @@ type Mutation {
   updateSavedCountdown(id: ID!, input: SavedCountdownPatch!): SavedCountdown!
   updateScheduleType(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -3099,7 +3158,7 @@ type Mutation {
   """
   updateTreasuryMember(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday moved or gone (slot conditions).
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked). Its birthday moved or gone (slot conditions).
     """
     confirmLoss: Boolean
     contributorId: ID!
@@ -3112,7 +3171,7 @@ type Mutation {
   """
   updateWorkSchedule(
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
     id: ID!
@@ -3131,6 +3190,47 @@ type Mutation {
   Uses a sheet (times a multiplier): its items used up that are references are taken from the stock.
   """
   useSheet(id: ID!, multiplier: Float!): SheetUse!
+}
+
+"""
+Settings of the page « Ma journée » of the user in the current workspace (one set, saved on the server): those of a view of the agenda a list of the day uses.
+"""
+type MyDaySettings {
+  """
+  Filter of each kind of items of the workspace ({ events, tasks, routines, timers, slots, ephemerides }), as those of a view of the agenda.
+  """
+  filters: JSON!
+
+  """
+  Calendars left out (a calendar created later is shown). A calendar deleted since may stay listed.
+  """
+  hiddenCalendarIds: [String!]!
+
+  """
+  Créneaux and éphémérides left out, of this workspace or of a kind of another one it subscribes to (one created later is shown). One deleted since may stay listed.
+  """
+  hiddenScheduleIds: [String!]!
+
+  """Routines shown."""
+  routines: Boolean!
+
+  """Créneaux, éphémérides and birthdays shown."""
+  schedules: Boolean!
+
+  """Tasks shown."""
+  tasks: Boolean!
+}
+
+"""
+Settings of « Ma journée », saved as a whole, read as a view of the agenda (a field invalid takes its default).
+"""
+input MyDaySettingsInput {
+  filters: JSON!
+  hiddenCalendarIds: [String!]!
+  hiddenScheduleIds: [String!]!
+  routines: Boolean!
+  schedules: Boolean!
+  tasks: Boolean!
 }
 
 """Kind of notification a workspace can give while another one is open."""
@@ -3347,7 +3447,9 @@ type Query {
   """Occurrences of the events overlapping a period (dates included)."""
   calendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!
 
-  """Calendars of other workspaces shown in this one (read only)."""
+  """
+  Calendars of other workspaces shown in this one (read only); archived ones never.
+  """
   calendarSubscriptions: [CalendarSubscription!]!
 
   """Calendars of the workspace, in their order."""
@@ -3468,7 +3570,7 @@ type Query {
   libraryDocuments: [LibraryDocument!]!
 
   """
-  What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the times without project, not billed, left with nothing attached, and the comments of the routines, events and occurrences deleted.
+  What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the times without project, not billed, left with nothing attached, and the comments, started checklists and links between routines and events of the tasks, routines, events and occurrences deleted.
   """
   lostOnDelete(
     """Calendar deleted with all its events."""
@@ -3537,6 +3639,11 @@ type Query {
   milestones: [Milestone!]!
 
   """
+  Settings of « Ma journée » of the user in the current workspace (the defaults when none were saved).
+  """
+  myDaySettings: MyDaySettings!
+
+  """
   Fields of a new document of a client (company terms and mentions, dates).
   """
   newDocumentDefaults(clientId: ID!, issueDate: Date!, type: AccountingDocumentType!): JSON!
@@ -3589,7 +3696,7 @@ type Query {
   """
   routineOccurrences(
     """
-    Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the history of a day).
+    Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the times of the day of a day: « Ma journée », the badge of the menu).
     """
     doneInPeriod: Boolean
     from: Date!
@@ -3665,7 +3772,7 @@ type Query {
   """Movements of the stock, latest first: all, or those of an item."""
   stockMovements(itemId: ID): [StockMovement!]!
 
-  """Calendars of the other workspaces."""
+  """Calendars of the other workspaces, archived ones left out."""
   subscribableCalendars: [SubscribableCalendar!]!
 
   """
@@ -3708,9 +3815,18 @@ type Query {
   tasks: [Task!]!
 
   """
-  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since). Timers past their 24 hours are stopped first.
+  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since), and only those started before a moment (until). Timers past their 24 hours are stopped first.
   """
-  timeEntries(projectId: ID, routineId: ID, since: DateTime): [TimeEntry!]!
+  timeEntries(
+    projectId: ID
+    routineId: ID
+    since: DateTime
+
+    """
+    Only those started before this moment (with since: those meeting the period).
+    """
+    until: DateTime
+  ): [TimeEntry!]!
 
   """
   Mails to do (not marked as done) of every account, in every folder but drafts, sent, archive, junk and trash.
@@ -3914,7 +4030,9 @@ type Routine {
   """Its current occurrence is done: every required time of the day ticked."""
   done: Boolean!
 
-  """Latest ticked occurrences (30 at most), latest first."""
+  """
+  Latest ticked occurrences (30 at most), latest first; none for a routine that has sub-routines not archived (its ticks of before are not read).
+  """
   doneDates: [Date!]!
 
   """Latest time to do it by (HH:MM)."""
@@ -3931,6 +4049,11 @@ type Routine {
 
   """Time to do it from (HH:MM), its own (see windowFrom)."""
   fromTime: String
+
+  """
+  It has sub-routines not archived: a group of them and their template, never ticked nor late, no reminder of its own; its state of a day is read from those open that day not done yet, or done that day.
+  """
+  hasSubRoutines: Boolean!
   id: ID!
 
   """
@@ -3941,6 +4064,10 @@ type Routine {
   """Fields it takes from its parent, live; none for a top-level routine."""
   inheritedFields: [RoutineInheritableField!]!
   label: String!
+
+  """
+  Last time one of its times of the day was ticked; none for a routine that has sub-routines not archived (its ticks of before are not read).
+  """
   lastDoneAt: DateTime
 
   """Documents of the library linked to it (not inherited)."""
@@ -4457,6 +4584,17 @@ type RoutineSlot {
   windows: JSON!
 }
 
+"""
+A time of the day of a routine ticked again at the time it was done (the undo of an untick).
+"""
+input RoutineSlotTick {
+  doneAt: DateTime!
+  id: ID!
+
+  """Time of the day (index)."""
+  slot: Int!
+}
+
 input SaveMailDraftInput {
   accountId: ID!
   attachments: [File!]
@@ -4578,6 +4716,11 @@ type ScheduleType {
 
   """A context in every workspace of the user."""
   sharedContext: Boolean!
+
+  """
+  Number of other workspaces subscribed to it (archiving it removes their subscriptions, for good).
+  """
+  subscriberCount: Int!
 
   """
   « Indisponible » in this workspace: nothing is scheduled during the slots of its schedules.
@@ -5311,6 +5454,16 @@ type Task {
   githubLinked: Boolean!
   githubNumber: Int
 
+  """
+  « Envoyer sur GitHub » is offered (sendTasksToGithub): active, not on GitHub, in a linked tree (automatic or manual sync), GitHub connected.
+  """
+  githubSendable: Boolean!
+
+  """
+  GitHub state of the task; null outside a project tree linked to a board.
+  """
+  githubState: GithubTaskState
+
   """Issue on GitHub (null for a draft issue or an unlinked task)."""
   githubUrl: String
 
@@ -5476,7 +5629,9 @@ type TaskComment {
   body: String!
   createdAt: DateTime!
 
-  """Author on GitHub, when someone else than the connected account."""
+  """
+  Author on GitHub, when someone else than the connected account (or the last one, once its token is forgotten).
+  """
   githubAuthor: String
   id: ID!
 }

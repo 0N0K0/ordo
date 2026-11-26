@@ -15,15 +15,17 @@ Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label
 | `TimeEntry` (type)                     | Fragment `TimeEntryFields` d’un temps.                                                                                                                                                                    |
 | `timeQueryKey`                         | Clé `['time']` des données du temps.                                                                                                                                                                      |
 | `useTimeEntries(projectId)`            | Temps d’un projet et de ses sous-projets (rien sans projet). Utilisé par `ProjectTimePanel`.                                                                                                              |
-| `useTimeEntriesSince(since, enabled?)` | Temps de tous les projets depuis un moment (ISO), ou tous (`null`). Utilisé par `TimePage`, `PlannedTime`, l’agenda (`CalendarPage`), l’accueil (`home-data.ts`).                                         |
+| `useTimeEntriesSince(since, enabled?, until?)` | Temps de tous les projets pas finis avant un moment (ISO), ou tous (`null`) ; avec `until`, seulement ceux commencés avant ce moment (ceux qui rencontrent une période). Utilisé par `TimePage`, `PlannedTime`, l’agenda (`CalendarPage`), l’accueil (`home-data.ts`), « Ma journée » (`useMyDay`, les temps d’un jour passé).                                         |
 | `useRunningTimers()`                   | Les chronos en cours (plusieurs à la fois), le premier démarré d’abord ; relus au retour du focus et chaque minute, onglet en arrière-plan compris ; clé `runningTimersQueryKey`. |
-| `runningOn(running, on)`               | Le chrono en cours sur un élément (le premier), sinon `null`. Utilisé par `TrackedTime`, `TimerCell`, `ChronoCell` (routines). |
+| `runningOn(running, on)`               | Le chrono en cours sur un élément (le premier), sinon `null`. Utilisé par `TrackedTime`, `TimerCell`, `routineTimer`. |
+| `onRoutine(routineId)`                 | Test d’un temps passé sur une routine. Utilisé par `routineTimer` et le chrono du panneau d’une routine (`RoutineForm`, `TrackedTime`). |
+| `routineTimer(running, routine)`       | Le chrono en cours sur une routine (`runningOn`). Utilisé par `ChronoCell` (routines) et les lignes de « Ma journée ». |
 | `TimeEntryValues` (interface)          | Champs d’un temps envoyés : `projectId`, `routineIds?`, `taskIds`, `description`, `startedAt`, `duration` (secondes), `events?` (plusieurs de chaque). |
 | `TimerStartValues` (interface)         | Démarrage d’un chrono : `projectId?`, `routineIds?`, `taskIds`, `description?`, `events?`. |
 | `TimeEventLink` (interface)            | Évènement d’un temps envoyé : `{ eventId, occurrenceDate }`. |
 | `LostOnDeleteQuery` (interface)        | Éléments sur le point d’être supprimés : `taskIds?`, `routineIds?`, `withSubtree?`, `eventId?`, `scope?`, `occurrenceDate?`, `calendarId?`, `routineOccurrence?` (`{ id, date, scope }` : occurrence de routine, ou elle et les suivantes). |
-| `LostOnDelete` (interface)             | `{ times, comments }` : temps sans projet laissés sans rattachement, commentaires de ce qui est supprimé. |
-| `fetchLostOnDelete(query)`             | Ce qu’une suppression emporte : temps sans projet et commentaires (requête `lostOnDelete`). Utilisé par `EventForm` (les trois portées d’un récurrent) et `useCalendarEdits` (suppression d’une occurrence de routine, deux portées). |
+| `LostOnDelete` (interface)             | `{ times, comments, checklists, links }` : temps sans projet laissés sans rattachement, commentaires, listes à cocher commencées et liens entre routines et évènements de ce qui est supprimé. |
+| `fetchLostOnDelete(query)`             | Ce qu’une suppression emporte : temps sans projet, commentaires, listes à cocher commencées et liens (requête `lostOnDelete`). Utilisé par `EventForm` (les trois portées d’un récurrent) et `useCalendarEdits` (suppression d’une occurrence de routine, deux portées). |
 | `useLostOnDelete(query)`               | La même chose en requête React Query. Utilisé par `LostOnDeleteRisk`. |
 | `useTimeMutations()`                   | `{ start, setPaused({ id, paused }), stop(id), stopAll, create, update, remove }` ; toutes invalident `['time']` et `['tasks']` (temps passé des tâches). `start` avertit ensuite si le chrono est hors des créneaux (`warnOutOfSlots`). |
 
@@ -54,7 +56,7 @@ Cellules modifiables du tableau des temps ; chacune reçoit `{ entry, readOnly, 
 
 | Nom                           | Rôle                                                                                                     |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `TimeDayCell`                 | Jour à Paris (l’heure de Paris gardée, `parisParts`, `parisInstant`).                                    |
+| `TimeDayCell`                 | Jour à Paris (l’heure de Paris gardée, `parisParts`, `parisInstant`), pas après aujourd’hui (`maxDate` `parisToday()`). |
 | `TimeStartCell`               | Heure de début (à Paris).                                                                                |
 | `TimeDurationCell`            | Durée tapée (`parseDuration`) ; « Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h. » (`DURATION_TEXT_INVALID`, comme le formulaire).                            |
 | `TimeRoutinesCell` (+ `context`) | Routines de l’arborescence du projet (`timeRoutineOptions`). |
@@ -65,7 +67,7 @@ Les trois cellules de sujets passent par l’interne `TimeSubjectCell({ kind, en
 
 ### `components/TimeEntryForm.tsx`
 
-- `TimeEntryForm({ context, entry?, defaultProjectId?, onDone })` : formulaire d’ajout (« Ajouter ») ou panneau d’un temps existant enregistré champ par champ (`useFieldSave` : durée et description en les quittant, le reste dès qu’il change, `SaveStatus` en tête ; entrée de l’API par `entryInput` à l’ajout, par interne `changedInput` en modification : seuls les champs changés, durée et début gardés exacts sinon) : projet (facultatif avec une tâche, une routine ou un évènement ; le changer vide routines et tâches, enregistrés ensemble), jour et début (à l’heure de Paris, `parisParts`, `parisInstant`), durée, routines, tâches et évènements du jour (le jour saisi, aujourd’hui à Paris tant qu’il n’est pas saisi, interne `entryDay` ; `TimeSubjectsFields`, valeurs `routineIds`, `taskIds`, `events` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`) ; le temps du cache est suivi (`useCachedItem` sur `timeQueryKey`, valeurs d’un temps : interne `timeEntryFormValues`). Ouvert par `useTimeEntryDialogs`.
+- `TimeEntryForm({ context, entry?, defaultProjectId?, onDone })` : formulaire d’ajout (« Ajouter ») ou panneau d’un temps existant enregistré champ par champ (`useFieldSave` : durée et description en les quittant, le reste dès qu’il change, `SaveStatus` en tête ; entrée de l’API par `entryInput` à l’ajout, par interne `changedInput` en modification : seuls les champs changés, durée et début gardés exacts sinon) : projet (facultatif avec une tâche, une routine ou un évènement ; le changer vide routines et tâches, enregistrés ensemble), jour et début (à l’heure de Paris, `parisParts`, `parisInstant`), durée, routines, tâches et évènements du jour (le jour saisi, aujourd’hui à Paris tant qu’il n’est pas saisi, interne `entryDay` ; `TimeSubjectsFields`, valeurs `routineIds`, `taskIds`, `events` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`) ; le temps du cache est suivi (`useCachedItem` sur `timeQueryKey`, valeurs d’un temps : interne `timeEntryFormValues`) ; un nouveau temps commence il y a une heure à Paris, à la minute, pour 1:00 (interne `newEntryFormValues` : « Ajouter » sans rien changer est accepté ; pendant l’heure répétée de l’automne, une heure plus tôt encore). Ouvert par `useTimeEntryDialogs`. Le « Début » (`DateTimeField`) s’arrête à aujourd’hui (`maxDate` `parisToday()`) ; un temps qui finirait après maintenant est refusé par le schéma (`timeEntryFutureError`).
 
 ### `components/TimeLogActions.tsx`
 
@@ -109,7 +111,7 @@ Classes `clock` (horloge, en couleur atténuée quand `data-paused`) et `fields`
 
 ### `components/TimerToggle.tsx`
 
-- `TimerToggle({ name, mine, input, disabled?, size? })` : démarre un chrono sur un élément (les autres continuent), ou arrête celui qui tourne dessus (`mine`). Utilisé par la colonne « Chrono » des tâches (`TimerCell`) et d’autres tableaux (routines…).
+- `TimerToggle({ name, mine, input, disabled?, size? })` : démarre un chrono sur un élément (les autres continuent), ou arrête celui qui tourne dessus (`mine`). Utilisé par la colonne « Chrono » des tâches (`TimerCell`), d’autres tableaux (routines…) et `EventTimerToggle` (agenda).
 
 ### `components/TimerWidget.tsx`
 
@@ -129,13 +131,13 @@ Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`compo
 
 ### `components/LostOnDeleteRisk.tsx`
 
-- `LostOnDeleteRisk({ query })` : phrases de la confirmation d’une suppression de tâches, de routines, d’un évènement ou d’un calendrier : « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). » et « 3 commentaires seront aussi supprimés. » (`useLostOnDelete`, `lostOnDeleteText` ; rien sans aucun). Seule brique de ce rôle. Utilisé par `DeleteTasksDialog`, `DeleteRoutinesDialog`, `EventForm`, `CalendarsManager`.
+- `LostOnDeleteRisk({ query })` : phrases de la confirmation d’une suppression de tâches, de routines, d’un évènement ou d’un calendrier : « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). » , « 3 commentaires seront aussi supprimés. », « 2 listes à cocher commencées seront aussi supprimées. » et « 4 liens entre routines et évènements seront aussi supprimés. » (`useLostOnDelete`, `lostOnDeleteText` ; rien sans aucun). Seule brique de ce rôle. Utilisé par `DeleteTasksDialog`, `DeleteRoutinesDialog`, `EventForm`, `CalendarsManager`.
 
 ### `lib/lost-on-delete.ts`
 
-- `lostOnDeleteText(lost)` : les deux phrases ci-dessus (vide sans rien).
+- `lostOnDeleteText(lost)` : les phrases ci-dessus (vide sans rien ; listes et liens absents : aucun).
 - `withLossConfirmation(run, dialog?)` (`lib/confirm-loss.tsx`) : lance un changement sans confirmation (`run(false)`) ; si l'API répond `CONFIRMATION_REQUIRED`, demande la confirmation destructive faite de son extension `lost` — par défaut « Occurrences supprimées » (« Ce changement fait disparaître des occurrences qui ne reviendront pas. » puis `lostOnDeleteText(lost)`, bouton « Supprimer et enregistrer ») ; `dialog(lost)` en donne une autre (transformation tâche ↔ routine : `conversionDialog`)  — et relance confirmé (`run(true)`) ; une extension `lost.merge` (occurrence d'une routine déplacée sur un jour qui a la sienne) n'est pas une perte : l'erreur passe, pour `withSameDayChoice` (routines) ; refusé : `ActionDeclined`. Type `LossDialog` (options de `confirmedDestructive`). Utilisé par les mutations `update` des évènements, `update`, `patch`, `bulkUpdate`, `changeOccurrence`, `convertTask`, `convertToTask` des routines, et celles des créneaux.
-- `scopeLostNote(lost)` : note de la question de portée d’une suppression : « Temps sans projet supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3 (les temps facturés sont gardés). Commentaires supprimés avec : cette occurrence 1, … » (seulement les choix proposés ; rien sans aucun). Utilisé par `EventForm` et `useCalendarEdits`.
+- `scopeLostNote(lost)` : note de la question de portée d’une suppression : « Temps sans projet supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3 (les temps facturés sont gardés). Commentaires supprimés avec : cette occurrence 1, … », de même « Listes à cocher commencées supprimées avec » et « Liens entre routines et évènements supprimés avec » (seulement les choix proposés ; rien sans aucun). Utilisé par `EventForm` et `useCalendarEdits`.
 
 ## hooks/
 
@@ -159,7 +161,7 @@ Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`compo
 
 ### `hooks/use-time-dialogs.tsx`
 
-- `useTimeEntryDialogs(context, defaultProjectId?)` : `{ openForm(entry?), duplicate, confirmDelete(entry) }` : formulaire d’un temps dans le panneau (« Ajouter un temps », ou « Temps » pour un temps existant), « Dupliquer » (`DuplicateOptions` de `duplicateRowsAction` : copie enregistrée tout de suite, jamais facturée, durée ramenée de `DURATION_MIN_SECONDS` à `DURATION_MAX_SECONDS`, puis son formulaire ouvert via `cachedItem`) et confirmation de suppression. Utilisé par `TimePage`, `ProjectTimePanel`, l’agenda.
+- `useTimeEntryDialogs(context, defaultProjectId?)` : `{ openForm(entry?), duplicate, confirmDelete(entry) }` : formulaire d’un temps dans le panneau (« Ajouter un temps », ou « Temps » pour un temps existant), « Dupliquer » (`DuplicateOptions` de `duplicateRowsAction` : copie enregistrée tout de suite, jamais facturée, durée ramenée de `DURATION_MIN_SECONDS` à `DURATION_MAX_SECONDS`, début reculé quand la copie finirait après maintenant, puis son formulaire ouvert via `cachedItem`) et confirmation de suppression. Utilisé par `TimePage`, `ProjectTimePanel`, l’agenda.
 
 ## lib/
 

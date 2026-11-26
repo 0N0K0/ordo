@@ -30,6 +30,8 @@ export interface RowAction {
   danger?: boolean;
   /** Only ever in the « … » menu, never as a button (« Archiver » / « Restaurer »). Optional. */
   inMenu?: boolean;
+  /** Running (something is checked before it acts): its button spins, or, kept in a « … » menu, the button of that menu, the entry disabled meanwhile. Optional. Default = false. */
+  loading?: boolean;
 }
 
 /** Title of a section of a menu (its actions follow). */
@@ -160,7 +162,7 @@ export function ActionsMenu({
                 leftSection={item.checked === undefined || item.icon ? item.icon : item.checked ? <CheckIcon aria-hidden /> : <span style={{ width: '1.25em' }} />}
                 rightSection={item.icon && item.checked ? <CheckIcon aria-hidden /> : undefined}
                 color={item.danger ? 'red' : undefined}
-                disabled={item.disabled}
+                disabled={item.disabled || item.loading}
                 title={item.hint}
                 style={item.indent ? { paddingLeft: `calc(var(--mantine-spacing-sm) + ${item.indent} * var(--mantine-spacing-md))` } : undefined}
                 onClick={item.onClick}
@@ -188,7 +190,7 @@ interface InlineActionsProps extends ActionsSubject {
 
 /**
  * Actions shown side by side, each as an icon (a card, an item of a list): the same buttons everywhere; those kept to
- * a menu (`inMenu`: « Archiver ») in a « … » menu after them (`ActionsMenu`).
+ * a menu (`inMenu`: « Archiver ») in a « … » menu after them (`ActionsMenu`), its button spinning while one of them runs.
  * @param {InlineActionsProps} props Component props.
  * @returns {JSX.Element} Actions.
  */
@@ -204,7 +206,7 @@ export function InlineActions({ name, about, items }: InlineActionsProps) {
             {action.icon}
           </IconAction>
         ))}
-      <ActionsMenu name={name} about={about} items={menu} />
+      <ActionsMenu name={name} about={about} items={menu} loading={menu.some((action) => action.loading)} />
     </Group>
   );
 }

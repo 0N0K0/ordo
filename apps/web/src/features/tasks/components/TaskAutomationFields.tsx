@@ -73,6 +73,15 @@ const NOT_ITEMS = new Set<string>([ME, ...RELATIVE_SPRINTS]);
 const FIELD_OPTIONS = TASK_AUTOMATION_FIELDS.map((field) => ({ value: field, label: capitalize(TASK_AUTOMATION_FIELD_META[field].label) }));
 
 /**
+ * Value a field starts with when it is chosen: « Aujourd’hui » for a day (what the day editor shows), none otherwise.
+ * @param {TaskAutomationField | null} field Field chosen.
+ * @returns {string | null} Starting value.
+ */
+function startValue(field: TaskAutomationField | null): string | null {
+  return field && TASK_AUTOMATION_FIELD_META[field].kind === 'day' ? 'today' : null;
+}
+
+/**
  * Choices of a field of a list of items (statuses, tags, people, projects…), as the filters of the task table offer
  * them (their avatars, the projects as their tree), the current values offered even when archived.
  * @param {FilterFields<string>} fields Fields of the filters of the tasks.
@@ -181,14 +190,14 @@ export function TaskAutomationFields({ values, errors, context, onChange }: Task
                 data={FIELD_OPTIONS}
                 value={trigger.field}
                 error={errorOf('trigger.field')}
-                onChange={(field) => setTrigger({ field: field as TaskAutomationField | null, value: null, change: trigger.change === 'IS' ? 'CHANGED' : trigger.change })}
+                onChange={(field) => setTrigger({ field: field as TaskAutomationField | null, value: startValue(field as TaskAutomationField | null), change: trigger.change === 'IS' ? 'CHANGED' : trigger.change })}
               />
               <Select
                 label="Changement"
                 data={TASK_AUTOMATION_CHANGES.filter((change) => change !== 'IS' || precise).map((change) => ({ value: change, label: TASK_AUTOMATION_CHANGE_LABELS[change] }))}
                 value={trigger.change}
                 error={errorOf('trigger.change')}
-                onChange={(change) => setTrigger({ change: change as TaskAutomationChange | null, value: null })}
+                onChange={(change) => setTrigger({ change: change as TaskAutomationChange | null, value: startValue(trigger.field) })}
               />
             </Group>
           )}
@@ -225,7 +234,7 @@ export function TaskAutomationFields({ values, errors, context, onChange }: Task
                       data={TASK_AUTOMATION_ACTIONS.map((kind) => ({ value: kind, label: TASK_AUTOMATION_ACTION_LABELS[kind] }))}
                       value={action.kind}
                       allowDeselect={false}
-                      onChange={(kind) => kind && setAction(index, { kind: kind as TaskAutomationActionKind, value: null })}
+                      onChange={(kind) => kind && setAction(index, { kind: kind as TaskAutomationActionKind, value: startValue(action.field ?? null) })}
                     />
                     {onField && (
                       <Select
@@ -235,7 +244,7 @@ export function TaskAutomationFields({ values, errors, context, onChange }: Task
                         data={listOnly ? FIELD_OPTIONS.filter((option) => TASK_AUTOMATION_FIELD_META[option.value].kind === 'list') : FIELD_OPTIONS}
                         value={action.field}
                         error={errorOf(`actions.${index}.field`)}
-                        onChange={(field) => setAction(index, { field: field as TaskAutomationField | null, value: null })}
+                        onChange={(field) => setAction(index, { field: field as TaskAutomationField | null, value: startValue(field as TaskAutomationField | null) })}
                       />
                     )}
                   </Group>

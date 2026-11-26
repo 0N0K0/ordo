@@ -14,11 +14,13 @@ interface RoutineDoneTogglesProps {
 /**
  * Done state buttons of the current occurrence of a routine: one, or one per time of the day (brushing teeth morning, noon and
  * evening; the optional ones dashed), each ticked apart through the « Faite le » form (`RoutineTickButton`), its time
- * changed from the clock beside it once done. Disabled before the routine starts.
+ * changed from the clock beside it once done. Disabled before the routine starts; none for a routine that has
+ * sub-routines (a group, never ticked: its progress is read from them).
  * @param {RoutineDoneTogglesProps} props Component props.
- * @returns {JSX.Element} Toggles.
+ * @returns {JSX.Element | null} Toggles.
  */
 export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: RoutineDoneTogglesProps) {
+  if (routine.hasSubRoutines) return null;
   const started = routine.currentDate !== null;
   const dueDate = routine.currentDueDate ?? routine.currentDate ?? '';
   // Each ticks, unticks or changes the occurrence shown (its current one, by the day that identifies it, even when two

@@ -1,5 +1,6 @@
 import { routinesKey } from '../../../lib/query-keys';
 import { linkInputs } from '../../../lib/links';
+import { untilNextParisDay } from '../../../lib/dates';
 import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineBulkDoneAt, routineBulkValues, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
 import { ownedFields } from '../../../components/inheritance/inheritance';
 import { routineRow } from '../lib/routine-inheritance';
@@ -80,6 +81,7 @@ const RoutinesDataDocument = graphql(`
       cases
       moves
       done
+      hasSubRoutines
       slots {
         index
         fromTime
@@ -230,8 +232,8 @@ const BulkSetRoutinesArchivedDocument = graphql(`
 `);
 
 const BulkSetRoutinesDoneDocument = graphql(`
-  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!, $doneOn: Date, $dates: [Date!]) {
-    bulkSetRoutinesDone(ids: $ids, done: $done, doneOn: $doneOn, dates: $dates)
+  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!, $doneOn: Date, $dates: [Date!], $ticks: [RoutineSlotTick!]) {
+    bulkSetRoutinesDone(ids: $ids, done: $done, doneOn: $doneOn, dates: $dates, ticks: $ticks)
   }
 `);
 
@@ -333,7 +335,7 @@ export type RoutineOccurrence = RoutineOccurrencesQuery['routineOccurrences'][nu
  * Occurrences of the routines in a period, with their times of the day ticked (and when): refreshed with the routines.
  * The cancelled ones are there too (`cancelled`, shown struck through) and, for an archived routine, those due before
  * its archiving (`archived`, read only); with `doneInPeriod`, those outside the period with a time of the day done
- * within it too (the history of a day).
+ * within it too (the times of the day of a day: « Ma journée », the badge of the menu).
  * @param {{ from: string, to: string, doneInPeriod?: boolean } | null} range Period (both days included), or null: none.
  * @param {boolean} [enabled] Loaded. Optional. Default = true.
  * @returns {UseQueryResult<RoutineOccurrence[]>} Query state.
@@ -358,12 +360,12 @@ async function fetchRoutinesData(): Promise<RoutinesDataQuery> {
 }
 
 /**
- * Routines and their categories. Refreshed when the window gets the focus back (the current occurrences move with the
- * day).
+ * Routines and their categories. Refreshed when the window gets the focus back and when the day changes in Paris
+ * (the current occurrences move with the day).
  * @returns {UseQueryResult<RoutinesDataQuery>} Query state.
  */
 export function useRoutinesData() {
-  return useQuery({ queryKey: routinesKey, queryFn: fetchRoutinesData, refetchOnWindowFocus: true });
+  return useQuery({ queryKey: routinesKey, queryFn: fetchRoutinesData, refetchOnWindowFocus: true, refetchInterval: untilNextParisDay, refetchIntervalInBackground: true });
 }
 
 /**
@@ -421,6 +423,7 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     priorityId: input.priorityId ?? null,
     typeId: input.typeId ?? null,
     parentId: input.parentId ?? null,
+    hasSubRoutines: false,
     startDate: input.startDate,
     recurrence: input.recurrence,
     estimate: input.estimate ?? null,
@@ -691,7 +694,11 @@ export function useRoutineMutations() {
     // out the former links of the routine copied out of its project tree (the API does).
     create: useRoutineMutation(
       async ({ copyOf, ...input }: RoutineInput & { copyOf?: string | null }) => (await execute(CreateRoutineDocument, { input, copyOf })).createRoutine,
-      (data, input) => ({ ...data, routines: [...data.routines, draftRoutine(input, data.routines)] }),
+      // A routine given a sub-routine becomes a parent at once (no « Faite » button any more).
+      (data, input) => ({
+        ...data,
+        routines: [...data.routines.map((routine) => (routine.id === input.parentId ? { ...routine, hasSubRoutines: true } : routine)), draftRoutine(input, data.routines)],
+      }),
     ),
     // A change of project attaches the assignees to it: the contributors (task data) are refreshed too.
     update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => withLossConfirmation(async (confirmLoss) => (await execute(UpdateRoutineDocument, { ...variables, confirmLoss })).updateRoutine), undefined, [tasksQueryKey]),
@@ -777,20 +784,29 @@ export function useRoutineMutations() {
     ),
     bulkDone: useRoutineMutation(
       // Ticked « Faites le » a day (doneOn): each time of the day at its scheduled time that day, as the API reads it;
-      // dates: the occurrence of each (the one shown).
-      async (variables: { ids: string[]; done: boolean; doneOn?: string | null; dates?: string[] | null }) => (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
-      (data, { ids, done, doneOn }) => {
+      // dates: the occurrence of each (the one shown); ticks: only those times of the day, each at the time it was done
+      // (the « Annuler » of an untick).
+      async (variables: { ids: string[]; done: boolean; doneOn?: string | null; dates?: string[] | null; ticks?: { id: string; slot: number; doneAt: string }[] }) =>
+        (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
+      (data, { ids, done, doneOn, ticks }) => {
         const now = new Date();
+        /**
+         * Time of the day given again to a routine, with when it was done.
+         * @param {string} id Routine.
+         * @param {number} index Time of the day.
+         * @returns {string | undefined} When it was done; none: not given.
+         */
+        const given = (id: string, index: number) => (done ? ticks?.find((tick) => tick.id === id && tick.slot === index)?.doneAt : undefined);
         return {
           ...data,
           routines: data.routines.map((routine) =>
             ids.includes(routine.id) && routine.currentDate
               ? withSlotsDone(
                   routine,
-                  // Those ticked already keep their time.
-                  routine.slots.filter((slot) => !done || !slot.done).map((slot) => slot.index),
+                  // Those ticked already keep their time; ticks given, only those.
+                  routine.slots.filter((slot) => (!done || !slot.done) && (!done || !ticks || given(routine.id, slot.index))).map((slot) => slot.index),
                   done,
-                  (slot) => (doneOn ? routineBulkDoneAt(doneOn, slot, now).toISOString() : null),
+                  (slot) => given(routine.id, slot.index) ?? (doneOn ? routineBulkDoneAt(doneOn, slot, now).toISOString() : null),
                 )
               : routine,
           ),

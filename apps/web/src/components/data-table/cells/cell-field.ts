@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type KeyboardEvent, type SyntheticEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { notifyError } from '../../../lib/notify';
 import classes from './EditableCells.module.css';
 
@@ -70,21 +70,42 @@ export interface CellDraft<T> {
 }
 
 /**
- * Draft of a typed cell, saved when leaving the field. Escape gives it up: the blur it triggers runs with the draft of
- * the last render, so the give-up is kept in a ref the blur reads.
+ * Draft of a typed field, saved when leaving the field. The draft is also kept in a ref, set at once: the blur that
+ * Enter or Escape triggers, and a value the field gives on its blur (a number clamped to its bounds), are read before
+ * the next render. A field that goes away while typed (its popover or its panel closed) has no blur: `onGone` saves it.
+ * @param {(draft: T) => void} [onGone] Save of the draft when the field goes away while typed. Optional.
  * @returns {CellDraft<T>} Draft, its setter, its taker for the blur and the key handler.
  */
-export function useCellDraft<T>(): CellDraft<T> {
-  const [draft, setDraft] = useState<T | null>(null);
-  const cancelled = useRef(false);
+export function useCellDraft<T>(onGone?: (draft: T) => void): CellDraft<T> {
+  const [draft, setShown] = useState<T | null>(null);
+  const pending = useRef<T | null>(null);
+  const gone = useRef(onGone);
+  useEffect(() => {
+    gone.current = onGone;
+  });
+  useEffect(
+    () => () => {
+      if (pending.current !== null) gone.current?.(pending.current);
+    },
+    [],
+  );
+
+  /**
+   * Sets the draft (null: none).
+   * @param {T | null} next Draft.
+   * @returns {void}
+   */
+  const setDraft = useCallback((next: T | null) => {
+    pending.current = next;
+    setShown(next);
+  }, []);
 
   /**
    * Takes the draft (and clears it), unless Escape gave it up.
    * @returns {T | null} Draft to save, or null.
    */
   const take = () => {
-    const given = cancelled.current ? null : draft;
-    cancelled.current = false;
+    const given = pending.current;
     setDraft(null);
     return given;
   };
@@ -97,7 +118,6 @@ export function useCellDraft<T>(): CellDraft<T> {
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') event.currentTarget.blur();
     if (event.key === 'Escape') {
-      cancelled.current = true;
       setDraft(null);
       event.currentTarget.blur();
     }

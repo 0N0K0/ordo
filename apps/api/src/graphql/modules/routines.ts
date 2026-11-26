@@ -6,6 +6,7 @@ import * as occurrences from '../../services/routines/routine-occurrences';
 import * as routines from '../../services/routines/routines';
 import { convertRoutineToTask, convertTaskToRoutine } from '../../services/routines/conversion';
 import type { Context } from '../context';
+import { perRequest } from '../batch';
 import { BY_POSITION } from '../../services/core/ordering';
 import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
@@ -45,18 +46,8 @@ const TIMING = {
   slotCondition: true,
 } as const;
 
-const slotContexts = new WeakMap<Context, Promise<occurrences.ScheduleContext>>();
-
-/**
- * Slots of the workspace for the slot rules of the routines, loaded once per request.
- * @param {Context} ctx GraphQL context.
- * @returns {Promise<occurrences.ScheduleContext>} Schedules.
- */
-function slotsOf(ctx: Context): Promise<occurrences.ScheduleContext> {
-  let slots = slotContexts.get(ctx);
-  if (!slots) slotContexts.set(ctx, (slots = occurrences.loadScheduleContext()));
-  return slots;
-}
+/** Slots of the workspace for the slot rules of the routines, loaded once per request. */
+const slotsOf = perRequest(occurrences.loadScheduleContext);
 
 /** Time of the day of an occurrence, with its state. */
 interface SlotState {
@@ -185,6 +176,9 @@ const RoutineEffectiveRef = builder.objectRef<StoredInheritingRoutine>('RoutineE
     moves: t.field({ type: 'JSON', resolve: (routine) => occurrences.storedMoves(routine.moves) }),
   }),
 });
+
+/** Selection of one sub-routine not archived: a routine that has one is a group (never ticked). */
+const ACTIVE_CHILD = { children: { where: { archivedAt: null }, select: { id: true }, take: 1 } } as const;
 
 builder.prismaObject('Routine', {
   description: 'Task repeating on a calendar rule, ticked once done for its current occurrence.',
@@ -339,17 +333,23 @@ builder.prismaObject('Routine', {
         return current !== null && slots.length > 0 && slots.every((slot) => slot.done || slot.optional);
       },
     }),
+    hasSubRoutines: t.boolean({
+      description: 'It has sub-routines not archived: a group of them and their template, never ticked nor late, no reminder of its own; its state of a day is read from those open that day not done yet, or done that day.',
+      select: ACTIVE_CHILD,
+      resolve: (routine) => routine.children.length > 0,
+    }),
     doneDates: t.field({
       type: ['Date'],
-      description: `Latest ticked occurrences (${RECENT_CHECKS} at most), latest first.`,
-      select: { checks: { orderBy: { date: 'desc' }, take: RECENT_CHECKS, select: { date: true } } },
-      resolve: (routine) => [...new Set(routine.checks.map((check) => formatDay(check.date)))].map(parseDay),
+      description: `Latest ticked occurrences (${RECENT_CHECKS} at most), latest first; none for a routine that has sub-routines not archived (its ticks of before are not read).`,
+      select: { checks: { orderBy: { date: 'desc' }, take: RECENT_CHECKS, select: { date: true } }, ...ACTIVE_CHILD },
+      resolve: (routine) => (routine.children.length ? [] : [...new Set(routine.checks.map((check) => formatDay(check.date)))].map(parseDay)),
     }),
     lastDoneAt: t.field({
       type: 'DateTime',
       nullable: true,
-      select: { checks: { orderBy: { doneAt: 'desc' }, take: 1, select: { doneAt: true } } },
-      resolve: (routine) => routine.checks[0]?.doneAt ?? null,
+      description: 'Last time one of its times of the day was ticked; none for a routine that has sub-routines not archived (its ticks of before are not read).',
+      select: { checks: { orderBy: { doneAt: 'desc' }, take: 1, select: { doneAt: true } }, ...ACTIVE_CHILD },
+      resolve: (routine) => (routine.children.length ? null : (routine.checks[0]?.doneAt ?? null)),
     }),
     trackedSeconds: t.int({
       description: 'Time tracked on it, finished entries only; a time on several routines is shared equally between them.',
@@ -447,6 +447,15 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     opensOn: t.field({ type: 'JSON', description: '« Ouverture »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     ...repetitionChangeFields(t),
     ...routineInheritanceFields(t),
+  }),
+});
+
+const RoutineSlotTickInput = builder.inputType('RoutineSlotTick', {
+  description: 'A time of the day of a routine ticked again at the time it was done (the undo of an untick).',
+  fields: (t) => ({
+    id: t.id({ required: true }),
+    slot: t.int({ required: true, description: 'Time of the day (index).' }),
+    doneAt: t.field({ type: 'DateTime', required: true }),
   }),
 });
 
@@ -606,7 +615,7 @@ builder.queryFields((t) => ({
     args: {
       from: t.arg({ type: 'Date', required: true }),
       to: t.arg({ type: 'Date', required: true }),
-      doneInPeriod: t.arg.boolean({ description: 'Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the history of a day).' }),
+      doneInPeriod: t.arg.boolean({ description: 'Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the times of the day of a day: « Ma journée », the badge of the menu).' }),
     },
     resolve: async (_root, { from, to, doneInPeriod }, ctx) => {
       if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);
@@ -640,7 +649,8 @@ builder.queryFields((t) => ({
       return found.flatMap(({ routine, spans }) => {
         // Its exceptions as it goes (its parent's when it inherits them).
         const moves = occurrences.liveMoves(occurrences.occurrenceTiming(routine, context), context);
-        const checks = [...routine.checks, ...more.filter((check) => check.routineId === routine.id)];
+        // A group (sub-routines not archived) is never ticked: its ticks of before are not read.
+        const checks = occurrences.hasSubRoutines(routine.id, context) ? [] : [...routine.checks, ...more.filter((check) => check.routineId === routine.id)];
         return spans.map(({ start, end, date, cancelled = false }) => {
           const ruleDay = movedFrom(moves, date);
           const ticks = new Map(checks.filter((check) => formatDay(check.date) === date).map((check) => [check.slot, check.doneAt]));
@@ -823,8 +833,12 @@ builder.mutationFields((t) => ({
       done: t.arg.boolean({ required: true }),
       doneOn: t.arg({ type: 'Date', description: 'Day they were done (ticking): each time of the day at its scheduled time that day (« jusqu’à », else « dès »; without any, now today, noon another day; never later than now). Now by default.' }),
       dates: t.arg({ type: ['Date'], description: 'Occurrence of each routine, in the order of ids (the day that identifies it: the one shown, the one an undo puts back); by default the current one of each.' }),
+      ticks: t.arg({
+        type: [RoutineSlotTickInput],
+        description: 'Ticking: only these times of the day, each at the time it was done (the undo of an untick gives back those it unticked); by default every one of each occurrence.',
+      }),
     },
-    resolve: (_root, { ids, done, doneOn, dates }) => routines.bulkSetRoutinesDone(ids, done, doneOn ?? null, dates ?? null),
+    resolve: (_root, { ids, done, doneOn, dates, ticks }) => routines.bulkSetRoutinesDone(ids, done, doneOn ?? null, dates ?? null, ticks ?? null),
   }),
   bulkDeleteRoutines: t.int({
     description: 'Deletes routines with their sub-routines, or alone (their sub-routines move up a level); returns how many of those given were deleted.',

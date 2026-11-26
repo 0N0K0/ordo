@@ -34,19 +34,23 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
 
   /** « Dupliquer » a time: saved at once (not billed, 1 minute to 24 hours), then its form opens. */
   const duplicate: DuplicateOptions<TimeEntry, string> = {
-    duplicate: async (entry) =>
-      (
+    duplicate: async (entry) => {
+      // A time added lasts 1 minute to 24 hours: a timer stopped under a minute is copied as 1 minute, started earlier
+      // when it would then end after now (a time is over by now).
+      const duration = Math.min(DURATION_MAX_SECONDS, Math.max(DURATION_MIN_SECONDS, entrySeconds(entry)));
+      const startedAt = new Date(Math.min(Date.parse(entry.startedAt), Date.now() - duration * 1000)).toISOString();
+      return (
         await create.mutateAsync({
           projectId: entry.projectId ?? null,
           routineIds: entry.routines.map((routine) => routine.id),
           taskIds: entry.taskIds,
           description: entry.description ?? '',
-          startedAt: entry.startedAt,
-          // A time added lasts 1 minute to 24 hours: a timer stopped under a minute is copied as 1 minute.
-          duration: Math.min(DURATION_MAX_SECONDS, Math.max(DURATION_MIN_SECONDS, entrySeconds(entry))),
+          startedAt,
+          duration,
           events: parseEventKeys(entryEventKeys(entry)),
         })
-      ).id,
+      ).id;
+    },
     done: 'Temps dupliqué.',
     open: (id) => {
       const copy = cachedItem(queryClient, timeQueryKey, id, (entries: TimeEntry[] | TimeEntry | null) => (Array.isArray(entries) ? entries : []));

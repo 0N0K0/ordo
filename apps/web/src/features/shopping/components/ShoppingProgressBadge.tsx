@@ -1,18 +1,14 @@
-import { Badge } from '@mantine/core';
+import { ProgressBadge } from '../../../components/feedback/ProgressBadge';
+import { countOf } from '../../../lib/text';
 import { shoppingProgress } from '../lib/shopping-format';
 
 /**
- * Progress of a shopping list in a badge, the same in its table and on its task: « 3 / 5 », green once all its required
- * items are bought.
+ * Progress of a shopping list in a badge (`ProgressBadge`), the same in its table and on its task: « 3/5 », grey until
+ * all its required items are bought, then green.
  * @param {{ items: readonly { purchasedAt?: unknown, optional?: boolean | null }[] }} props Component props: items of the list.
- * @returns {JSX.Element} Badge.
+ * @returns {JSX.Element | null} Badge.
  */
 export function ShoppingProgressBadge({ items }: { items: readonly { purchasedAt?: unknown; optional?: boolean | null }[] }) {
   const { bought, total } = shoppingProgress(items);
-  return (
-    <Badge size="sm" variant="light" color={total && bought === total ? 'green' : 'gray'}>
-      {/* eslint-disable-next-line no-restricted-syntax -- ShoppingProgressBadge itself. */}
-      {bought} / {total}
-    </Badge>
-  );
+  return <ProgressBadge done={bought} total={total} color="gray" withEmpty label={`${countOf(bought, 'achetée', 'achetées')} sur ${countOf(total, 'requise')}`} />;
 }

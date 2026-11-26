@@ -128,6 +128,14 @@ const Sync = graphql(`
     }
   }
 `);
+const SendTasks = graphql(`
+  mutation SendTasksToGithub($ids: [ID!]!) {
+    sendTasksToGithub(ids: $ids) {
+      sent
+      errors
+    }
+  }
+`);
 const SetLogin = graphql(`
   mutation SetContributorGithubLogin($id: ID!, $login: String) {
     setContributorGithubLogin(id: $id, login: $login)
@@ -194,4 +202,12 @@ export function useGithubMutations() {
     sync: useGithubMutation(async (projectId: string) => (await execute(Sync, { projectId })).syncGithubProject),
     setLogin: useGithubMutation(async (variables: { id: string; login: string | null }) => (await execute(SetLogin, variables)).setContributorGithubLogin),
   };
+}
+
+/**
+ * « Envoyer sur GitHub »: sends tasks not on GitHub by a sync of their link; GitHub data and tasks refreshed once done.
+ * @returns {UseMutationResult} Mutation state (its result: the tasks sent, and why each other one is not).
+ */
+export function useSendTasksToGithub() {
+  return useGithubMutation(async (ids: string[]) => (await execute(SendTasks, { ids })).sendTasksToGithub);
 }

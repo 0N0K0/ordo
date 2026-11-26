@@ -60,10 +60,18 @@ const parentValues = (parent: Task): Partial<TaskFormValues> => ({
   locationLon: parent.locationLon ?? null,
 });
 
+/** What a new task starts with: its project, its parent, and its « Ouverture » and « Échéance » (YYYY-MM-DD), all editable. */
+export interface TaskCreateDefaults {
+  projectId?: string;
+  parentId?: string;
+  minDate?: string;
+  deadline?: string;
+}
+
 interface TaskCreateFormProps {
   context: TaskContext;
-  /** Preselected project and parent task. */
-  defaults?: { projectId?: string; parentId?: string };
+  /** Preselected project, parent task and dates. */
+  defaults?: TaskCreateDefaults;
   onDone: () => void;
 }
 
@@ -71,7 +79,7 @@ interface TaskCreateFormProps {
  * New task form, displayed in a modal. Opens the created task.
  * @param {TaskCreateFormProps} props Component props.
  * @param {TaskContext} props.context Task context.
- * @param {{ projectId?: string, parentId?: string }} [props.defaults] Preselected project and parent. Optional.
+ * @param {TaskCreateDefaults} [props.defaults] Preselected project, parent, « Ouverture » and « Échéance » (a sub-task takes those of its parent). Optional.
  * @param {() => void} props.onDone Called after saving or cancelling.
  * @returns {JSX.Element} Form.
  */
@@ -93,8 +101,8 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       effort: '',
       startDate: null,
       endDate: null,
-      deadline: null,
-      minDate: null,
+      deadline: defaults?.deadline ?? null,
+      minDate: defaults?.minDate ?? null,
       parentId: parent?.id ?? null,
       milestoneId: null,
       sprintIds: [],

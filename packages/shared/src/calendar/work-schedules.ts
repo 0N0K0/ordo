@@ -97,8 +97,11 @@ const scheduleRepetitionCaseSchema = repetitionCaseSchema(scheduleTimesSchema).s
 });
 export type ScheduleCase = RepetitionCase<ScheduleTimes>;
 
+/** Cases a period may have (`scheduleCasesSchema`). */
+const MAX_CASES = 20;
+
 /** Cases of a period (a schedule's, an exception's, the hours of a task), 20 at most. */
-export const scheduleCasesSchema = z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.');
+export const scheduleCasesSchema = z.array(scheduleRepetitionCaseSchema).max(MAX_CASES, '20 cas au plus.');
 
 const exceptionFields = {
   from: daySchema(),
@@ -811,9 +814,32 @@ function caseFirstDay(item: ScheduleCase, periodStart: string, periodEnd: string
 export const LAST_DAY_CASES_REFUSAL = 'Plusieurs cas tombent le dernier jour du mois : changez leur règle avant de déplacer toute la période.';
 
 /**
+ * Refusal of a schedule moved whole whose cases, split by the move (only some of their weekdays changing week), would
+ * be more than a period may have (`scheduleCasesSchema`).
+ */
+export const SPLIT_CASES_REFUSAL =
+  'Décalée ainsi, la période aurait plus de 20 cas : ceux dont seuls certains jours changent de semaine deviennent deux cas. Décalez-la d’un nombre entier de semaines, ou retirez des cas avant.';
+
+/**
+ * Cases of a period moved by a number of days (`shiftedCases`), refused when the cases split by the move would be more
+ * than a period may have (`SPLIT_CASES_REFUSAL`; already more before the move: left to the validation of the save).
+ * @param {readonly ScheduleCase[]} cases Cases.
+ * @param {string} periodStart First day of the period (before the move).
+ * @param {string | null} periodEnd Last day of the period (before the move), none: open.
+ * @param {number} days Days moved (negative: earlier).
+ * @param {Recurrence | null} chosen New rule chosen for a case on the last day of the month.
+ * @returns {ScheduleCase[]} Cases moved.
+ */
+function shiftedPeriodCases(cases: readonly ScheduleCase[], periodStart: string, periodEnd: string | null, days: number, chosen: Recurrence | null): ScheduleCase[] {
+  const moved = cases.flatMap((item) => shiftedCases(item, periodStart, periodEnd, days, chosen));
+  if (cases.length <= MAX_CASES && moved.length > MAX_CASES) throw new UserError(SPLIT_CASES_REFUSAL);
+  return moved;
+}
+
+/**
  * Schedule moved with its whole period by a number of days: its start and end, its cases and its exceptions. A case on
  * the last day of the month takes the new rule chosen (refused without it, `shiftedRulePieces`); several such cases are
- * refused (`LAST_DAY_CASES_REFUSAL`).
+ * refused (`LAST_DAY_CASES_REFUSAL`); cases split by the move beyond 20 in a period too (`SPLIT_CASES_REFUSAL`).
  * @param {WorkScheduleRule} schedule Schedule.
  * @param {number} days Days moved (negative: earlier).
  * @param {Recurrence | null} chosen New rule chosen for its case on the last day of the month.
@@ -825,12 +851,12 @@ function shiftedSchedule(schedule: WorkScheduleRule, days: number, chosen: Recur
   return {
     startDate: addDays(schedule.startDate, days),
     endDate: schedule.endDate && addDays(schedule.endDate, days),
-    cases: schedule.cases.flatMap((item) => shiftedCases(item, schedule.startDate, schedule.endDate, days, chosen)),
+    cases: shiftedPeriodCases(schedule.cases, schedule.startDate, schedule.endDate, days, chosen),
     exceptions: schedule.exceptions.map((exception) => ({
       ...exception,
       from: addDays(exception.from, days),
       to: addDays(exception.to, days),
-      cases: exception.cases.flatMap((item) => shiftedCases(item, exception.from, exception.to, days, chosen)),
+      cases: shiftedPeriodCases(exception.cases, exception.from, exception.to, days, chosen),
     })),
   };
 }

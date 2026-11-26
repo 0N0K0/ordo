@@ -8,9 +8,10 @@ import { useAppForm, useFieldSave } from '../../../lib/form';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { Badge, Group, Select, Text } from '@mantine/core';
-import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type TaskInheritableField } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
+import { Group, Select, Text } from '@mantine/core';
+import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type TaskInheritableField, isTaskOverdue } from '@ordo/shared';
+import { ArrowsLeftRightIcon } from '@phosphor-icons/react';
+import { TaskGithubBadge } from '../../github/components/TaskGithubBadge';
 import { useState } from 'react';
 
 import { parisToday } from '../../../lib/dates';
@@ -26,7 +27,7 @@ import { DocumentsField } from '../../documents/components/DocumentsField';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskComments } from './TaskComments';
 import { hasTreeLinks, inProjectTree, linkableTasks } from '../lib/task-links';
-import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
+import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
 
 import { type TaskContext, taskName, taskNumber, useTaskContext } from '../hooks/use-task-context';
@@ -48,11 +49,9 @@ import { SavedCountdownsField } from '../../countdowns/components/SavedCountdown
 import { tasksQueryKey } from '../../../lib/query-keys';
 import { inheritedDateHint } from '../lib/inherited-dates';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
-import { ActionButton } from '../../../components/actions/ActionButton';
+import { TaskDoneButton } from './TaskDoneButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
-import { isTaskOverdue } from '../lib/task-overdue';
 import { InheritedField } from '../../../components/inheritance/InheritedField';
 import { taskFieldState, taskParentName } from '../lib/task-inheritance';
 
@@ -114,8 +113,8 @@ interface TaskDetailProps {
 }
 
 /**
- * Detail of a task, laid out as the routine and event panels (`DetailLayout`): its state, number, label, « Fermer la
- * tâche » / « Rouvrir » and « … » menu, then its project and mentions; on the left its description, « Relations »
+ * Detail of a task, laid out as the routine and event panels (`DetailLayout`): its state button (`TaskDoneButton`),
+ * number, label and « … » menu, then its project and mentions; on the left its description, « Relations »
  * (parent, sub-tasks, « Dépend de », « Bloque », « Relative à ») and its comments; on the right « Classement »,
  * « Parties prenantes », « Charge », « Périodes », « Alarmes » (reminders, saved timers), its place and « Ressources »
  * (links, documents, shopping lists, sheets). Each field saved as soon as it changes (its label and effort on leaving them). An
@@ -130,7 +129,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const taskRelation = useTaskRelation();
   const actions = useTaskActions(context);
   const locked = task.archived;
-  const closeAction = actions.close(task);
 
   /**
    * Saves a change right away.
@@ -222,7 +220,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         readOnly={locked}
         status={
           <Group gap={6} wrap="nowrap" h={36}>
-            <TaskStateIcon closed={task.closed} cancelled={task.cancelled} blocked={context.isBlocked(task)} />
+            {/* As the routine panel: its state button, one click closes it as done or reopens it (toast with « Annuler »); cancelling is in the menu. */}
+            <TaskDoneButton task={task} context={context} />
             <Text c="dimmed" fw={600}>
               {taskNumber(task)}
             </Text>
@@ -230,18 +229,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         }
         // Cancelled: struck through.
         title={{ ...text.form.getInputProps('label'), styles: task.cancelled ? { input: { textDecoration: 'line-through' } } : undefined }}
-        actions={
-          <ActionButton
-            priority="secondary"
-            size="xs"
-            icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
-            // As the selection and the menu: told in a toast with « Annuler ». Cancelling is in the menu.
-            loading={closeAction.loading}
-            onClick={closeAction.onClick}
-          >
-            {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
-          </ActionButton>
-        }
         menu={<ActionsMenu about="la tâche" items={actions.menu(task)} variant="light" size="input-xs" />}
         project={
           <InheritedField {...inherited('PROJECT')}>
@@ -250,11 +237,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         }
         mentions={
           <>
-            {task.githubLinked && (
-              <Badge variant="light" color="dark" leftSection={<GithubLogoIcon aria-hidden />} {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, ...EXTERNAL_LINK } : {})}>
-                {task.githubNumber ? `GitHub #${task.githubNumber}` : 'Brouillon GitHub'}
-              </Badge>
-            )}
+            <TaskGithubBadge task={task} />
             {task.archived && <ArchivedBadge feminine />}
           </>
         }

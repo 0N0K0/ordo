@@ -25,7 +25,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
  */
 const shortText = (date: string) => fmt.weekday(date);
 
-/** Days of occurrences offered before and after today (the query covers 100 days at most). */
+/** Days of occurrences offered before and after today, or the occurrence given when out of them (the query covers 100 days at most). */
 const PAST_DAYS = 30;
 const NEXT_DAYS = 68;
 
@@ -41,24 +41,29 @@ const timesOf = (occurrence: RoutineOccurrence | undefined): Times =>
   occurrence?.slots.length ? occurrence.slots.map((slot) => ({ fromTime: slot.fromTime, dueTime: slot.dueTime })) : [{ fromTime: null, dueTime: null }];
 
 /**
- * Changes an occurrence of a routine, chosen among those around today (by default its current one): another day
+ * Changes an occurrence of a routine, chosen among those around today (by default the one given, else its current one): another day
  * (postponed or brought forward), other times of the day (the same day or another one), or cancelled. Each change is
  * an exception to its rule. Lists the exceptions of the routine, each one removable (the occurrence goes back to its
  * own day and times).
- * @param {{ routineId: string, onDone: () => void }} props Component props.
+ * @param {{ routineId: string, date?: string | null, onDone: () => void }} props Component props.
  * @param {string} props.routineId Routine.
+ * @param {string | null} [props.date] Occurrence chosen first. Optional. Default = its current one (the next one once ticked).
  * @param {() => void} props.onDone Closes the form.
  * @returns {JSX.Element} Form.
  */
-export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDone: () => void }) {
+export function RoutineMoveForm({ routineId, date: firstDate, onDone }: { routineId: string; date?: string | null; onDone: () => void }) {
   const { data } = useRoutinesData();
   const routine = data?.routines.find((item) => item.id === routineId);
   const today = parisToday();
-  const [range] = useState(() => ({ from: addDays(today, -PAST_DAYS), to: addDays(today, NEXT_DAYS) }));
+  // Around today; an occurrence given further away (a day of « Ma journée »), around it, so its times are read.
+  const [range] = useState(() => {
+    const around = firstDate && (firstDate < addDays(today, -PAST_DAYS) || firstDate > addDays(today, NEXT_DAYS)) ? firstDate : today;
+    return { from: addDays(around, -PAST_DAYS), to: addDays(around, NEXT_DAYS) };
+  });
   const { data: allOccurrences } = useRoutineOccurrences(range);
   // Those not ticked (a ticked one is not changed) nor cancelled (given back from the exceptions), late ones only when past.
   const occurrences = (allOccurrences ?? []).filter((item) => item.routineId === routineId && !item.cancelled && !item.slots.some((slot) => slot.done));
-  const movable = routine ? movableOccurrence(routine) : null;
+  const movable = firstDate ?? (routine ? movableOccurrence(routine) : null);
   const [chosen, setChosen] = useState<string | null>(null);
   const date = chosen ?? movable;
   const occurrence = occurrences.find((item) => item.date === date);
@@ -114,7 +119,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
       onSubmit={(event) => {
         event.preventDefault();
         if (!date || !target || (target === due && !timesChanged)) return;
-        move(routine, target, date, onDone, timesChanged ? { times: times as RoutineMoveTimes, previous: original as RoutineMoveTimes } : undefined);
+        move(routine, target, date, onDone, timesChanged ? { times: times as RoutineMoveTimes, previous: original as RoutineMoveTimes } : undefined, due);
       }}
     >
       <Stack gap="md">

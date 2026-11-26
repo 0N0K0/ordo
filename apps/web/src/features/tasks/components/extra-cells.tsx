@@ -3,7 +3,7 @@ import { EditablePopoverCell } from '../../../components/data-table/cells/Editab
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskProgress } from './TaskProgress';
 import { CELL_JUSTIFY, stopClick } from '../../../components/data-table/cells/cell-field';
-import { Anchor, Badge, Group, Tooltip } from '@mantine/core';
+import { Anchor, Badge, Group, Tooltip, type ActionIconProps } from '@mantine/core';
 import { formatDuration, readSlotCondition } from '@ordo/shared';
 import { countOf, plural } from '../../../lib/text';
 import { AlarmIcon, BasketIcon, PlusIcon } from '@phosphor-icons/react';
@@ -42,13 +42,15 @@ export function SlotsCell({ task }: { task: Task }) {
 
 /**
  * « Chrono » cell: starts a timer on the task (of its project), or stops the one running on it (the others keep running).
- * @param {{ task: Task }} props Component props.
+ * @param {{ task: Task, size?: ActionIconProps['size'] }} props Component props.
+ * @param {Task} props.task Task.
+ * @param {ActionIconProps['size']} [props.size] Size of the button (« sm » in a list, as the other chronos of its rows). Optional. Default = that of the buttons of a table.
  * @returns {JSX.Element} Cell.
  */
-export function TimerCell({ task }: { task: Task }) {
+export function TimerCell({ task, size }: { task: Task; size?: ActionIconProps['size'] }) {
   const running = useRunningTimers();
   const mine = runningOn(running.data, (entry) => entry.taskIds.includes(task.id));
-  return <TimerToggle name={task.label} mine={mine} input={{ projectId: task.projectId, taskIds: [task.id] }} disabled={task.archived} />;
+  return <TimerToggle name={task.label} mine={mine} input={{ projectId: task.projectId, taskIds: [task.id] }} disabled={task.archived} size={size} />;
 }
 
 /**

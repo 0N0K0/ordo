@@ -1,0 +1,137 @@
+@layer app {
+  /* Blocks of the day: head, without hours, done and cancelled. */
+  .block {
+    /* Espacement */
+    padding: calc(var(--onoko-vertical-step) / 2) var(--mantine-spacing-md);
+  }
+
+  /* An hour: its time on the left, its rows on the right, its slots as its background. */
+  .hour {
+    /* Agencement */
+    display: grid;
+    grid-template-columns: 4rem 1fr;
+
+    /* Dimension */
+    min-height: calc(var(--onoko-vertical-step) * 2);
+
+    /* Espacement */
+    gap: var(--mantine-spacing-sm);
+    padding: 0 var(--mantine-spacing-md);
+
+    /* Arrière-Plan */
+    background-color: var(--slot-color, transparent);
+
+    &[data-unavailable] {
+      background-color: var(--mantine-color-gray-light);
+    }
+
+    /* Effets */
+    /* The line between two hours is drawn inside the hour (a shadow, not a border): the hours stay on the vertical
+       rhythm. */
+    box-shadow: inset 0 1px 0 var(--mantine-color-default-border);
+
+    &[data-current] {
+      box-shadow:
+        inset 3px 0 0 var(--mantine-primary-color-filled),
+        inset 0 1px 0 var(--mantine-color-default-border);
+    }
+  }
+
+  .hourLabel {
+    /* Espacement */
+    padding-top: calc(var(--onoko-vertical-step) / 2);
+
+    /* Typographie */
+    line-height: var(--onoko-vertical-step);
+  }
+
+  /* A line of the day: as tall as two steps, a subtle tint under the pointer. */
+  .row {
+    /* Dimension */
+    min-height: calc(var(--onoko-vertical-step) * 2);
+
+    /* Espacement */
+    margin: 0 calc(var(--mantine-spacing-xs) * -1);
+    padding: 0 var(--mantine-spacing-xs);
+
+    /* Bordures */
+    border-radius: var(--mantine-radius-sm);
+
+    /* Arrière-Plan */
+    &:hover {
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    /* Typographie */
+    &[data-finished='cancelled'] .open {
+      text-decoration: line-through;
+    }
+
+    /* Effets */
+    &[data-finished] {
+      opacity: var(--onoko-muted-opacity);
+    }
+
+    /* Animation */
+    transition:
+      opacity var(--onoko-transition),
+      background-color var(--onoko-transition);
+  }
+
+  .state {
+    /* Agencement */
+    display: inline-flex;
+    flex-shrink: 0;
+    justify-content: center;
+
+    /* Dimension */
+    width: 2rem;
+  }
+
+  .time {
+    /* Agencement */
+    flex-shrink: 0;
+
+    /* Dimension */
+    width: 3rem;
+  }
+
+  .label {
+    /* Agencement */
+    flex: 1;
+
+    /* Dimension */
+    min-width: 0;
+  }
+
+  /* Name of an item opening its panel: text, so underlined under the pointer and outlined on keyboard focus (no
+     ripple). */
+  .open {
+    /* Bordures */
+    border-radius: var(--mantine-radius-xs);
+
+    /* Typographie */
+    text-align: left;
+    text-underline-offset: 2px;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    /* Effets */
+    &:focus-visible {
+      outline: 2px solid var(--mantine-primary-color-filled);
+      outline-offset: 2px;
+    }
+  }
+
+  /* Tasks and routines linked to an event, under it. */
+  .children {
+    /* Espacement */
+    margin-left: calc(var(--mantine-spacing-md) * 2);
+    padding-left: var(--mantine-spacing-sm);
+
+    /* Bordures */
+    border-left: 2px solid var(--mantine-color-default-border);
+  }
+}

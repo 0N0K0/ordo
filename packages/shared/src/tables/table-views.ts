@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { requiredText, TEXT_MAX, TEXT_TOO_LONG } from '../core/rules';
 import { TABLE_AGGREGATES } from './aggregates';
-import { columnLayoutSchema, TABLE_KEY_MAX, tableSortSchema } from './table-layout';
+import { columnLayoutSchema, TABLE_KEY_MAX, tableSortSchema, type ColumnLayout, type TableColumnDefaults } from './table-layout';
 import { filterDepth, filterGroupSchemaFor, MAX_FILTER_DEPTH, type FilterConditionOf, type FilterGroupOf } from './filters';
 
 /** What a saved view lists (TABLE: any other table, named by its key). */
@@ -83,6 +83,26 @@ export function emptyTableFilter(): TableFilterGroup {
  */
 export function tableViewConfig(config: Partial<TableViewConfig> = {}): TableViewConfig {
   return tableViewConfigSchema.parse({ filter: emptyTableFilter(), ...config });
+}
+
+/**
+ * Configuration of a new view of a table: the columns chosen for the table in the workspace (none: the app's), then
+ * its own settings.
+ * @param {TableColumnDefaults | undefined} columns Columns new views of the table start with, none for the app's.
+ * @param {Partial<TableViewConfig>} [config] Settings of its own. Optional. Default = none.
+ * @returns {TableViewConfig} Config.
+ */
+export function newTableViewConfig(columns: TableColumnDefaults | undefined, config: Partial<TableViewConfig> = {}): TableViewConfig {
+  return tableViewConfig({ ...columns, ...config });
+}
+
+/**
+ * Layout of the columns of a view: their order, those hidden, their widths (all empty without a view).
+ * @param {Pick<TableViewConfig, 'columnOrder' | 'hiddenColumns' | 'columnSizing'> | null} config View, null for none.
+ * @returns {ColumnLayout} Layout.
+ */
+export function viewColumnLayout(config: Pick<TableViewConfig, 'columnOrder' | 'hiddenColumns' | 'columnSizing'> | null): ColumnLayout {
+  return { columnOrder: config?.columnOrder ?? [], hiddenColumns: config?.hiddenColumns ?? [], columnSizing: config?.columnSizing ?? {} };
 }
 
 /** Label of a saved view, of any table. */

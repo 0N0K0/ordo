@@ -10,8 +10,6 @@ interface DetailLayoutProps {
   title: TextInputProps;
   /** The title takes the focus when the panel opens (a creation form). Optional. Default = false. */
   focusTitle?: boolean;
-  /** Buttons after the title, before the menu (« Fermer la tâche »). Optional. */
-  actions?: ReactNode;
   /** « … » menu of the item (`ActionsMenu`): kept usable when the item is read only. Optional. */
   menu?: ReactNode;
   /** Project field, under the title. Optional. */
@@ -49,13 +47,13 @@ function Locked({ readOnly, children }: { readOnly: boolean; children: ReactNode
 
 /**
  * Layout of the panel of a task, a routine or an event, the same for the three: a header (its state, the editable
- * title, its buttons and « … » menu; then the project, its mentions and « Enregistré »), a main column (description,
+ * title and its « … » menu; then the project, its mentions and « Enregistré »), a main column (description,
  * relations, comments) and a column of titled groups on the right, which goes under the main one when the panel is
  * narrow (a phone, a panel made narrow).
  * @param {DetailLayoutProps} props Component props.
  * @returns {JSX.Element} Layout.
  */
-export function DetailLayout({ status, title, focusTitle = false, actions, menu, project, mentions, notes, saving, readOnly = false, main, comments, side, footer }: DetailLayoutProps) {
+export function DetailLayout({ status, title, focusTitle = false, menu, project, mentions, notes, saving, readOnly = false, main, comments, side, footer }: DetailLayoutProps) {
   return (
     <div className={classes.root}>
       <header className={classes.header}>
@@ -64,12 +62,7 @@ export function DetailLayout({ status, title, focusTitle = false, actions, menu,
             {status}
             <TextInput label="Libellé" required className={classes.grow} data-autofocus={focusTitle || undefined} {...title} />
           </Locked>
-          {(actions || menu) && (
-            <div className={classes.end}>
-              {!readOnly && actions}
-              {menu}
-            </div>
-          )}
+          {menu && <div className={classes.end}>{menu}</div>}
         </div>
         {(project || mentions || saving !== undefined) && (
           <div className={classes.line}>

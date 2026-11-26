@@ -10,6 +10,7 @@ import { GraphQLRequestError } from './graphql-client';
 function handleUnauthenticated(error: unknown): void {
   // eslint-disable-next-line no-restricted-syntax -- the sign-out of an expired session.
   if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define -- called by the client itself once built (its caches), never before.
     queryClient.setQueryData(meQueryKey, null);
   }
 }
@@ -26,6 +27,7 @@ const changes = typeof BroadcastChannel === 'undefined' ? null : new BroadcastCh
  * @returns {void}
  */
 function handleChanged(): void {
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define -- called by the client itself once built (its caches), never before.
   void queryClient.invalidateQueries({ refetchType: 'none' });
   changes?.postMessage('changed');
 }

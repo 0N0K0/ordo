@@ -1,12 +1,13 @@
-import { addDays, collator, EMPTY_MAIL_SEARCH, type MailSearchCriteria, mailSearchCriteriaSchema, type MailSearchSortBy, type MailSearchInput, mailSearchSchema, parseDay } from '@ordo/shared';
+import { addDays, collator, compareMailDates, EMPTY_MAIL_SEARCH, searchKeepsOldest, type MailSearchCriteria, mailSearchCriteriaSchema, type MailSearchSortBy, type MailSearchInput, mailSearchSchema, parseDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import type { MailSearch } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { folderLabel, isInbox, selectableFolders, withImap, withMailbox } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
-import { PAGE_SIZE, SUMMARY_FETCH, toSummary, type MailSummary } from './reader';
-import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
+import { PAGE_SIZE, sortedUids, SUMMARY_FETCH, toSummary, type MailSummary } from './reader';
+import { assertActive } from '../core/archive';
+import { deleteOrNotFound, findOrNotFound } from '../core/lookup';
 
 /** Folders a search does not look into, with "every folder". */
 const SKIPPED = new Set(['\\Trash', '\\Junk', '\\Drafts', '\\Sent']);
@@ -51,25 +52,28 @@ function parseSearch(input: MailSearchInput): { label: string; criteria: MailSea
 }
 
 /**
- * Creates a search folder at the end of the list.
+ * Creates a search folder at the end of the list; its project, if any, must exist and not be archived.
  * @param {MailSearchInput} input Search.
  * @returns {Promise<MailSearch>} Search.
  */
 export async function createSearch(input: MailSearchInput): Promise<MailSearch> {
   const { label, criteria } = parseSearch(input);
+  await assertActive(prisma.project, criteria.projectId, 'Projet');
   const position = await nextPositionIn('mailSearch');
   return prisma.mailSearch.create({ data: { label, criteria, position } });
 }
 
 /**
- * Updates a search folder.
+ * Updates a search folder; a project newly chosen must exist and not be archived.
  * @param {string} id Search id.
  * @param {MailSearchInput} input Search.
  * @returns {Promise<MailSearch>} Search.
  */
 export async function updateSearch(id: string, input: MailSearchInput): Promise<MailSearch> {
   const { label, criteria } = parseSearch(input);
-  await assertExists(prisma.mailSearch, id, 'Dossier de recherche');
+  const current = await findOrNotFound(prisma.mailSearch, id, 'Dossier de recherche');
+  // The project it already had stays valid, even archived or deleted.
+  if (criteria.projectId !== searchCriteria(current).projectId) await assertActive(prisma.project, criteria.projectId, 'Projet');
   return prisma.mailSearch.update({ where: { id }, data: { label, criteria } });
 }
 
@@ -83,14 +87,15 @@ export async function deleteSearch(id: string): Promise<void> {
 }
 
 /**
- * Mails of a folder matching criteria: the latest ones, with the IMAP keywords, or with the marks kept in Ordo
- * for servers without keywords.
+ * Mails of a folder matching criteria: the latest ones by date (the oldest ones when asked), with the IMAP keywords,
+ * or with the marks kept in Ordo for servers without keywords.
  * @param {string} accountId Account.
  * @param {string} folder Folder path.
  * @param {string} folderName Folder name.
  * @param {MailSearchCriteria} criteria Criteria.
  * @param {ReadonlyMap<string, { labelIds: string[], done: boolean }>} marks Marks kept in Ordo for the account.
  * @param {string[] | null} messageIds Message-IDs the mails must have (those of a project), or null.
+ * @param {boolean} oldest Keeps the oldest mails instead of the latest ones.
  * @returns {Promise<MailSearchHit[]>} Mails found.
  */
 async function searchFolder(
@@ -100,6 +105,7 @@ async function searchFolder(
   criteria: MailSearchCriteria,
   marks: ReadonlyMap<string, { labelIds: string[]; done: boolean }>,
   messageIds: string[] | null,
+  oldest: boolean,
 ): Promise<MailSearchHit[]> {
   return withImap(accountId, async (client) => {
     return withMailbox(client, folder, async () => {
@@ -133,11 +139,12 @@ async function searchFolder(
         const matching = await search({ or: [{ subject: text }, { from: text }, { to: text }, { body: text }] });
         uids = new Set([...uids].filter((uid) => matching.has(uid)));
       }
-      let latest = [...uids].sort((a, b) => b - a);
+      // By date, latest first, or oldest first (not by UID: a mail moved or copied into the folder gets a new one).
+      let kept = await sortedUids(client, [...uids], { by: 'date', ascending: oldest });
       // Without keywords, the state and flags from the marks kept in Ordo.
       if (!keywords && (criteria.state !== 'all' || criteria.labelIds.length)) {
-        const ids = await messageIdsOf(client, latest.slice(0, PER_FOLDER * 5));
-        latest = latest.filter((uid) => {
+        const ids = await messageIdsOf(client, kept.slice(0, PER_FOLDER * 5));
+        kept = kept.filter((uid) => {
           const mark = marks.get(ids.get(uid) ?? '');
           const done = mark?.done ?? false;
           if (criteria.state === 'done' && !done) return false;
@@ -145,11 +152,11 @@ async function searchFolder(
           return !criteria.labelIds.length || criteria.labelIds.some((id) => mark?.labelIds.includes(id));
         });
       }
-      // Every mail of a project (they are few), the latest ones otherwise.
-      if (!messageIds) latest = latest.slice(0, PER_FOLDER);
+      // Every mail of a project (they are few), the first ones in that order otherwise.
+      if (!messageIds) kept = kept.slice(0, PER_FOLDER);
       const hits: MailSearchHit[] = [];
-      if (!latest.length) return hits;
-      for await (const message of client.fetch(latest, SUMMARY_FETCH, { uid: true })) hits.push({ ...toSummary(message, keywords, marks), accountId, folder, folderName });
+      if (!kept.length) return hits;
+      for await (const message of client.fetch(kept, SUMMARY_FETCH, { uid: true })) hits.push({ ...toSummary(message, keywords, marks), accountId, folder, folderName });
       // Attachments are seen in the structure of the mails.
       return criteria.attachments ? hits.filter((hit) => hit.hasAttachments) : hits;
     });
@@ -191,8 +198,8 @@ function sortText(hit: MailSearchHit, by: Exclude<MailSearchSortBy, 'date'>): st
 }
 
 /**
- * Runs a search across its accounts and folders (the latest mails of each folder; every mail of a project, in
- * the accounts it has mails of); unreachable accounts are left out.
+ * Runs a search across its accounts and folders (the latest mails of each folder, the oldest when sorted oldest
+ * first by date; every mail of a project, in the accounts it has mails of); unreachable accounts are left out.
  * @param {MailSearchCriteria} criteria Criteria.
  * @param {number} page Page, from 0.
  * @param {SearchSort} [sort] Order of the mails. Optional. Default = latest first.
@@ -221,7 +228,7 @@ async function runSearch(criteria: MailSearchCriteria, page: number, sort: Searc
             .map((folder) => ({ path: folder.path, name: folderLabel(folder) })),
         );
         const hits: MailSearchHit[] = [];
-        for (const folder of folders) hits.push(...(await searchFolder(accountId, folder.path, folder.name, criteria, marks, linked ? (linkedIds.get(accountId) ?? []) : null)));
+        for (const folder of folders) hits.push(...(await searchFolder(accountId, folder.path, folder.name, criteria, marks, linked ? (linkedIds.get(accountId) ?? []) : null, searchKeepsOldest(sort))));
         return hits;
       } catch (error) {
         console.warn('Dossier de recherche : boîte injoignable.', error);
@@ -229,9 +236,12 @@ async function runSearch(criteria: MailSearchCriteria, page: number, sort: Searc
       }
     }),
   );
+  const dateKey = (hit: MailSearchHit) => ({ time: hit.date.getTime(), uid: hit.uid });
+  // Latest first between equals.
   const all = found.flat().sort((a, b) => {
-    const order = sort.by === 'date' ? a.date.getTime() - b.date.getTime() : collator.compare(sortText(a, sort.by), sortText(b, sort.by));
-    return sort.ascending ? order : -order;
+    if (sort.by === 'date') return compareMailDates(dateKey(a), dateKey(b), sort.ascending);
+    const order = collator.compare(sortText(a, sort.by), sortText(b, sort.by));
+    return (sort.ascending ? order : -order) || compareMailDates(dateKey(a), dateKey(b));
   });
   return { messages: all.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), total: all.length };
 }

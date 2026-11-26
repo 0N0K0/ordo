@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   casesSlotsOn,
   changedScheduleSlot,
+  countedSchedules,
   fromLegacySchedule,
   plannedPauses,
   plannedSlots,
@@ -9,6 +10,7 @@ import {
   scheduleCasesSchema,
   scheduleRuns,
   scheduleTypeContextError,
+  SPLIT_CASES_REFUSAL,
   slotMinutes,
   withinSlots,
   workScheduleSchema,
@@ -255,6 +257,23 @@ describe('changedScheduleSlot', () => {
       expect(slotDays({ ...period, ...changed }, '2026-11-01', '2027-01-03')).toEqual(before.map((date) => addDays(date, 3)));
     });
 
+    it('moved whole, cases split beyond 20: refused with its reason, not « 20 cas au plus. » at the save', () => {
+      const days = { allDay: true, ranges: [] };
+      const whole = (date: string) => ({ date, start: '00:00', end: '24:00', allDay: true });
+      // Each Mon + Fri every 2 weeks case, +3 days, becomes two (Thursday the same week, Monday the next).
+      const cases = (count: number) => Array.from({ length: count }, () => scheduleCase({ weekdays: [1, 5], interval: 2 }, { times: days }));
+      const period = (count: number) => schedule(cases(count), { ephemeris: true, endDate: '2026-12-31' });
+      expect(() => changedScheduleSlot(period(11), whole('2026-11-02'), whole('2026-11-05'), 'ALL')).toThrow(SPLIT_CASES_REFUSAL);
+      // 10 cases make 20: accepted.
+      expect(changedScheduleSlot(period(10), whole('2026-11-02'), whole('2026-11-05'), 'ALL').cases).toHaveLength(20);
+      // The same in an exception of the period.
+      const exception = { from: '2026-11-09', to: '2026-11-22', label: '', cases: cases(11) };
+      expect(() => changedScheduleSlot({ ...period(1), exceptions: [exception] }, whole('2026-11-02'), whole('2026-11-05'), 'ALL')).toThrow(SPLIT_CASES_REFUSAL);
+      // Moved by whole weeks, nothing splits: 20 cases stay 20.
+      const full = schedule(cases(20), { ephemeris: true, endDate: '2026-12-31' });
+      expect(changedScheduleSlot(full, whole('2026-11-02'), whole('2026-11-16'), 'ALL').cases).toHaveLength(20);
+    });
+
     it('several days with THIS: the day stays within the period (créneau rule)', () => {
       const period = schedule([scheduleCase({ frequency: 'DAILY' })], { ephemeris: true, endDate: '2026-11-10' });
       const changed = changedScheduleSlot(period, slot('2026-11-03'), slot('2026-11-04'), 'THIS');
@@ -268,5 +287,31 @@ describe('scheduleTypeContextError', () => {
     expect(scheduleTypeContextError({ ephemeris: false, budgetContext: true, sharedContext: false })?.field).toBe('budgetContext');
     expect(scheduleTypeContextError({ ephemeris: true, budgetContext: false, sharedContext: true })?.field).toBe('sharedContext');
     expect(scheduleTypeContextError({ ephemeris: true, budgetContext: true, sharedContext: true })).toBeNull();
+  });
+});
+
+describe('countedSchedules', () => {
+  // What a page shows without « Afficher les archivés », and what the slot conditions count: neither archived nor of an
+  // archived kind, in their own workspace (another workspace's as it says).
+  const own = { id: 'own', archived: false, kindArchived: false };
+  const archived = { id: 'archived', archived: true, kindArchived: false };
+  const ofArchivedKind = { id: 'kind', archived: false, kindArchived: true };
+  const both = { id: 'both', archived: true, kindArchived: true };
+  const unknown = { id: 'unknown', archived: null, kindArchived: undefined };
+
+  it('keeps a schedule neither archived nor of an archived kind', () => {
+    expect(countedSchedules([own]).map(({ id }) => id)).toEqual(['own']);
+  });
+
+  it('leaves out an archived schedule, one of an archived kind, and one archived of an archived kind', () => {
+    expect(countedSchedules([archived, ofArchivedKind, both])).toEqual([]);
+  });
+
+  it('counts a schedule that does not say it (none, or null) as not archived', () => {
+    expect(countedSchedules([unknown]).map(({ id }) => id)).toEqual(['unknown']);
+  });
+
+  it('keeps the order of the schedules given', () => {
+    expect(countedSchedules([unknown, archived, own, ofArchivedKind]).map(({ id }) => id)).toEqual(['unknown', 'own']);
   });
 });

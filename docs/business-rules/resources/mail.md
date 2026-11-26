@@ -123,11 +123,12 @@ Source : `apps/api/src/services/mail/reader.ts`.
 - Recherche texte : objet, expéditeur, destinataires ou corps (recherche IMAP du serveur).
 - Filtres : non-lus seulement ; état `all` (défaut), `todo`, `done` (toute autre valeur vaut `all`).
 - Tri (`mailSortBy`) : `date` (défaut, valeur inconnue = date), `correspondent`, `subject`, `size` ; descendant par défaut.
-  - Par date : ordre d’arrivée (UID).
+  - Par date : la date du mail, celle affichée (`mailTime`) : son en-tête Date (quand il a été envoyé), sinon la date où le serveur l’a reçu (INTERNALDATE). Pas l’ordre d’arrivée dans le dossier (UID) : un mail déplacé, copié ou importé y reçoit un nouvel UID. Entre deux mails de la même date, le plus grand UID d’abord ; l’ordre croissant est l’inverse exact.
+  - Tous les mails retenus sont triés avant le découpage en pages : la page suivante continue la précédente. Pour cela, l’en-tête Date et la date de réception de chaque mail retenu du dossier sont lus (une requête légère, environ 100 octets par mail, refaite à chaque page et à chaque rafraîchissement, sans cache) ; les autres tris lisent l’enveloppe et la taille de chaque mail. Une recherche lit de même les dates de chaque mail correspondant de chaque dossier parcouru.
   - Par objet : sans les préfixes « Re: », « Fwd: », « Fw: », « Tr: » répétés.
   - Par correspondant : nom, sinon adresse du premier expéditeur.
-  - Entre égaux : le plus récent d’abord.
-- Résumé d’un mail : UID, objet (« (sans objet) » si vide), expéditeurs, destinataires, date (en-tête, sinon date de réception), lu, marqué (`\Flagged`), pièces jointes (une partie `attachment` dans la structure), drapeaux, traité.
+  - Entre égaux : le plus récent d’abord (par date).
+- Résumé d’un mail : UID, objet (« (sans objet) » si vide), expéditeurs, destinataires, date (en-tête Date, sinon date de réception ; la même que celle du tri), lu, marqué (`\Flagged`), pièces jointes (une partie `attachment` dans la structure), drapeaux, traité.
 
 ### Ouverture d’un mail (`mailMessage`)
 
@@ -204,16 +205,17 @@ Valeurs d’une nouvelle recherche (`EMPTY_MAIL_SEARCH`) : toutes les boîtes, r
 ### Exécution
 
 - Chaque boîte retenue est lue ; une boîte injoignable est ignorée (avertissement dans le journal), sans faire échouer la recherche.
-- Dans chaque dossier, seuls les **200 mails les plus récents** correspondant aux critères serveur sont retenus (sauf pour un projet : tous ses mails).
-- Sans mots-clés sur le serveur, l’état et les drapeaux sont filtrés avec les marques gardées dans Ordo (sur au plus 1 000 mails récents du dossier).
+- Dans chaque dossier, seuls les **200 mails les plus récents** correspondant aux critères serveur sont retenus (sauf pour un projet : tous ses mails) ; triée du plus ancien au plus récent par date, une recherche retient au contraire les **200 plus anciens** (`searchKeepsOldest`) ; l’interface ne propose ce tri que pour les mails d’un projet, qui ne sont pas limités. Les autres tris (correspondant, objet) gardent les 200 plus récents. « Récent » se juge à la date du mail, comme dans la liste d’un dossier (en-tête Date, sinon date de réception), lue pour chaque mail correspondant du dossier.
+- Sans mots-clés sur le serveur, l’état et les drapeaux sont filtrés avec les marques gardées dans Ordo (sur au plus les 1 000 premiers mails du dossier dans le même ordre : les plus récents, ou les plus anciens).
 - « Avec pièce jointe » est filtré d’après la structure des mails retenus.
 - Recherche d’un projet : seulement les boîtes ayant des copies du projet ; dossiers sauf Corbeille, Indésirables, Brouillons (**les Envoyés compris**) ; les mails sont retrouvés par leur en-tête Message-ID (25 par requête). Sans copie : résultat vide.
-- Résultats de toutes les boîtes réunis, triés (date par défaut, descendant), paginés par 50. Tri possible sur `date`, `correspondent`, `subject` (`mailSearchSortBy` : `size` ou valeur inconnue = date).
+- Résultats de toutes les boîtes réunis, triés (date par défaut, descendant ; entre égaux, le plus récent d’abord), paginés par 50. Tri possible sur `date`, `correspondent`, `subject` (`mailSearchSortBy` : `size` ou valeur inconnue = date).
 - Chaque résultat porte sa boîte, son dossier et le nom du dossier (« Réception » pour la réception).
 
 ### Dossiers de recherche (`MailSearch`)
 
 - Libellé requis, 250 caractères maximum ; critères validés comme ci-dessus.
+- Dossier créé depuis les mails d’un projet : il garde `projectId` et ne montre que les mails de ce projet. À la création, le projet doit exister dans l’espace (« Projet » introuvable) et ne pas être archivé (« Élément archivé… », en toast : le formulaire n’a pas de champ projet) ; en modification, le projet qu’il avait reste accepté, même archivé ou supprimé. Projet supprimé : le dossier ne trouve plus rien.
 - Créé en fin de liste ; modification ou suppression d’un dossier inconnu : « Dossier de recherche » introuvable.
 - Rien n’est créé sur le serveur ; la suppression ne touche aucun mail.
 - Critères stockés illisibles : la recherche vaut « réceptions, à traiter ».
@@ -262,7 +264,7 @@ Source : `apps/api/src/services/mail/scheduled.ts`.
 
 ### Programmation (`scheduleMail`)
 
-- Heure valide et au moins 30 secondes dans le futur, sinon « Choisissez un moment à venir. » (champ `sendAt`).
+- Heure valide et au moins 30 secondes dans le futur, sinon « Choisissez un moment à venir. » (champ `sendAt` ; `canScheduleAt`, `SCHEDULE_IN_PAST` de `@ordo/shared`, la même règle dans le web, qui n’offre que les moments à venir).
 - Boîte active et projet actif requis.
 - Le message est construit **tout de suite** (fichiers compris), daté de son heure d’envoi, et gardé (`raw`, `copy`, destinataires, références, projet). Objet stocké : celui du mail, ou « (sans objet) ».
 - Le brouillon d’origine est supprimé.

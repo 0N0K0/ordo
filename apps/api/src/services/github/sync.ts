@@ -32,6 +32,9 @@ import {
   type TaskInheritableField,
   type TaskInheritanceContext,
   upgradedSnapshot,
+  githubSendRefusal,
+  githubTaskState,
+  GITHUB_SEND_REFUSALS,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
@@ -65,6 +68,7 @@ import {
 } from './board';
 import { currentGithubConnection, githubToken, isGoneOnGithub, stopsSync } from './client';
 import { syncIterations } from './iterations';
+import { linksByProject } from './links';
 import { schedulePerWorkspace } from '../workspaces/workspaces';
 import { subtreeIds, topmostIds } from '../core/trees';
 import { connectIds } from '../core/relations';
@@ -641,11 +645,14 @@ async function pushValues(
 /**
  * Synchronizes the comments of a task and its issue, both ways: new ones on each side are copied, edited ones
  * merged against their last synchronized body (the latest edit wins a conflict), and a comment deleted on
- * GitHub is deleted in Ordo (one deleted in Ordo was deleted on GitHub at once).
+ * GitHub is deleted in Ordo (one deleted in Ordo was deleted on GitHub at once). Every comment on GitHub records its
+ * author, the account connected included (a comment published from Ordo records the account it was published with):
+ * after the token is replaced by one of another account, a comment whose issue is forgotten is never published again
+ * under that other account.
  * @param {string} token Token.
  * @param {string} taskId Task.
  * @param {RemoteItem} item Issue item.
- * @param {string} login Login of the connected account (its comments show no author).
+ * @param {string} login Login of the account connected.
  * @returns {Promise<number>} Comments created, changed or deleted.
  */
 async function syncComments(token: string, taskId: string, item: RemoteItem, login: string): Promise<number> {
@@ -654,10 +661,10 @@ async function syncComments(token: string, taskId: string, item: RemoteItem, log
   let changes = 0;
   for (const comment of local) {
     if (!comment.githubCommentId) {
-      // A comment of someone else whose issue was forgotten, or whose project was unlinked or linked to another board, stays in Ordo only.
-      if (!commentToPublish(comment)) continue;
+      // A comment of another account whose issue was forgotten, or whose project was unlinked or linked to another board, stays in Ordo only.
+      if (!commentToPublish(comment, login)) continue;
       const id = await addIssueComment(token, item.contentId, comment.body);
-      await prisma.taskComment.update({ where: { id: comment.id }, data: { githubCommentId: id, githubBody: comment.body } });
+      await prisma.taskComment.update({ where: { id: comment.id }, data: { githubCommentId: id, githubBody: comment.body, githubAuthor: login || null } });
       changes += 1;
       continue;
     }
@@ -668,6 +675,8 @@ async function syncComments(token: string, taskId: string, item: RemoteItem, log
       changes += 1;
       continue;
     }
+    // A comment synchronized before its author was recorded (the account connected then) takes it from GitHub.
+    if (!comment.githubAuthor && theirs.author) await prisma.taskComment.update({ where: { id: comment.id }, data: { githubAuthor: theirs.author } });
     if (comment.body === theirs.body) {
       if (comment.githubBody !== theirs.body) await prisma.taskComment.update({ where: { id: comment.id }, data: { githubBody: theirs.body } });
       continue;
@@ -688,7 +697,7 @@ async function syncComments(token: string, taskId: string, item: RemoteItem, log
         createdAt: new Date(comment.createdAt),
         githubCommentId: comment.id,
         githubBody: comment.body,
-        githubAuthor: comment.author && comment.author !== login ? comment.author : null,
+        githubAuthor: comment.author,
       },
     });
     changes += 1;
@@ -741,7 +750,11 @@ async function pushTrackedTime(token: string, link: GithubProjectLink, item: Rem
   return true;
 }
 
-const running = new Set<string>();
+/** Error of a sync asked for while another one of its link runs. */
+const SYNC_RUNNING = 'Une synchronisation de ce projet est déjà en cours.';
+
+/** Syncs running, by link: each one ends (resolved) once its link is free again. */
+const running = new Map<string, Promise<void>>();
 
 /**
  * Forgets the issue of a task that cannot get it back on the board: its GitHub content and the links of its comments
@@ -764,14 +777,16 @@ async function forgetIssue(taskId: string, mark: Prisma.TaskUpdateInput): Promis
  * be the same for every task (GitHub out of reach, token refused, rate limit, missing rights) stops the whole sync.
  * @param {SyncSummary} summary Summary of the sync (its failures counted).
  * @param {() => Promise<void>} work Sync of the task.
+ * @param {(error: unknown) => void} [failed] Told the failure of the task. Optional.
  * @returns {Promise<void>}
  */
-async function isolated(summary: SyncSummary, work: () => Promise<void>): Promise<void> {
+async function isolated(summary: SyncSummary, work: () => Promise<void>, failed?: (error: unknown) => void): Promise<void> {
   try {
     await work();
   } catch (error) {
     if (stopsSync(error)) throw error;
     summary.failed += 1;
+    failed?.(error);
     console.warn('Synchronisation GitHub : tâche non synchronisée.', error);
   }
 }
@@ -782,14 +797,27 @@ async function isolated(summary: SyncSummary, work: () => Promise<void>): Promis
  * chosen repository); linked pairs are merged field by field against the last sync (labels with tags,
  * sub-issues with sub-tasks, the archive of a task with the archive of its item), then the comments of issues;
  * archived tasks too. A task whose item left the board is kept, unlinked, not sent again, and archived with a
- * comment saying so.
+ * comment saying so. Tasks asked for (« Envoyer sur GitHub ») are also sent when not on GitHub, created before the
+ * link or removed from the board, the link in automatic or manual sync. One sync at a time per link: refused
+ * while another one runs (`sendWhenFree` waits for it).
  * @param {string} projectId Linked project.
- * @returns {Promise<SyncSummary>} What changed.
+ * @param {ReadonlySet<string>} [send] Tasks to send on request. Optional. Default = none.
+ * @returns {Promise<{ summary: SyncSummary, failures: Map<string, string> }>} What changed, and why each task that
+ * failed did (by task).
  */
-export const syncGithubProject = automated(async function syncGithubProject(projectId: string): Promise<SyncSummary> {
+async function runGithubSync(projectId: string, send: ReadonlySet<string> = new Set()): Promise<{ summary: SyncSummary; failures: Map<string, string> }> {
   const link = await orNotFound(prisma.githubProjectLink.findUnique({ where: { projectId } }), 'Lien GitHub');
-  if (running.has(link.id)) throw clientError('BAD_USER_INPUT', 'Une synchronisation de ce projet est déjà en cours.');
-  running.add(link.id);
+  // Nothing waits between this check and the start: two syncs of a link never run together.
+  if (running.has(link.id)) throw clientError('BAD_USER_INPUT', SYNC_RUNNING);
+  let finish = () => {};
+  running.set(link.id, new Promise<void>((resolve) => (finish = resolve)));
+  const failures = new Map<string, string>();
+  /**
+   * Keeps why a task failed.
+   * @param {string} taskId Task.
+   * @returns {(error: unknown) => void} Recorder of its failure.
+   */
+  const failedTask = (taskId: string) => (error: unknown) => failures.set(taskId, errorMessage(error));
   const summary: SyncSummary = { pulledNew: 0, pushedNew: 0, pulled: 0, pushed: 0, unlinked: 0, sprints: 0, sprintsPushed: 0, sprintsSkipped: 0, sprintsBlocked: 0, sprintsUnpaired: 0, renumbered: 0, comments: 0, failed: 0 };
   try {
     const token = await githubToken();
@@ -840,7 +868,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
         });
         readded.add(task.id);
         summary.pushedNew += 1;
-      });
+      }, failedTask(task.id));
     }
     const items = await boardItems(token, board);
     const itemIds = items.map((item) => item.itemId);
@@ -1013,6 +1041,8 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
           { githubContentType: null, archivedAt: null, ...(!link.pushExisting && { createdAt: { gte: link.createdAt } }) },
           { githubContentType: 'DRAFT_ISSUE' },
           { githubContentType: 'ISSUE', githubContentId: null },
+          // Asked for: created before the link, or removed from the board (never sent again otherwise), active only.
+          ...(send.size ? [{ id: { in: [...send] }, archivedAt: null, OR: [{ githubContentType: null }, { githubContentType: REMOVED_FROM_BOARD }] }] : []),
         ],
       },
       include,
@@ -1070,21 +1100,112 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
         if (created.number !== null && (await matchIssueNumber(task.id, created.number))) summary.renumbered += 1;
         if (type === 'ISSUE') summary.comments += await syncComments(token, task.id, item, login);
         summary.pushedNew += 1;
-      });
+      }, failedTask(task.id));
     }
 
     await prisma.githubProjectLink.update({
       where: { id: link.id },
       data: { lastSyncAt: new Date(), lastSyncError: null, lastSyncSummary: toJson(summary), label: board.title, url: board.url },
     });
-    return summary;
+    return { summary, failures };
   } catch (error) {
     await prisma.githubProjectLink.update({ where: { id: link.id }, data: { lastSyncAt: new Date(), lastSyncError: errorMessage(error) } }).catch(() => undefined);
     throw error;
   } finally {
     running.delete(link.id);
+    finish();
   }
+}
+
+/**
+ * Synchronizes a project with its GitHub board (`runGithubSync`), then applies the rules of the tasks once.
+ * @param {string} projectId Linked project.
+ * @returns {Promise<SyncSummary>} What changed.
+ */
+export const syncGithubProject = automated(async function syncGithubProject(projectId: string): Promise<SyncSummary> {
+  return (await runGithubSync(projectId)).summary;
 });
+
+/** What « Envoyer sur GitHub » did: the tasks now on GitHub, and why each other one is not. */
+export interface GithubSendResult {
+  sent: number;
+  errors: string[];
+}
+
+/** Sync of a link sending tasks on request, then the rules of the tasks applied once. */
+const syncSending = automated((projectId: string, send: ReadonlySet<string>) => runGithubSync(projectId, send));
+
+/**
+ * Sync of a link sending tasks on request, once the sync of the link running (the periodic one, or another request)
+ * is over: waited for outside the lock of the workspace taken by the rules of the tasks (a sync running without it
+ * may need it for its own writes), then tried again if another one started meanwhile.
+ * @param {string} projectId Linked project.
+ * @param {ReadonlySet<string>} send Tasks to send on request.
+ * @returns {Promise<{ summary: SyncSummary, failures: Map<string, string> }>} What the sync did.
+ */
+async function sendWhenFree(projectId: string, send: ReadonlySet<string>): Promise<{ summary: SyncSummary; failures: Map<string, string> }> {
+  for (;;) {
+    const link = await prisma.githubProjectLink.findUnique({ where: { projectId }, select: { id: true } });
+    if (link) await running.get(link.id);
+    try {
+      return await syncSending(projectId, send);
+    } catch (error) {
+      if (errorMessage(error) !== SYNC_RUNNING) throw error;
+    }
+  }
+}
+
+/**
+ * « Envoyer sur GitHub »: sends tasks not on GitHub (never sent, created before the link, or removed from the board) to
+ * the board of their project tree, by a sync of each link concerned (`sendWhenFree`, after the one running): each
+ * becomes an item as a new task of the sync does (an issue of the repository of the link, or a draft), its mark of
+ * removal cleared, then sends its parent, links and comments as any push; a task whose issue is to be added to the
+ * board again (back in the tree with it) is by the same sync, as the sync does it. Refused, task by task
+ * (`githubSendRefusal`): a task archived, on GitHub already, outside a linked tree, GitHub not connected (a link in
+ * manual sync accepted). A sync that fails as a whole (its link deleted or GitHub disconnected while waiting
+ * included) gives its error to each task of its link.
+ * @param {string[]} ids Tasks.
+ * @returns {Promise<GithubSendResult>} Tasks sent, and the errors of the others.
+ */
+export async function sendTasksToGithub(ids: string[]): Promise<GithubSendResult> {
+  const connected = Boolean(await currentGithubConnection());
+  const tasks = await prisma.task.findMany({ where: { id: { in: ids } }, select: { id: true, projectId: true, archivedAt: true, githubItemId: true, githubContentType: true } });
+  const errors: string[] = ids.filter((id) => !tasks.some((task) => task.id === id)).map(() => 'Tâche introuvable.');
+  const links = await linksByProject();
+  // Tasks accepted, by linked project; among them those the sync sends only on request (never sent, or removed).
+  const byProject = new Map<string, { asked: string[]; send: Set<string> }>();
+  for (const task of tasks) {
+    const link = task.projectId ? (links.get(task.projectId) ?? null) : null;
+    const refusal = githubSendRefusal({ archived: task.archivedAt !== null, state: githubTaskState(task, Boolean(link)) }, connected);
+    if (refusal || !link) {
+      errors.push(refusal ?? GITHUB_SEND_REFUSALS.unlinked);
+      continue;
+    }
+    const entry = byProject.get(link.projectId) ?? { asked: [], send: new Set<string>() };
+    entry.asked.push(task.id);
+    // An issue to add to the board again is the sync's own (a task whose issue is linked to another task meanwhile is
+    // then removed from the board, not sent as a new issue).
+    if (task.githubContentType === null || task.githubContentType === REMOVED_FROM_BOARD) entry.send.add(task.id);
+    byProject.set(link.projectId, entry);
+  }
+  let sent = 0;
+  for (const [projectId, { asked, send }] of byProject) {
+    let failures: Map<string, string>;
+    try {
+      ({ failures } = await sendWhenFree(projectId, send));
+    } catch (error) {
+      errors.push(...asked.map(() => errorMessage(error)));
+      continue;
+    }
+    const now = await prisma.task.findMany({ where: { id: { in: asked } }, select: { id: true, githubItemId: true } });
+    for (const id of asked) {
+      const task = now.find((entry) => entry.id === id);
+      if (task?.githubItemId) sent += 1;
+      else errors.push(failures.get(id) ?? 'La tâche n’a pas été envoyée sur GitHub : elle a changé pendant la synchronisation (archivée, transférée, supprimée, ou son issue liée à une autre tâche).');
+    }
+  }
+  return { sent, errors };
+}
 
 /**
  * Synchronizes every enabled link now, then every ten minutes; failures are kept on the links.

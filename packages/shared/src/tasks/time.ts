@@ -5,6 +5,7 @@ import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
 import { addDays, dayIn, PARIS_ZONE } from '../dates/days';
 import { twoDigits } from '../core/numbers';
+import { parisInstant } from '../dates/reminders';
 
 /** What was done during a tracked time: markdown (its editor). Blank becomes null. */
 export const timeDescriptionSchema = markdownSchema;
@@ -32,8 +33,9 @@ export const DURATION_TEXT_INVALID = 'Durée attendue : 1:30, 1h30, 90 (minutes)
 export const durationTextSchema = z.string().refine((value) => parseDuration(value) !== null, DURATION_TEXT_INVALID);
 
 /**
- * Manual time entry form: day, start time, duration ("1:30", "1h30", "90" minutes or "1,5" hours). The project may be
- * left empty when the time has a task, a routine or an event; several of each.
+ * Manual time entry form: day, start time, duration ("1:30", "1h30", "90" minutes or "1,5" hours), over by now
+ * (`timeEntryFutureError`). The project may be left empty when the time has a task, a routine or an event; several of
+ * each.
  */
 export const timeEntryFormSchema = z
   .object({
@@ -50,6 +52,15 @@ export const timeEntryFormSchema = z
   .refine((values) => values.projectId !== '' || values.routineIds.length > 0 || values.taskIds.length > 0 || values.events.length > 0, {
     path: ['projectId'],
     message: TIME_SUBJECT_REQUIRED,
+  })
+  // Over by now: neither its start nor its end after now (day and time read in Paris).
+  .superRefine((values, context) => {
+    const seconds = parseDuration(values.duration);
+    if (!seconds || !values.date || !values.start) return;
+    const error = timeEntryFutureError(parisInstant(values.date, values.start), seconds);
+    // Its end: under the duration, and under the start too (a start changed alone shows it).
+    const paths = error?.field === 'duration' ? [['duration'], ['start']] : error ? [[error.field]] : [];
+    for (const path of paths) context.addIssue({ code: 'custom', path, message: error!.message });
   });
 export type TimeEntryFormValues = z.infer<typeof timeEntryFormSchema>;
 
@@ -113,10 +124,10 @@ export function formatClock(seconds: number): string {
  * @param {number} [now] Current time in ms. Optional. Default = Date.now().
  * @returns {number} Seconds.
  */
-export function entrySeconds(entry: { startedAt: string; endedAt: string | null; pausedAt: string | null; pausedSeconds: number; duration: number | null }, now = Date.now()): number {
+export function entrySeconds(entry: TimeSpanEntry, now = Date.now()): number {
   if (entry.duration !== null) return entry.duration;
-  const end = entry.pausedAt ? Date.parse(entry.pausedAt) : entry.endedAt ? Date.parse(entry.endedAt) : now;
-  return Math.max(0, Math.floor((end - Date.parse(entry.startedAt)) / 1000) - entry.pausedSeconds);
+  const { start, end } = entryBounds(entry, now);
+  return Math.max(0, Math.floor((end - start) / 1000) - entry.pausedSeconds);
 }
 
 /**
@@ -134,24 +145,71 @@ export function reachedDurationMax(entry: Parameters<typeof entrySeconds>[0], no
  * Seconds of a time within a period (a day, a week): the part of its duration between the two instants, for a time
  * that crosses one of them (a timer running past midnight, started the evening before the week). Its pauses, whose
  * moments are not kept, are shared out over the whole time.
- * @param {{ startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null }} entry Time.
+ * @param {TimeSpanEntry} entry Time.
  * @param {number} from Start of the period (ms).
  * @param {number} to End of the period (ms, excluded).
  * @param {number} [now] Current time (ms). Optional. Default = Date.now().
  * @returns {number} Seconds.
  */
-export function entrySecondsWithin(
-  entry: { startedAt: string; endedAt: string | null; pausedAt: string | null; pausedSeconds: number; duration: number | null },
-  from: number,
-  to: number,
-  now = Date.now(),
-): number {
-  const start = Date.parse(entry.startedAt);
-  const end = entry.pausedAt ? Date.parse(entry.pausedAt) : entry.endedAt ? Date.parse(entry.endedAt) : now;
+export function entrySecondsWithin(entry: TimeSpanEntry, from: number, to: number, now = Date.now()): number {
+  const { start, end } = entryBounds(entry, now);
   const seconds = entrySeconds(entry, now);
   if (end <= start) return start >= from && start < to ? seconds : 0;
   const overlap = Math.max(0, Math.min(end, to) - Math.max(start, from));
   return Math.round((seconds * overlap) / (end - start));
+}
+
+/**
+ * Whether a time meets a period (a day): it runs during part of it (a time of no length: it starts in it), a timer
+ * running until now, a paused one until its pause.
+ * @param {TimeSpanEntry} entry Time.
+ * @param {number} from Start of the period (ms).
+ * @param {number} to End of the period (ms, excluded).
+ * @param {number} [now] Current time (ms). Optional. Default = Date.now().
+ * @returns {boolean} It meets it.
+ */
+export function entryMeets(entry: TimeSpanEntry, from: number, to: number, now = Date.now()): boolean {
+  const { start, end } = entryBounds(entry, now);
+  return end <= start ? start >= from && start < to : start < to && end > from;
+}
+
+/** A time as far as its moments go: its start, its end (null: running), its pause, its pauses, its duration once stopped. */
+export interface TimeSpanEntry {
+  startedAt: string;
+  endedAt: string | null;
+  pausedAt: string | null;
+  pausedSeconds: number;
+  duration: number | null;
+}
+
+/**
+ * Start and end of a time (ms): a running timer up to now, a paused one up to its pause.
+ * @param {TimeSpanEntry} entry Time.
+ * @param {number} now Current time (ms).
+ * @returns {{ start: number, end: number }} Bounds.
+ */
+function entryBounds(entry: TimeSpanEntry, now: number): { start: number; end: number } {
+  return { start: Date.parse(entry.startedAt), end: entry.pausedAt ? Date.parse(entry.pausedAt) : entry.endedAt ? Date.parse(entry.endedAt) : now };
+}
+
+/** Message of a time added or changed by hand that starts after now. */
+export const TIME_START_IN_FUTURE = 'Le début ne peut pas être dans le futur.';
+
+/** Message of a time added or changed by hand that ends after now. */
+export const TIME_END_IN_FUTURE = 'Un temps ne peut pas finir dans le futur.';
+
+/**
+ * What is wrong with a time added or changed by hand that is not over by now: its start after now (`start`), or its
+ * end (its start and its duration) after now (`duration`); null when it ends at or before now.
+ * @param {Date} startedAt Start.
+ * @param {number} seconds Duration (seconds).
+ * @param {number} [now] Current time (ms). Optional. Default = Date.now().
+ * @returns {{ field: 'start' | 'duration', message: string } | null} Field and message, null: fine.
+ */
+export function timeEntryFutureError(startedAt: Date, seconds: number, now: number = Date.now()): { field: 'start' | 'duration'; message: string } | null {
+  if (startedAt.getTime() > now) return { field: 'start', message: TIME_START_IN_FUTURE };
+  if (startedAt.getTime() + seconds * 1000 > now) return { field: 'duration', message: TIME_END_IN_FUTURE };
+  return null;
 }
 
 // --- Alarms -----------------------------------------------------------------------------------------

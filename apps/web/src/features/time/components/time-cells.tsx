@@ -4,7 +4,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { CellMultiSelect, EditableDate, EditableText, EditableTime } from '../../../components/data-table/cells/EditableCells';
 import { StackedMultiCell, type StackedItem } from '../../../components/data-table/cells/StackedMultiCell';
 
-import { parisInstant, parisParts, parisDay } from '../../../lib/dates';
+import { parisInstant, parisParts, parisDay, parisToday } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCalendarEvents } from '../../calendar/api';
 import { useRoutinesData } from '../../routines/api';
@@ -31,6 +31,8 @@ export function TimeDayCell({ entry, readOnly, label, save }: { entry: TimeEntry
     <EditableDate
       value={start.date}
       label={label}
+      // A time is over by now: no day after today.
+      maxDate={parisToday()}
       onSave={(date) => date && date !== start.date && save(entry, (row) => ({ startedAt: parisInstant(date, parisParts(row.startedAt).time).toISOString() }))}
     />
   );

@@ -18,7 +18,7 @@ Toute erreur destinée à l'utilisateur est une `GraphQLError` créée par `clie
 | `CONFLICT`            | Valeur unique déjà prise (libellé, identifiant, email, numéro…).                                                   | 409                       |
 | `TOO_MANY_REQUESTS`   | Limite de tentatives atteinte (« Trop de tentatives. Réessayez dans N min. », extension `retryAfter` en secondes). | 429                       |
 | `SERVICE_UNAVAILABLE` | Service externe injoignable (cartographie, serveur mail…).                                                         | 503                       |
-| `CONFIRMATION_REQUIRED` | Changement qui supprimerait des données sans confirmation : règle d'une série d'évènements ou d'une routine qui fait disparaître des occurrences ayant des commentaires ou des temps (extension `lost` : `{ times, comments }`) ; transformation d'une tâche en routine ou l'inverse (extension `lost` : `ConversionLoss`, toujours demandée). Le web demande la confirmation et renvoie avec `confirmLoss: true` (`confirm: true` pour une transformation). | —                         |
+| `CONFIRMATION_REQUIRED` | Changement qui supprimerait des données sans confirmation : règle d'une série d'évènements ou d'une routine qui fait disparaître des occurrences ayant des commentaires, des temps, des listes à cocher commencées ou des liens entre routines et évènements (extension `lost` : `{ times, comments, checklists, links }`) ; transformation d'une tâche en routine ou l'inverse (extension `lost` : `ConversionLoss`, toujours demandée). Le web demande la confirmation et renvoie avec `confirmLoss: true` (`confirm: true` pour une transformation). | —                         |
 | `RULE_CHOICE_REQUIRED` | Déplacement d'une répétition le dernier jour du mois à un autre jour (« Celle-ci et les suivantes », « Toutes ») sans sa nouvelle règle (« Cette répétition tombe le dernier jour du mois : choisissez sa nouvelle règle pour la déplacer. », extension `movedRule` : `{ rule, start }`, la règle proposée et le jour d'où elle se montre). Le web demande la règle dans un formulaire et renvoie avec `movedRule`. | —                         |
 
 ## Erreurs rattachées à un champ
@@ -36,9 +36,10 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 
 - Écrits en français, phrase complète terminée par un point, guillemets « » autour des noms cités.
 - Messages communs (voir [core](../../shared/cross-cutting/core.md)) : « Le libellé est requis. », « Le nom est requis. », « N caractères maximum. », « La fin doit suivre le début. », « Couleur invalide (format #rrggbb). », « Date invalide. », « Lien invalide (http ou https). ».
-- Archivé : un seul message, « Élément archivé : restaurez-le pour le modifier. » (voir [Archivage](archiving.md)).
+- Archivé : un seul message, « Élément archivé : restaurez-le pour le modifier. » (voir [Archivage](archiving.md)). Exception : un élément archivé d’un **autre espace**, qui ne se modifie ni ne se restaure d’ici (« restaurez-le » ne s’applique pas) : s’abonner à un calendrier archivé, « Ce calendrier est archivé. », à un type de créneaux archivé, « Ce type est archivé. » (`refuseForeignArchived`, `FOREIGN_ARCHIVED_MESSAGES`, `apps/api/src/services/core/archive.ts`).
 - Doublon : « Un statut porte déjà ce libellé. », etc. (voir [Nommage](naming.md)).
 - Espace personnel : « Indisponible dans un espace personnel (X). » (voir [Espaces et accès](workspaces-and-access.md)).
+- Temps passé : « Le début ne peut pas être dans le futur. » (`TIME_START_IN_FUTURE`), « Un temps ne peut pas finir dans le futur. » (`TIME_END_IN_FUTURE`), sous le début ou la durée (voir [Temps passé](../activities/time.md#temps-saisi-à-la-main)).
 - Cartographie : « Le service de cartographie ne répond pas. », « Le service de cartographie a répondu N. », « Aucun itinéraire trouvé entre ces deux points. » (`apps/api/src/services/core/geo.ts`).
 
 ## Utilitaires
@@ -71,7 +72,7 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 
 ## Erreurs des calculs partagés
 
-Une fonction partagée qui refuse avec un message destiné à l'utilisateur lève une `UserError` (`packages/shared/src/core/rules.ts`), jamais une `Error` simple (règle du lint de `packages/shared`). Ex. `changedScheduleSlot` : « Ce jour est en dehors de la période du créneau. », « La fin doit suivre le début. » (voir [calendar](../../shared/activities/calendar.md)).
+Une fonction partagée qui refuse avec un message destiné à l'utilisateur lève une `UserError` (`packages/shared/src/core/rules.ts`), jamais une `Error` simple (règle du lint de `packages/shared`). Ex. `changedScheduleSlot` : « Ce jour est en dehors de la période du créneau. », « La fin doit suivre le début. » (voir [calendar](../../shared/activities/calendar.md)) ; `shiftedRoutinePiece`, `cutRoutineBefore`, `weekdayMovedCase` : « Ce déplacement ne peut pas garder exactement les occurrences de la routine (trop de dates exclues, ou trop d’occurrences) : choisissez « Cette occurrence » pour la déplacer seule, ou simplifiez sa répétition. » (`INEXACT_MOVE_REFUSAL`, voir [Règles des routines](../activities/routines.md)).
 
 - Le web affiche son message (toast ou sous le champ, comme toute erreur).
 - L'API la transforme en une seule fois pour tous ses appelants (`sharedRefusal`, `apps/api/src/graphql/errors.ts`) : en `BAD_USER_INPUT` avec son message (le refus d'une répétition le dernier jour du mois déplacée sans sa nouvelle règle, `RuleChoiceRequired`, en `RULE_CHOICE_REQUIRED` avec la règle proposée), dans les réponses GraphQL (`maskError` de Yoga, `apps/api/src/index.ts`) comme dans les routes de fichiers (`sendServiceError`, 400). Un service n'a donc pas à l'attraper.

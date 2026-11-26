@@ -8,9 +8,10 @@
 - La profondeur est bornée par `MAX_FILTER_DEPTH` (`@ordo/shared`) : au-delà, « Ajouter un groupe » n’est plus proposé.
 - Une condition incomplète (valeur manquante ou invalide) est signalée (`data-incomplete`) et ne s’applique pas.
 - « est vide » / « n’est pas vide » ne sont pas proposés sur un champ obligatoire (`required`), sauf si une condition enregistrée les utilise déjà (elle reste lisible). Une règle eslint impose `operatorsFor` pour ce calcul.
+- Une valeur saisie (texte, nombre, nombre de jours d’une date ou d’une période relative) n’est transmise (`onChange` de l’éditeur) qu’en quittant le champ (blur, ou Entrée), ou quand il disparaît pendant la saisie (popover ou panneau fermé) ; Échap l’abandonne. Elle s’affiche telle que tapée en attendant, mais ne filtre pas et n’est pas enregistrée à chaque touche. Les choix (champ, opérateur, valeurs d’une liste, date choisie au calendrier, type de date ou période, ET / OU, condition ou groupe ajouté ou retiré) s’appliquent aussitôt. Partout où l’éditeur sert : tableaux, agenda, « Ma journée », tableaux de bord, conditions des automatisations, conditions de créneaux. Une règle eslint impose `useTypedField` aux champs saisis de `components/filters`.
 - Les listes déroulantes sont rendues dans le popover (`withinPortal: false`) : en portail, choisir une option compterait comme un clic dehors et fermerait le popover.
 
-Utilisé par : la barre de vue des tableaux ([Tableau de données](data-table.md), `DataViewBar` via `tableFilterFields`), les filtres des tâches (`features/tasks`) et des routines (`features/routines`).
+Utilisé par : la barre de vue des tableaux ([Tableau de données](data-table.md), `DataViewBar` via `tableFilterFields`), les filtres des tâches (`features/tasks` : `TaskFilterBuilder` des tableaux de bord, condition des automatisations), le filtre de l’agenda et de « Ma journée » (`CalendarFilters`) et la condition de créneaux (`SlotConditionBuilder`).
 
 ## `filter-meta.ts`
 
@@ -45,9 +46,11 @@ Composants internes :
 
 - `GroupEditor` — un groupe : sélecteur « ET » / « OU » (avec « Toutes les conditions » / « Au moins une condition ») dès deux enfants ; le mot « ET » ou « OU » entre les enfants ; texte vide (`emptyText` à la racine, « Groupe vide. » dessous) ; boutons « Ajouter une condition », « Ajouter un groupe » (le sous-groupe prend le combinateur inverse et démarre avec une condition) et « Retirer le groupe » (sous-groupes). Les sous-groupes sont encadrés.
 - `ConditionEditor` — une condition : select « Champ » (par groupe, cherchable ; changer de champ repart sur sa première condition), select « Opérateur » (aussi large que l’opérateur choisi, 190 px au moins, pour qu’un long nom de valeur ne soit pas coupé ; d’un champ oui / non, « oui » / « non », ou les noms de ses valeurs donnés par `yesNo` (« En retard » / « Dans le délai »…), précédés de leur icône `YesNoIcon` (celles de `yesNo`), dans la liste et dans le champ), éditeur de valeur selon le type, bouton « Retirer » (« Retirer la condition »). Changer d’opérateur garde la valeur si elle convient encore (ex. « est » → « n’est pas » ; pas entre « pendant » et un autre opérateur de date).
-- Éditeur de valeur : `TextInput` (texte), `NumberInput` au format français (nombre), `DayValue` / `PeriodValue` (date), `BatchMultiSelect` cherchable (choix).
-- `DayValue({ value, onChange })` (exporté) — « Aujourd’hui », « Il y a N jours », « Dans N jours » (N de 1 à 3650), « Date précise ». Valeurs stockées : `today`, `today-N`, `today+N`, `YYYY-MM-DD`. Utilisé aussi par les actions des automatisations des tâches (`TaskAutomationFields`).
-- `PeriodValue` — périodes nommées (`DATE_PERIOD_LABELS`, `@ordo/shared`), « Les N derniers jours » (`past:N`), « Les N prochains jours » (`next:N`) ; N par défaut 7.
+- Éditeur de valeur : `TextValue` (texte), `NumberValue` au format français (nombre), `DayValue` / `PeriodValue` (date), `BatchMultiSelect` cherchable (choix). Les champs saisis passent par `useTypedField` (transmis en quittant le champ).
+- `useTypedField(commit)` — champ saisi d’un filtre : le brouillon (`useCellDraft`, avec `onGone` pour un champ qui disparaît pendant la saisie), `onBlur` et `onKeyDown` (Entrée transmet, Échap abandonne) ; `commit` reçoit la valeur tapée et ne transmet que si elle change la valeur.
+- `TextValue`, `NumberValue`, `DaysInput` (nombre de jours, de 1 à 3650) — les champs saisis, sur `useTypedField`.
+- `DayValue({ value, onChange })` (exporté) — « Aujourd’hui », « Il y a N jours », « Dans N jours » (N de 1 à 3650, `DaysInput` : transmis en quittant le champ), « Date précise ». Valeurs stockées : `today`, `today-N`, `today+N`, `YYYY-MM-DD`. Utilisé aussi par les actions des automatisations des tâches (`TaskAutomationFields`).
+- `PeriodValue` — périodes nommées (`DATE_PERIOD_LABELS`, `@ordo/shared`), « Les N derniers jours » (`past:N`), « Les N prochains jours » (`next:N`) ; N par défaut 7 (`DaysInput`).
 
 `FilterBuilder.module.css` : `.group` (par profondeur), `.child`, `.joiner` (le mot ET / OU), `.condition` (style incomplet).
 

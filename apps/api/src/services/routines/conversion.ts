@@ -76,7 +76,7 @@ export const convertTaskToRoutine = automated(async function convertTaskToRoutin
       relationsA: { select: { taskBId: true } },
       relationsB: { select: { taskAId: true } },
       comments: { select: { body: true, createdAt: true, updatedAt: true } },
-      checklists: { select: { id: true }, orderBy: { createdAt: 'asc' } },
+      checklists: { select: { id: true, items: { where: { checkedAt: { not: null } }, select: { id: true }, take: 1 } }, orderBy: { createdAt: 'asc' } },
       timeEntries: { select: { id: true } },
       calendarEvents: { select: { id: true, startDate: true, recurrence: true } },
       alarms: { select: { id: true } },
@@ -111,8 +111,8 @@ export const convertTaskToRoutine = automated(async function convertTaskToRoutin
     shoppingLists: task.shoppingLists.length,
     alarms: task.alarms.length,
     events: task.calendarEvents.length - oneOff.length,
-    // A task has a single checklist: any other one goes.
-    checklists: Math.max(0, task.checklists.length - 1),
+    // A task has a single checklist: any other one goes (counted when started: one item ticked).
+    checklists: task.checklists.slice(1).filter((item) => item.items.length > 0).length,
     // A routine has no « Horaires » of its own: its moments and its slot condition say when it is done.
     hours: readTaskHours(task.hours).length ? 1 : 0,
     parent: flag(task.parentId),
@@ -219,7 +219,7 @@ export const convertRoutineToTask = automated(async function convertRoutineToTas
       ...ROUTINE_LINKS,
       requiredBy: { select: { routineId: true } },
       comments: { select: { body: true, createdAt: true, updatedAt: true, occurrenceDate: true } },
-      checklists: { select: { id: true, occurrenceDate: true } },
+      checklists: { select: { id: true, occurrenceDate: true, items: { where: { checkedAt: { not: null } }, select: { id: true }, take: 1 } } },
       eventLinks: { select: { eventId: true, date: true } },
       timeEntries: { select: { id: true } },
       // Its latest ticks, as its panel reads them: of two occurrences due the same day, the same one is current.
@@ -259,7 +259,8 @@ export const convertRoutineToTask = automated(async function convertRoutineToTas
     estimate: routine.estimate === null ? 0 : 1,
     travel: routine.travelBefore || routine.travelAfter ? 1 : 0,
     comments: routine.comments.length - comments.length,
-    checklists: routine.checklists.length - (checklist ? 1 : 0),
+    // Those of the other occurrences go (counted when started: one item ticked).
+    checklists: routine.checklists.filter((item) => item !== checklist && item.items.length > 0).length,
     events: routine.eventLinks.filter((link) => !onOccurrence(link.date)).length,
     parent: routine.parentId === null ? 0 : 1,
   });

@@ -1,7 +1,8 @@
 import { IconAction } from '../../../components/actions/IconAction';
 import { openModal } from '../../../components/panels/open-modal';
-import { addDays, WEEKDAY_LABELS, weekdayOfDate, twoDigits } from '@ordo/shared';
+import { addDays, canScheduleAt, earliestSchedule, SCHEDULE_IN_PAST, SCHEDULE_MIN_DELAY_MS, WEEKDAY_LABELS, weekdayOfDate, twoDigits } from '@ordo/shared';
 import { parisInstant, parisParts, parisToday } from '../../../lib/dates';
+import { useNow } from '../../../lib/use-now';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
@@ -88,6 +89,11 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
   const { send, saveDraft, deleteDraft, schedule } = useMailActions();
   const [scheduling, setScheduling] = useState(false);
   const [sendAt, setSendAt] = useState<{ day: string; time: string } | null>(null);
+  // A moment already passed, refused when « Programmer l'envoi » is clicked.
+  const [sendAtError, setSendAtError] = useState<string | null>(null);
+  // Now, refreshed at each least delay while « Envoyer plus tard » is open: the earliest minute offered stays to come
+  // until the next refresh.
+  const now = useNow(scheduling, SCHEDULE_MIN_DELAY_MS);
   const [accountId, setAccountId] = useState<string | null>(options.accountId ?? null);
   const [to, setTo] = useState(options.to ?? []);
   const [cc, setCc] = useState(options.cc ?? []);
@@ -231,6 +237,17 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
         onError: onMutationError,
       },
     );
+  };
+
+  /**
+   * Schedules the mail at the moment typed in « Date et heure », unless it is already passed (its error then under the
+   * field, as the API's).
+   * @param {Date} at Moment chosen.
+   * @returns {void}
+   */
+  const scheduleChosen = (at: Date) => {
+    if (!canScheduleAt(at)) setSendAtError(SCHEDULE_IN_PAST);
+    else void scheduleAt(at);
   };
 
   /**
@@ -454,13 +471,17 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                 <DateTimeField
                   label="Date et heure"
                   placeholder="Choisir…"
-                  minDate={parisToday()}
+                  minInstant={earliestSchedule(now)}
                   day={sendAt?.day ?? null}
                   time={sendAt?.time ?? null}
-                  onChange={(day, time) => setSendAt(day && time ? { day, time } : null)}
+                  onChange={(day, time) => {
+                    setSendAt(day && time ? { day, time } : null);
+                    setSendAtError(null);
+                  }}
+                  error={sendAtError}
                   popoverProps={{ withinPortal: false }}
                 />
-                <ActionButton size="xs" icon={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && void scheduleAt(parisInstant(sendAt.day, sendAt.time))}>
+                <ActionButton size="xs" icon={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && scheduleChosen(parisInstant(sendAt.day, sendAt.time))}>
                   Programmer l’envoi
                 </ActionButton>
               </Stack>

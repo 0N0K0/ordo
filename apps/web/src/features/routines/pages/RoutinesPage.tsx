@@ -1,17 +1,15 @@
-import { PAGES, routineHistoryPath } from '../../../app/pages';
+import { PAGES } from '../../../app/pages';
 import { inheritedCells } from '../../../components/inheritance/inherited-cells';
-import { ROUTINE_CELL_FIELDS, routineParentName } from '../lib/routine-inheritance';
+import { ROUTINE_CELL_FIELDS, ROUTINE_HEIRS_MENTION, routineHeirsFields, routineParentName } from '../lib/routine-inheritance';
+import { RoutineGroupProgress } from '../../../components/feedback/RoutineGroupProgress';
 import { readOnlyCells } from '../../../components/data-table/table/data-table';
-import { usePageTab } from '../../../components/tabs/use-page-tab';
-import { useSetParams, useSearchParam } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { Group, Stack, Text } from '@mantine/core';
-import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, CalendarDotsIcon, ClockCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TreeViewIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
-import { PageTabs } from '../../../components/tabs/PageTabs';
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
@@ -21,8 +19,6 @@ import { ON_ERROR } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { isDraftRoutine, useRoutineMutations, useRoutinesData, type Routine } from '../api';
 import { openRoutineForm } from '../lib/open-routine-form';
-import { openRoutineMove } from '../lib/open-routine-move';
-import { RoutineHistory } from '../components/RoutineHistory';
 import { RoutineSettings } from '../components/RoutineSettings';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { useRunningTimers } from '../../time/api';
@@ -32,16 +28,12 @@ import { AddRoutineRow, ChronoCell, StateCell } from '../components/routine-tabl
 import { RoutineDoneToggles } from '../components/DoneToggle';
 import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RoutineBeneficiariesCell, RoutineLabelCell, RoutineLabelChipCell, RoutineLinksCell } from '../components/routine-cells';
 import { BlocksCell, RoutineLocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
-import { isDone, movableOccurrence, waitingFor } from '../lib/routine-format';
-import { usePostponeRoutine } from '../hooks/use-routine-move';
-import { useConvertActivity } from '../hooks/use-convert-activity';
-import { useRoutineRowsActions, useRoutineSelectionActions } from '../components/RoutineBulkBar';
-import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { isDone, waitingFor } from '../lib/routine-format';
+import { useRoutineSelectionActions } from '../components/RoutineBulkBar';
+import { useRoutineOccurrenceMenu } from '../hooks/use-routine-occurrence-menu';
 import classes from '../components/Routines.module.css';
 import { plural } from '../../../lib/text';
-import { WaitingIcon } from '../components/WaitingIcon';
-import { useCountdownMenuEntries } from '../../countdowns/hooks/use-saved-countdowns';
-import { routineCountdownItem } from '../lib/routine-countdowns';
+import { WaitingIcon } from '../../../components/feedback/WaitingIcon';
 
 /** Views made the first time: those to do, all; grouped by category. */
 const ROUTINE_VIEWS: FirstTableView[] = [
@@ -84,12 +76,10 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const { data: running } = useRunningTimers();
   const { move } = useRoutineMutations();
-  const postpone = usePostponeRoutine();
   const selectionActions = useRoutineSelectionActions();
-  const rowActionsOf = useRoutineRowsActions();
-  const countdownEntries = useCountdownMenuEntries();
-  const convert = useConvertActivity();
-  const { columns, byId, doable } = useRoutineColumns(routines, categories, today);
+  const menuOf = useRoutineOccurrenceMenu();
+  // With today's progress of the parent routines (groups), read from their sub-routines that count today.
+  const { columns, byId, doable, groupStates } = useRoutineColumns(routines, categories, today);
   // Of the project on a project page; in their manual order.
   const rows = useMemo(() => routines.filter((routine) => !projectIds || (routine.projectId && projectIds.has(routine.projectId))), [routines, projectIds]);
   const view = useDataView({
@@ -125,21 +115,6 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   /**
    * Cells of a routine, each edited in place.
    * @param {Routine} routine Routine.
-   * @returns {Record<string, ReactNode>} Cells, by column.
-   */
-  const cells = (routine: Routine): Record<string, ReactNode> => {
-    if (!context) return {};
-    const waiting = waitingFor(routine, byId);
-    const done = isDone(routine);
-    // Being created: nothing to change on it until it is saved (the server does not know it yet).
-    const readOnly = routine.archived || isDraftRoutine(routine);
-    // Its inherited fields greyed with their mention.
-    return inheritedCells(routineCells(routine, readOnly, waiting, done), routine, ROUTINE_CELL_FIELDS, routineParentName(routine, byId));
-  };
-
-  /**
-   * Cells of a routine, each edited in place.
-   * @param {Routine} routine Routine.
    * @param {boolean} readOnly Archived or being created.
    * @param {Routine[]} waiting Routines it waits for.
    * @param {boolean} done Its current occurrence done.
@@ -147,6 +122,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
    */
   const routineCells = (routine: Routine, readOnly: boolean, waiting: ReturnType<typeof waitingFor>, done: boolean): Record<string, ReactNode> => {
     if (!context) return {};
+    const groupState = groupStates.get(routine.id);
     return {
       ...readOnlyCells(columns, routine),
       label: (
@@ -161,7 +137,12 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       ),
       currentDate: (
         <RepetitionCell routine={routine} readOnly={readOnly}>
-          <StateCell routine={routine} today={today} doable={doable(routine)} />
+          {/* A parent (a group): today's progress of its sub-routines, nothing when none counts today. */}
+          {routine.hasSubRoutines ? (
+            groupState && <RoutineGroupProgress state={groupState} when="aujourd’hui" />
+          ) : (
+            <StateCell routine={routine} today={today} doable={doable(routine)} />
+          )}
         </RepetitionCell>
       ),
       repetition: <RepetitionText routine={routine} />,
@@ -194,35 +175,30 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   };
 
   /**
+   * Cells of a routine, each edited in place.
+   * @param {Routine} routine Routine.
+   * @returns {Record<string, ReactNode>} Cells, by column.
+   */
+  const cells = (routine: Routine): Record<string, ReactNode> => {
+    if (!context) return {};
+    const waiting = waitingFor(routine, byId);
+    const done = isDone(routine);
+    // Being created: nothing to change on it until it is saved (the server does not know it yet).
+    const readOnly = routine.archived || isDraftRoutine(routine);
+    // Its inherited fields greyed with their mention; those of its « quand » its sub-routines inherit marked.
+    const heirs = routine.hasSubRoutines ? { fields: routineHeirsFields(routine, routines), mention: ROUTINE_HEIRS_MENTION } : undefined;
+    return inheritedCells(routineCells(routine, readOnly, waiting, done), routine, ROUTINE_CELL_FIELDS, routineParentName(routine, byId), heirs);
+  };
+
+  /**
    * Actions of a routine, in its menu (« Lancer » its dead times, for its current occurrence).
    * @param {Routine} routine Routine.
    * @returns {ReactNode} Menu.
    */
   const actions = (routine: Routine) => {
     if (isDraftRoutine(routine)) return null;
-    const readOnly = routine.archived;
-    const rowActions = rowActionsOf([routine]);
-    return (
-      <RowActions
-        name={routine.label}
-        primary={!readOnly && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRoutineForm({ routine }) }}
-        items={[
-          !readOnly && { label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) },
-          !readOnly && movableOccurrence(routine) && 'divider',
-          !readOnly && movableOccurrence(routine) && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine) },
-          !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
-          'divider',
-          !readOnly && rowMenuEntry(rowActions.duplicate),
-          // A sub-routine: its fields inherited again or emptied on purpose.
-          !readOnly && Boolean(routine.parentId) && rowMenuEntry(rowActions.inheritance),
-          !readOnly && convert.toTask(routine, routines.some((item) => item.parentId === routine.id)),
-          { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: routineHistoryPath(routine.id) },
-          rowMenuEntry(rowActions.archive),
-          rowMenuEntry(rowActions.remove),
-          ...(readOnly ? [] : countdownEntries(routine, routineCountdownItem(routine, routine.currentDate))),
-        ]}
-      />
-    );
+    const { primary, items } = menuOf(routine);
+    return <RowActions name={routine.label} primary={primary} items={items} />;
   };
 
   return (
@@ -260,41 +236,19 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   );
 }
 
-/** Tabs of the routines page. */
-const ROUTINE_TABS = ['routines', 'history'] as const;
-
 /**
- * Routines page: tasks repeating on a calendar rule, ticked once done for their current occurrence, and the history of
- * what was ticked on which day; the settings hold the categories.
+ * Routines page: tasks repeating on a calendar rule, ticked once done for their current occurrence (past days are
+ * ticked from « Ma journée »); the settings hold the categories.
  * @returns {JSX.Element} Page.
  */
 export function RoutinesPage() {
-  const [routineParam] = useSearchParam('routine');
-  const setParams = useSetParams();
-  const [tab, setTab] = usePageTab(ROUTINE_TABS);
-
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.routines.label} />
       <PageSettings title="Paramètres des routines">
         <RoutineSettings />
       </PageSettings>
-      <PageTabs value={tab} onChange={(value) => setTab(value, { routine: null })} keepMounted={false}>
-        <PageTabs.List>
-          <PageTabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
-            Routines
-          </PageTabs.Tab>
-          <PageTabs.Tab value="history" leftSection={<ClockCounterClockwiseIcon aria-hidden />}>
-            Historique
-          </PageTabs.Tab>
-        </PageTabs.List>
-        <PageTabs.Panel value="routines">
-          <RoutinesPanel />
-        </PageTabs.Panel>
-        <PageTabs.Panel value="history">
-          <RoutineHistory routineId={routineParam} onRoutine={(id) => setParams({ routine: id })} />
-        </PageTabs.Panel>
-      </PageTabs>
+      <RoutinesPanel />
     </Stack>
   );
 }

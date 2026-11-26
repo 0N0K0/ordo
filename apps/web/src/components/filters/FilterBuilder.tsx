@@ -2,7 +2,7 @@ import { AddItemButton } from '../actions/AddItemButton';
 import { Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DateField } from '../inputs/DateField';
 import { DATE_PERIOD_LABELS, MAX_FILTER_DEPTH, VALUELESS_OPERATORS, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator } from '@ordo/shared';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, KeyboardEvent } from 'react';
 import { FolderSimplePlusIcon, TrashIcon } from '@phosphor-icons/react';
 import classes from './FilterBuilder.module.css';
 import { parisToday } from '../../lib/dates';
@@ -12,11 +12,68 @@ import { RemoveButton } from '../actions/RemoveButton';
 import { ActionButton } from '../actions/ActionButton';
 import { optionalNumber, FRENCH_NUMBER_FORMAT } from '../inputs/number-format';
 import { YesNoIcon } from '../data-table/cells/YesNoIcon';
+import { useCellDraft } from '../data-table/cells/cell-field';
 import type { YesNoIcons, YesNoLabels } from '../data-table/table/data-table';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
 const INLINE = { withinPortal: false } as const;
+
+/** Props of a typed field of a filter (see useTypedField). */
+interface TypedField<D> {
+  /** What is typed, or null when nothing is (the value of the filter shows). */
+  draft: D | null;
+  setDraft: (draft: D | null) => void;
+  onBlur: () => void;
+  onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+}
+
+/**
+ * A field of a filter typed by the user (a text, a number, a number of days): what is typed shows at once but is passed
+ * on only when the field is left (blur, Enter), or when it goes away while typed (its popover closed); Escape gives it
+ * up. Choices (selects, operators, conditions added or removed) apply at once and do not use it.
+ * @param {(typed: D) => void} commit Passes on what was typed (when it changes the value).
+ * @returns {TypedField<D>} Draft, its setter and the field's blur and key handlers.
+ */
+function useTypedField<D>(commit: (typed: D) => void): TypedField<D> {
+  const { draft, setDraft, take, onKeyDown } = useCellDraft<D>(commit);
+
+  /**
+   * Passes on the draft, if any.
+   * @returns {void}
+   */
+  const leave = () => {
+    const typed = take();
+    if (typed !== null) commit(typed);
+  };
+
+  return { draft, setDraft, onBlur: leave, onKeyDown };
+}
+
+/**
+ * Number of days of a relative day or period (1 to 3650), passed on when the field is left.
+ * @param {{ days: number, onChange: (days: number) => void }} props Component props: the number, its change.
+ * @returns {JSX.Element} Field.
+ */
+function DaysInput({ days, onChange }: { days: number; onChange: (days: number) => void }) {
+  const typed = useTypedField<string | number>((next) => {
+    const count = Math.max(1, Number(next) || 1);
+    if (count !== days) onChange(count);
+  });
+  return (
+    <NumberInput
+      size="xs"
+      aria-label="Nombre de jours"
+      min={1}
+      max={3650}
+      value={typed.draft ?? days}
+      onChange={typed.setDraft}
+      onBlur={typed.onBlur}
+      onKeyDown={typed.onKeyDown}
+      w={80}
+    />
+  );
+}
 
 interface DayValueProps {
   value: string;
@@ -49,17 +106,7 @@ export function DayValue({ value, onChange }: DayValueProps) {
         onChange={(next) => onChange(next === 'today' ? 'today' : next === 'past' ? `today-${days}` : next === 'future' ? `today+${days}` : parisToday())}
         w={140}
       />
-      {(mode === 'past' || mode === 'future') && (
-        <NumberInput
-          size="xs"
-          aria-label="Nombre de jours"
-          min={1}
-          max={3650}
-          value={days}
-          onChange={(next) => onChange(`today${mode === 'past' ? '-' : '+'}${Math.max(1, Number(next) || 1)}`)}
-          w={80}
-        />
-      )}
+      {(mode === 'past' || mode === 'future') && <DaysInput days={days} onChange={(next) => onChange(`today${mode === 'past' ? '-' : '+'}${next}`)} />}
       {mode === 'date' && <DateField popoverProps={INLINE} size="xs" aria-label="Date" value={value} onChange={(next) => next && onChange(next)} w={150} />}
     </Group>
   );
@@ -90,7 +137,7 @@ function PeriodValue({ value, onChange }: DayValueProps) {
         onChange={(next) => next && onChange(next === 'past' || next === 'next' ? `${next}:${days}` : next)}
         w={180}
       />
-      {rolling && <NumberInput size="xs" aria-label="Nombre de jours" min={1} max={3650} value={days} onChange={(next) => onChange(`${rolling[1]}:${Math.max(1, Number(next) || 1)}`)} w={80} />}
+      {rolling && <DaysInput days={days} onChange={(next) => onChange(`${rolling[1]}:${next}`)} />}
     </Group>
   );
 }
@@ -123,6 +170,42 @@ export interface FilterFields<F extends string> {
   emptyText: string;
 }
 
+/**
+ * Text value of a condition, passed on when the field is left.
+ * @param {{ value: string, onChange: (value: string) => void }} props Component props: the value, its change.
+ * @returns {JSX.Element} Field.
+ */
+function TextValue({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const typed = useTypedField<string>((next) => {
+    if (next !== value) onChange(next);
+  });
+  return <TextInput size="xs" aria-label="Valeur" value={typed.draft ?? value} onChange={(event) => typed.setDraft(event.currentTarget.value)} onBlur={typed.onBlur} onKeyDown={typed.onKeyDown} w={200} />;
+}
+
+/**
+ * Number value of a condition (French format), passed on when the field is left.
+ * @param {{ value: number | null, onChange: (value: number | null) => void }} props Component props: the value, its change.
+ * @returns {JSX.Element} Field.
+ */
+function NumberValue({ value, onChange }: { value: number | null; onChange: (value: number | null) => void }) {
+  const typed = useTypedField<string | number>((next) => {
+    const number = optionalNumber(next);
+    if (number !== value) onChange(number);
+  });
+  return (
+    <NumberInput
+      size="xs"
+      aria-label="Valeur"
+      {...FRENCH_NUMBER_FORMAT}
+      value={typed.draft ?? value ?? ''}
+      onChange={typed.setDraft}
+      onBlur={typed.onBlur}
+      onKeyDown={typed.onKeyDown}
+      w={110}
+    />
+  );
+}
+
 interface ConditionEditorProps<F extends string> {
   condition: FilterConditionOf<F>;
   fields: FilterFields<F>;
@@ -145,18 +228,9 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
   let editor = null;
   if (needsValue) {
     if (kind === 'text') {
-      editor = <TextInput size="xs" aria-label="Valeur" value={typeof condition.value === 'string' ? condition.value : ''} onChange={(event) => set(event.currentTarget.value)} w={200} />;
+      editor = <TextValue value={typeof condition.value === 'string' ? condition.value : ''} onChange={set} />;
     } else if (kind === 'number') {
-      editor = (
-        <NumberInput
-          size="xs"
-          aria-label="Valeur"
-          {...FRENCH_NUMBER_FORMAT}
-          value={typeof condition.value === 'number' ? condition.value : ''}
-          onChange={(next) => set(optionalNumber(next))}
-          w={110}
-        />
-      );
+      editor = <NumberValue value={typeof condition.value === 'number' ? condition.value : null} onChange={set} />;
     } else if (kind === 'date') {
       const value = typeof condition.value === 'string' ? condition.value : '';
       editor = operator === 'within' ? <PeriodValue value={value} onChange={set} /> : <DayValue value={value} onChange={set} />;

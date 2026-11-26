@@ -5,7 +5,7 @@ import { parisToday, parisParts } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useNow } from '../../../lib/use-now';
 import { TimerToggle } from '../../time/components/TimerToggle';
-import { runningOn, type TimeEntry } from '../../time/api';
+import { routineTimer, type TimeEntry } from '../../time/api';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import { CELL_JUSTIFY } from '../../../components/data-table/cells/cell-field';
 import { useRoutineMutations, type Routine } from '../api';
@@ -93,16 +93,28 @@ export function StateCell({ routine, today, doable }: { routine: Routine; today:
 }
 
 /**
+ * « Démarrer le chrono » of a routine (or stopping the one running on it), in its table row or in a list of a day;
+ * an archived routine starts none.
+ * @param {{ routine: Routine, mine: TimeEntry | null }} props Component props.
+ * @param {Routine} props.routine Routine.
+ * @param {TimeEntry | null} props.mine Timer running on it (`routineTimer`).
+ * @returns {JSX.Element} Button.
+ */
+export function RoutineTimerToggle({ routine, mine }: { routine: Routine; mine: TimeEntry | null }) {
+  return <TimerToggle name={routine.label} mine={mine} input={{ routineIds: [routine.id], taskIds: [] }} disabled={routine.archived} size="sm" />;
+}
+
+/**
  * Chrono of a routine: its tracked time, and a button starting the timer on it (or stopping it while it runs on it).
  * @param {{ routine: Routine, running: TimeEntry | null | undefined }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function ChronoCell({ routine, running }: { routine: Routine; running: readonly TimeEntry[] | undefined }) {
-  const mine = runningOn(running, (entry) => entry.routines.some((item) => item.id === routine.id));
+  const mine = routineTimer(running, routine);
   const now = useNow(Boolean(mine) && !mine?.pausedAt);
   return (
     <Group gap={4} wrap="nowrap" justify={CELL_JUSTIFY}>
-      <TimerToggle name={routine.label} mine={mine} input={{ routineIds: [routine.id], taskIds: [] }} disabled={routine.archived} size="sm" />
+      <RoutineTimerToggle routine={routine} mine={mine} />
       <Text size="xs" c={mine ? undefined : 'dimmed'} className={classes.nowrap}>
         {mine ? formatClock(entrySeconds(mine, now)) : routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''}
       </Text>
