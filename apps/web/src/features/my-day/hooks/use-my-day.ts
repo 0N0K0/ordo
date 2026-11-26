@@ -2,7 +2,7 @@ import {
   addDays,
   birthdayLabel,
   birthdaysBetween,
-  inRoutineHistoryOn,
+  routineSlotShownOn,
   itemWindowsOn,
   joinedKey,
   mapById,
@@ -261,7 +261,7 @@ export function useMyDay(day: string): MyDay {
         routine,
         occurrence,
         slot,
-        // As the history of the routines: missed once its due day is past, an optional one skipped.
+        // Missed once its due day is past, an optional one skipped.
         missed: past && !done && !occurrence.cancelled && occurrence.dueDate < today && !slot.optional,
         time: { start: slot.fromTime ?? null, end: slot.dueTime ?? null },
         windows,
@@ -284,7 +284,7 @@ export function useMyDay(day: string): MyDay {
       if (!routine || !routineShown(routine) || occurrence.archived) continue;
       for (const slot of occurrence.slots) {
         // Cancelled: on its due day; else on each day it is open, once done on the day it was done.
-        const shown = occurrence.cancelled ? occurrence.dueDate === day : inRoutineHistoryOn(occurrence, slot.doneAt ?? null, day);
+        const shown = occurrence.cancelled ? occurrence.dueDate === day : routineSlotShownOn(occurrence, slot.doneAt ?? null, day);
         if (shown) addRoutine(routine, occurrence, slot, false);
       }
     }

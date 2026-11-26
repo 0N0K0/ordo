@@ -299,6 +299,7 @@ export function RoutineOccurrenceForm({
           optional={currentSlot?.optional}
           // Its tick is read from the occurrence of the cache: none there (being reloaded), nothing to tick from.
           disabled={!opened || !currentSlot}
+          withSubRoutines={Boolean(cachedRoutine?.tickedWithSubRoutines)}
           target={{ dueDate: current?.dueDate ?? occurrence.dueDate, fromTime: currentSlot?.fromTime ?? occurrence.slot.fromTime, dueTime: currentSlot?.dueTime ?? occurrence.slot.dueTime }}
         />
         <Text size="sm">{currentSlot?.doneAt ? fmt.capitalize(doneAtText(currentSlot.doneAt)) : opened ? 'À faire' : 'Pas encore ouverte'}</Text>

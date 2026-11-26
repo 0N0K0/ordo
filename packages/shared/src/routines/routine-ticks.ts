@@ -19,12 +19,12 @@ export interface RoutineTickTarget {
 
 /**
  * Day and time a « Faite le » form proposes to tick a time of the day of an occurrence: when it is scheduled (its
- * « jusqu’à », else its « dès ») on its due day, or on the day it is ticked from (a day of the history), once that is
- * past; else now, or the day it is ticked from at the time of now when that day is already past. Every day and time is
- * read in Paris.
+ * « jusqu’à », else its « dès ») on its due day, or on the day it is ticked from (a past day shown in « Ma journée »),
+ * once that is past; else now, or the day it is ticked from at the time of now when that day is already past. Every day
+ * and time is read in Paris.
  * @param {RoutineTickTarget} target Time of the day to tick.
  * @param {Date} now Now.
- * @param {string | null} [day] Day it is ticked from (a day of the history); null: its due day. Optional. Default = null.
+ * @param {string | null} [day] Day it is ticked from (a past day shown in « Ma journée »); null: its due day. Optional. Default = null.
  * @returns {RoutineDoneAt} Day and time proposed.
  */
 export function routineTickPrefill({ dueDate, fromTime, dueTime }: RoutineTickTarget, now: Date, day: string | null = null): RoutineDoneAt {
@@ -36,26 +36,26 @@ export function routineTickPrefill({ dueDate, fromTime, dueTime }: RoutineTickTa
   return { day: current.date, time: current.time };
 }
 
-/** An occurrence as the history places it. */
-export interface RoutineHistoryOccurrence {
+/** An occurrence as a list of a day (« Ma journée », the badge of the menu) places it. */
+export interface RoutineDayOccurrence {
   /** First day it can be done (its « Ouverture »), YYYY-MM-DD. */
   startDate: string;
   /** Due day (its last day), YYYY-MM-DD. */
   dueDate: string;
-  /** Cancelled: not due, never in the history. Optional. Default = false. */
+  /** Cancelled: not due, never shown by this rule. Optional. Default = false. */
   cancelled?: boolean;
 }
 
 /**
- * Whether a time of the day of an occurrence shows on a day of the history: once done, on the day it was done (in
- * Paris), whichever day that is; not done yet, on each day it is open, from its first day to its due day; never when
- * the occurrence is cancelled.
- * @param {RoutineHistoryOccurrence} occurrence Occurrence.
+ * Whether a time of the day of an occurrence shows on a day (« Ma journée », the badge of the menu): once done, on the
+ * day it was done (in Paris), whichever day that is; not done yet, on each day it is open, from its first day to its
+ * due day; never when the occurrence is cancelled.
+ * @param {RoutineDayOccurrence} occurrence Occurrence.
  * @param {Date | string | null} doneAt When the time of the day was done (its tick); null: not done.
- * @param {string} day Day of the history (YYYY-MM-DD).
+ * @param {string} day Day (YYYY-MM-DD).
  * @returns {boolean} It shows that day.
  */
-export function inRoutineHistoryOn(occurrence: RoutineHistoryOccurrence, doneAt: Date | string | null, day: string): boolean {
+export function routineSlotShownOn(occurrence: RoutineDayOccurrence, doneAt: Date | string | null, day: string): boolean {
   if (occurrence.cancelled) return false;
   if (doneAt) return dayIn(typeof doneAt === 'string' ? new Date(doneAt) : doneAt) === day;
   return occurrence.startDate <= day && day <= occurrence.dueDate;

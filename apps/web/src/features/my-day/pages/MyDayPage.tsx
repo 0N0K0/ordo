@@ -43,6 +43,8 @@ interface BlockProps {
   rows: MyDayRow<MyDayEntry>[];
   context: TaskContext;
   today: string;
+  /** Day shown (YYYY-MM-DD). */
+  day: string;
 }
 
 /**
@@ -50,7 +52,7 @@ interface BlockProps {
  * @param {BlockProps} props Component props.
  * @returns {JSX.Element[]} Rows.
  */
-function Rows({ rows, context, today }: BlockProps) {
+function Rows({ rows, context, today, day }: BlockProps) {
   return (
     <>
       {rows.map((row) => (
@@ -59,6 +61,7 @@ function Rows({ rows, context, today }: BlockProps) {
           row={row}
           context={context}
           today={today}
+          day={day}
         />
       ))}
     </>
@@ -106,6 +109,7 @@ function HourBlock({
   hour,
   context,
   today,
+  day,
 }: Omit<BlockProps, "rows"> & { hour: MyDayHour<MyDayEntry, MyDayHourSlot> }) {
   const names = [...new Set(hour.slots.map((slot) => slot.label))];
   return (
@@ -132,7 +136,7 @@ function HourBlock({
         )}
       </Stack>
       <Stack gap={0}>
-        <Rows rows={hour.rows} context={context} today={today} />
+        <Rows rows={hour.rows} context={context} today={today} day={day} />
       </Stack>
     </div>
   );
@@ -311,12 +315,13 @@ export function MyDayPage() {
         />
       ) : (
         <Paper withBorder radius="md">
-          <Block rows={layout.header} context={context} today={today} />
+          <Block rows={layout.header} context={context} today={today} day={day} />
           <Block
             title="Sans horaire"
             rows={layout.unscheduled}
             context={context}
             today={today}
+            day={day}
           />
           {layout.hours.map((hour) => (
             <HourBlock
@@ -324,6 +329,7 @@ export function MyDayPage() {
               hour={hour}
               context={context}
               today={today}
+              day={day}
             />
           ))}
           <Block
@@ -331,6 +337,7 @@ export function MyDayPage() {
             rows={layout.finished}
             context={context}
             today={today}
+            day={day}
           />
         </Paper>
       )}

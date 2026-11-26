@@ -25,11 +25,13 @@ import { routineTimer, useRunningTimers } from '../../time/api';
 import type { MyDayBirthday, MyDayEntry, MyDayEphemeris, MyDayEvent, MyDayRoutine, MyDayTask } from '../hooks/use-my-day';
 import classes from './MyDay.module.css';
 
-/** What every row of the day reads: the task context and today. */
+/** What every row of the day reads: the task context, today and the day shown. */
 interface RowContext {
   context: TaskContext;
   /** Today in Paris (YYYY-MM-DD). */
   today: string;
+  /** Day shown (YYYY-MM-DD). */
+  day: string;
 }
 
 interface RowLineProps {
@@ -142,7 +144,7 @@ function TaskRow({ row, item, context, today }: RowContext & { row: Row<MyDayEnt
  * @param {RowContext & { row: Row<MyDayEntry>, item: MyDayRoutine }} props Component props.
  * @returns {JSX.Element} Row.
  */
-function RoutineRow({ row, item }: RowContext & { row: Row<MyDayEntry>; item: MyDayRoutine }) {
+function RoutineRow({ row, item, today, day }: RowContext & { row: Row<MyDayEntry>; item: MyDayRoutine }) {
   const { routine, occurrence, slot } = item;
   const menuOf = useRoutineOccurrenceMenu();
   const running = useRunningTimers();
@@ -162,6 +164,8 @@ function RoutineRow({ row, item }: RowContext & { row: Row<MyDayEntry>; item: My
           optional={slot.optional}
           disabled={locked}
           target={{ dueDate: occurrence.dueDate, fromTime: slot.fromTime, dueTime: slot.dueTime }}
+          // A past day: proposed on that day, as it is ticked from there.
+          day={day < today ? day : undefined}
         />
       }
       time={row.time}

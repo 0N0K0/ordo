@@ -71,7 +71,7 @@ Toute autre adresse : `NotFoundPage`. Voir [Fonctionnalités : authentification]
 - `routeOf(path, sub?)` : route du routeur (adresse sans barre initiale, plus un sous-chemin : `accounting/:id`).
 - `pageOfPath(pathname)` : page d'un chemin par son premier segment (une sous-page appartient à sa page) ; `null` pour un client, un projet ou une page inconnue.
 - `PROJECT_ROUTE` (`/projects/:id`), `CLIENT_ROUTE` (`/clients/:id`) : routes, aussi pour `useMatch`.
-- Aides d'adresse : `projectPath(id, tab?)`, `calendarPath(date)`, `clientPath(id)`, `taskPath(task)` (onglet tâches du projet avec la tâche ouverte, ou « Tâches » pour une tâche sans projet ; `projectPath` et `taskPath` réexportés de `@ordo/shared`), `mailPath(account, folder, uid?)`, `documentPath(id, imported?)`, `sheetPath(id)`, `shoppingListPath(id)`, `timePath(taskId)`, `routineHistoryPath(routineId)`.
+- Aides d'adresse : `projectPath(id, tab?)`, `calendarPath(date)`, `clientPath(id)`, `taskPath(task)` (onglet tâches du projet avec la tâche ouverte, ou « Tâches » pour une tâche sans projet ; `projectPath` et `taskPath` réexportés de `@ordo/shared`), `mailPath(account, folder, uid?)`, `documentPath(id, imported?)`, `sheetPath(id)`, `shoppingListPath(id)`, `timePath(taskId)`.
 - `SETTINGS_PARAM` (`settings`) et `settingsPath(path, section?)` : adresse d'une page avec ses réglages ouverts, sur un onglet (`/mail?settings=1`, `/accounting?settings=1&section=company` ; nom du paramètre d'onglet : `SETTINGS_TAB_PARAM` de `components/tabs`).
 
 eslint interdit d'écrire ces adresses à la main (voir [Conventions](#conventions)).

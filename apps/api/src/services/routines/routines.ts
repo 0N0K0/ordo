@@ -71,6 +71,7 @@ import {
   withMovedTimes,
   joinedKey,
   lastTicked,
+  lineageOf,
   normalizedReminders,
   REMINDER_LOOKAHEAD_DAYS,
   readReminders,
@@ -522,6 +523,16 @@ const opensMisfitOf = (routine: RoutineTiming) => opensMisfits({ opensOn: readOp
 /** Refusal of a reminder « avant » of a routine without any hour. */
 const HOURLESS_REMINDERS = 'Sans heure « dès » ni « jusqu’à » (ni créneau), une routine n’a que des rappels à une heure : le jour J ou quelques jours avant.';
 
+/** Refusal of moments given to a routine that has sub-routines (not archived). */
+const PARENT_MOMENTS = 'Une routine qui a des sous-routines n’a pas de moments à elle : ses sous-routines ont les leurs.';
+
+/**
+ * Whether moments are more than the single moment without hours of a routine without moments.
+ * @param {readonly { fromTime: string | null, dueTime: string | null }[]} moments Moments.
+ * @returns {boolean} Several moments, or one with an hour.
+ */
+const timedMoments = (moments: readonly { fromTime?: string | null; dueTime?: string | null }[]): boolean => moments.length > 1 || moments.some((moment) => moment.fromTime || moment.dueTime);
+
 /**
  * Validates a routine and what it points to: category, priority, type, parent (not itself nor one of its
  * sub-routines), project, assignees, required routines (no cycle) and related ones (both in its project tree).
@@ -602,6 +613,10 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   await assertConditionSchedules(ownConditions, restoring || (was ? conditionsOf(was) : []));
   // A window alone (former clients, imports): its single moment.
   if (!data.moments.length && !data.cases.length && (data.fromTime || data.dueTime)) data.moments = [{ fromTime: data.fromTime, dueTime: data.dueTime, optional: false }];
+  // A routine with sub-routines has no moments of its own (its sub-routines have theirs): one moment without hours.
+  const subRoutines = id ? await prisma.routine.count({ where: { parentId: id, archivedAt: null } }) : 0;
+  if (!restoring && subRoutines > 0 && timedMoments(data.moments)) throw fieldError('moments', PARENT_MOMENTS);
+  if (subRoutines > 0) data.moments = [];
   // With cases, their days, times and conditions; else its rule, moments and condition. The former fields are dropped.
   if (data.cases.length) Object.assign(data, { moments: [], slotCondition: null });
   Object.assign(data, {
@@ -637,6 +652,11 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   const known = new Set(all.map((routine) => routine.id));
   if (data.parentId) {
     if (!known.has(data.parentId)) throw notFound('Routine parente', 'parentId');
+    // A routine given its first sub-routines has no moments of its own: those it has are taken away first, by hand.
+    if (data.parentId !== current?.parentId && !restoring) {
+      const parent = await orNotFound(prisma.routine.findUnique({ where: { id: data.parentId } }), 'Routine parente', 'parentId');
+      if (timedMoments(storedMoments(parent))) throw fieldError('parentId', `« ${parent.label} » a des moments à elle : retirez-les pour y ranger une sous-routine (une routine qui a des sous-routines n’a pas de moments).`);
+    }
     if (id && isUnderOrSelf(new Map(all.map((routine) => [routine.id, routine.parentId])), data.parentId, id)) {
       throw fieldError('parentId', 'Une routine ne peut pas être rangée sous elle-même.');
     }
@@ -1206,7 +1226,6 @@ async function inheritedInputOf(id: string): Promise<Partial<RoutineInput>> {
     ...(has('START_DATE') && { startDate: formatDay(routine.startDate) }),
     ...(has('RECURRENCE') && { recurrence: storedRule(routine) ?? (routine.recurrence as RoutineInput['recurrence']) }),
     ...(has('CASES') && { cases: storedCases(routine.cases) }),
-    ...(has('MOMENTS') && { moments: storedMoments(routine), fromTime: routine.fromTime, dueTime: routine.dueTime }),
     ...(has('MOVES') && { moves: storedMoves(routine.moves) }),
   };
 }
@@ -1463,6 +1482,127 @@ function checkWrite(id: string, done: boolean, occurrence: string, index: number
   return prisma.routineCheck.deleteMany({ where: { routineId: id, date, slot: index } });
 }
 
+/** A tick written on a time of the day of an occurrence (ticked, or taken away). */
+interface TickWrite {
+  id: string;
+  occurrence: string;
+  index: number;
+  doneAt: Date | null;
+}
+
+/** Refusal of a tick by hand on a routine that has sub-routines. */
+const PARENT_TICK = 'Une routine qui a des sous-routines se coche avec elles : cochez ses sous-routines.';
+
+/**
+ * Sub-routines of a routine that count for its ticks: those not archived.
+ * @param {string} id Routine id.
+ * @param {ScheduleContext} context Schedules (with the routines of the workspace).
+ * @returns {Routine[]} Sub-routines.
+ */
+const activeSubRoutines = (id: string, context: ScheduleContext): Routine[] => [...(context.routines?.values() ?? [])].filter((item) => item.parentId === id && !item.archivedAt);
+
+/**
+ * Occurrences of a routine due a day, by the days that identify them (two when one moved there is kept apart).
+ * @param {Routine} routine Routine.
+ * @param {string} due Due day.
+ * @param {ScheduleContext} context Schedules.
+ * @returns {{ date: string, start: string }[]} Occurrences, with their first day.
+ */
+const occurrencesDue = (routine: Routine, due: string, context: ScheduleContext) =>
+  occurrenceSpansBetween(routine, due, due, context)
+    .filter((span) => span.end === due)
+    .map((span) => ({ date: span.date, start: span.start }));
+
+/**
+ * Ticks of the parents of the routines ticked or unticked, as they stand after these writes: a parent's tick follows
+ * its sub-routines. On a due day, when every occurrence due that day of every sub-routine not archived that has one is
+ * done (each of its required times of the day ticked, optional ones aside), each occurrence of the parent due that day
+ * (opened) is ticked, its required times of the day, at the latest time one of their ticks was done; otherwise its
+ * ticks are taken away. Then the parent of that parent is looked at the same way, up to the top. Left as they are: an
+ * archived parent, a day with no sub-routine of it due.
+ * @param {Routine[]} written Routines ticked or unticked.
+ * @param {boolean} done Ticked (true) or unticked.
+ * @param {TickWrite[]} writes Ticks written.
+ * @param {ScheduleContext} context Schedules (with the routines of the workspace).
+ * @returns {Promise<Prisma.PrismaPromise<unknown>[]>} Writes of the parents' ticks, for the same transaction.
+ */
+async function parentTickWrites(written: Routine[], done: boolean, writes: TickWrite[], context: ScheduleContext): Promise<Prisma.PrismaPromise<unknown>[]> {
+  const byId = context.routines ?? new Map<string, Routine>();
+  const writtenById = mapById(written);
+  // Parents to look at, by due day.
+  const start = writes.flatMap((write) => {
+    const routine = writtenById.get(write.id);
+    return routine?.parentId ? [{ parentId: routine.parentId, due: occurrenceDueDayOf(routine, write.occurrence, context) }] : [];
+  });
+  if (!start.length) return [];
+  // Every routine whose ticks may be read: the ancestors, and their sub-routines, with their occurrences due those days.
+  const ancestors = new Set<string>();
+  for (const { parentId } of start) for (const ancestor of lineageOf(byId, parentId)) ancestors.add(ancestor.id);
+  const dues = [...new Set(start.map((item) => item.due))];
+  const read = [...byId.values()].filter((item) => ancestors.has(item.id) || (item.parentId !== null && ancestors.has(item.parentId)));
+  const wanted = read.flatMap((item) => dues.flatMap((due) => occurrencesDue(item, due, context).map((occurrence) => ({ routineId: item.id, date: parseDay(occurrence.date) }))));
+  const stored = wanted.length ? await prisma.routineCheck.findMany({ where: { OR: wanted }, select: { routineId: true, date: true, slot: true, doneAt: true } }) : [];
+  // Ticks as they stand once the writes are saved, by routine and occurrence.
+  const now = new Date();
+  const ticks = new Map<string, Map<number, Date>>();
+  const ticksOn = (id: string, date: string) => ticks.get(joinedKey(id, date)) ?? ticks.set(joinedKey(id, date), new Map()).get(joinedKey(id, date))!;
+  for (const tick of stored) ticksOn(tick.routineId, formatDay(tick.date)).set(tick.slot, tick.doneAt);
+  for (const write of writes) {
+    const slots = ticksOn(write.id, write.occurrence);
+    if (done) slots.set(write.index, write.doneAt ?? slots.get(write.index) ?? now);
+    else slots.delete(write.index);
+  }
+  const asChecks = (date: string, slots: Map<number, Date>) => [...slots.keys()].map((slot) => ({ date: parseDay(date), slot }));
+  // What each parent occurrence becomes: its ticks (none: taken away).
+  const decided = new Map<string, { routineId: string; date: string; slots: Map<number, Date> }>();
+  // Each parent and day once in the queue at a time: looked at again only once a sub-routine of it has changed since.
+  const queue = [...new Map(start.map((item) => [joinedKey(item.parentId, item.due), item])).values()];
+  const queued = new Set(queue.map((item) => joinedKey(item.parentId, item.due)));
+  const today = parisToday();
+  for (let step = 0; step < queue.length && step < 10000; step += 1) {
+    const { parentId, due } = queue[step];
+    queued.delete(joinedKey(parentId, due));
+    const parent = byId.get(parentId);
+    if (!parent || parent.archivedAt) continue;
+    const scheduled = activeSubRoutines(parentId, context)
+      .map((child) => ({ child, occurrences: occurrencesDue(child, due, context) }))
+      .filter((item) => item.occurrences.length);
+    if (!scheduled.length) continue;
+    const allDone = scheduled.every(({ child, occurrences }) =>
+      occurrences.every((occurrence) => occurrenceDone(child, occurrence.date, asChecks(occurrence.date, ticksOn(child.id, occurrence.date)), context)),
+    );
+    const latest = Math.max(...scheduled.flatMap(({ child, occurrences }) => occurrences.flatMap((occurrence) => [...ticksOn(child.id, occurrence.date).values()].map((at) => at.getTime()))));
+    for (const occurrence of occurrencesDue(parent, due, context)) {
+      if (occurrence.start > today) continue;
+      const next = new Map<number, Date>();
+      if (allDone) {
+        const slots = slotsOf(parent, occurrence.date, context);
+        (slots.length ? slots : [{ optional: false }]).forEach((slot, index) => {
+          if (!slot.optional) next.set(index, new Date(latest));
+        });
+      }
+      ticks.set(joinedKey(parentId, occurrence.date), next);
+      decided.set(joinedKey(parentId, occurrence.date), { routineId: parentId, date: occurrence.date, slots: next });
+    }
+    if (parent.parentId && !queued.has(joinedKey(parent.parentId, due))) {
+      queued.add(joinedKey(parent.parentId, due));
+      queue.push({ parentId: parent.parentId, due });
+    }
+  }
+  // Only what changes is written.
+  return [...decided.values()].flatMap(({ routineId, date, slots }) => {
+    const day = parseDay(date);
+    const before = stored.filter((tick) => tick.routineId === routineId && formatDay(tick.date) === date);
+    const writesOf: Prisma.PrismaPromise<unknown>[] = [];
+    if (before.some((tick) => !slots.has(tick.slot))) writesOf.push(prisma.routineCheck.deleteMany({ where: { routineId, date: day, slot: { notIn: [...slots.keys()] } } }));
+    for (const [slot, doneAt] of slots) {
+      if (before.some((tick) => tick.slot === slot && tick.doneAt.getTime() === doneAt.getTime())) continue;
+      writesOf.push(prisma.routineCheck.upsert({ where: { routineId_date_slot: { routineId, date: day, slot } }, create: { routineId, date: day, slot, doneAt }, update: { doneAt } }));
+    }
+    return writesOf;
+  });
+}
+
 /**
  * Ticks or unticks a time of the day of an occurrence of a routine (by default the first time of its current one).
  * An occurrence can be ticked from its first day (« Ouverture »), even due later.
@@ -1475,8 +1615,12 @@ function checkWrite(id: string, done: boolean, occurrence: string, index: number
  */
 export async function setRoutineDone(id: string, done: boolean, date?: string | null, slot?: number | null, doneAt?: Date | null): Promise<string> {
   const [routine, slots, checks] = await Promise.all([findRoutine(id), loadScheduleContext(), prisma.routineCheck.findMany({ where: { routineId: id }, ...LATEST_CHECKS })]);
+  // A parent follows its sub-routines: never ticked by hand.
+  if (activeSubRoutines(id, slots).length) throw clientError('BAD_USER_INPUT', PARENT_TICK);
   const { occurrence, index } = checkableOccurrence({ ...routine, checks }, slots, date, slot, doneAt, done);
-  await checkWrite(id, done, occurrence, index, doneAt);
+  const write = { id, occurrence, index, doneAt: doneAt ?? null };
+  // With the ticks of its parents, in the same transaction.
+  await prisma.$transaction([checkWrite(id, done, occurrence, index, doneAt), ...(await parentTickWrites([routine], done, [write], slots))]);
   return occurrence;
 }
 
@@ -1511,10 +1655,13 @@ export async function bulkSetRoutinesDone(
   const given = done && ticks ? new Map(ticks.map((tick) => [`${tick.id}:${tick.slot}`, tick.doneAt])) : null;
   const now = new Date();
   const context = await loadScheduleContext();
-  const writes: { id: string; occurrence: string; index: number; doneAt: Date | null }[] = [];
+  const writes: TickWrite[] = [];
   let count = 0;
   // An archived routine is read only: not ticked.
-  for (const routine of await prisma.routine.findMany({ where: { id: { in: ids }, archivedAt: null }, include: { checks: LATEST_CHECKS } })) {
+  const routines = await prisma.routine.findMany({ where: { id: { in: ids }, archivedAt: null }, include: { checks: LATEST_CHECKS } });
+  for (const routine of routines) {
+    // A parent follows its sub-routines (ticked with them, in the same change): never ticked by hand.
+    if (activeSubRoutines(routine.id, context).length) continue;
     // Unticked without a day given: the occurrence last ticked among two due the same day.
     const current = dateOf.get(routine.id) ?? occurrencesOf(routine, today, context, !done).current;
     if (!current) continue;
@@ -1531,7 +1678,8 @@ export async function bulkSetRoutinesDone(
     }
     count += 1;
   }
-  await prisma.$transaction(writes.map((write) => checkWrite(write.id, done, write.occurrence, write.index, write.doneAt)));
+  // With the ticks of their parents, in the same transaction.
+  await prisma.$transaction([...writes.map((write) => checkWrite(write.id, done, write.occurrence, write.index, write.doneAt)), ...(await parentTickWrites(routines, done, writes, context))]);
   return count;
 }
 
@@ -2145,7 +2293,7 @@ export async function followingOccurrencesGone(id: string, date: string): Promis
 /**
  * Cancels an occurrence of a routine from the calendar: this one alone (an exception: it stays shown, struck through,
  * with its comments), or deletes it and the following ones (its repetitions end before it, their
- * comments, checklists and links with events deleted; archived with its sub-routines when nothing comes before). Ticked occurrences stay in the history.
+ * comments, checklists and links with events deleted; archived with its sub-routines when nothing comes before). Ticked occurrences keep their ticks.
  * @param {string} id Routine id.
  * @param {string} date Occurrence (the day that identifies it: its day, or the day of its rule when kept apart).
  * @param {'THIS' | 'FOLLOWING'} scope Occurrences deleted.

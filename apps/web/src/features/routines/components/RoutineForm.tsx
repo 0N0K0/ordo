@@ -119,7 +119,6 @@ const FORM_COLUMNS: Partial<Record<RoutineInheritableField, readonly (keyof Rout
   START_DATE: ['startDate'],
   RECURRENCE: ['recurrence'],
   CASES: ['cases'],
-  MOMENTS: ['moments', 'fromTime', 'dueTime'],
   SLOT_CONDITION: ['slotCondition'],
   OPENS_ON: ['opensOn'],
 };
@@ -253,7 +252,8 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
           estimate: null,
           fromTime: null,
           slotCondition: readSlotCondition(parent?.slotCondition),
-          moments: (parent?.moments as RoutineSlot[] | undefined) ?? [{ fromTime: null, dueTime: null, optional: false }],
+          // Its moments are its own (a parent has none).
+          moments: [{ fromTime: null, dueTime: null, optional: false }],
           reminders: [],
           deadTimes: [],
           cases: (parent?.cases as RoutineCase[] | undefined) ?? [],
@@ -479,7 +479,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
               />
             </PanelGroup>
             <PanelGroup>
-              <RoutineRepetition {...scheduleProps} inherited={{ from: parentName, state: inheritance.group(ROUTINE_REPETITION_FIELDS, ROUTINE_FIELD_LABELS), readOnly }} />
+              <RoutineRepetition {...scheduleProps} withMoments={!unarchived(subRoutines).length} inherited={{ from: parentName, state: inheritance.group(ROUTINE_REPETITION_FIELDS, ROUTINE_FIELD_LABELS), readOnly }} />
             </PanelGroup>
           </>
         }

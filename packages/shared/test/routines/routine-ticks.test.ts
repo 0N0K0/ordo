@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inRoutineHistoryOn, routineBulkDoneAt, routineTickPrefill } from '../../src/routines/routine-history';
+import { routineSlotShownOn, routineBulkDoneAt, routineTickPrefill } from '../../src/routines/routine-ticks';
 
 /** 25 Nov 2026, 14:30 in Paris (UTC+1 in winter). */
 const NOW = new Date('2026-11-25T13:30:00Z');
@@ -45,37 +45,37 @@ describe('routineTickPrefill', () => {
   });
 });
 
-describe('inRoutineHistoryOn', () => {
+describe('routineSlotShownOn', () => {
   const open = { startDate: '2026-11-01', dueDate: '2026-11-28' };
 
   it('shows a done time of the day on the day it was done, not on its due day', () => {
     const doneAt = '2026-11-05T09:00:00Z';
-    expect(inRoutineHistoryOn(open, doneAt, '2026-11-05')).toBe(true);
-    expect(inRoutineHistoryOn(open, doneAt, '2026-11-28')).toBe(false);
-    expect(inRoutineHistoryOn(open, doneAt, '2026-11-01')).toBe(false);
+    expect(routineSlotShownOn(open, doneAt, '2026-11-05')).toBe(true);
+    expect(routineSlotShownOn(open, doneAt, '2026-11-28')).toBe(false);
+    expect(routineSlotShownOn(open, doneAt, '2026-11-01')).toBe(false);
   });
 
   it('shows a done time of the day on the day it was done even out of its opening (late)', () => {
-    expect(inRoutineHistoryOn({ startDate: '2026-11-20', dueDate: '2026-11-20' }, new Date('2026-11-22T10:00:00Z'), '2026-11-22')).toBe(true);
+    expect(routineSlotShownOn({ startDate: '2026-11-20', dueDate: '2026-11-20' }, new Date('2026-11-22T10:00:00Z'), '2026-11-22')).toBe(true);
   });
 
   it('shows one not done on each day of its opening, up to its due day', () => {
-    expect(inRoutineHistoryOn(open, null, '2026-10-31')).toBe(false);
-    expect(inRoutineHistoryOn(open, null, '2026-11-01')).toBe(true);
-    expect(inRoutineHistoryOn(open, null, '2026-11-15')).toBe(true);
-    expect(inRoutineHistoryOn(open, null, '2026-11-28')).toBe(true);
-    expect(inRoutineHistoryOn(open, null, '2026-11-29')).toBe(false);
+    expect(routineSlotShownOn(open, null, '2026-10-31')).toBe(false);
+    expect(routineSlotShownOn(open, null, '2026-11-01')).toBe(true);
+    expect(routineSlotShownOn(open, null, '2026-11-15')).toBe(true);
+    expect(routineSlotShownOn(open, null, '2026-11-28')).toBe(true);
+    expect(routineSlotShownOn(open, null, '2026-11-29')).toBe(false);
   });
 
   it('reads the day it was done in Paris', () => {
     // 23:30 UTC on 4 Nov is 5 Nov, 00:30 in Paris.
-    expect(inRoutineHistoryOn(open, '2026-11-04T23:30:00Z', '2026-11-05')).toBe(true);
-    expect(inRoutineHistoryOn(open, '2026-11-04T23:30:00Z', '2026-11-04')).toBe(false);
+    expect(routineSlotShownOn(open, '2026-11-04T23:30:00Z', '2026-11-05')).toBe(true);
+    expect(routineSlotShownOn(open, '2026-11-04T23:30:00Z', '2026-11-04')).toBe(false);
   });
 
   it('never shows a cancelled occurrence', () => {
-    expect(inRoutineHistoryOn({ ...open, cancelled: true }, null, '2026-11-05')).toBe(false);
-    expect(inRoutineHistoryOn({ ...open, cancelled: true }, '2026-11-05T09:00:00Z', '2026-11-05')).toBe(false);
+    expect(routineSlotShownOn({ ...open, cancelled: true }, null, '2026-11-05')).toBe(false);
+    expect(routineSlotShownOn({ ...open, cancelled: true }, '2026-11-05T09:00:00Z', '2026-11-05')).toBe(false);
   });
 });
 

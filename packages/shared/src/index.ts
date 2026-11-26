@@ -39,7 +39,7 @@ export * from './calendar/slot-kinds';
 export * from './calendar/my-day';
 export * from './calendar/my-day-settings';
 export * from './routines/routine-views';
-export * from './routines/routine-history';
+export * from './routines/routine-ticks';
 export * from './tables/table-layout';
 export * from './tables/table-views';
 export * from './dates/weeks';

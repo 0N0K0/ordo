@@ -156,13 +156,6 @@ export const SHOPPING_LISTS_PATH = `${PAGES.shopping.path}?tab=lists`;
  */
 export const timePath = (taskId: string): string => `${PAGES.time.path}?task=${taskId}`;
 
-/**
- * History of a routine, on the routines page.
- * @param {string} routineId Routine.
- * @returns {string} Path.
- */
-export const routineHistoryPath = (routineId: string): string => `${PAGES.routines.path}?tab=history&routine=${routineId}`;
-
 /** Parameter of the address opening the settings of a page (closed without it). */
 export const SETTINGS_PARAM = 'settings';
 

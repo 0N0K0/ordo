@@ -2,16 +2,13 @@ import { PAGES } from '../../../app/pages';
 import { inheritedCells } from '../../../components/inheritance/inherited-cells';
 import { ROUTINE_CELL_FIELDS, routineParentName } from '../lib/routine-inheritance';
 import { readOnlyCells } from '../../../components/data-table/table/data-table';
-import { usePageTab } from '../../../components/tabs/use-page-tab';
-import { useSetParams, useSearchParam } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { Group, Stack, Text } from '@mantine/core';
-import { ArrowsClockwiseIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
-import { PageTabs } from '../../../components/tabs/PageTabs';
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
@@ -21,7 +18,6 @@ import { ON_ERROR } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { isDraftRoutine, useRoutineMutations, useRoutinesData, type Routine } from '../api';
 import { openRoutineForm } from '../lib/open-routine-form';
-import { RoutineHistory } from '../components/RoutineHistory';
 import { RoutineSettings } from '../components/RoutineSettings';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { useRunningTimers } from '../../time/api';
@@ -231,41 +227,19 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   );
 }
 
-/** Tabs of the routines page. */
-const ROUTINE_TABS = ['routines', 'history'] as const;
-
 /**
- * Routines page: tasks repeating on a calendar rule, ticked once done for their current occurrence, and the history of
- * what was ticked on which day; the settings hold the categories.
+ * Routines page: tasks repeating on a calendar rule, ticked once done for their current occurrence (past days are
+ * ticked from « Ma journée »); the settings hold the categories.
  * @returns {JSX.Element} Page.
  */
 export function RoutinesPage() {
-  const [routineParam] = useSearchParam('routine');
-  const setParams = useSetParams();
-  const [tab, setTab] = usePageTab(ROUTINE_TABS);
-
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.routines.label} />
       <PageSettings title="Paramètres des routines">
         <RoutineSettings />
       </PageSettings>
-      <PageTabs value={tab} onChange={(value) => setTab(value, { routine: null })} keepMounted={false}>
-        <PageTabs.List>
-          <PageTabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
-            Routines
-          </PageTabs.Tab>
-          <PageTabs.Tab value="history" leftSection={<ClockCounterClockwiseIcon aria-hidden />}>
-            Historique
-          </PageTabs.Tab>
-        </PageTabs.List>
-        <PageTabs.Panel value="routines">
-          <RoutinesPanel />
-        </PageTabs.Panel>
-        <PageTabs.Panel value="history">
-          <RoutineHistory routineId={routineParam} onRoutine={(id) => setParams({ routine: id })} />
-        </PageTabs.Panel>
-      </PageTabs>
+      <RoutinesPanel />
     </Stack>
   );
 }

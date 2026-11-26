@@ -81,6 +81,7 @@ const RoutinesDataDocument = graphql(`
       cases
       moves
       done
+      tickedWithSubRoutines
       slots {
         index
         fromTime
@@ -334,7 +335,7 @@ export type RoutineOccurrence = RoutineOccurrencesQuery['routineOccurrences'][nu
  * Occurrences of the routines in a period, with their times of the day ticked (and when): refreshed with the routines.
  * The cancelled ones are there too (`cancelled`, shown struck through) and, for an archived routine, those due before
  * its archiving (`archived`, read only); with `doneInPeriod`, those outside the period with a time of the day done
- * within it too (the history of a day).
+ * within it too (the times of the day of a day: « Ma journée », the badge of the menu).
  * @param {{ from: string, to: string, doneInPeriod?: boolean } | null} range Period (both days included), or null: none.
  * @param {boolean} [enabled] Loaded. Optional. Default = true.
  * @returns {UseQueryResult<RoutineOccurrence[]>} Query state.
@@ -422,6 +423,7 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     priorityId: input.priorityId ?? null,
     typeId: input.typeId ?? null,
     parentId: input.parentId ?? null,
+    tickedWithSubRoutines: false,
     startDate: input.startDate,
     recurrence: input.recurrence,
     estimate: input.estimate ?? null,

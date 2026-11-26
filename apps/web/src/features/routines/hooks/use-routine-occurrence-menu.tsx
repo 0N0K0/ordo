@@ -1,5 +1,4 @@
-import { ArrowBendUpRightIcon, CalendarDotsIcon, ClockCounterClockwiseIcon, PencilSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
-import { routineHistoryPath } from '../../../app/pages';
+import { ArrowBendUpRightIcon, CalendarDotsIcon, PencilSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import type { RowAction, RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { useCountdownMenuEntries } from '../../countdowns/hooks/use-saved-countdowns';
@@ -33,8 +32,8 @@ const movable = (occurrence: RoutineMenuOccurrence): boolean => !occurrence.canc
  * Actions of a routine for one of its occurrences, the same in its table row and in a list of a day: « Modifier » (its
  * panel, on that occurrence), « Ajouter une sous-routine », « Reporter au lendemain » and « Reporter, changer l’horaire
  * ou annuler… » (that occurrence, while it can be moved), « Dupliquer », « Héritage… » (a sub-routine), « Transformer en
- * tâche », « Historique », « Archiver » / « Restaurer », « Supprimer », then « Lancer » its dead times for that
- * occurrence. An archived routine: « Historique », « Restaurer » and « Supprimer » only. Without an occurrence, its
+ * tâche », « Archiver » / « Restaurer », « Supprimer », then « Lancer » its dead times for that occurrence. An
+ * archived routine: « Restaurer » and « Supprimer » only. Without an occurrence, its
  * current one (the next one once ticked), as the routines table.
  * @returns {(routine: Routine, occurrence?: RoutineMenuOccurrence) => RoutineRowMenu} Actions of a routine.
  */
@@ -62,7 +61,6 @@ export function useRoutineOccurrenceMenu() {
         // A sub-routine: its fields inherited again or emptied on purpose.
         !readOnly && Boolean(routine.parentId) && rowMenuEntry(rowActions.inheritance),
         !readOnly && convert.toTask(routine, routines.some((item) => item.parentId === routine.id)),
-        { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: routineHistoryPath(routine.id) },
         rowMenuEntry(rowActions.archive),
         rowMenuEntry(rowActions.remove),
         ...(readOnly ? [] : countdownEntries(routine, routineCountdownItem(routine, date ?? routine.currentDate))),

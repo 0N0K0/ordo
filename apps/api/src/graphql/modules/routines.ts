@@ -330,6 +330,11 @@ builder.prismaObject('Routine', {
         return current !== null && slots.length > 0 && slots.every((slot) => slot.done || slot.optional);
       },
     }),
+    tickedWithSubRoutines: t.boolean({
+      description: 'It has sub-routines not archived: its ticks follow theirs (never ticked by hand).',
+      select: { children: { where: { archivedAt: null }, select: { id: true }, take: 1 } },
+      resolve: (routine) => routine.children.length > 0,
+    }),
     doneDates: t.field({
       type: ['Date'],
       description: `Latest ticked occurrences (${RECENT_CHECKS} at most), latest first.`,
@@ -606,7 +611,7 @@ builder.queryFields((t) => ({
     args: {
       from: t.arg({ type: 'Date', required: true }),
       to: t.arg({ type: 'Date', required: true }),
-      doneInPeriod: t.arg.boolean({ description: 'Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the history of a day).' }),
+      doneInPeriod: t.arg.boolean({ description: 'Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the times of the day of a day: « Ma journée », the badge of the menu).' }),
     },
     resolve: async (_root, { from, to, doneInPeriod }, ctx) => {
       if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);

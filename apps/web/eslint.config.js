@@ -614,8 +614,8 @@ const RESTRICTED_SYNTAX = [
   },
   {
     selector:
-      'TemplateElement[value.raw=/^\\/(accounting|sheets|shopping)\\//], Literal[value=/^\\/(accounting|sheets|shopping)\\/./], TemplateElement[value.raw=/^\\/(time|routines|shopping)\\?/], Literal[value=/^\\/(time|routines|shopping)\\?/]',
-    message: 'Utiliser documentPath, sheetPath, shoppingListPath, SHOPPING_LISTS_PATH, timePath, routineHistoryPath (app/pages).',
+      'TemplateElement[value.raw=/^\\/(accounting|sheets|shopping)\\//], Literal[value=/^\\/(accounting|sheets|shopping)\\/./], TemplateElement[value.raw=/^\\/(time|shopping)\\?/], Literal[value=/^\\/(time|shopping)\\?/]',
+    message: 'Utiliser documentPath, sheetPath, shoppingListPath, SHOPPING_LISTS_PATH, timePath (app/pages).',
   },
   {
     selector:

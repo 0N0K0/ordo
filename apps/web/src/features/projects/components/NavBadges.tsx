@@ -7,7 +7,7 @@ import { useHeldEvents, useHomeTasks, useMyTodayTasks, useWeekTime } from '../..
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRunningTimers } from '../../time/api';
 import { useTreasuryAccounts } from '../../treasury/api';
-import { useRoutineDay } from '../../routines/hooks/use-routine-day';
+import { useRoutineDayCount } from '../../routines/hooks/use-routine-day-count';
 import { useNextRing } from '../../alarms/hooks/use-ring-sources';
 import * as fmt from '../../../lib/format';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
@@ -63,18 +63,18 @@ export function TasksNavBadge() {
 }
 
 /**
- * Routines of today, done out of planned (« 3/7 »), each time of the day counted, as the « Historique » tab of the
- * routines page (`useRoutineDay`).
+ * Routines of today, done out of planned (« 3/7 »), each time of the day counted, as « Ma journée » places them
+ * (`useRoutineDayCount`).
  * @returns {JSX.Element | null} Badge.
  */
 export function RoutinesNavBadge() {
-  const { items, doneCount, loading } = useRoutineDay(useToday());
+  const { shown, done, loading } = useRoutineDayCount(useToday());
   if (loading) return null;
   return (
     <NavBadge
-      value={items.length ? `${doneCount}/${items.length}` : null}
-      color={doneCount === items.length ? 'green' : undefined}
-      label={`${countOf(doneCount, 'routine faite', 'routines faites')} sur ${countOf(items.length, 'prévue')} aujourd’hui`}
+      value={shown ? `${done}/${shown}` : null}
+      color={done === shown ? 'green' : undefined}
+      label={`${countOf(done, 'routine faite', 'routines faites')} sur ${countOf(shown, 'prévue')} aujourd’hui`}
     />
   );
 }

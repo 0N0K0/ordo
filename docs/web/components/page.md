@@ -44,11 +44,11 @@ Retour d'une page de détail, au-dessus du titre comme un fil d'Ariane : « ← 
 
 ### `DayNav`
 
-Navigation entre jours, la même partout où une page montre un jour (historique des routines, « Ma journée ») : `PeriodNav` avec « Jour précédent » / « Jour suivant », le jour dans un `DateField` (jour de la semaine écrit, centré), aujourd'hui en heure de Paris. Props : `day`, `onChange`, `maxDate` (dernier jour proposé, la flèche suivante désactivée à ce jour ; défaut : aucune limite). Garde ESLint : le texte « Jour précédent » écrit ailleurs est refusé (`no-restricted-syntax`).
+Navigation entre jours, la même partout où une page montre un jour (« Ma journée ») : `PeriodNav` avec « Jour précédent » / « Jour suivant », le jour dans un `DateField` (jour de la semaine écrit, centré), aujourd'hui en heure de Paris. Props : `day`, `onChange`. Garde ESLint : le texte « Jour précédent » écrit ailleurs est refusé (`no-restricted-syntax`).
 
 ### `PeriodNav`
 
-Navigation entre périodes (agenda, graphique de la trésorerie, historique des routines par `DayNav`), la même partout : « Aujourd'hui » (`secondary`, désactivé si la période du jour est affichée), puis flèche précédente, la période affichée (nom ou sélecteur), flèche suivante (désactivée avec `last`). Props : `children`, `onPrevious`, `onNext`, `onToday`, `current`, `last`, `labels` (défaut « Période précédente » / « Période suivante »).
+Navigation entre périodes (agenda, graphique de la trésorerie, « Ma journée » par `DayNav`), la même partout : « Aujourd'hui » (`secondary`, désactivé si la période du jour est affichée), puis flèche précédente, la période affichée (nom ou sélecteur), flèche suivante (désactivée avec `last`). Props : `children`, `onPrevious`, `onNext`, `onToday`, `current`, `last`, `labels` (défaut « Période précédente » / « Période suivante »).
 
 ## Chiffres clés
 

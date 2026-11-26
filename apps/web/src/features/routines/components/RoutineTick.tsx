@@ -109,6 +109,9 @@ const escapeOwn = (event: KeyboardEvent<HTMLElement>, close: () => void) => {
   if (event.key === 'Escape' && (event.target as HTMLElement).closest('[role="dialog"]') === event.currentTarget) close();
 };
 
+/** Why the button of a routine that has sub-routines is read only. */
+const WITH_SUB_ROUTINES = 'Cochée avec ses sous-routines';
+
 interface RoutineTickButtonProps {
   /** Time of the day of the occurrence ticked. */
   tick: RoutineTickRef;
@@ -121,22 +124,29 @@ interface RoutineTickButtonProps {
   doneAt: string | null;
   /** Its due day and times, the time proposed is read from. */
   target: RoutineTickTarget;
+  /** Day it is ticked from (a past day shown in « Ma journée »): proposed on that day. Optional. Default = its due day. */
+  day?: string;
   /** Not needed for the day to be done (shown dashed). Optional. Default = false. */
   optional?: boolean;
   disabled?: boolean;
+  /** A routine that has sub-routines: ticked with them, never by hand (disabled, told). Optional. Default = false. */
+  withSubRoutines?: boolean;
   size?: 'xs' | 'sm';
 }
 
 /**
  * State button ticking a time of the day of an occurrence of a routine, the same everywhere: to do, a click opens the
- * « Faite le » form in a popover, proposing its scheduled time once past, else now (`routineTickPrefill`); Entrée
+ * « Faite le » form in a popover, proposing its scheduled time once past, else now (`routineTickPrefill`, on `day` when
+ * given: the day it is ticked from); Entrée
  * validates, Échap closes without ticking. Done, a click unticks it at once; a clock beside it (« Changer l’heure de
- * réalisation ») opens the same form at the time it was done. Each write has a toast with « Annuler ».
+ * réalisation ») opens the same form at the time it was done. Each write has a toast with « Annuler ». A routine that
+ * has sub-routines is ticked with them: its button is read only (« Cochée avec ses sous-routines »).
  * @param {RoutineTickButtonProps} props Component props.
  * @returns {JSX.Element} Button.
  */
-export function RoutineTickButton({ tick, label, hint, done, doneAt, target, optional = false, disabled = false, size = 'sm' }: RoutineTickButtonProps) {
+export function RoutineTickButton({ tick, label, hint, done, doneAt, target, day, optional = false, disabled: off = false, withSubRoutines = false, size = 'sm' }: RoutineTickButtonProps) {
   const writes = useRoutineTick();
+  const disabled = off || withSubRoutines;
   const [opened, setOpened] = useState(false);
   const previous = done ? doneAt : null;
   const clock = done && !disabled;
@@ -150,7 +160,7 @@ export function RoutineTickButton({ tick, label, hint, done, doneAt, target, opt
             {...ROUTINE_DONE_STATES}
             value={done}
             label={label}
-            hint={done ? undefined : hint}
+            hint={withSubRoutines ? WITH_SUB_ROUTINES : done ? undefined : hint}
             dashed={optional}
             size={size}
             readOnly={disabled}
@@ -176,7 +186,7 @@ export function RoutineTickButton({ tick, label, hint, done, doneAt, target, opt
       <Popover.Dropdown onClick={stopClick} onFocusCapture={keepEscape} onKeyDown={(event) => escapeOwn(event, () => setOpened(false))}>
         {opened && (
           <DoneAtForm
-            initial={previous ? doneAtParts(previous) : routineTickPrefill(target, new Date())}
+            initial={previous ? doneAtParts(previous) : routineTickPrefill(target, new Date(), day ?? null)}
             submitLabel={previous ? 'Changer l’heure' : 'Cocher comme faite'}
             change={previous !== null}
             description={previous ? undefined : 'L’heure prévue si elle est passée, sinon maintenant.'}
