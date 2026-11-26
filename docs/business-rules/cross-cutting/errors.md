@@ -36,7 +36,7 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 
 - Écrits en français, phrase complète terminée par un point, guillemets « » autour des noms cités.
 - Messages communs (voir [core](../../shared/cross-cutting/core.md)) : « Le libellé est requis. », « Le nom est requis. », « N caractères maximum. », « La fin doit suivre le début. », « Couleur invalide (format #rrggbb). », « Date invalide. », « Lien invalide (http ou https). ».
-- Archivé : un seul message, « Élément archivé : restaurez-le pour le modifier. » (voir [Archivage](archiving.md)).
+- Archivé : un seul message, « Élément archivé : restaurez-le pour le modifier. » (voir [Archivage](archiving.md)). Exception : un élément archivé d’un **autre espace**, qui ne se modifie ni ne se restaure d’ici (« restaurez-le » ne s’applique pas) : s’abonner à un calendrier archivé, « Ce calendrier est archivé. », à un type de créneaux archivé, « Ce type est archivé. » (`refuseForeignArchived`, `FOREIGN_ARCHIVED_MESSAGES`, `apps/api/src/services/core/archive.ts`).
 - Doublon : « Un statut porte déjà ce libellé. », etc. (voir [Nommage](naming.md)).
 - Espace personnel : « Indisponible dans un espace personnel (X). » (voir [Espaces et accès](workspaces-and-access.md)).
 - Temps passé : « Le début ne peut pas être dans le futur. » (`TIME_START_IN_FUTURE`), « Un temps ne peut pas finir dans le futur. » (`TIME_END_IN_FUTURE`), sous le début ou la durée (voir [Temps passé](../activities/time.md#temps-saisi-à-la-main)).

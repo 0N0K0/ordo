@@ -467,6 +467,11 @@ type Calendar {
   id: ID!
   label: String!
   position: Int!
+
+  """
+  Number of other workspaces subscribed to it (archiving it removes their subscriptions, for good).
+  """
+  subscriberCount: Int!
 }
 
 type CalendarCategory {
@@ -2788,7 +2793,7 @@ type Mutation {
   setAccountingDocumentProject(id: ID!, projectId: ID): Boolean!
 
   """
-  Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored; an archived calendar loses the subscriptions of the other workspaces to it, for good.
+  Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored; an archived calendar or kind of schedules loses the subscriptions of the other workspaces to it, for good.
   """
   setArchived(
     archived: Boolean!
@@ -2993,7 +2998,7 @@ type Mutation {
   subscribeCalendar(calendarId: ID!): Boolean!
 
   """
-  Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only.
+  Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only; an archived kind is refused.
   """
   subscribeScheduleKind(typeId: ID, workspaceId: ID!): Boolean!
   syncGithubProject(projectId: ID!): GithubSyncSummary!
@@ -4700,6 +4705,11 @@ type ScheduleType {
 
   """A context in every workspace of the user."""
   sharedContext: Boolean!
+
+  """
+  Number of other workspaces subscribed to it (archiving it removes their subscriptions, for good).
+  """
+  subscriberCount: Int!
 
   """
   « Indisponible » in this workspace: nothing is scheduled during the slots of its schedules.

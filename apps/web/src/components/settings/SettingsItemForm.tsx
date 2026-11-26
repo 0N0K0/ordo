@@ -70,6 +70,8 @@ export interface SettingsItemKind<C extends SettingsItem, E extends object = Rec
   update: (id: string, values: SettingsItemValues<E>) => Promise<unknown>;
   /** Asks what archiving or restoring an item loses (the kinds of schedules: occurrences of routines). Optional. Default = never asked. */
   confirmLoss?: LossConfirmation;
+  /** What archiving an item loses for good (the subscriptions of other workspaces to a calendar or a kind); something: archiving asks a destructive confirmation telling it first. Optional. Default = archived at once. */
+  archiveRisk?: (item: C) => ReactNode;
 }
 
 interface SettingsItemFormProps<C extends SettingsItem, E extends object> extends SettingsItemKind<C, E> {

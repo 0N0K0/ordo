@@ -12,6 +12,17 @@ import { PARIS } from '../../today';
 /** Message of the error refusing a change of an archived element (or of its sub-elements). */
 export const ARCHIVED_MESSAGE = 'Élément archivé : restaurez-le pour le modifier.';
 
+/**
+ * Messages refusing an archived element of another workspace (it is not restored from here, so not
+ * `ARCHIVED_MESSAGE`): a calendar or a kind of schedules subscribed to.
+ */
+export const FOREIGN_ARCHIVED_MESSAGES = {
+  // eslint-disable-next-line no-restricted-syntax -- the archived element of another workspace: cannot be restored from here.
+  calendar: 'Ce calendrier est archivé.',
+  // eslint-disable-next-line no-restricted-syntax -- the archived element of another workspace: cannot be restored from here.
+  scheduleType: 'Ce type est archivé.',
+} as const;
+
 /** Main elements of the features archived through the generic mutation, by kind: the Prisma model of each. */
 const MAIN = {
   MILESTONE: 'milestone',
@@ -103,7 +114,7 @@ const archivedWhere = (archived: boolean): Record<string, unknown> => ({ archive
  * `settle` runs once they are found, before they change: what it does elsewhere (the occurrences of routines a
  * schedule, a kind or a person archived makes disappear, asked then; their comments deleted by what it returns, once
  * saved). `writes` are saved with the change, in the same transaction (the subscriptions of other workspaces to an
- * archived calendar).
+ * archived calendar or kind of schedules).
  * @param {ArchivableKind} kind Kind of the elements.
  * @param {readonly string[]} ids Elements.
  * @param {boolean} archived Archives (else restores).
@@ -199,6 +210,18 @@ export function archivedError(field?: string): GraphQLError {
 export function refuseArchived(record: { archivedAt: Date | null }, field?: string): void {
   // eslint-disable-next-line no-restricted-syntax -- refuseArchived itself.
   if (record.archivedAt) throw archivedError(field);
+}
+
+/**
+ * Refuses an archived element of another workspace (BAD_USER_INPUT « Ce calendrier est archivé. »…): it cannot be
+ * restored from here, unlike `refuseArchived`.
+ * @param {{ archivedAt: Date | null }} record Element of another workspace, already loaded.
+ * @param {keyof typeof FOREIGN_ARCHIVED_MESSAGES} what What it is (its message).
+ * @returns {void}
+ */
+export function refuseForeignArchived(record: { archivedAt: Date | null }, what: keyof typeof FOREIGN_ARCHIVED_MESSAGES): void {
+  // eslint-disable-next-line no-restricted-syntax -- refuseForeignArchived itself: not restored from here.
+  if (record.archivedAt) throw clientError('BAD_USER_INPUT', FOREIGN_ARCHIVED_MESSAGES[what]);
 }
 
 /**

@@ -30,6 +30,9 @@ builder.prismaObject('CalendarCategory', {
 });
 
 labelObject('Calendar', { description: 'Calendar of the workspace: every event belongs to one.' });
+builder.prismaObjectField('Calendar', 'subscriberCount', (t) =>
+  t.relationCount('subscriptions', { description: 'Number of other workspaces subscribed to it (archiving it removes their subscriptions, for good).' }),
+);
 
 const CalendarWorkspace = builder.objectRef<calendars.CalendarSubscriptionView['workspace']>('CalendarWorkspace').implement({
   description: 'Workspace a calendar belongs to.',
@@ -191,6 +194,7 @@ builder.prismaObject('ScheduleType', {
     budgetContext: t.exposeBoolean('budgetContext', { description: 'Éphémérides only: a context of the treasury, its éphémérides its periods.' }),
     sharedContext: t.exposeBoolean('sharedContext', { description: 'A context in every workspace of the user.' }),
     position: t.exposeInt('position'),
+    subscriberCount: t.relationCount('subscriptions', { description: 'Number of other workspaces subscribed to it (archiving it removes their subscriptions, for good).' }),
   }),
 });
 
@@ -568,7 +572,7 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { id, occurrenceDate, input }) => (await events.postponeCalendarEvent(id, occurrenceDate, eventInput(input))).id,
   }),
   subscribeScheduleKind: t.boolean({
-    description: 'Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only.',
+    description: 'Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only; an archived kind is refused.',
     args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },
     resolve: (_root, { workspaceId, typeId }) => done(schedules.subscribeScheduleKind(workspaceId, typeId ?? null)),
   }),

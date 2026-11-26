@@ -3,7 +3,7 @@ import { Group, Text, ThemeIcon } from '@mantine/core';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, type ReactNode } from 'react';
 import { capitalize, agreed } from '@ordo/shared';
-import { archiveWithUndo, useSetArchived, useArchivedToggle, unarchived } from '../../lib/archive';
+import { archivedMessage, archiveWithUndo, useSetArchived, useArchivedToggle, unarchived } from '../../lib/archive';
 import { ON_ERROR, onMutationError } from '../../lib/notify';
 import { CategoryTree } from '../tree/CategoryTree';
 import { categoryTree } from '../tree/category-tree';
@@ -67,7 +67,7 @@ interface SettingsListProps<C extends SettingsItem, E extends object> extends Se
  * Settings list, flat or tree (every one of the app): each item with its avatar (its image, or its initials on its
  * color), its name and number of uses; added, edited (name, color, image, parent, fields of the list) in the side
  * panel (the item followed as the list refreshes), archived or restored (with an undo), deleted once confirmed, reordered — and in a tree put under another — by
- * drag and drop. Archived items are hidden behind « Afficher les archivés » (shown when there are some), with their
+ * drag and drop. An archive that loses something for good (`archiveRisk`) is confirmed first. Archived items are hidden behind « Afficher les archivés » (shown when there are some), with their
  * badge, read only (neither edited nor moved, nor given sub-items).
  * @param {SettingsListProps<C, E>} props Component props.
  * @returns {JSX.Element} List.
@@ -105,6 +105,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   canMove,
   adderRef,
   confirmLoss,
+  archiveRisk,
 }: SettingsListProps<C, E>) {
   const reorder = useReorderSettingsItems();
   const setArchived = useSetArchived(kind, undefined, confirmLoss);
@@ -176,13 +177,29 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   };
 
   /**
-   * Archives or restores an item, told with an undo.
+   * Archives or restores an item, told with an undo; an archive that loses something for good (`archiveRisk`) is
+   * confirmed first, then told without undo.
    * @param {C} item Item.
    * @param {string} path Its full name.
    * @returns {void}
    */
   const toggleArchived = (item: C, path: string) => {
-    void archiveWithUndo(setArchived, { ids: [item.id], archived: !item.archived, label: `« ${path} »`, feminine });
+    /**
+     * Archives or restores the item.
+     * @returns {void}
+     */
+    const toggle = () => void archiveWithUndo(setArchived, { ids: [item.id], archived: !item.archived, label: `« ${path} »`, feminine });
+    const risk = item.archived ? null : archiveRisk?.(item);
+    if (!risk) return toggle();
+    // No undo: restoring it does not bring back what is lost.
+    confirmDestructive({
+      title: `Archiver ${noun}`,
+      risks: risk,
+      confirmLabel: 'Archiver',
+      confirmIcon: <ArchiveIcon aria-hidden />,
+      run: () => setArchived.mutateAsync({ ids: [item.id], archived: true }),
+      done: archivedMessage(`« ${path} »`, true, { feminine }),
+    });
   };
 
   /**

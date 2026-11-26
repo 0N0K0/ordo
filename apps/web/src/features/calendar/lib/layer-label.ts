@@ -1,3 +1,5 @@
+import { countOf } from '../../../lib/text';
+
 /**
  * Label of a layer of the calendar (a calendar, a schedule, a kind of slots) with the workspace it comes from: « Label ·
  * Espace », the same everywhere; the label alone for one of the workspace.
@@ -39,3 +41,18 @@ export function calendarChoices(
  */
 export const scheduleChoices = (sources: readonly { schedule: { id: string }; label: string; color: string | null }[]): LayerChoice[] =>
   sources.map(({ schedule, label, color }) => ({ id: schedule.id, label, color: color ?? 'green' }));
+
+/**
+ * Risk of archiving a calendar or a kind of schedules other workspaces subscribe to (for its destructive
+ * confirmation): their subscriptions are removed for good, restoring it does not bring them back.
+ * @param {number} subscriberCount Number of other workspaces subscribed to it.
+ * @param {string} what What is archived, after « à » (« ce calendrier », « ce type »).
+ * @returns {string | null} Risk; nothing without subscriber (archived at once).
+ */
+export function subscribersArchiveRisk(subscriberCount: number, what: string): string | null {
+  if (!subscriberCount) return null;
+  const one = subscriberCount === 1;
+  return `${countOf(subscriberCount, 'autre espace', 'autres espaces')} ${one ? 'est abonné' : 'sont abonnés'} à ${what}. Archivé, il ne s’y affichera plus : ${
+    one ? 'son abonnement sera supprimé' : 'leurs abonnements seront supprimés'
+  } définitivement, et ne ${one ? 'sera pas rendu' : 'seront pas rendus'} si vous le restaurez.`;
+}

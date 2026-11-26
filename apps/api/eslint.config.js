@@ -52,7 +52,8 @@ const API_SYNTAX_RULES = [
   {
     // « Ce projet est archivé. », « Cette tâche est archivée. »: one message everywhere.
     selector: 'Literal[value=/est archivée?/], TemplateElement[value.raw=/est archivée?/]',
-    message: 'Utiliser assertNotArchived(kind, id, { keep, field }) ou ARCHIVED_MESSAGE (services/core/archive) : un seul message, sous le champ.',
+    message:
+      'Utiliser assertNotArchived(kind, id, { keep, field }) ou ARCHIVED_MESSAGE (services/core/archive) : un seul message, sous le champ ; refuseForeignArchived(record, quoi) pour un élément d’un autre espace (FOREIGN_ARCHIVED_MESSAGES).',
   },
   {
     // const x = await prisma.y.findUnique(…); if (!x) throw notFound(…) (or the error of a field).

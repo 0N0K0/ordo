@@ -133,6 +133,7 @@ const WorkSchedulesDocument = graphql(`
       budgetContext
       sharedContext
       position
+      subscriberCount
     }
     defaultScheduleKind {
       label
@@ -353,6 +354,7 @@ const CalendarsDocument = graphql(`
       color
       iconUrl
       position
+      subscriberCount
     }
     calendarSubscriptions {
       id

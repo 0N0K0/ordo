@@ -10,6 +10,7 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { type ReactNode, useState } from 'react';
 import { ON_ERROR } from '../../../lib/notify';
+import { unarchived } from '../../../lib/archive';
 
 import { useBirthdayLook, useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules } from '../api';
 import { useScheduleConversion } from '../hooks/use-schedule-conversion';
@@ -196,14 +197,16 @@ function ScheduleTypes({ ephemeris }: { ephemeris: boolean }) {
 /**
  * Kinds of schedules of the other workspaces (and their working hours, schedules without kind), by workspace:
  * subscribing to one shows all its schedules, those added later too, read only in this calendar, in the color and
- * display of the kind, or those set here, and « Indisponible » here or not (whatever its own workspace says).
+ * display of the kind, or those set here, and « Indisponible » here or not (whatever its own workspace says); an
+ * archived kind is not offered.
  * @returns {JSX.Element | null} Section, nothing without other workspaces with schedules.
  */
 function ForeignSchedules() {
-  const { data: kinds } = useForeignScheduleKinds();
+  // An archived kind is not offered (archiving it removed its subscriptions).
+  const kinds = unarchived(useForeignScheduleKinds().data ?? []);
   const { subscribe, unsubscribe, setLook, setSubscriptionUnavailable } = useWorkScheduleMutations();
   const [opened, setOpened] = useState<string | null>(null);
-  if (!kinds?.length) return null;
+  if (!kinds.length) return null;
   return (
     <SettingsSection
       title="Créneaux des autres espaces"

@@ -8,7 +8,7 @@ import { settleScheduleChange } from '../../services/routines/routines';
 import { assertPeopleArchivable, LINKED_PEOPLE_KINDS, linkedPeople } from '../../services/people/contributor-links';
 import { automated } from '../../services/tasks/task-automation-engine';
 import { assertEventsArchivable } from '../../services/calendar/calendar-events';
-import { archivedCalendarsUnsubscribed } from '../../services/calendar/calendars';
+import { archivedUnsubscribed } from '../../services/calendar/calendars';
 
 /** Kinds whose archive changes what tasks go by (the dates of a milestone, the sprints of today): through the rules of the tasks. */
 const TASK_FOLLOWED_KINDS = new Set<archive.ArchivableKind>(['MILESTONE', 'SPRINT']);
@@ -65,7 +65,7 @@ for (const type of TYPES) {
 
 builder.mutationFields((t) => ({
   setArchived: t.boolean({
-    description: 'Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored; an archived calendar loses the subscriptions of the other workspaces to it, for good.',
+    description: 'Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored; an archived calendar or kind of schedules loses the subscriptions of the other workspaces to it, for good.',
     args: {
       kind: t.arg({ type: ArchivableKindEnum, required: true }),
       ids: t.arg.idList({ required: true }),
@@ -86,8 +86,8 @@ builder.mutationFields((t) => ({
             // The comments of the occurrences lost go once the change is saved.
             return edit ? settleScheduleChange(edit, confirmLoss ?? false) : undefined;
           },
-          // An archived calendar is never shown elsewhere: the subscriptions of the other workspaces go, for good.
-          writes: (changing) => archivedCalendarsUnsubscribed(changing.CALENDAR ?? [], archived),
+          // An archived calendar or kind of schedules is never shown elsewhere: the subscriptions of the other workspaces go, for good.
+          writes: (changing) => archivedUnsubscribed(changing, archived),
         }),
       ),
   }),

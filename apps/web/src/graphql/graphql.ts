@@ -2382,7 +2382,7 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, unavailable: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, unavailable: boolean, budgetContext: boolean, sharedContext: boolean, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string }, birthdayLook: { shown: boolean, color: string | null } };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, unavailable: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, unavailable: boolean, budgetContext: boolean, sharedContext: boolean, position: number, subscriberCount: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string }, birthdayLook: { shown: boolean, color: string | null } };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2550,7 +2550,7 @@ export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId
 export type CalendarsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CalendarsQuery = { calendars: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, calendarSubscriptions: Array<{ id: string, calendarId: string, label: string, color: string, workspace: { id: string, label: string, kind: string } }> };
+export type CalendarsQuery = { calendars: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number, subscriberCount: number }>, calendarSubscriptions: Array<{ id: string, calendarId: string, label: string, color: string, workspace: { id: string, label: string, kind: string } }> };
 
 export type SubscribableCalendarsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -7321,6 +7321,7 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     budgetContext
     sharedContext
     position
+    subscriberCount
   }
   defaultScheduleKind {
     label
@@ -7626,6 +7627,7 @@ export const CalendarsDocument = new TypedDocumentString(`
     color
     iconUrl
     position
+    subscriberCount
   }
   calendarSubscriptions {
     id
