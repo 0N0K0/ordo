@@ -48,7 +48,7 @@ Dans les tableaux (tâches, temps, routines, achats, stock, documents, trésorer
 ## Suppression
 
 - Supprimer un élément supprime ses commentaires.
-- Supprimer une occurrence d’un évènement ou d’une routine (ou elle et les suivantes) supprime ses commentaires ; la confirmation en donne le nombre (« 3 commentaires seront aussi supprimés. », ou « Commentaires supprimés avec : cette occurrence 1, celle-ci et les suivantes 2… » dans la question de portée). La suppression de routines ou d’un calendrier le dit aussi.
+- Supprimer une occurrence d’un évènement ou d’une routine (ou elle et les suivantes) supprime ses commentaires, sa liste à cocher et ses liens entre routines et évènements ; la confirmation en donne le nombre (« 3 commentaires seront aussi supprimés. », « 1 liste à cocher commencée sera aussi supprimée. » — seules les listes ayant un élément coché sont comptées —, « 2 liens entre routines et évènements seront aussi supprimés. », ou « Commentaires supprimés avec : cette occurrence 1, celle-ci et les suivantes 2… » dans la question de portée, de même pour les listes et les liens). La suppression de routines ou d’un calendrier le dit aussi.
 - Reporter une occurrence d’évènement emmène ses commentaires vers le report.
 - Les commentaires écrits avant qu’ils portent sur une occurrence sont placés par l’application à la première lecture (voir [Règles des commentaires](../../business-rules/cross-cutting/comments.md)).
 - Supprimer une tâche supprime ses commentaires (dit dans la confirmation : « … et ses commentaires seront supprimés définitivement »).

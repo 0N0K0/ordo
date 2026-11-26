@@ -28,7 +28,7 @@ import {
 import { BY_POSITION } from '../core/ordering';
 import { createLabelService } from '../core/labels';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertActive, refuseArchived } from '../core/archive';
+import { assertActive, refuseArchived, refuseForeignArchived } from '../core/archive';
 import { prisma, unscopedPrisma } from '../../db';
 import type { Prisma, ScheduleType, WorkSchedule } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
@@ -720,7 +720,8 @@ export async function setScheduleSubscriptionUnavailable(
 }
 
 /**
- * Shows a kind of schedules of another workspace (or its schedules without kind) in this one, read only.
+ * Shows a kind of schedules of another workspace (or its schedules without kind) in this one, read only; an archived
+ * kind is refused (« Ce type est archivé. »: it is not restored from here).
  * @param {string} sourceWorkspaceId Workspace of the schedules.
  * @param {string | null} typeId Kind; none: the schedules without kind.
  * @returns {Promise<void>}
@@ -728,14 +729,10 @@ export async function setScheduleSubscriptionUnavailable(
 export async function subscribeScheduleKind(sourceWorkspaceId: string, typeId: string | null): Promise<void> {
   if (sourceWorkspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ces créneaux appartiennent déjà à cet espace.');
   await assertExists(unscopedPrisma.workspace, sourceWorkspaceId, 'Espace');
-  if (
-    typeId &&
-    !(await unscopedPrisma.scheduleType.findFirst({
-      where: { id: typeId, workspaceId: sourceWorkspaceId },
-      select: { id: true },
-    }))
-  )
-    throw notFound('Type de créneau');
+  if (typeId) {
+    const type = await orNotFound(unscopedPrisma.scheduleType.findFirst({ where: { id: typeId, workspaceId: sourceWorkspaceId }, select: { archivedAt: true } }), 'Type de créneau');
+    refuseForeignArchived(type, 'scheduleType');
+  }
   // A null kind is not unique for the database: checked here.
   if (
     await prisma.workScheduleSubscription.findFirst({

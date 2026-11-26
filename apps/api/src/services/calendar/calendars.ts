@@ -1,11 +1,11 @@
 import { calendarFormSchema, type CalendarFormValues } from '@ordo/shared';
 import { prisma, unscopedPrisma } from '../../db';
-import type { Calendar, WorkspaceKind } from '../../generated/prisma/client';
+import type { Calendar, Prisma, WorkspaceKind } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
 import { currentWorkspaceFields } from '../workspaces/current-workspace';
 import { BY_POSITION_ONLY, nextPositionIn } from '../core/ordering';
-import { firstActive, refuseArchived } from '../core/archive';
+import { type ArchiveTargets, firstActive, refuseArchived, refuseForeignArchived } from '../core/archive';
 import { findOrNotFound } from '../core/lookup';
 import { assertLabelFree } from '../core/labels';
 import { releaseSubjectTime } from '../tasks/time-entries';
@@ -108,11 +108,31 @@ export async function calendarEventsGone(id: string): Promise<{ eventId: string 
 }
 
 /**
- * Calendars of other workspaces shown in this one, in their order.
+ * Removal, for good, of the subscriptions of every other workspace to the calendars and the kinds of schedules being
+ * archived (an archived one is never shown elsewhere), saved with the archiving: none when restoring, nor without
+ * calendar or kind.
+ * @param {ArchiveTargets} changing Elements whose state changes, by kind (`CALENDAR`, `SCHEDULE_TYPE` read).
+ * @param {boolean} archived Archived (else restored).
+ * @returns {Prisma.PrismaPromise<unknown>[]} The writes (raw SQL: the subscriptions belong to other workspaces).
+ */
+export function archivedUnsubscribed(changing: ArchiveTargets, archived: boolean): Prisma.PrismaPromise<unknown>[] {
+  if (!archived) return [];
+  const calendarIds = [...(changing.CALENDAR ?? [])];
+  const typeIds = [...(changing.SCHEDULE_TYPE ?? [])];
+  return [
+    ...(calendarIds.length ? [prisma.$executeRaw`DELETE FROM "CalendarSubscription" WHERE "calendarId" = ANY(${calendarIds})`] : []),
+    ...(typeIds.length ? [prisma.$executeRaw`DELETE FROM "WorkScheduleSubscription" WHERE "typeId" = ANY(${typeIds})`] : []),
+  ];
+}
+
+/**
+ * Calendars of other workspaces shown in this one, in their order; archived ones never (archiving one removes its
+ * subscriptions).
  * @returns {Promise<CalendarSubscriptionView[]>} Subscriptions.
  */
 export async function listSubscriptions(): Promise<CalendarSubscriptionView[]> {
   const subscriptions = await prisma.calendarSubscription.findMany({
+    where: { calendar: { archivedAt: null } },
     orderBy: BY_POSITION_ONLY,
     include: { calendar: { include: { workspace: { select: { id: true, label: true, kind: true } } } } },
   });
@@ -120,13 +140,13 @@ export async function listSubscriptions(): Promise<CalendarSubscriptionView[]> {
 }
 
 /**
- * Calendars of the other workspaces, by workspace, with whether this one shows them.
+ * Calendars of the other workspaces, by workspace, with whether this one shows them; archived ones left out.
  * @returns {Promise<SubscribableCalendar[]>} Calendars.
  */
 export async function subscribableCalendars(): Promise<SubscribableCalendar[]> {
   const subscribed = new Set((await prisma.calendarSubscription.findMany({ select: { calendarId: true } })).map((item) => item.calendarId));
   const calendars = await unscopedPrisma.calendar.findMany({
-    where: { workspaceId: { not: currentWorkspaceId() } },
+    where: { workspaceId: { not: currentWorkspaceId() }, archivedAt: null },
     include: { workspace: { select: { id: true, label: true, kind: true, position: true, createdAt: true } } },
   });
   return calendars
@@ -138,13 +158,15 @@ export async function subscribableCalendars(): Promise<SubscribableCalendar[]> {
 }
 
 /**
- * Shows a calendar of another workspace in this one (read only).
+ * Shows a calendar of another workspace in this one (read only); an archived one is refused (« Ce calendrier est
+ * archivé. »: it is not restored from here).
  * @param {string} calendarId Calendar.
  * @returns {Promise<void>}
  */
 export async function subscribe(calendarId: string): Promise<void> {
-  const calendar = await orNotFound(unscopedPrisma.calendar.findUnique({ where: { id: calendarId }, select: { workspaceId: true } }), 'Calendrier');
+  const calendar = await orNotFound(unscopedPrisma.calendar.findUnique({ where: { id: calendarId }, select: { workspaceId: true, archivedAt: true } }), 'Calendrier');
   if (calendar.workspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ce calendrier appartient déjà à cet espace.');
+  refuseForeignArchived(calendar, 'calendar');
   if (await prisma.calendarSubscription.findFirst({ where: { calendarId }, select: { id: true } })) return;
   const position = await nextPositionIn('calendarSubscription');
   await prisma.calendarSubscription.create({ data: { calendarId, position } });

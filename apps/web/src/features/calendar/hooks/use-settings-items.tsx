@@ -2,10 +2,11 @@ import { calendarCategoryFormSchema, DEFAULT_SCHEDULE_DISPLAY, labelFormSchema, 
 import { itemMutations, treeItemInput, type TreeItemValues } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
 import { Checkbox, Stack, Switch } from '@mantine/core';
-import { useCalendarCategoryMutations, useWorkScheduleMutations, type CalendarCategory, type ScheduleType, type ScheduleTypeFields } from '../api';
+import { useCalendarCategoryMutations, useScheduleTypes, useWorkScheduleMutations, type CalendarCategory, type ScheduleType, type ScheduleTypeFields } from '../api';
 import { ScheduleLookEditor } from '../components/ScheduleLookEditor';
 import { UnavailableSwitch } from '../components/UnavailableSwitch';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
+import { subscribersArchiveRisk } from '../lib/layer-label';
 
 /**
  * Categories of the calendar, for their settings list and their form (a creation from a select too): label, color
@@ -31,13 +32,15 @@ export type ScheduleTypeExtra = ScheduleDisplay & { ephemeris: boolean; unavaila
 /**
  * Kinds of time slots, for their settings list and their form (a creation from a select too): label, color, image and
  * display in the calendar, « Indisponible » (in this workspace; the occurrences of routines it makes disappear
- * confirmed first); a kind of éphémérides also « Sert de contexte au budget » and, then, « Partagé entre espaces ».
+ * confirmed first); archiving a kind other workspaces subscribe to confirmed first (their subscriptions go for good);
+ * a kind of éphémérides also « Sert de contexte au budget » and, then, « Partagé entre espaces ».
  * The nature of a new kind is the one asked (a conversion changes it afterwards).
  * @param {{ ephemeris?: boolean, budgetContext?: boolean }} [options] Nature of a new kind, and a new kind of éphémérides as a context. Optional. Default = créneaux.
  * @returns {SettingsItemKind<ScheduleType, ScheduleTypeExtra>} List and form.
  */
 export function useScheduleTypeItems({ ephemeris = false, budgetContext = false }: { ephemeris?: boolean; budgetContext?: boolean } = {}): SettingsItemKind<ScheduleType, ScheduleTypeExtra> {
   const { createType, updateType } = useWorkScheduleMutations();
+  const { refetch } = useScheduleTypes();
   /**
    * Input of a kind from the form values (a kind of créneaux is no context).
    * @param {{ label: string, color: string } & ScheduleTypeExtra} values Values.
@@ -56,6 +59,11 @@ export function useScheduleTypeItems({ ephemeris = false, budgetContext = false 
     kind: 'SCHEDULE_TYPE',
     // Archiving or restoring a kind changes what its schedules give the slot conditions.
     confirmLoss: withLossConfirmation,
+    // Archiving a kind other workspaces subscribe to removes their subscriptions, for good: confirmed first.
+    archiveRisk: {
+      reload: async () => (await refetch({ throwOnError: true })).data,
+      risk: (type) => subscribersArchiveRisk(type.subscriberCount, 'ce type'),
+    },
     schema: labelFormSchema,
     extra: {
       initial: (type) => ({

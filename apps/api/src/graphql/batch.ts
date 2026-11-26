@@ -14,6 +14,7 @@ interface Batch<K, V> {
  * @returns {(ctx: Context, key: K) => Promise<V>} Value of one row.
  */
 export function batchedBy<K, V>(load: (keys: K[]) => Promise<V[]>): (ctx: Context, key: K) => Promise<V> {
+  // eslint-disable-next-line no-restricted-syntax -- batchedBy itself.
   const pending = new WeakMap<Context, Batch<K, V>>();
   return (ctx, key) =>
     new Promise<V>((resolve, reject) => {
@@ -36,4 +37,21 @@ export function batchedBy<K, V>(load: (keys: K[]) => Promise<V[]>): (ctx: Contex
       batch.keys.push(key);
       batch.waiting.push({ resolve, reject });
     });
+}
+
+/**
+ * Value loaded once per request, shared by every field of the request asking for it (the inheritance of the tasks of
+ * the workspace, its schedules, its GitHub links…), loaded at the first ask (after the mutation of the request).
+ * @template V
+ * @param {() => Promise<V>} load Loads the value.
+ * @returns {(ctx: Context) => Promise<V>} Value of a request.
+ */
+export function perRequest<V>(load: () => Promise<V>): (ctx: Context) => Promise<V> {
+  // eslint-disable-next-line no-restricted-syntax -- perRequest itself.
+  const loaded = new WeakMap<Context, Promise<V>>();
+  return (ctx) => {
+    let value = loaded.get(ctx);
+    if (!value) loaded.set(ctx, (value = load()));
+    return value;
+  };
 }

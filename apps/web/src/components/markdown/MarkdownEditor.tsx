@@ -221,6 +221,17 @@ export function MarkdownEditor({ value, onChange, suggestions, label, placeholde
   };
 
   /**
+   * Inserts the chosen reference.
+   * @param {Suggestion} suggestion Chosen item.
+   * @returns {void}
+   */
+  const choose = (suggestion: Suggestion) => {
+    const textarea = textareaRef.current;
+    if (!textarea || !token) return;
+    apply(completeReference(textarea.value, token, textarea.selectionStart, suggestion.reference));
+  };
+
+  /**
    * Keyboard: suggestion navigation, shortcuts and list continuation.
    * @param {KeyboardEvent<HTMLTextAreaElement>} event Key event.
    * @returns {void}
@@ -331,17 +342,6 @@ export function MarkdownEditor({ value, onChange, suggestions, label, placeholde
       if (next?.start !== current?.start || next?.trigger !== current?.trigger) setActive(0);
       return next;
     });
-  };
-
-  /**
-   * Inserts the chosen reference.
-   * @param {Suggestion} suggestion Chosen item.
-   * @returns {void}
-   */
-  const choose = (suggestion: Suggestion) => {
-    const textarea = textareaRef.current;
-    if (!textarea || !token) return;
-    apply(completeReference(textarea.value, token, textarea.selectionStart, suggestion.reference));
   };
 
   return (

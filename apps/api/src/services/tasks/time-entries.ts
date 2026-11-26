@@ -1,4 +1,4 @@
-import { dayIn, DURATION_MAX_SECONDS, durationSchema, formatDay, formatOptionalDay, parseDay, parseOptionalDay, subtreeOf, TIME_SUBJECT_REQUIRED, timeDescriptionSchema } from '@ordo/shared';
+import { dayIn, DURATION_MAX_SECONDS, durationSchema, formatDay, formatOptionalDay, parseDay, parseOptionalDay, subtreeOf, TIME_START_IN_FUTURE, TIME_SUBJECT_REQUIRED, timeDescriptionSchema, timeEntryFutureError } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, TimeEntry } from '../../generated/prisma/client';
@@ -360,6 +360,19 @@ export interface TimeEntryInput {
 }
 
 /**
+ * Refuses a time added or changed by hand that is not over by now (`timeEntryFutureError`): its start after now
+ * (under `startedAt`), or its end (under `duration`, under `startedAt` when only the start changes).
+ * @param {Date} startedAt Start.
+ * @param {number} seconds Duration (seconds).
+ * @param {boolean} [durationGiven] The duration is given (not kept). Optional. Default = true.
+ * @returns {void}
+ */
+function assertOverByNow(startedAt: Date, seconds: number, durationGiven = true): void {
+  const error = timeEntryFutureError(startedAt, seconds);
+  if (error) throw fieldError(error.field === 'start' || !durationGiven ? 'startedAt' : 'duration', error.message);
+}
+
+/**
  * Adds a time entry by hand.
  * @param {TimeEntryInput & { startedAt: Date, duration: number }} input Entry (at least a project, a task, a routine or an event).
  * @returns {Promise<TimeEntry>} Created entry.
@@ -369,6 +382,7 @@ export async function createTimeEntry(input: TimeEntryInput & { startedAt: Date;
     description: input.description ?? null,
     duration: input.duration,
   });
+  assertOverByNow(input.startedAt, duration);
   const subjects = newSubjects(input);
   const { projectId, events } = await checkedSubjects(input.projectId, subjects);
   return prisma.timeEntry.create({
@@ -402,9 +416,9 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput, wasRunn
     duration: input.duration ?? undefined,
   });
   if (running && duration !== undefined) throw fieldError('duration', 'La durée d’un chrono en cours ne se modifie pas.');
-  if (running && input.startedAt && input.startedAt.getTime() > Date.now()) {
-    throw fieldError('startedAt', 'Le début ne peut pas être dans le futur.');
-  }
+  if (running && input.startedAt && input.startedAt.getTime() > Date.now()) throw fieldError('startedAt', TIME_START_IN_FUTURE);
+  // A finished time whose start or duration changes stays over by now.
+  if (!running && (input.startedAt || duration !== undefined)) assertOverByNow(input.startedAt ?? entry.startedAt, duration ?? entry.duration ?? 0, duration !== undefined);
   // Paused: the time run before the pause (its former pauses left out) may not become negative.
   if (running && input.startedAt && entry.pausedAt && input.startedAt.getTime() + entry.pausedSeconds * 1000 > entry.pausedAt.getTime()) {
     throw fieldError('startedAt', 'Le début doit précéder la pause.');

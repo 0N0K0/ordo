@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { TaskCloseReason } from './task-columns';
+import { REMOVED_FROM_BOARD } from './github-merge';
 
 /** Settings of the link of a project with a GitHub board: the fields synced, their options, what is pushed. */
 // A type (not an interface): a form's values (`useAppForm`) are a record.
@@ -89,4 +90,58 @@ export function goneIssueCloseReason(task: { closedAt: Date | null; closeReason:
   if (snapshot?.closed) return null;
   if (task.closedAt) return task.closeReason ?? 'COMPLETED';
   return 'NOT_PLANNED';
+}
+
+/**
+ * Where a task of a project tree linked to a GitHub board stands: on the board (`SYNCED`), not on GitHub (`NOT_SENT`:
+ * never sent, created before the link without « Envoyer aussi les tâches qui existaient avant la liaison », or waiting
+ * for the next sync), or removed from the board (`REMOVED`: not sent again by the sync).
+ */
+export const GITHUB_TASK_STATES = ['SYNCED', 'NOT_SENT', 'REMOVED'] as const;
+export type GithubTaskState = (typeof GITHUB_TASK_STATES)[number];
+
+/** Names of the GitHub states of a task (its badge, its column). */
+export const GITHUB_TASK_STATE_LABELS: Record<GithubTaskState, string> = {
+  SYNCED: 'Sur GitHub',
+  NOT_SENT: 'Pas sur GitHub',
+  REMOVED: 'Retirée du tableau GitHub',
+};
+
+/**
+ * GitHub state of a task: none outside a project tree linked to a board.
+ * @param {{ githubItemId: string | null, githubContentType: string | null }} task Task.
+ * @param {boolean} linked Its project tree is linked to a board.
+ * @returns {GithubTaskState | null} State.
+ */
+export function githubTaskState(task: { githubItemId: string | null; githubContentType: string | null }, linked: boolean): GithubTaskState | null {
+  if (!linked) return null;
+  if (task.githubItemId) return 'SYNCED';
+  return task.githubContentType === REMOVED_FROM_BOARD ? 'REMOVED' : 'NOT_SENT';
+}
+
+/** Error of any GitHub action without a connection. */
+export const GITHUB_NOT_CONNECTED = 'Connectez d’abord GitHub (Paramètres › GitHub).';
+
+/** Why « Envoyer sur GitHub » is refused for a task. */
+export const GITHUB_SEND_REFUSALS = {
+  unlinked: 'Le projet de cette tâche n’est lié à aucun tableau GitHub.',
+  synced: 'Cette tâche est déjà sur GitHub.',
+  archived: 'Une tâche archivée n’est pas envoyée sur GitHub : restaurez-la d’abord.',
+  disconnected: GITHUB_NOT_CONNECTED,
+} as const;
+
+/**
+ * Why a task cannot be sent to GitHub on request (« Envoyer sur GitHub »), or null when it can: its project tree linked
+ * to a board (in automatic or manual sync), GitHub connected, the task active and not on GitHub (never sent, created
+ * before the link, or removed from the board).
+ * @param {{ archived: boolean, state: GithubTaskState | null }} task Task, with its GitHub state (null: outside a linked tree).
+ * @param {boolean} connected GitHub is connected.
+ * @returns {string | null} Refusal, or null.
+ */
+export function githubSendRefusal(task: { archived: boolean; state: GithubTaskState | null }, connected: boolean): string | null {
+  if (task.state === null) return GITHUB_SEND_REFUSALS.unlinked;
+  if (task.state === 'SYNCED') return GITHUB_SEND_REFUSALS.synced;
+  if (task.archived) return GITHUB_SEND_REFUSALS.archived;
+  if (!connected) return GITHUB_SEND_REFUSALS.disconnected;
+  return null;
 }

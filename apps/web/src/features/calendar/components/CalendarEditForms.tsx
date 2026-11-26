@@ -23,6 +23,22 @@ import { PeriodField } from '../../../components/inputs/PeriodField';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
+ * Note of the panel of a slot opened without choosing which days its changes apply to: read only.
+ * @param {boolean | undefined} ephemeris An éphéméride. Optional.
+ * @returns {string} Note.
+ */
+const slotReadingNote = (ephemeris?: boolean): string => `Lecture seule : aucune portée n’a été choisie à l’ouverture. Fermez le panneau et rouvrez-le pour modifier ${slotWords(ephemeris).the}.`;
+
+/**
+ * What the changes of the panel of a slot apply to, by the scope chosen when it opened.
+ * @param {CalendarEventScope} scope Scope.
+ * @param {boolean | undefined} ephemeris An éphéméride. Optional.
+ * @returns {string} Note.
+ */
+const slotScopeNote = (scope: CalendarEventScope, ephemeris?: boolean): string =>
+  scope === 'THIS' ? `Ce jour seulement : c’est une exception, les autres jours ${slotWords(ephemeris).of} ne changent pas.` : scope === 'FOLLOWING' ? 'Ce jour et les suivants.' : 'Tous les jours de ces horaires.';
+
+/**
  * Panel of a slot of a schedule (a créneau or an éphéméride, in its own words) from the calendar: its day and hours (or the whole day), each saved as soon as it
  * changes for the days chosen when the panel opened (`scope`: this day, an exception; it and the
  * following ones; all; null: none chosen, read only); occurrences of routines a change makes disappear confirmed first
@@ -121,21 +137,15 @@ export function SlotEditForm({
   );
 }
 
-/**
- * Note of the panel of a slot opened without choosing which days its changes apply to: read only.
- * @param {boolean | undefined} ephemeris An éphéméride. Optional.
- * @returns {string} Note.
- */
-const slotReadingNote = (ephemeris?: boolean): string => `Lecture seule : aucune portée n’a été choisie à l’ouverture. Fermez le panneau et rouvrez-le pour modifier ${slotWords(ephemeris).the}.`;
+/** Panel of a routine occurrence opened without choosing which occurrences its changes apply to: read only. */
+const READING_NOTE = 'Lecture seule : aucune portée n’a été choisie à l’ouverture. Fermez le panneau et rouvrez-le pour modifier l’occurrence.';
 
-/**
- * What the changes of the panel of a slot apply to, by the scope chosen when it opened.
- * @param {CalendarEventScope} scope Scope.
- * @param {boolean | undefined} ephemeris An éphéméride. Optional.
- * @returns {string} Note.
- */
-const slotScopeNote = (scope: CalendarEventScope, ephemeris?: boolean): string =>
-  scope === 'THIS' ? `Ce jour seulement : c’est une exception, les autres jours ${slotWords(ephemeris).of} ne changent pas.` : scope === 'FOLLOWING' ? 'Ce jour et les suivants.' : 'Tous les jours de ces horaires.';
+/** What the changes of the panel of a routine occurrence apply to, by the scope chosen when it opened. */
+const SCOPE_NOTES: Record<CalendarEventScope, string> = {
+  THIS: 'Cette occurrence seulement : c’est une exception, la règle ne change pas.',
+  FOLLOWING: 'Cette occurrence et les suivantes.',
+  ALL: 'Toutes les occurrences.',
+};
 
 /** Day and times of one time of the day of a routine occurrence, as its panel edits them. */
 interface OccurrenceValues extends Record<string, unknown> {
@@ -288,7 +298,7 @@ export function RoutineOccurrenceForm({
           doneAt={currentSlot?.doneAt ?? null}
           optional={currentSlot?.optional}
           // Its tick is read from the occurrence of the cache: none there (being reloaded), nothing to tick from.
-          disabled={!opened || !currentSlot}
+          disabled={!opened || !currentSlot || Boolean(cachedRoutine?.hasSubRoutines)}
           target={{ dueDate: current?.dueDate ?? occurrence.dueDate, fromTime: currentSlot?.fromTime ?? occurrence.slot.fromTime, dueTime: currentSlot?.dueTime ?? occurrence.slot.dueTime }}
         />
         <Text size="sm">{currentSlot?.doneAt ? fmt.capitalize(doneAtText(currentSlot.doneAt)) : opened ? 'À faire' : 'Pas encore ouverte'}</Text>
@@ -309,13 +319,3 @@ export function RoutineOccurrenceForm({
     </Stack>
   );
 }
-
-/** Panel of a routine occurrence opened without choosing which occurrences its changes apply to: read only. */
-const READING_NOTE = 'Lecture seule : aucune portée n’a été choisie à l’ouverture. Fermez le panneau et rouvrez-le pour modifier l’occurrence.';
-
-/** What the changes of the panel of a routine occurrence apply to, by the scope chosen when it opened. */
-const SCOPE_NOTES: Record<CalendarEventScope, string> = {
-  THIS: 'Cette occurrence seulement : c’est une exception, la règle ne change pas.',
-  FOLLOWING: 'Cette occurrence et les suivantes.',
-  ALL: 'Toutes les occurrences.',
-};

@@ -1,4 +1,4 @@
-import { ROUTINE_REPETITIONS, ROUTINE_STATES, readOpens, routineCaseOn, type RoutineCase } from '@ordo/shared';
+import { ROUTINE_REPETITIONS, ROUTINE_STATES, readOpens, routineCaseOn, type RoutineCase, type RoutineGroupState } from '@ordo/shared';
 import { occurrenceOpensText, opensText } from './opens-format';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import type { Routine, RoutineCategory, RoutineOccurrence } from '../api';
@@ -75,4 +75,6 @@ export interface RoutineEnv {
   slotKinds?: { value: string; label: string }[];
   /** People routines can be for, to filter on. Optional. */
   beneficiaries?: { value: string; label: string }[];
+  /** Today's state of the parent routines present today (`routineGroupStatesOn`). Optional. Default = none. */
+  groupStates?: ReadonlyMap<string, RoutineGroupState>;
 }

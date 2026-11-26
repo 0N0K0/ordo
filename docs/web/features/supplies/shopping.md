@@ -169,7 +169,7 @@ Champs de formulaire partagés par les achats et le stock.
 
 ### `components/ShoppingProgressBadge.tsx`
 
-- `ShoppingProgressBadge({ items })` : badge « achetés / requis » (`shoppingProgress`), vert quand tout est acheté. Utilisé par `ShoppingPage` et `TaskShopping`.
+- `ShoppingProgressBadge({ items })` : badge « achetés/requis » (`ProgressBadge`, gris, montré même à « 0/0 » ; infobulle « 3 achetées sur 5 requises » ; `shoppingProgress`), vert quand tout est acheté. Utilisé par `ShoppingPage` et `TaskShopping`.
 
 ### `components/Shopping.module.css`
 

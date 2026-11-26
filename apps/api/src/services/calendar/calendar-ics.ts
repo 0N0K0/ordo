@@ -1,4 +1,4 @@
-import { addDays, dayOfMonthOf, daysBetween, fileName, formatDay, minutesBeforeMoment, readReminders, reminderAnchorOf, occurrenceDates, type ItemLink, type Recurrence, ruleValues, storedRecurrence, weekdayOfDate, zonedInstant } from '@ordo/shared';
+import { addDays, dayOfMonthOf, daysBetween, fileName, formatDay, minutesBeforeMoment, readReminders, reminderAnchorOf, occurrenceDates, type ItemLink, type Recurrence, rhythmInterval, ruleValues, storedRecurrence, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import { orNotFound } from '../../graphql/errors';
 import { occurrenceInclude, toOccurrence, type EventWithRelations } from './calendar-events';
@@ -99,12 +99,14 @@ function clampedDates(rule: Recurrence, start: string, until: string | null): st
 function rrule(rule: Recurrence, start: string, time: string | null): string[] {
   // Values of the monthly and yearly modes: chosen, else those of the first date.
   const values = ruleValues(rule, start);
-  // Even or odd weeks: every other week from a first date of the right week (`parityDates` fixes the years of 53 weeks).
-  const parts = [`FREQ=${rule.frequency}`, `INTERVAL=${rule.frequency === 'WEEKLY' && rule.weekParity ? 2 : rule.interval}`];
+  // Even or odd weeks: every other week (every 2n weeks for one out of n) from a first date of the right week
+  // (`parityDates` fixes the years of 53 weeks).
+  const parts = [`FREQ=${rule.frequency}`, `INTERVAL=${rhythmInterval(rule)}`];
   if (rule.frequency === 'WEEKLY') {
     parts.push(`BYDAY=${(rule.weekdays.length ? rule.weekdays : [weekdayOfDate(start)]).map((day) => WEEKDAYS[day - 1]).join(',')}`, 'WKST=MO');
   }
   if (rule.frequency === 'MONTHLY') {
+    // A weekday of an even or odd week of the month: the nth weekday of the month (`parityDates` fixes the others).
     if (rule.monthlyMode === 'WEEKDAY') parts.push(`BYDAY=${values.position}${WEEKDAYS[values.weekday - 1]}`);
     else parts.push(`BYMONTHDAY=${values.monthDay}`);
   }
@@ -138,8 +140,26 @@ function excludedDates(rule: Recurrence, start: string, cancelled: string[]): st
 }
 
 /**
- * Dates where a rule of even or odd weeks and its iCalendar rule (every other week from its first date) differ, up to
- * its end or the horizon: after a year of 53 weeks the parity of the weeks no longer alternates.
+ * Rule written as the iCalendar rule of a rule iCalendar cannot tell (`rrule`): even or odd weeks, every other week
+ * (every 2n weeks for one out of n) from its first date; a weekday of an even or odd week of the month, the nth
+ * weekday of the month. None for the others (written exactly).
+ * @param {Recurrence} rule Rule (without end, excluded dates nor pauses).
+ * @param {string} start First date.
+ * @returns {Recurrence | null} Rule, or null.
+ */
+function icsApproximation(rule: Recurrence, start: string): Recurrence | null {
+  if (rule.frequency === 'WEEKLY' && rule.weekParity) return { ...rule, weekParity: null, parityInterval: null, interval: rhythmInterval(rule) };
+  if (rule.frequency === 'MONTHLY' && rule.monthlyMode === 'WEEKDAY' && rule.weekdayParity) {
+    const values = ruleValues(rule, start);
+    return { ...rule, weekdayParity: null, position: values.position, weekday: values.weekday };
+  }
+  return null;
+}
+
+/**
+ * Dates where a rule iCalendar cannot tell (even or odd weeks, a weekday of an even or odd week of the month) and its
+ * iCalendar rule (`icsApproximation`) differ, up to its end or the horizon: after a year of 53 weeks the parity of
+ * the weeks no longer alternates; the nth weekday of a month is not always in a week of that parity.
  * @param {Recurrence} rule Rule.
  * @param {string} start First date (in a week of the right parity).
  * @param {string | null} until Last date, if any (a number of occurrences: up to the last one).
@@ -147,14 +167,15 @@ function excludedDates(rule: Recurrence, start: string, cancelled: string[]): st
  * of Ordo it does not have (RDATE).
  */
 function parityDates(rule: Recurrence, start: string, until: string | null): { extra: string[]; missing: string[] } {
-  if (rule.frequency !== 'WEEKLY' || !rule.weekParity) return { extra: [], missing: [] };
+  const bare = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
+  const approximation = icsApproximation(bare, start);
+  if (!approximation) return { extra: [], missing: [] };
   const horizon = addDays(start, 366 * HORIZON_YEARS);
   // A number of occurrences: up to the last one.
   const end = rule.count !== null ? (occurrenceDates(rule, start, start, addDays(start, 366 * 100)).at(-1) ?? start) : until;
   const last = end && end < horizon ? end : horizon;
-  const bare = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
   const ordo = new Set(occurrenceDates(bare, start, start, last));
-  const ics = new Set(occurrenceDates({ ...bare, weekParity: null, interval: 2 }, start, start, last));
+  const ics = new Set(occurrenceDates(approximation, start, start, last));
   return { extra: [...ics].filter((date) => !ordo.has(date)), missing: [...ordo].filter((date) => !ics.has(date)) };
 }
 

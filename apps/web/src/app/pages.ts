@@ -13,6 +13,7 @@ import {
   GearSixIcon,
   HouseIcon,
   ReceiptIcon,
+  SunIcon,
   TimerIcon,
   UserCircleIcon,
   type Icon,
@@ -30,6 +31,7 @@ interface AppPage {
 /** Pages of the app, one place for their names and icons (clients and projects show their own). */
 export const PAGES = {
   home: { path: APP_PATHS.home, label: 'Accueil', icon: HouseIcon },
+  myDay: { path: '/my-day', label: 'Ma journée', icon: SunIcon },
   tasks: { path: APP_PATHS.tasks, label: 'Tâches', icon: CheckSquareOffsetIcon },
   routines: { path: APP_PATHS.routines, label: 'Routines', icon: ArrowsClockwiseIcon },
   calendar: { path: APP_PATHS.calendar, label: 'Agenda', icon: CalendarBlankIcon },
@@ -153,13 +155,6 @@ export const SHOPPING_LISTS_PATH = `${PAGES.shopping.path}?tab=lists`;
  * @returns {string} Path.
  */
 export const timePath = (taskId: string): string => `${PAGES.time.path}?task=${taskId}`;
-
-/**
- * History of a routine, on the routines page.
- * @param {string} routineId Routine.
- * @returns {string} Path.
- */
-export const routineHistoryPath = (routineId: string): string => `${PAGES.routines.path}?tab=history&routine=${routineId}`;
 
 /** Parameter of the address opening the settings of a page (closed without it). */
 export const SETTINGS_PARAM = 'settings';

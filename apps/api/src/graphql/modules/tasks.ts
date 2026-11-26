@@ -11,10 +11,11 @@ import { iconUrl } from '../../services/core/icons';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
 import * as tasks from '../../services/tasks/tasks';
-import { parseOptionalDay, readSlotCondition, readTaskHours, sumOf, TASK_CLOSE_REASONS, TASK_STATUS_CATEGORIES, taskFieldOrigin, VIEW_KINDS, type EffectiveTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
+import { parseOptionalDay, readSlotCondition, readTaskHours, sumOf, TASK_CLOSE_REASONS, TASK_STATUS_CATEGORIES, taskFieldOrigin, VIEW_KINDS, type EffectiveTask, type TaskInheritableField } from '@ordo/shared';
 import { effectiveTaskOf, loadTaskInheritance } from '../../services/tasks/task-inheritance';
 import { FieldOriginRef, InheritSourceEnum, TaskInheritableFieldEnum } from '../inheritance-fields';
 import type { Context } from '../context';
+import { perRequest } from '../batch';
 import * as workspaces from '../../services/workspaces/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
 import { TaskTransferResult, transferResult } from '../removed-links';
@@ -221,11 +222,11 @@ builder.prismaObject('TaskComment', {
     id: t.exposeID('id'),
     body: t.exposeString('body'),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
-    githubAuthor: t.exposeString('githubAuthor', { nullable: true, description: 'Author on GitHub, when someone else than the connected account.' }),
   }),
 });
 
-const inheritanceContexts = new WeakMap<Context, Promise<TaskInheritanceContext>>();
+/** Inheritance of the tasks of the workspace, loaded once per request. */
+const inheritanceOf = perRequest(loadTaskInheritance);
 
 /**
  * Task as it goes (`effectiveTask`), the inheritance of the workspace loaded once per request (after its
@@ -235,9 +236,7 @@ const inheritanceContexts = new WeakMap<Context, Promise<TaskInheritanceContext>
  * @returns {Promise<EffectiveTask>} Effective task.
  */
 async function goesBy(ctx: Context, id: string): Promise<EffectiveTask> {
-  let context = inheritanceContexts.get(ctx);
-  if (!context) inheritanceContexts.set(ctx, (context = loadTaskInheritance()));
-  const task = effectiveTaskOf(await context, id);
+  const task = effectiveTaskOf(await inheritanceOf(ctx), id);
   if (!task) throw new Error(`Task ${id} missing from its workspace.`);
   return task;
 }

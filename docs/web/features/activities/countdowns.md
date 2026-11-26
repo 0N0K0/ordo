@@ -47,10 +47,6 @@ Interne : `useCountdownMutation`.
 - `DeadTimesField({ value, onChange, item, disabled? })` : champ « Temps morts » d’une tâche (`TaskPanel`) ou d’une routine (`RoutineForm`) : une ligne par temps mort (libellé, durée tapée `durationText` / `parseDuration`, `RingtoneSelect`, « Lancer », « Retirer »), « Ajouter un temps mort » (`DEAD_TIMES_MAX`) ; les lignes valides sont enregistrées en quittant leurs champs (`onChange`) ; une ligne quittée invalide (son erreur dessous) retient l’enregistrement jusqu’à être corrigée ou retirée, une nouvelle ligne pas encore quittée reste à part ; un enregistrement d’ailleurs remplace les lignes enregistrées. Les minuteurs lancés pour l’élément (`countdownOf`) dessous.
 - Internes : `DeadTimeRow`, `rowOf`, `deadTimeOf`, `LABEL_REQUIRED`.
 
-### `components/CountdownLaunchButtons.tsx`
-
-- `CountdownLaunchButtons({ deadTimes?, savedCountdownIds?, item })` : un bouton « Lancer « Lave-linge (1 h 30) » » par temps mort (le formulaire) et par minuteur enregistré (aussitôt), là où il n’y a pas de menu (panneau d’un moment de l’agenda du jour des routines) ; `useItemLaunchers`.
-
 ### `components/SavedCountdownsField.tsx`
 
 - `SavedCountdownsField({ target, id, value, invalidate, readOnly?, description?, onSaved? })` : champ « Minuteurs » d’une tâche (`TaskPanel`), d’une routine (`RoutineForm`), d’un évènement (`EventForm`, toute la série) et d’une fiche (`SheetPage`) : `BatchMultiSelect` des minuteurs enregistrés (`listSelectProps`, les archivés non proposés sauf ceux déjà là, `timerLabel`), enregistré dès qu’il change (`useSetSavedCountdownLinks`), montré aussitôt et remis comme il était sur un échec ; « Enregistrez d’abord l’élément. » sans `id`.
@@ -66,8 +62,8 @@ Interne : `useCountdownMutation`.
 - `ItemLaunchers` (type) : ce qu’un élément lance (`deadTimes`, `savedCountdownIds`).
 - `linkedSavedCountdowns(all, ids)` : les minuteurs enregistrés d’un élément, dans l’ordre de la liste, sans les archivés.
 - `useStartSavedCountdown()` : lance un minuteur enregistré aussitôt (nom, durée, sonnerie), seul ou pour un élément ; toast « Minuteur lancé : 9 min. ».
-- `useItemLaunchers()` : les lanceurs d’un élément (libellé `timerLabel`, action) : les temps morts ouvrent le formulaire, les minuteurs enregistrés démarrent aussitôt. Utilisé par `useCountdownMenuEntries`, `CountdownLaunchButtons`.
-- `useCountdownMenuEntries()` : entrées du menu « … » d’un élément, sections « Temps morts » et « Minuteurs », « Lancer « … » » ; rien sans eux. Utilisé par `useTaskActions`, `RoutinesPage`, `RoutineForm`, `EventForm`, `SheetPage`.
+- `useItemLaunchers()` : les lanceurs d’un élément (libellé `timerLabel`, action) : les temps morts ouvrent le formulaire, les minuteurs enregistrés démarrent aussitôt. Utilisé par `useCountdownMenuEntries`.
+- `useCountdownMenuEntries()` : entrées du menu « … » d’un élément, sections « Temps morts » et « Minuteurs », « Lancer « … » » ; rien sans eux. Utilisé par `useTaskActions`, `useRoutineOccurrenceMenu`, `RoutineForm`, `useEventMenu`, `SheetPage`.
 - `SavedCountdownExtra` (type), `useSavedCountdownItems()` : la liste et le formulaire des minuteurs enregistrés (`SettingsItemKind` : « Nom », « Durée » tapée enregistrée en la quittant, « Sonnerie » `RingtoneSelect` ; `savedCountdownFormSchema`, minutes par `parseDuration`).
 
 ### `hooks/use-countdown-ringer.ts`

@@ -13,15 +13,16 @@ interface MovedTimes {
 /**
  * Moves an occurrence of a routine to another day and / or other times (an exception to its rule), with a toast
  * offering to undo it.
- * @returns {(routine: Routine, to: string, date?: string | null, onDone?: () => void, times?: MovedTimes) => void} Mover:
- *   the occurrence moved is the one given, by default the current one (the next one once ticked).
+ * @returns {(routine: Routine, to: string, date?: string | null, onDone?: () => void, times?: MovedTimes, dueDate?: string | null) => void} Mover:
+ *   the occurrence moved is the one given, by default the current one (the next one once ticked); its due day, when
+ *   known (an occurrence read from the API), else the one `dueDayOf` reads from its routine.
  */
 export function useRoutineMove() {
   const { moveOccurrence, removeMove } = useRoutineMutations();
-  return (routine: Routine, to: string, date: string | null = movableOccurrence(routine), onDone?: () => void, times?: MovedTimes) => {
+  return (routine: Routine, to: string, date: string | null = movableOccurrence(routine), onDone?: () => void, times?: MovedTimes, dueDate?: string | null) => {
     if (!date) return;
     // The day it is on now (its identity stays the day of its rule when it was kept apart on another one's day).
-    const due = dueDayOf(routine, date);
+    const due = dueDate ?? dueDayOf(routine, date);
     const what = to === due ? 'à d’autres horaires' : `${to > due ? 'reportée' : 'avancée'} au ${fmt.dayLong(to)}${times ? ', à d’autres horaires' : ''}`;
     moveOccurrence.mutate(
       { id: routine.id, date, to, times: times?.times },
@@ -44,12 +45,14 @@ export function useRoutineMove() {
 }
 
 /**
- * Postpones the occurrence of a routine to the next day (the current one, the next one once ticked).
- * @returns {(routine: Routine) => void} Postponer.
+ * Postpones an occurrence of a routine to the day after its due day: the one given, by default the current one (the
+ * next one once ticked).
+ * @returns {(routine: Routine, occurrence?: { date: string, dueDate: string }) => void} Postponer.
  */
 export function usePostponeRoutine() {
   const move = useRoutineMove();
-  return (routine: Routine) => {
+  return (routine: Routine, occurrence?: { date: string; dueDate: string }) => {
+    if (occurrence) return move(routine, addDays(occurrence.dueDate, 1), occurrence.date, undefined, undefined, occurrence.dueDate);
     const date = movableOccurrence(routine);
     if (date) move(routine, addDays(dueDayOf(routine, date), 1), date);
   };

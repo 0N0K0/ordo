@@ -6,6 +6,8 @@ import {
   snapshotIterationValue,
   mergeValues,
   commentToPublish,
+  sameGithubLogin,
+  shownGithubAuthor,
   REMOVED_FROM_BOARD,
   issueAddress,
   itemParentValue,
@@ -317,19 +319,48 @@ describe('address of an issue', () => {
 
 describe('comments published on an issue', () => {
   it('a comment written in Ordo, never sent', () => {
-    expect(commentToPublish({ githubCommentId: null, githubAuthor: null })).toBe(true);
+    expect(commentToPublish({ githubCommentId: null, githubAuthor: null }, 'me')).toBe(true);
   });
 
-  it('not a comment already sent, nor one of someone else whose issue was forgotten', () => {
-    expect(commentToPublish({ githubCommentId: 'c1', githubAuthor: null })).toBe(false);
-    expect(commentToPublish({ githubCommentId: null, githubAuthor: 'octo' })).toBe(false);
+  it('not a comment already sent, nor one of another account whose issue was forgotten', () => {
+    expect(commentToPublish({ githubCommentId: 'c1', githubAuthor: null }, 'me')).toBe(false);
+    expect(commentToPublish({ githubCommentId: 'c1', githubAuthor: 'me' }, 'me')).toBe(false);
+    expect(commentToPublish({ githubCommentId: null, githubAuthor: 'octo' }, 'me')).toBe(false);
   });
 
-  it('after an unlink: the comments of the account connected are published again, those of someone else are not', () => {
+  it('after an unlink: the comments of the account connected are published again, those of another account are not', () => {
     // The unlink clears the GitHub comment and the last synchronized body, and keeps the author.
     const unlinked = (comment: { githubCommentId: string | null; githubBody: string | null; githubAuthor: string | null }) => ({ ...comment, githubCommentId: null, githubBody: null });
-    expect(commentToPublish(unlinked({ githubCommentId: 'c1', githubBody: 'Mine', githubAuthor: null }))).toBe(true);
-    expect(commentToPublish(unlinked({ githubCommentId: 'c2', githubBody: 'Theirs', githubAuthor: 'octo' }))).toBe(false);
+    expect(commentToPublish(unlinked({ githubCommentId: 'c1', githubBody: 'Mine', githubAuthor: 'me' }), 'me')).toBe(true);
+    expect(commentToPublish(unlinked({ githubCommentId: 'c1', githubBody: 'Mine', githubAuthor: 'Me' }), 'me')).toBe(true);
+    expect(commentToPublish(unlinked({ githubCommentId: 'c2', githubBody: 'Theirs', githubAuthor: 'octo' }), 'me')).toBe(false);
+  });
+
+  it('the token replaced by one of another account: the comments of the former account are not published under the new one', () => {
+    expect(commentToPublish({ githubCommentId: null, githubAuthor: 'former' }, 'new')).toBe(false);
+  });
+
+  it('a comment without author recorded (synchronized before authors were recorded) is taken as written in Ordo', () => {
+    expect(commentToPublish({ githubCommentId: null, githubAuthor: null }, 'new')).toBe(true);
+  });
+});
+
+describe('GitHub author shown on a comment', () => {
+  it('another account: shown', () => {
+    expect(shownGithubAuthor('octo', 'me')).toBe('octo');
+    expect(shownGithubAuthor('octo', null)).toBe('octo');
+  });
+
+  it('the account connected (whatever its case), or none: not shown', () => {
+    expect(shownGithubAuthor('me', 'me')).toBeNull();
+    expect(shownGithubAuthor('ME', 'me')).toBeNull();
+    expect(shownGithubAuthor(null, 'me')).toBeNull();
+  });
+
+  it('same login: never for a missing one', () => {
+    expect(sameGithubLogin('Octo', 'octo')).toBe(true);
+    expect(sameGithubLogin(null, null)).toBe(false);
+    expect(sameGithubLogin('octo', null)).toBe(false);
   });
 });
 

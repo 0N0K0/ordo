@@ -4,7 +4,7 @@ import { Prisma, type GithubProjectLink } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound } from '../../graphql/errors';
 import { encryptSecret } from '../mail/secret';
 import { repositoryByName, resolveBoard, viewerLogin, type Board } from './board';
-import { githubToken } from './client';
+import { FORGOTTEN_TOKEN, githubToken } from './client';
 import { currentWorkspaceId } from '../../workspace-context';
 import { assertActive } from '../core/archive';
 import { toJson } from '../core/json';
@@ -24,11 +24,12 @@ export async function setGithubToken(token: string): Promise<string> {
 }
 
 /**
- * Forgets the token (the links stay, their sync stops).
+ * Forgets the token (the links stay, their sync stops); the login is kept as the last one known (`knownGithubLogin`),
+ * until another token replaces it.
  * @returns {Promise<void>}
  */
 export async function removeGithubToken(): Promise<void> {
-  await prisma.githubConnection.deleteMany({ where: { workspaceId: currentWorkspaceId() } });
+  await prisma.githubConnection.updateMany({ where: { workspaceId: currentWorkspaceId() }, data: { token: FORGOTTEN_TOKEN } });
 }
 
 /**

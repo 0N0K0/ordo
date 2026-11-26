@@ -7,18 +7,21 @@ import type { GoneOccurrences } from '../../services/tasks/time-entries';
 import { builder, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
 import { deletedTreeIds, subtreeIds } from '../../services/core/trees';
-import { goneOccurrences, placeLegacyEventComments } from '../../services/calendar/calendar-events';
+import { goneOccurrences, placeLegacyEventComments, routineLinksGoneWhere } from '../../services/calendar/calendar-events';
 import { followingOccurrencesGone, placeLegacyRoutineComments } from '../../services/routines/routines';
 import { calendarEventsGone } from '../../services/calendar/calendars';
 import { EventScope } from './calendar';
 import { reloaded } from '../reload';
 import { commentsLostOnDelete } from '../../services/core/comments';
+import { routineLinksLost, startedChecklistsLost, type OccurrenceLoss } from '../../services/core/occurrence-rows';
 
-const LostOnDeleteRef = builder.objectRef<{ times: number; comments: number }>('LostOnDelete').implement({
+const LostOnDeleteRef = builder.objectRef<OccurrenceLoss>('LostOnDelete').implement({
   description: 'What a deletion takes with it, for its confirmation.',
   fields: (t) => ({
     times: t.exposeInt('times', { description: 'Times without project, not billed, left with nothing attached.' }),
     comments: t.exposeInt('comments', { description: 'Comments of the items and occurrences deleted.' }),
+    checklists: t.exposeInt('checklists', { description: 'Checklists started (one item ticked at least) of the items and occurrences deleted; those not started go too, uncounted.' }),
+    links: t.exposeInt('links', { description: 'Links between routines and events of the items and occurrences deleted.' }),
   }),
 });
 
@@ -182,9 +185,10 @@ const alarmInput = (input: typeof AlarmInput.$inferInput) => ({
 builder.queryFields((t) => ({
   timeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description: 'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since). Timers past their 24 hours are stopped first.',
-    args: { projectId: t.arg.id(), routineId: t.arg.id(), since: t.arg({ type: 'DateTime' }) },
-    resolve: async (query, _root, { projectId, routineId, since }) => {
+    description:
+      'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those not ended before a moment (started since, running, or ended since), and only those started before a moment (until). Timers past their 24 hours are stopped first.',
+    args: { projectId: t.arg.id(), routineId: t.arg.id(), since: t.arg({ type: 'DateTime' }), until: t.arg({ type: 'DateTime', description: 'Only those started before this moment (with since: those meeting the period).' }) },
+    resolve: async (query, _root, { projectId, routineId, since, until }) => {
       // The timers past their 24 hours are stopped first: read stopped, without waiting for the background task.
       await timeEntries.capRunningTimers();
       const projectIds = projectId ? await subtreeIds('project', projectId) : undefined;
@@ -195,6 +199,7 @@ builder.queryFields((t) => ({
           ...(routineId ? { routines: { some: { id: routineId } } } : {}),
           // Those crossing the moment too (a timer running past midnight, started the evening before).
           ...(since ? { OR: [{ startedAt: { gte: since } }, { endedAt: null }, { endedAt: { gte: since } }] } : {}),
+          ...(until ? { startedAt: { lt: until } } : {}),
         },
         orderBy: { startedAt: 'desc' },
       });
@@ -203,7 +208,7 @@ builder.queryFields((t) => ({
   lostOnDelete: t.field({
     type: LostOnDeleteRef,
     description:
-      'What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the times without project, not billed, left with nothing attached, and the comments of the routines, events and occurrences deleted.',
+      'What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the times without project, not billed, left with nothing attached, and the comments, started checklists and links between routines and events of the tasks, routines, events and occurrences deleted.',
     args: {
       taskIds: t.arg.idList(),
       routineIds: t.arg.idList(),
@@ -223,14 +228,20 @@ builder.queryFields((t) => ({
       if (routineOccurrence) await placeLegacyRoutineComments([routineOccurrence.id]);
       if (eventId) await placeLegacyEventComments([eventId]);
       const events: GoneOccurrences[] = [...(eventId ? [await goneOccurrences(eventId, scope ?? 'ALL', occurrenceDate)] : []), ...(calendarId ? await calendarEventsGone(calendarId) : [])];
-      const times = await timeEntries.timeLeftEmpty({ taskIds: await deletedTreeIds('task', taskIds ?? [], withSubtree ?? false), routineIds: routinesGone, events });
-      const comments = await commentsLostOnDelete({
+      const tasksGone = await deletedTreeIds('task', taskIds ?? [], withSubtree ?? false);
+      const times = await timeEntries.timeLeftEmpty({ taskIds: tasksGone, routineIds: routinesGone, events });
+      const gone = {
         routineIds: routinesGone,
-        // A cancelled occurrence stays shown with its comments: only the following ones deleted lose theirs.
+        // A cancelled occurrence stays shown with its rows: only the following ones deleted lose theirs.
         routines: routineOccurrence?.scope === 'FOLLOWING' ? await followingOccurrencesGone(routineOccurrence.id, routineOccurrence.date) : [],
-        events: events.map((gone) => ({ id: gone.eventId, on: gone.on, from: gone.from })),
-      });
-      return { times: times.length, comments };
+        events: events.map((item) => ({ id: item.eventId, on: item.on, from: item.from })),
+      };
+      return {
+        times: times.length,
+        comments: await commentsLostOnDelete(gone),
+        checklists: await startedChecklistsLost(gone, tasksGone),
+        links: await routineLinksLost(gone, await Promise.all(events.map(routineLinksGoneWhere))),
+      };
     },
   }),
   runningTimeEntries: t.prismaField({

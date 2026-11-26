@@ -3,7 +3,7 @@ import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
 import { releaseSubjectTime, timeLeftEmpty } from '../tasks/time-entries';
-import { commentsLostOnDelete, deleteGoneComments, type GoneCommentOccurrences, type GoneComments } from './comments';
+import { commentsLostOnDelete, deleteGoneComments, goneOccurrenceRowsWhere, type CommentSnapshot, type GoneCommentOccurrences, type GoneComments } from './comments';
 import { modelDelegate } from './delegate';
 
 /**
@@ -137,43 +137,94 @@ export async function putOccurrenceRows(owner: OccurrenceOwner, rowIds: readonly
 }
 
 /**
- * Days of the occurrences of an item that have rows (comments, links of times), one-off occurrence (no day) aside.
+ * Days of the occurrences of an item that have rows (comments, links of times, checklists, links of a routine with
+ * events), one-off occurrence (no day) aside.
  * @param {OccurrenceOwner} owner Column of the item (`eventId`, `routineId`).
  * @param {string} id Item.
  * @returns {Promise<string[]>} Days, in order.
  */
 async function occurrenceRowDays(owner: OccurrenceOwner, id: string): Promise<string[]> {
   const days = new Set<string>();
-  // What a lost occurrence loses: its comments and the links of its times.
-  for (const { model } of OCCURRENCE_ROWS[owner].filter((item) => item.model === 'comment' || item.model === 'timeEntryEvent')) {
-    const rows = await modelDelegate<OccurrenceRowDelegate>(model).findMany({ where: { [owner]: id, occurrenceDate: { not: null } }, select: { id: true, occurrenceDate: true } });
-    for (const row of rows) days.add(formatOptionalDay(row.occurrenceDate as Date | null)!);
+  for (const { model, day = 'occurrenceDate' } of OCCURRENCE_ROWS[owner]) {
+    const rows = await modelDelegate<OccurrenceRowDelegate>(model).findMany({ where: { [owner]: id, ...(day === 'occurrenceDate' && { occurrenceDate: { not: null } }) }, select: { id: true, [day]: true } });
+    // A one-off occurrence (no day) aside; the links of a routine always have one.
+    for (const row of rows) if (row[day]) days.add(formatOptionalDay(row[day] as Date)!);
   }
   return [...days].sort();
 }
 
-/** What a change does once it is saved (the comments of the occurrences it made disappear deleted). */
+/**
+ * Checklists started (one item ticked at least) that a deletion takes: those of the tasks and routines deleted, and of
+ * the occurrences deleted (those not started go too, uncounted).
+ * @param {GoneComments} gone Routines and occurrences deleted.
+ * @param {readonly string[]} [taskIds] Tasks deleted. Optional. Default = none.
+ * @returns {Promise<number>} Checklists.
+ */
+export async function startedChecklistsLost(gone: GoneComments, taskIds: readonly string[] = []): Promise<number> {
+  const any = [...goneOccurrenceRowsWhere(gone), ...(taskIds.length ? [{ taskId: { in: [...taskIds] } }] : [])] as Prisma.ChecklistWhereInput[];
+  return any.length ? prisma.checklist.count({ where: { OR: any, items: { some: { checkedAt: { not: null } } } } }) : 0;
+}
+
+/**
+ * Links between routines and events that a deletion takes: those of the routines deleted and of their occurrences
+ * deleted (by the day of the routine's occurrence), and those of the events (or their occurrences) given, each once.
+ * @param {GoneComments} gone Routines and occurrences of routines deleted (those of events: `eventLinks`).
+ * @param {readonly Prisma.CalendarEventRoutineWhereInput[]} [eventLinks] Links of the events or occurrences of events deleted. Optional. Default = none.
+ * @returns {Promise<number>} Links.
+ */
+export async function routineLinksLost(gone: Pick<GoneComments, 'routineIds' | 'routines'>, eventLinks: readonly Prisma.CalendarEventRoutineWhereInput[] = []): Promise<number> {
+  const any = [...(goneOccurrenceRowsWhere(gone, 'date') as Prisma.CalendarEventRoutineWhereInput[]), ...eventLinks];
+  return any.length ? prisma.calendarEventRoutine.count({ where: { OR: any } }) : 0;
+}
+
+/**
+ * Deletes the rows of occurrences deleted: their comments, their checklists and, for a routine, its links with events
+ * (by the day of its occurrence; those of the occurrences of an event: `goneRoutineLinks`). Whole items: in cascade.
+ * @param {GoneComments} gone Occurrences deleted.
+ * @param {Prisma.TransactionClient} [client] Client or transaction. Optional. Default = the client of the workspace.
+ * @returns {Promise<CommentSnapshot[]>} Comments deleted, oldest first (for an undo).
+ */
+export async function deleteGoneOccurrenceRows(gone: GoneComments, client: Prisma.TransactionClient = prisma): Promise<CommentSnapshot[]> {
+  const comments = await deleteGoneComments(gone, client);
+  const occurrences = { routines: gone.routines, events: gone.events };
+  const checklists = goneOccurrenceRowsWhere(occurrences) as Prisma.ChecklistWhereInput[];
+  if (checklists.length) await client.checklist.deleteMany({ where: { OR: checklists } });
+  const links = goneOccurrenceRowsWhere({ routines: gone.routines }, 'date') as Prisma.CalendarEventRoutineWhereInput[];
+  if (links.length) await client.calendarEventRoutine.deleteMany({ where: { OR: links } });
+  return comments;
+}
+
+/** What a change does once it is saved (the comments, checklists and links of the occurrences it made disappear deleted). */
 export type AfterSave = () => Promise<void>;
 
 /** Nothing to do once saved. */
 export const NOTHING_AFTER: AfterSave = async () => {};
 
-/** What a change of rule takes from the occurrences it makes disappear, and how to delete it. */
-export interface LostOccurrences {
+/** What a change, or a deletion, takes from the occurrences, as its confirmation counts it. */
+export interface OccurrenceLoss {
   /** Times deleted with them (without project, not billed, left with nothing attached). */
   times: number;
   /** Comments deleted with them. */
   comments: number;
-  /** Occurrences whose comments are deleted (one per day), to count them with others without counting one twice. */
+  /** Checklists started (one item ticked) deleted with them; those not started go too, uncounted. */
+  checklists: number;
+  /** Links between routines and events deleted with them. */
+  links: number;
+}
+
+/** What a change of rule takes from the occurrences it makes disappear, and how to delete it. */
+export interface LostOccurrences extends OccurrenceLoss {
+  /** Occurrences that go (one per day with rows), to count them with others without counting one twice. */
   occurrences: GoneCommentOccurrences[];
-  /** Deletes those comments and times (the other times leave the occurrences), in the transaction given if any. */
+  /** Deletes their comments, times, checklists and links (the other times leave the occurrences), in the transaction given if any. */
   settle: (client?: Prisma.TransactionClient) => Promise<void>;
 }
 
 /**
  * What a change of the rule of an event series or of a routine takes: the occurrences it makes disappear
- * without taking their rows along (no shift) lose their comments and, for an event, their times (those left with
- * nothing attached are deleted, billed ones kept, the others leave the occurrence: the rules of a deleted occurrence).
+ * without taking their rows along (no shift) lose their comments, their checklists, for a routine its links with events
+ * (those of an event: `followSeries`, counted by the caller), and, for an event, their times (those left with nothing
+ * attached are deleted, billed ones kept, the others leave the occurrence: the rules of a deleted occurrence).
  * @param {OccurrenceOwner} owner Column of the item (`eventId`, `routineId`).
  * @param {string} id Item.
  * @param {(day: string) => boolean} gone Whether an occurrence (its day now) disappears with the change.
@@ -181,32 +232,40 @@ export interface LostOccurrences {
  */
 export async function lostOccurrences(owner: OccurrenceOwner, id: string, gone: (day: string) => boolean): Promise<LostOccurrences> {
   const days = (await occurrenceRowDays(owner, id)).filter(gone);
-  if (!days.length) return { times: 0, comments: 0, occurrences: [], settle: async () => {} };
+  if (!days.length) return { times: 0, comments: 0, checklists: 0, links: 0, occurrences: [], settle: async () => {} };
   const occurrences = days.map((on) => ({ id, on }));
-  const comments: GoneComments = owner === 'eventId' ? { events: occurrences } : { routines: occurrences };
+  const rows: GoneComments = owner === 'eventId' ? { events: occurrences } : { routines: occurrences };
   const events = owner === 'eventId' ? days.map((on) => ({ eventId: id, on })) : [];
   return {
     times: events.length ? (await timeLeftEmpty({ events })).length : 0,
-    comments: await commentsLostOnDelete(comments),
+    comments: await commentsLostOnDelete(rows),
+    checklists: await startedChecklistsLost(rows),
+    links: owner === 'routineId' ? await routineLinksLost(rows) : 0,
     occurrences,
     settle: async (client = prisma) => {
       if (events.length) await releaseSubjectTime({ events }, client);
-      await deleteGoneComments(comments, client);
+      await deleteGoneOccurrenceRows(rows, client);
     },
   };
 }
 
 /**
- * Refuses a change that loses comments or times without confirmation: CONFIRMATION_REQUIRED, extension `lost`
- * (`{ times, comments }`, summed); times only kept elsewhere just leave, unasked.
- * @param {readonly Pick<LostOccurrences, 'times' | 'comments'>[]} losses What the change takes, item by item.
+ * Refuses a change that loses comments, times, started checklists or links between routines and events without
+ * confirmation: CONFIRMATION_REQUIRED, extension `lost` (`{ times, comments, checklists, links }`, summed); times only
+ * kept elsewhere just leave, and checklists not started go, unasked.
+ * @param {readonly OccurrenceLoss[]} losses What the change takes, item by item.
  * @param {boolean} [confirmLoss] Loss confirmed (true), to confirm (false). Optional. Default = no question (internal change).
  * @returns {void}
  */
-export function assertLossConfirmed(losses: readonly Pick<LostOccurrences, 'times' | 'comments'>[], confirmLoss?: boolean): void {
-  const lost = { times: sumOf(losses, (item) => item.times), comments: sumOf(losses, (item) => item.comments) };
-  if (confirmLoss === false && (lost.times || lost.comments)) {
-    throw clientError('CONFIRMATION_REQUIRED', 'Ce changement fait disparaître des occurrences qui ont des commentaires ou des temps : confirmez pour continuer.', { lost });
+export function assertLossConfirmed(losses: readonly OccurrenceLoss[], confirmLoss?: boolean): void {
+  const lost: OccurrenceLoss = {
+    times: sumOf(losses, (item) => item.times),
+    comments: sumOf(losses, (item) => item.comments),
+    checklists: sumOf(losses, (item) => item.checklists),
+    links: sumOf(losses, (item) => item.links),
+  };
+  if (confirmLoss === false && (lost.times || lost.comments || lost.checklists || lost.links)) {
+    throw clientError('CONFIRMATION_REQUIRED', 'Ce changement fait disparaître des occurrences qui ont des commentaires, des temps, des listes à cocher commencées ou des liens entre routines et évènements : confirmez pour continuer.', { lost });
   }
 }
 
@@ -218,10 +277,11 @@ export function assertLossConfirmed(losses: readonly Pick<LostOccurrences, 'time
  * @param {string} id Item.
  * @param {(day: string) => boolean} gone Whether an occurrence (its day now) disappears with the change.
  * @param {boolean} [confirmLoss] Loss confirmed (true), to confirm (false). Optional. Default = deleted without question (internal change).
+ * @param {number} [links] Links of the event with routines that go with them (`followSeries`), counted too. Optional. Default = 0.
  * @returns {Promise<LostOccurrences['settle']>} Deletion of what is lost.
  */
-export async function confirmLostOccurrences(owner: OccurrenceOwner, id: string, gone: (day: string) => boolean, confirmLoss?: boolean): Promise<LostOccurrences['settle']> {
+export async function confirmLostOccurrences(owner: OccurrenceOwner, id: string, gone: (day: string) => boolean, confirmLoss?: boolean, links = 0): Promise<LostOccurrences['settle']> {
   const lost = await lostOccurrences(owner, id, gone);
-  assertLossConfirmed([lost], confirmLoss);
+  assertLossConfirmed([{ ...lost, links: lost.links + links }], confirmLoss);
   return lost.settle;
 }

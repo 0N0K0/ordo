@@ -423,6 +423,20 @@ const cached = (input: ShoppingItemInput) => ({
 });
 
 /**
+ * GraphQL variables of an item (people always given).
+ * @param {ShoppingItemInput} input Item.
+ * @returns {object} Variables.
+ */
+const itemVariables = (input: ShoppingItemInput) => ({ ...input, memberIds: input.memberIds ?? [], relationIds: input.relationIds ?? [] });
+
+/**
+ * GraphQL variables of a product (people always given).
+ * @param {ShoppingProductInput} input Product.
+ * @returns {object} Variables.
+ */
+const productVariables = (input: ShoppingProductInput) => ({ ...itemVariables(input), baseListId: input.baseListId, missing: input.missing });
+
+/**
  * Mutations of the shopping lists, their items, the base list and its categories and stores.
  * @returns {object} Mutations.
  */
@@ -494,17 +508,3 @@ export function useShoppingMutations() {
     deleteItem: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteItem, { id })).deleteShoppingItem),
   };
 }
-
-/**
- * GraphQL variables of an item (people always given).
- * @param {ShoppingItemInput} input Item.
- * @returns {object} Variables.
- */
-const itemVariables = (input: ShoppingItemInput) => ({ ...input, memberIds: input.memberIds ?? [], relationIds: input.relationIds ?? [] });
-
-/**
- * GraphQL variables of a product (people always given).
- * @param {ShoppingProductInput} input Product.
- * @returns {object} Variables.
- */
-const productVariables = (input: ShoppingProductInput) => ({ ...itemVariables(input), baseListId: input.baseListId, missing: input.missing });

@@ -194,6 +194,11 @@ const RESTRICTED_SYNTAX = [
     selector: "Literal[value=/^Voir (l’agenda|les routines)$/], TemplateElement[value.raw=/^Voir (l’agenda|les routines) de « $/]",
     message: 'Utiliser calendarRingPage(espace) / routinesRingPage(espace) (@ordo/shared, dates/reminder-rings) : les liens des sonneries.',
   },
+  // A page of one day moves from day to day the same way everywhere.
+  {
+    selector: "Literal[value='Jour précédent']",
+    message: 'Utiliser DayNav (components/page/DayNav) : « Aujourd’hui », jour précédent, le jour dans un sélecteur de date, jour suivant.',
+  },
   {
     selector: "CallExpression[callee.name=/^(occurrenceReminders|taskReminders|remindersAt|remindersBefore)$/]",
     message: 'Utiliser eventRings / taskRings / routineRings / ephemerisRings / birthdayRings (@ordo/shared, dates/reminder-rings) : les mêmes clés, instants et textes que le serveur (push).',
@@ -294,6 +299,16 @@ const RESTRICTED_SYNTAX = [
   // Days and times: read in Paris, whatever the zone of the browser.
   ...PARIS_TIME_RULES,
   {
+    // A bound of a picker from the browser's clock: its day and time are read in the zone of the browser.
+    selector: "JSXAttribute[name.name=/^(minDate|maxDate)$/] > JSXExpressionContainer > :matches(NewExpression[callee.name='Date'], CallExpression[callee.object.name='Date'][callee.property.name='now'])",
+    message: 'Borne d’un sélecteur : parisToday() (lib/dates) pour un jour, minInstant de DateTimeField (components/inputs) pour un moment, lus à l’heure de Paris.',
+  },
+  {
+    // An agenda shows and reads its days and hours in Paris.
+    selector: "JSXOpeningElement[name.name='FullCalendar']:not(:has(> JSXSpreadAttribute[argument.callee.name='parisCalendarOptions']))",
+    message: 'Utiliser {...parisCalendarOptions(plugins)} (lib/paris-calendar) sur chaque FullCalendar : ses jours et ses heures à l’heure de Paris.',
+  },
+  {
     selector: "ImportSpecifier[imported.name='localDay']",
     message: 'Utiliser parisDay (lib/dates) : localDay n’est gardé que pour la bibliothèque de documents, à réécrire.',
   },
@@ -355,6 +370,10 @@ const RESTRICTED_SYNTAX = [
   {
     selector: "Literal[value='(sans objet)']",
     message: 'Utiliser NO_SUBJECT (@ordo/shared).',
+  },
+  {
+    selector: "Literal[value='Choisissez un moment à venir.']",
+    message: 'Utiliser SCHEDULE_IN_PAST / canScheduleAt (@ordo/shared) : le même moment refusé dans le web et l’API.',
   },
   {
     selector: 'Literal[value=/^#868e96$/i]',
@@ -595,8 +614,8 @@ const RESTRICTED_SYNTAX = [
   },
   {
     selector:
-      'TemplateElement[value.raw=/^\\/(accounting|sheets|shopping)\\//], Literal[value=/^\\/(accounting|sheets|shopping)\\/./], TemplateElement[value.raw=/^\\/(time|routines|shopping)\\?/], Literal[value=/^\\/(time|routines|shopping)\\?/]',
-    message: 'Utiliser documentPath, sheetPath, shoppingListPath, SHOPPING_LISTS_PATH, timePath, routineHistoryPath (app/pages).',
+      'TemplateElement[value.raw=/^\\/(accounting|sheets|shopping)\\//], Literal[value=/^\\/(accounting|sheets|shopping)\\/./], TemplateElement[value.raw=/^\\/(time|shopping)\\?/], Literal[value=/^\\/(time|shopping)\\?/]',
+    message: 'Utiliser documentPath, sheetPath, shoppingListPath, SHOPPING_LISTS_PATH, timePath (app/pages).',
   },
   {
     selector:
@@ -1049,6 +1068,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser CountBadge (components/feedback/CountBadge) : un compte seul, la même pastille partout.',
   },
   {
+    // A progress « 3/5 » written by hand in a badge.
+    selector: "JSXElement[openingElement.name.name='Badge']:has(> JSXExpressionContainer + JSXText[value=/^\\s*\\/\\s*$/] + JSXExpressionContainer)",
+    message: 'Utiliser ProgressBadge (components/feedback/ProgressBadge) : un avancement « 2/3 », le même partout.',
+  },
+  {
     // A badge of the navigation written by hand instead of a component of its own on NavBadge.
     selector: "CallExpression[callee.name='pageLink'] > JSXElement.arguments:not([openingElement.name.name=/NavBadge$/])",
     message: 'Une pastille du menu : un composant *NavBadge sur NavBadge (features/projects/components/NavBadges), calculé par le code de la page ou de l’accueil.',
@@ -1078,7 +1102,7 @@ const RESTRICTED_SYNTAX = [
   },
   {
     selector: "BinaryExpression[operator='<'][left.property.name=/^(deadline|effectiveDeadline)$/], BinaryExpression[operator='<'][left.name=/^(deadline|effectiveDeadline)$/]",
-    message: 'Utiliser isTaskOverdue(task, today) (features/tasks/lib/task-overdue) : une seule règle de retard.',
+    message: 'Utiliser isTaskOverdue(task, today) (@ordo/shared) : une seule règle de retard.',
   },
   {
     selector: "Literal[value=/^Réglée?$/]",
@@ -1253,6 +1277,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser useWorkingHours (features/calendar/api) : les heures de travail, sans éphémérides ni créneaux archivés.',
   },
   {
+    // The schedules a page shows leave out those archived, or of an archived kind, in their workspace: scheduleSources says it.
+    selector: "CallExpression[callee.name='countedSchedules'] > ArrayExpression.arguments",
+    message: 'Utiliser scheduleSources(…, includeArchived) (features/calendar/lib/calendar-events) : les créneaux affichés, sans les archivés ni ceux d’un type archivé sauf demande, et leur `archived`.',
+  },
+  {
     // The input of a schedule from its rule keeps its kind and nature.
     selector: "ObjectExpression:has(> Property[key.name='label']):has(> Property[key.name='startDate']):has(> Property[key.name='typeId']):has(> SpreadElement[argument.name='next'])",
     message: 'Utiliser ruleScheduleInput (features/calendar/api) : l’entrée d’un créneau depuis sa règle garde son type et sa nature.',
@@ -1272,6 +1301,12 @@ const RESTRICTED_SYNTAX = [
     selector: "CallExpression[callee.name='useSetArchived'][arguments.0.value=/^(WORK_SCHEDULE|SCHEDULE_TYPE|CONTRIBUTOR|TREASURY_RELATION|CLIENT_CONTACT)$/]",
     message:
       'Utiliser useSlotSourceArchiving(kind) (features/calendar/api) : archiver un créneau, un type ou une personne (contact compris) confirme les occurrences de routines perdues et recharge ce qui en dépend (un type : confirmLoss de useScheduleTypeItems).',
+  },
+  {
+    // A new item on a day (« Ma journée », the header there) is prefilled by one rule.
+    selector:
+      "CallExpression[callee.name='openRoutineForm'] Property[key.name='startDate'], CallExpression[callee.object.name=/askActions$/][callee.property.name='create'] Property[key.name=/^(minDate|deadline)$/]",
+    message: 'Utiliser useDayAdd (features/my-day/hooks/use-day-add) : une tâche, un évènement ou une routine ajoutés sur un jour, préremplis par la même règle.',
   },
   {
     // A panel is resized one way, its width kept by useResizablePanel (limits in panel-widths).
@@ -1299,6 +1334,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser RoutineTickButton (features/routines/components/RoutineTick) : cocher ouvre « Faite le », décocher en un clic avec « Annuler », l’heure se change depuis l’horloge.',
   },
   {
+    // « Faite » of an activity is changed through its own state button: a task's closes or reopens it with « Annuler ».
+    selector: "JSXOpeningElement[name.name='StateButton']:has(JSXSpreadAttribute > Identifier[name='DONE_STATES'])",
+    message: 'Utiliser TaskDoneButton (features/tasks/components/TaskDoneButton) pour une tâche, RoutineTickButton (features/routines/components/RoutineTick) pour une routine.',
+  },
+  {
     // A tick of a routine is written by useRoutineTick (its toast and its « Annuler »), not by the mutation by hand.
     selector: "CallExpression[callee.property.name=/^mutate(Async)?$/]:matches([callee.object.name='setDone'], [callee.object.property.name='setDone'])",
     message: 'Utiliser useRoutineTick (features/routines/hooks/use-routine-tick) : tick / untick, avec le toast et « Annuler ».',
@@ -1318,6 +1358,23 @@ export default defineConfig([
       'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS }],
       // Dates, numbers and amounts: one format per role, in lib/format.
       'no-restricted-syntax': ['error', ...RESTRICTED_SYNTAX],
+      // A value is declared before it is read (functions apart: they are hoisted), as in the API and the shared code.
+      '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: true, variables: true, typedefs: false, ignoreTypeReferences: true, enums: true }],
+    },
+  },
+  {
+    // What a page of the agenda shows (calendars, créneaux and éphémérides, kinds of items) is chosen by one brick,
+    // CalendarDisplayChoices, the same in the agenda and in « Ma journée »: no list of the calendars or slots shown
+    // laid out by hand in a page.
+    files: ['src/features/**/pages/**/*.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: RESTRICTED_PATHS,
+          patterns: [{ group: ['**/HiddenChecklist'], message: 'Utiliser CalendarDisplayChoices (features/calendar/components) : les choix d’affichage de l’agenda, les mêmes partout.' }],
+        },
+      ],
     },
   },
   {
@@ -1388,6 +1445,20 @@ export default defineConfig([
           selector: "JSXOpeningElement[name.name=/^(Switch|StateSwitch|Checkbox)$/], JSXOpeningElement[name.object.name='Checkbox']",
           message:
             'Utiliser StateButton (components/data-table/cells/StateButton) : un oui / non modifié dans une cellule ou une ligne est un bouton d’état, ni un interrupteur ni une case à cocher (interrupteurs : formulaires, réglages, activation d’un élément).',
+        },
+      ],
+    },
+  },
+  {
+    // A field of a filter typed by the user passes its value on only when it is left: useTypedField (draft, blur, Enter).
+    files: ['src/components/filters/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...RESTRICTED_SYNTAX,
+        {
+          selector: "JSXOpeningElement[name.name=/^(TextInput|NumberInput|Textarea)$/]:not(:has(JSXAttribute[name.name='onBlur']))",
+          message: 'Champ saisi d’un filtre : useTypedField (components/filters/FilterBuilder), sa valeur transmise en quittant le champ (ou Entrée), pas à chaque touche.',
         },
       ],
     },

@@ -24,6 +24,7 @@ const ShoppingPage = lazyNamed(() => import('../features/shopping/pages/Shopping
 const SheetsPage = lazyNamed(() => import('../features/sheets/pages/SheetsPage'), (module) => module.SheetsPage);
 const SheetPage = lazyNamed(() => import('../features/sheets/pages/SheetPage'), (module) => module.SheetPage);
 const StockPage = lazyNamed(() => import('../features/stock/pages/StockPage'), (module) => module.StockPage);
+const MyDayPage = lazyNamed(() => import('../features/my-day/pages/MyDayPage'), (module) => module.MyDayPage);
 const RoutinesPage = lazyNamed(() => import('../features/routines/pages/RoutinesPage'), (module) => module.RoutinesPage);
 const ConfirmEmailPage = lazyNamed(() => import('../features/auth/pages/ConfirmEmailPage'), (module) => module.ConfirmEmailPage);
 const ForgotPasswordPage = lazyNamed(() => import('../features/auth/pages/ForgotPasswordPage'), (module) => module.ForgotPasswordPage);
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { index: true, element: <HomePage /> },
+          { path: routeOf(PAGES.myDay.path), element: <MyDayPage /> },
           { path: routeOf(PAGES.tasks.path), element: <TasksPage /> },
           { path: routeOf(TASK_AUTOMATIONS_PATH), element: <TaskAutomationsPage /> },
           { path: routeOf(PAGES.time.path), element: <TimePage /> },

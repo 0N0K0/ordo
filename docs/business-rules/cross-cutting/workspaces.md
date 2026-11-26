@@ -88,6 +88,7 @@ Source : `tableColumnDefaults(tableKey)` / `setTableColumnDefaults(tableKey, inp
 - Par espace et par tableau de données (sa clé `tableKey`, celle de ses vues : minuscules, chiffres et « - », 64 au plus, « Tableau invalide. ») : ordre des colonnes et colonnes masquées avec lesquels démarrent les nouvelles vues du tableau (200 colonnes au plus, identifiants de 64 caractères au plus). La colonne `label` n’est jamais masquée. Le même réglage vaut pour les vues de la page et celles des projets.
 - `null` (ou une liste vide) revient aux colonnes de l’application pour ce tableau ; les autres tableaux gardent les leurs.
 - Stocké dans `Workspace.tableColumns`, une valeur par clé de tableau ; 200 tableaux au plus (« Trop de tableaux ont des colonnes par défaut. »).
+- « Colonnes par défaut » des options d’une vue lui redonne ces colonnes (ordre et colonnes masquées, largeurs effacées), celles de l’application si le tableau n’en a pas ; les colonnes ajoutées à l’application depuis le réglage viennent à la fin, masquées si elles le sont par défaut ; une colonne verrouillée reste affichée.
 - Les vues déjà créées gardent leurs colonnes ; l’ancien identifiant de la colonne du libellé (`title` / `name`, `LEGACY_LABEL_COLUMNS`) est relu comme `label`.
 - Les colonnes par défaut des tâches d’avant (`Workspace.taskColumns`, qui n’est plus lu) sont celles du tableau `tasks`.
 

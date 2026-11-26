@@ -186,6 +186,39 @@ export function isoWeek(date: string): number {
 }
 
 /**
+ * ISO year of a date: the year of the Thursday of its week (the 29th of December may be in the next one, the 3rd of
+ * January in the previous one).
+ * @param {string} date YYYY-MM-DD.
+ * @returns {number} Year.
+ */
+export function isoYear(date: string): number {
+  return yearOfDay(addDays(date, 4 - weekdayOfDate(date)));
+}
+
+/**
+ * Number of ISO weeks of an ISO year: 52, or 53 (the 28th of December is always in its last week).
+ * @param {number} year ISO year.
+ * @returns {number} 52 or 53.
+ */
+export const isoWeeksInYear = (year: number): number => isoWeek(`${year}-12-28`);
+
+/** Parity of an ISO week number: even (2, 4…) or odd (1, 3…, 53). */
+export const WEEK_PARITIES = ['EVEN', 'ODD'] as const;
+export type WeekParity = (typeof WEEK_PARITIES)[number];
+
+/** Parity of a week in words, after « semaine »: « paire », « impaire » (plural: add « s »). */
+export const WEEK_PARITY_WORDS: Record<WeekParity, string> = { EVEN: 'paire', ODD: 'impaire' };
+
+/**
+ * Whether the ISO week of a date has a parity: even (week 2, 4…) or odd (week 1, 3…, 53; week 53 is followed by week 1,
+ * two odd weeks in a row).
+ * @param {string} date YYYY-MM-DD.
+ * @param {WeekParity} parity Parity.
+ * @returns {boolean} The week has it.
+ */
+export const isoWeekHasParity = (date: string, parity: WeekParity): boolean => isoWeek(date) % 2 === (parity === 'EVEN' ? 0 : 1);
+
+/**
  * Day of the week of a date, 1 (Monday) to 7 (Sunday).
  * @param {string} date YYYY-MM-DD.
  * @returns {number} Day.

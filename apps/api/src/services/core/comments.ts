@@ -169,23 +169,31 @@ export interface GoneComments {
 }
 
 /**
- * Filter of the comments a deletion takes: those of the routines deleted, and of the occurrences of routines and events
- * deleted.
+ * Filter of the rows kept per occurrence that a deletion takes (comments, checklists, links of a routine with events):
+ * those of the routines deleted, and of the occurrences of routines and events deleted.
  * @param {GoneComments} gone Items and occurrences deleted.
- * @returns {Prisma.CommentWhereInput[]} Filters (none: nothing).
+ * @param {'occurrenceDate' | 'date'} [day] Column of the day of the rows. Optional. Default = `occurrenceDate`.
+ * @returns {Record<string, unknown>[]} Filters (none: nothing).
  */
-function goneCommentsWhere(gone: GoneComments): Prisma.CommentWhereInput[] {
+export function goneOccurrenceRowsWhere(gone: GoneComments, day: 'occurrenceDate' | 'date' = 'occurrenceDate'): Record<string, unknown>[] {
   const occurrences = (column: 'routineId' | 'eventId', items: readonly GoneCommentOccurrences[] = []) =>
-    items.map((item): Prisma.CommentWhereInput => ({
+    items.map((item): Record<string, unknown> => ({
       [column]: item.id,
       ...(item.on
-        ? { occurrenceDate: parseOptionalDay(item.on) }
+        ? { [day]: parseOptionalDay(item.on) }
         : item.from
-          ? { occurrenceDate: { gte: parseOptionalDay(item.from), ...(item.except?.length && { notIn: item.except.map((day) => parseOptionalDay(day)!) }) } }
+          ? { [day]: { gte: parseOptionalDay(item.from), ...(item.except?.length && { notIn: item.except.map((date) => parseOptionalDay(date)!) }) } }
           : {}),
     }));
   return [...(gone.routineIds?.length ? [{ routineId: { in: [...gone.routineIds] } }] : []), ...occurrences('routineId', gone.routines), ...occurrences('eventId', gone.events)];
 }
+
+/**
+ * Filter of the comments a deletion takes (`goneOccurrenceRowsWhere`).
+ * @param {GoneComments} gone Items and occurrences deleted.
+ * @returns {Prisma.CommentWhereInput[]} Filters (none: nothing).
+ */
+const goneCommentsWhere = (gone: GoneComments): Prisma.CommentWhereInput[] => goneOccurrenceRowsWhere(gone) as Prisma.CommentWhereInput[];
 
 /**
  * Number of comments a deletion takes with it, for its confirmation.

@@ -14,7 +14,7 @@ Route `/settings?tab=github`. Composant `GithubSettings`.
 - Aide : « Ordo se connecte avec un jeton d’accès personnel : jeton « classic » avec les droits `project` et `repo`, ou jeton « fine-grained » avec l’accès aux projets et aux issues des dépôts concernés. Il est chiffré en base. » (lien vers la page des jetons de GitHub).
 - Champ « Jeton » (« Remplacer le jeton » une fois connecté), texte d’exemple « ghp_… ou github_pat_… ».
 - Bouton « Connecter » / « Remplacer » : le jeton est vérifié auprès de GitHub ; toast « GitHub connecté : @login. » ; une erreur s’affiche sous le champ.
-- Bouton « Déconnecter » : confirmation « Déconnecter GitHub » — « Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton. ». Toast « GitHub déconnecté. ».
+- Bouton « Déconnecter » : confirmation « Déconnecter GitHub » — « Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton. ». Toast « GitHub déconnecté. ». Le login est gardé comme dernier compte connu : ses commentaires restent sans « @login sur GitHub ».
 
 ### « Contributeurs sur GitHub »
 
@@ -66,6 +66,19 @@ Section « GitHub » du panneau des paramètres d’un projet. Composant `Projec
 ### Résumé d’une synchronisation
 
 « N tâches créées depuis GitHub, N items créés sur GitHub, N tâches et N items mis à jour, N tâches retirées du tableau (archivées), N sprints créés ou mis à jour, [N itérations créées ou mises à jour sur GitHub, ]N tâches renumérotées, [N sprints non envoyés (ils chevauchent un autre sprint), ][N sprints non envoyés (itérations non écrites, voir la section GitHub du projet), ][N sprints sans itération (à créer dans GitHub), ]N commentaires échangés[, N tâches en échec (réessayées à la prochaine synchronisation)] ».
+
+## Tâches d’une arborescence liée
+
+Dans une arborescence de projets liée à un tableau, chaque tâche montre où elle en est avec GitHub (rien hors d’une arborescence liée) :
+
+- tableau des tâches : icône GitHub devant le libellé d’une tâche sur GitHub (« Synchronisée avec l’issue GitHub #n » ou « Synchronisée avec un brouillon GitHub ») ; colonne « GitHub » (masquée par défaut, filtrable) : pastille « Sur GitHub » (vert), « Pas sur GitHub » (gris) ou « Retirée du tableau GitHub » (orange) ;
+- en-tête du panneau d’une tâche : badge « GitHub #12 » (lien vers l’issue) ou « Brouillon GitHub » ; sinon « Pas sur GitHub » (infobulle « Pas sur GitHub : créée avant la liaison (sans « Envoyer aussi les tâches qui existaient avant la liaison »), ou en attente de la prochaine synchronisation. ») ou « Retirée du tableau GitHub » (infobulle « Retirée du tableau GitHub : la synchronisation ne la renvoie plus. »), suivie, quand la tâche peut être envoyée, de « « Envoyer sur GitHub », dans le menu de la tâche, l’y envoie maintenant. », pour une tâche archivée retirée du tableau de « Restaurée, « Envoyer sur GitHub » (menu de la tâche) l’y renvoie. ».
+
+Une synchronisation en échec pour une seule tâche n’est pas gardée sur la tâche : elle est comptée dans le résumé de la liaison (« N tâches en échec ») et la tâche est réessayée à la synchronisation suivante.
+
+### Envoyer sur GitHub
+
+Menu d’une tâche (ligne du tableau, panneau) et barre de sélection : « Envoyer sur GitHub » (icône GitHub), proposé pour une tâche active pas sur GitHub (jamais envoyée, créée avant la liaison, ou retirée du tableau) d’une arborescence liée (en synchronisation automatique ou manuelle), GitHub connecté ; la barre de sélection ne l’affiche que si l’une des tâches cochées peut l’être, et n’envoie que celles-là. L’envoi lance une synchronisation de la liaison (après celle en cours) : toast « Envoi sur GitHub… » avec une roue d’attente, sans bouton de fermeture, changé sur place en « Tâche envoyée sur GitHub. » (« 3 tâches envoyées sur GitHub. »), la sélection vidée ; une tâche non envoyée est dite dans un toast d’erreur (son message ; plusieurs : « 2 tâches non envoyées : <premier message> ») : celui d’attente quand aucune n’est envoyée, un autre sinon. Règles : [Envoyer sur GitHub](../../business-rules/cross-cutting/github.md#envoyer-sur-github).
 
 ## Tâche de fond
 

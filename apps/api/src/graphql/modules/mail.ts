@@ -23,7 +23,7 @@ builder.prismaObject('MailSearch', {
   fields: (t) => ({
     id: t.exposeID('id'),
     label: t.exposeString('label'),
-    criteria: t.field({ type: 'JSON', description: 'accountIds, scope, state, labelIds, unread, text.', resolve: (search) => searches.searchCriteria(search) }),
+    criteria: t.field({ type: 'JSON', description: 'accountIds, scope, folder, state, labelIds, unread, text, from, to, subject, body, since, until, attachments, projectId.', resolve: (search) => searches.searchCriteria(search) }),
     position: t.exposeInt('position'),
   }),
 });
@@ -323,6 +323,7 @@ const MailSearchInput = builder.inputType('MailSearchInput', {
     since: t.field({ type: 'Date' }),
     until: t.field({ type: 'Date' }),
     attachments: t.boolean(),
+    projectId: t.id({ description: 'Only the mails linked to this project (the sent ones too).' }),
   }),
 });
 

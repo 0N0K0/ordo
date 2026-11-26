@@ -2,7 +2,7 @@ import { afterCommit, prisma } from '../../db';
 import type { GithubProjectLink } from '../../generated/prisma/client';
 import { deleteIssueComment, deleteItem, updateContent } from './board';
 import { githubToken } from './client';
-import { goneIssueCloseReason, type TaskCloseReason } from '@ordo/shared';
+import { goneIssueCloseReason, lineageOf, mapById, type TaskCloseReason } from '@ordo/shared';
 
 /**
  * Board link of a project: its own, or the one of its closest linked ancestor.
@@ -16,6 +16,22 @@ async function linkOfProject(projectId: string): Promise<GithubProjectLink | nul
     current = (await prisma.project.findUnique({ where: { id: current }, select: { parentId: true } }))?.parentId ?? null;
   }
   return null;
+}
+
+/**
+ * Board link of every project of a linked tree (its own, or the one of its closest linked ancestor), read at once.
+ * @returns {Promise<Map<string, GithubProjectLink>>} Link, by project (none outside a linked tree).
+ */
+export async function linksByProject(): Promise<Map<string, GithubProjectLink>> {
+  const [projects, links] = await Promise.all([prisma.project.findMany({ select: { id: true, parentId: true } }), prisma.githubProjectLink.findMany()]);
+  const byProject = new Map(links.map((link) => [link.projectId, link]));
+  const byId = mapById(projects);
+  const result = new Map<string, GithubProjectLink>();
+  for (const project of projects) {
+    const link = lineageOf(byId, project.id).find((ancestor) => byProject.has(ancestor.id));
+    if (link) result.set(project.id, byProject.get(link.id)!);
+  }
+  return result;
 }
 
 /**

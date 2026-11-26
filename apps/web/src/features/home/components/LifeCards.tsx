@@ -20,7 +20,7 @@ import { HomeList, HomeRow } from './HomeList';
 import { leftToBuy } from '../../shopping/lib/shopping-format';
 import { LateBadge } from '../../../components/feedback/LateBadge';
 import { shoppingListPath, PAGES } from '../../../app/pages';
-import { WaitingIcon } from '../../routines/components/WaitingIcon';
+import { WaitingIcon } from '../../../components/feedback/WaitingIcon';
 import { unarchived } from '../../../lib/archive';
 import { viewList, viewNote, type ViewItem } from '../lib/home-data';
 
@@ -76,7 +76,8 @@ export function RoutinesCard({ today }: { today: string }) {
           group={list.group}
           render={({ key, row: routine }) => {
             const waiting = waitingFor(routine, byId);
-            const late = routine.currentDueDate !== null && routine.currentDueDate < today;
+            // A routine that has sub-routines (a group) is never late.
+            const late = !routine.hasSubRoutines && routine.currentDueDate !== null && routine.currentDueDate < today;
             return (
               <Group key={key} justify="space-between" wrap="nowrap" gap="xs" className={`${tile.tile} ${classes.row}`}>
                 <Group gap="xs" wrap="nowrap" miw={0}>

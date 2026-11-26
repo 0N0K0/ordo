@@ -1,5 +1,5 @@
 import { parisMidnight, monthOfDay, yearOfDay } from '../../../lib/dates';
-import { addDays, entrySecondsWithin, filterPeriod } from '@ordo/shared';
+import { addDays, entrySecondsWithin, filterPeriod, isTaskOverdue } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
 import { useDoableTaskIds, useTaskWaitReasons, type Task, type TaskWaitReasons } from '../../tasks/api';
@@ -13,7 +13,6 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 import { useCalendarEvents, type EventOccurrence } from '../../calendar/api';
-import { isTaskOverdue } from '../../tasks/lib/task-overdue';
 import type { ViewRows } from '../../../components/data-table/table/table-engine';
 
 /**

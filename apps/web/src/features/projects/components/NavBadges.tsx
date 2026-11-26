@@ -1,17 +1,17 @@
 import { unarchived } from '../../../lib/archive';
 import { Badge, type MantineColor } from '@mantine/core';
-import { formatDuration, sumOf } from '@ordo/shared';
+import { formatDuration, sumOf, isTaskOverdue } from '@ordo/shared';
 import { countOf, plural } from '../../../lib/text';
 import { useToday } from '../../../lib/use-now';
 import { useHeldEvents, useHomeTasks, useMyTodayTasks, useWeekTime } from '../../home/lib/home-data';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRunningTimers } from '../../time/api';
 import { useTreasuryAccounts } from '../../treasury/api';
-import { useRoutineDay } from '../../routines/hooks/use-routine-day';
+import { useRoutineDayCount } from '../../routines/hooks/use-routine-day-count';
 import { useNextRing } from '../../alarms/hooks/use-ring-sources';
-import { isTaskOverdue } from '../../tasks/lib/task-overdue';
 import * as fmt from '../../../lib/format';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { ProgressBadge } from '../../../components/feedback/ProgressBadge';
 
 // Each badge is its own component: a running timer refreshes its badge every second, not the whole sidebar.
 
@@ -64,20 +64,14 @@ export function TasksNavBadge() {
 }
 
 /**
- * Routines of today, done out of planned (« 3/7 »), each time of the day counted, as the « Historique » tab of the
- * routines page (`useRoutineDay`).
+ * Routines of today, done out of planned (« 3/7 », `ProgressBadge`), each time of the day counted, the very ones
+ * « Ma journée » lists (`useRoutineDayCount`).
  * @returns {JSX.Element | null} Badge.
  */
 export function RoutinesNavBadge() {
-  const { items, doneCount, loading } = useRoutineDay(useToday());
+  const { shown, done, loading } = useRoutineDayCount(useToday());
   if (loading) return null;
-  return (
-    <NavBadge
-      value={items.length ? `${doneCount}/${items.length}` : null}
-      color={doneCount === items.length ? 'green' : undefined}
-      label={`${countOf(doneCount, 'routine faite', 'routines faites')} sur ${countOf(items.length, 'prévue')} aujourd’hui`}
-    />
-  );
+  return <ProgressBadge done={done} total={shown} label={`${countOf(done, 'routine faite', 'routines faites')} sur ${countOf(shown, 'prévue')} aujourd’hui`} />;
 }
 
 /**

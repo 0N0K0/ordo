@@ -5,6 +5,7 @@ import {
   conditionBlockAt,
   conditionConstrains,
   conditionWindows,
+  itemWindowsOn,
   nextConditionMoment,
   readSlotCondition,
   scheduleSlotsOn,
@@ -14,7 +15,8 @@ import {
   type SlotConditionItem,
 } from '../../src/calendar/slot-conditions';
 import { birthdaySlotId, BIRTHDAY_SLOT_KIND, foreignSlotKind } from '../../src/calendar/slot-kinds';
-import type { WorkScheduleRule } from '../../src/calendar/work-schedules';
+import type { ScheduleCase, WorkScheduleRule } from '../../src/calendar/work-schedules';
+import { minutesToTime } from '../../src/dates/times';
 import { schedule, scheduleCase } from './schedules';
 
 const MONDAY = '2026-11-23';
@@ -197,4 +199,59 @@ describe('a moment of a task or a routine', () => {
     expect(unavailableScheduleIds(slotsOn, { date: MONDAY, time: '11:00' }, { date: MONDAY, time: '12:00' })).toEqual([]);
     expect(unavailableScheduleIds(slotsOn, { date: MONDAY, time: '11:00' }, { date: MONDAY, time: '12:01' })).toEqual(['lunch']);
   });
+});
+
+describe('itemWindowsOn: windows of a day an item can be done in', () => {
+  const lunch = daily('lunch', [['12:00', '13:00']], { unavailable: true });
+  const night = daily('night', [['22:00', '23:59']], { unavailable: true });
+  const allDayOff = schedule([scheduleCase({ frequency: 'DAILY' }, { times: { allDay: true, ranges: [] } })], { id: 'off', unavailable: true, startDate: '2026-03-29', endDate: '2026-03-29' });
+  const mondayMorning = [scheduleCase({ weekdays: [1] }, { times: { allDay: false, ranges: [{ start: '08:00', end: '10:30' }] } })];
+  const wholeMonday = [scheduleCase({ weekdays: [1] }, { times: { allDay: true, ranges: [] } })];
+  const label = (list: ReturnType<typeof itemWindowsOn>) => list?.map((window) => `${window.fromTime ?? ''}–${window.dueTime ?? ''}`) ?? null;
+
+  it('its own hours, its condition and the unavailable slots meet', () => {
+    const slotsOn = scheduleSlotsOn([WORK, SPORT, lunch]);
+    expect(label(itemWindowsOn(group('and', [condition('schedules', 'in', ['work'])]), slotsOn, MONDAY, mondayMorning))).toEqual(['09:00–10:30']);
+    expect(label(itemWindowsOn(null, slotsOn, MONDAY, mondayMorning))).toEqual(['08:00–10:30']);
+    expect(label(itemWindowsOn(null, slotsOn, MONDAY))).toEqual(['–12:00', '13:00–']);
+    expect(label(itemWindowsOn(group('and', [condition('freeTime', 'isEmpty')]), slotsOn, MONDAY))).toEqual(['–09:00', '13:00–14:00', '19:30–']);
+    // Its hours are on Mondays: never on Tuesday.
+    expect(label(itemWindowsOn(null, slotsOn, TUESDAY, mondayMorning))).toEqual([]);
+  });
+
+  it('null when nothing limits it: no hours, no condition (or an empty group), nothing unavailable', () => {
+    const slotsOn = scheduleSlotsOn([WORK]);
+    expect(itemWindowsOn(null, slotsOn, MONDAY)).toBeNull();
+    expect(itemWindowsOn(group('and', []), slotsOn, MONDAY)).toBeNull();
+    expect(label(itemWindowsOn(null, slotsOn, MONDAY, wholeMonday))).toEqual(['–']);
+  });
+
+  // The same moments as conditionAllowsAt, minute by minute, on ordinary days and on the days the clock changes in Paris.
+  const fixtures: { name: string; rules: WorkScheduleRule[]; condition: SlotCondition | null; hours: ScheduleCase[] }[] = [
+    { name: 'nothing', rules: [WORK], condition: null, hours: [] },
+    { name: 'on work', rules: [WORK, SPORT, lunch], condition: group('and', [condition('schedules', 'in', ['work'])]), hours: [] },
+    { name: 'out of work, own hours', rules: [WORK, SPORT, lunch, night], condition: group('and', [condition('schedules', 'notIn', ['work'])]), hours: mondayMorning },
+    { name: 'free time or sport', rules: [WORK, SPORT, HOLIDAY, night], condition: group('or', [condition('freeTime', 'isEmpty'), condition('kinds', 'in', ['sport'])]), hours: [] },
+    { name: 'a « et » with an empty group', rules: [WORK, SPORT, lunch], condition: group('and', [group('or', []), condition('schedules', 'in', ['sport', 'work'])]), hours: wholeMonday },
+    { name: 'a kind without schedule', rules: [WORK], condition: group('and', [condition('kinds', 'in', ['nothing'])]), hours: [] },
+    { name: 'unavailable the whole day', rules: [WORK, allDayOff], condition: null, hours: [] },
+    { name: 'own hours alone, a slot up to 23:59', rules: [night], condition: null, hours: [scheduleCase({ frequency: 'DAILY' }, { times: { allDay: false, ranges: [{ start: '06:15', end: '07:45' }, { start: '21:00', end: '23:59' }] } })] },
+  ];
+  const days = [MONDAY, TUESDAY, '2026-03-29', '2026-10-25'];
+  for (const fixture of fixtures)
+    it(`moment by moment as conditionAllowsAt: ${fixture.name}`, () => {
+      const slotsOn = scheduleSlotsOn(fixture.rules);
+      for (const day of days) {
+        const list = itemWindowsOn(fixture.condition, slotsOn, day, fixture.hours);
+        // In order, without overlap.
+        list?.forEach((window, index) => {
+          if (index) expect((list[index - 1].dueTime ?? '24:00') < (window.fromTime ?? '00:00')).toBe(true);
+        });
+        for (let minute = 0; minute < 24 * 60; minute++) {
+          const time = minutesToTime(minute);
+          const inside = list === null || list.some((window) => (window.fromTime ?? '00:00') <= time && time < (window.dueTime ?? '24:00'));
+          if (inside !== conditionAllowsAt(fixture.condition, slotsOn, day, time, fixture.hours)) expect({ day, time, inside }).toBeNull();
+        }
+      }
+    });
 });

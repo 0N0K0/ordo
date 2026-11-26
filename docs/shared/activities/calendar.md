@@ -1,6 +1,6 @@
 # Paquet partagé : `calendar`
 
-Schémas des événements, agendas et catégories d'agenda, calcul de disponibilité (événements qui occupent quelqu'un), créneaux planifiés (horaires de travail et autres types de créneaux) et condition de créneaux des tâches et routines. Source : `packages/shared/src/calendar/`.
+Schémas des événements, agendas et catégories d'agenda, calcul de disponibilité (événements qui occupent quelqu'un), créneaux planifiés (horaires de travail et autres types de créneaux) et condition de créneaux des tâches et routines, placement de « Ma journée ». Source : `packages/shared/src/calendar/`.
 
 Voir aussi : [Règles : calendrier](../../business-rules/activities/calendar.md), [Dates](../../business-rules/cross-cutting/dates.md), [dates](../cross-cutting/dates.md) (répétitions), [Personnes](../../business-rules/cross-cutting/people.md).
 
@@ -67,7 +67,7 @@ Internes : `BusyItem` (`assigneeIds`, `taskId?`, `routineId?`), `peopleOf` (list
 | `CALENDAR_VIEW_KEY` | `calendar` : `tableKey` des vues de la page Agenda (vues `TABLE`). Utilisé par le web (`useCalendarViews`) et l’API (`task-views.ts`, qui valide leur configuration par `calendarViewConfigSchema`). |
 | `CALENDAR_DISPLAYS`, `CalendarDisplay` | Affichage d’une vue : `MONTH`, `WEEK` (semaine de l’espace), `DAY`. |
 | `CALENDAR_FILTER_KINDS`, `CalendarFilterKind` | Sortes d’éléments filtrées, chacune par son propre filtre : `events`, `tasks`, `routines`, `timers`, `slots`, `ephemerides`. |
-| `calendarViewConfigSchema` / `CalendarViewConfig` | Configuration d’une vue : `display` (défaut `WEEK`), `tasks` (vrai), `routines` (vrai), `schedules` (créneaux, éphémérides et anniversaires ; vrai), `timers` (faux), `includeArchived` (faux), `fineSlots` (faux), `hiddenCalendarIds` et `hiddenScheduleIds` (500 au plus), `filters` (un `tableFilterSchema` par sorte). Un champ invalide retombe sur son défaut (`catch`). |
+| `calendarViewConfigSchema` / `CalendarViewConfig` | Configuration d’une vue : `display` (défaut `WEEK`), `tasks` (vrai), `routines` (vrai), `schedules` (créneaux, éphémérides et anniversaires ; vrai), `timers` (faux), `includeArchived` (faux), `fineSlots` (faux), `hiddenCalendarIds` et `hiddenScheduleIds` (500 au plus), `filters` (un `tableFilterSchema` par sorte). Un champ invalide retombe sur son défaut (`catch`). Repris, réduit, par les réglages de « Ma journée » (`myDaySettingsSchema`). |
 | `calendarViewConfig(config?)` | Configuration lue (les valeurs par défaut si elle ne valide pas). |
 
 Interne : `HIDDEN_MAX`, `hiddenIdsSchema`, `kindFilterSchema`, `calendarFiltersSchema`.
@@ -89,6 +89,7 @@ La même condition pour les tâches et les routines : un arbre de filtre (groupe
 | `conditionKinds(node)`                 | Types cités par une condition (`kinds`).                                                                                                                                                                              |
 | `conditionReferences(node)`            | Tout ce qu'une condition cite : horaires et types (ids distincts ; colonne « Créneaux » des tableaux, archivés gardés).                                                                                                |
 | `conditionConstrains(node)`            | Vrai si la condition limite les heures (temps libre ou au moins un horaire ou un type cité).                                                                                                                          |
+| `slotSpan(slot)` | Heures d'un créneau planifié : une journée entière de "00:00" à "24:00", un créneau jusqu'à 23:59 jusqu'à la fin du jour ("24:00") ; la fusion des horaires (`merged`) et les heures de « Ma journée » la suivent. |
 | `TimeWindow`                           | Fenêtre `{ fromTime, dueTime }` (`null` : début ou fin de journée).                                                                                                                                                   |
 | `ScheduleQuery`                        | Horaires demandés : `ids` (`ALL_SCHEDULES` : tous ceux de l'espace), `kinds`, et `unavailable` (ceux « Indisponible » dans l'espace : les siens, et ceux des autres espaces par ses abonnements). |
 | `SlotsOf`                              | Créneaux d'une `ScheduleQuery` un jour donné.                                                                                                                                                                           |
@@ -101,10 +102,40 @@ La même condition pour les tâches et les routines : un arbre de filtre (groupe
 | `scheduleSlotsOn(rules, foreign?, birthdays?)` | `SlotsOn` des horaires de l'espace et de ceux des autres espaces (comptés seulement là où une condition les cite, eux ou leur type ; jamais dans le temps libre ; les éphémérides de l'espace non plus, `slotSchedules`), et des anniversaires des personnes de l'espace (journée entière le jour de chaque anniversaire, `birthdaysBetween`, cités par `birthday:<personne>` ou tous par le type `birthday` ; jamais dans le temps libre ; une référence d'un alias nomme l'anniversaire de la personne), les horaires de chaque jour calculés à la première demande (API : `loadSlotsOn`, web : `useSlotRules`). Les créneaux archivés ou d'un type archivé (`countedSchedules`) et les anniversaires des personnes archivées ne comptent nulle part, temps libre compris. `{ unavailable: true }` donne les horaires « Indisponible » (`WorkScheduleRule.unavailable` : celui de l'espace pour les siens, celui de son abonnement pour ceux d'un autre espace), éphémérides comprises. |
 | `conditionAllowsAt(condition, slotsOn, date, time, hours?)` | Un moment est permis par la condition et par les horaires propres de l'élément (`hours` : ceux d'une tâche, `casesSlotsOn`), hors des créneaux « Indisponible » : tous doivent le permettre (toujours sans aucun). Le seul test de ce qu'une tâche peut se faire, pour l'API et l'app. |
 | `conditionBlockAt(condition, slotsOn, date, time, hours?)`, `ConditionBlock` | Ce qui écarte un moment : `hours` (les horaires propres ne le permettent pas, testés d'abord), `slots` (la condition ne le permet pas), `unavailable` (un créneau « Indisponible » le tient), `null` : permis. `conditionAllowsAt` en découle ; l'API en tire la raison d'une tâche pas faisable (`taskDoability`), le web `inSlots` / `inHours` de `useSlotRules`. |
+| `itemWindowsOn(condition, slotsOn, date, hours?)` | Fenêtres d'un jour où un élément (tâche, routine) peut se faire : dans ses horaires propres s'il en a, permises par sa condition, hors des créneaux « Indisponible » ; dans l'ordre, sans chevauchement ; `null` si rien ne le limite (n'importe quand), vide s'il ne peut pas se faire ce jour. Un moment est dans l'une d'elles exactement quand `conditionAllowsAt` le permet (testé minute par minute). Placement de « Ma journée ». |
 | `nextConditionMoment(condition, slotsOn, date, time, days, hours?)` | Premier moment permis par la condition et les horaires hors des créneaux « Indisponible » à partir d'un moment, sur `days` jours (le moment même si rien ne le limite) ; `null` si aucun. |
 | `unavailableScheduleIds(slotsOn, from, to?)` | Horaires « Indisponible » rencontrés à un moment, ou pendant une période (fin exclue) : l'avertissement d'un évènement posé dessus et du chrono (`useSlotRules().unavailable`). |
 
-Internes : `Interval`, `intervalOf`, `windowOf`, `merged` (fusion des horaires ; un horaire jusqu'à 23:59 va jusqu'à la fin du jour), `windowsOutside`, `WHOLE_DAY`, `intersect`, `unite`, `conditionIntervals`, `allowedIntervals` (heures d'un jour permises par la condition, dans les horaires propres, hors des créneaux indisponibles), `availableIntervals` (heures hors des créneaux indisponibles), `conditionValues`, `slotConditionItemSchema`.
+Internes : `Interval`, `intervalOf`, `windowOf`, `merged` (fusion des horaires, par `slotSpan`), `windowsOutside`, `WHOLE_DAY`, `intersect`, `unite`, `conditionIntervals`, `allowedIntervals` (heures d'un jour permises par la condition, dans les horaires propres, hors des créneaux indisponibles : `itemWindowsOn` et `nextConditionMoment`), `availableIntervals` (heures hors des créneaux indisponibles), `conditionValues`, `slotConditionItemSchema`.
+
+## `my-day.ts` — placement de « Ma journée »
+
+Calcul pur : les éléments du jour, déjà choisis et filtrés par l'app, sont rangés en blocs (règles dans [Ma journée](../../business-rules/activities/my-day.md#placement)). Les types d'entrée sont minimaux : le web y fait correspondre ses occurrences, moments et tâches, et garde ses données dans `item` (types génériques).
+
+| Export | Rôle |
+| ------ | ---- |
+| `MY_DAY_KINDS`, `MyDayKind` | `ephemeris`, `event`, `birthday`, `routineGroup` (une routine parente, tête de ses sous-routines du jour), `routine`, `task` : l'ordre de la tête du jour, puis à heure égale. |
+| `MyDayTime` | Heures d'un élément ce jour (`start`, `end`, HH:MM ou `null`). |
+| `MyDayItem` | Élément : `key`, `kind`, `startDate?` / `endDate?` (évènement sur plusieurs jours), `allDay?`, `time?`, `windows?` (fenêtres où il peut se faire, `itemWindowsOn` ou celles d'un moment de routine ; `null` : sans limite ; aucune : il n'est pas dans le jour), `late?` (routine ou tâche en retard : en tête aujourd'hui), `done?`, `doneAt?` (HH:MM à Paris), `cancelled?`, `eventKeys?` (évènements liés), `groupKey?` (clé de l'élément `routineGroup` sous lequel il se range). |
+| `MyDaySlot` | Créneau du jour : `scheduleId`, `start`, `end`, `allDay`, `unavailable?`. |
+| `MyDayPart` | `start` / `end` : premier ou dernier jour d'un évènement sur plusieurs jours. |
+| `MyDayRow<T>` | Ligne : `item`, `time` (heure où elle est placée ; faite : l'heure où elle l'a été), `part`, `window` (fenêtre où elle est placée), `otherWindows`, `children` (éléments sous elle : liés à un évènement, ou d'un groupe). |
+| `MyDayHour<T, S>` | Heure affichée (une ligne, un créneau qui n'est pas de toute la journée, ou l'heure de maintenant) : `hour` (0 à 23), `current`, `slots` (créneaux rencontrés pendant l'heure), `unavailable`, `rows`. |
+| `MyDayLayout<T, S>` | Blocs : `header`, `unscheduled`, `hours`, `finished`. |
+| `MyDayOptions<S>` | `day`, `now` (aujourd'hui et l'heure lus à Paris), `slots?`. |
+| `myDayRows(items, options)` | Range les éléments d'un jour (sans ceux qui n'ont aucune fenêtre ce jour, sauf faits ou annulés) : tête, sans horaire, heures (seulement celles qui ont une ligne ou un créneau, et l'heure de maintenant aujourd'hui), faits puis annulés en bas, éléments liés sous leur évènement, sinon ceux d'un groupe (`groupKey`) sous lui ; un groupe se place où est le premier de ses éléments encore à faire, en bas une fois tous faits ou annulés (à l'heure du dernier fait), à sa place à lui sans élément sous lui. |
+
+Internes : `Block`, `BLOCKS` (ordre des blocs), `placeGroup` (place d'un groupe d'après ses éléments), `Placement`, `placementOf` (où va un élément ce jour, `null` : il n'y est pas), `wholeDay` (créneau de toute la journée : colore les heures affichées sans les faire afficher), `hourStart`, `hourOf`, `byTime` (heure, type, ordre donné), `byDone` (faits dans l'ordre où ils l'ont été, puis annulés), `finished`.
+
+## `my-day-settings.ts` — réglages de « Ma journée »
+
+Réglages de la page, par utilisateur et par espace (règles dans [Ma journée](../../business-rules/activities/my-day.md#réglages)). Lus par l'API (`apps/api/src/services/calendar/my-day-settings.ts`) et par la page.
+
+| Export | Rôle |
+| ------ | ---- |
+| `myDaySettingsSchema` | Réglages (zod), ceux d'une vue de l'agenda qu'une liste du jour utilise : `calendarViewConfigSchema` réduit à `tasks`, `routines`, `schedules` (avec les anniversaires), `hiddenCalendarIds`, `hiddenScheduleIds`, `filters` (un filtre par sorte, `CALENDAR_FILTER_KINDS`) ; un champ absent ou invalide prend sa valeur par défaut, les clés inconnues sont retirées. Sert à la lecture et à l'enregistrement (API). |
+| `MyDaySettings` | Réglages lus par `myDaySettingsSchema`. |
+| `readMyDaySettings(value)` | Réglages lus d'une valeur enregistrée (rien, ou autre chose qu'un objet : les valeurs par défaut, celles d'une vue de l'agenda : tâches, routines, créneaux et éphémérides affichés, rien de masqué, aucun filtre). |
 
 ## `slot-kinds.ts` — références des types de créneaux
 
@@ -165,6 +196,7 @@ Un horaire (« créneau » dans l'interface, ou « éphéméride » quand il est
 | `ChangedSchedule`                                             | Résultat de `changedScheduleSlot` : `startDate`, `endDate`, `cases`, `exceptions`. |
 | `changedScheduleSlot(schedule, slot, change, scope, movedRule?)` | Nouvelle période, nouveaux cas et exceptions après déplacement, étirement ou suppression (`change = null`) d'un créneau ou d'une éphéméride depuis le calendrier. `THIS` : exception du jour (et du jour d'arrivée) avec ses propres horaires ; `FOLLOWING` : le cas s'arrête la veille et un nouveau cas suit avec la modification (coupure seulement si le cas avait des jours avant) ; `ALL` : tous les jours du cas. Le rythme suit le créneau (nouveau jour de semaine, nouveau jour du mois…). Une éphéméride changée de jour, d'un seul jour (toute portée) ou avec `ALL`, se décale avec toute sa période (cas et exceptions), puis prend ses nouvelles heures sur tous les jours du cas. Un cas le dernier jour du mois déplacé à un autre jour prend `movedRule` (la règle choisie) ; sans elle, refus `RuleChoiceRequired` avec la règle proposée (internes `movedCase`, `shiftedCases`, `shiftedSchedule`). |
 | `LAST_DAY_CASES_REFUSAL`                                      | « Plusieurs cas tombent le dernier jour du mois : changez leur règle avant de déplacer toute la période. » : une éphéméride décalée avec sa période qui a plusieurs cas le dernier jour du mois (une seule règle choisie ne vaut pas pour tous). |
+| `SPLIT_CASES_REFUSAL`                                         | « Décalée ainsi, la période aurait plus de 20 cas : ceux dont seuls certains jours changent de semaine deviennent deux cas. Décalez-la d’un nombre entier de semaines, ou retirez des cas avant. » : une éphéméride décalée avec sa période dont les cas, doublés par un décalage mixte, dépasseraient 20 (la période ou une exception ; déjà plus de 20 avant : laissé à la validation). |
 
 Erreurs de `changedScheduleSlot` (levées en `UserError`, dans les mots de `slotWords`) : « La fin doit suivre le début. », « Ce jour est en dehors de la période du créneau. » (« … de l'éphéméride. »), « Horaires introuvables ce jour-là. », « Ce sont les derniers horaires du créneau : supprimez le créneau lui-même. » (« … de l'éphéméride : supprimez l'éphéméride elle-même. »).
 

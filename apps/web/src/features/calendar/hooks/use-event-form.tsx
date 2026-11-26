@@ -55,9 +55,9 @@ export function useEventForm(context: TaskContext | null) {
    * @param {CalendarEventInput} fields Its fields.
    * @returns {Promise<void>}
    */
-  const openCopy = async (id: string, fields: CalendarEventInput) => {
+  async function openCopy(id: string, fields: CalendarEventInput) {
     const occurrence = (await fetchCalendarEvents({ from: fields.startDate, to: fields.endDate })).find((item) => item.eventId === id);
     if (occurrence) void open({ occurrence });
-  };
+  }
   return (options?: { occurrence?: EventOccurrence; defaults?: Partial<CalendarEventInput> }) => void open(options);
 }

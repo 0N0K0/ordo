@@ -1,6 +1,6 @@
 # Espaces de travail et accès
 
-Espaces professionnels et personnels, isolation des données par espace, partage entre espaces (abonnements, notifications), compte utilisateur, connexion, sessions et limites de tentatives. Sources : `apps/api/src/services/workspaces/workspaces.ts`, `apps/api/src/workspace-context.ts`, `apps/api/src/db.ts`, `apps/api/src/services/core/auth.ts`, `apps/api/src/auth/{session,crypto,rate-limit}.ts`, `apps/api/src/graphql/{builder,context}.ts`, `apps/api/src/{env,index,security-headers}.ts`, `apps/api/src/routes/http.ts`, `apps/api/src/graphql/modules/{auth,workspaces}.ts`, `apps/api/src/cli/create-user.ts`, `apps/api/src/services/calendar/{calendars,work-schedules}.ts`, `packages/shared/src/core/{auth,password-rules,password-strength,workspace}.ts`.
+Espaces professionnels et personnels, isolation des données par espace, partage entre espaces (abonnements, notifications), compte utilisateur, connexion, sessions et limites de tentatives. Sources : `apps/api/src/services/workspaces/workspaces.ts`, `apps/api/src/workspace-context.ts`, `apps/api/src/db.ts`, `apps/api/src/services/core/auth.ts`, `apps/api/src/auth/{session,crypto,rate-limit}.ts`, `apps/api/src/graphql/{builder,context}.ts`, `apps/api/src/{env,index,security-headers}.ts`, `apps/api/src/routes/http.ts`, `apps/api/src/graphql/modules/{auth,workspaces}.ts`, `apps/api/src/cli/create-user.ts`, `apps/api/src/services/calendar/{calendars,work-schedules,my-day-settings}.ts`, `packages/shared/src/core/{auth,password-rules,password-strength,workspace}.ts`.
 
 Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](background-jobs.md), [Fonctionnalités : espaces](../../features/cross-cutting/workspaces.md), [Fonctionnalités : authentification](../../features/cross-cutting/auth.md).
 
@@ -40,6 +40,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 
 - Le compte est créé en ligne de commande (`npm run user:create`, `apps/api/src/cli/create-user.ts`) ; refusé s'il existe déjà un compte : « Un compte existe déjà. Ordo ne gère qu’une seule utilisatrice. ». Aucun écran d'inscription.
 - Tous les espaces sont accessibles à tout utilisateur connecté ; il n'y a ni rôles ni permissions par espace dans le code actuel (le partage multi-utilisateur est prévu sur la branche `multi-user-sharing`).
+- Réglages d'un utilisateur dans un espace (`UserWorkspaceSettings`, une ligne par utilisateur et par espace, celle de « Ma journée ») : lus et écrits seulement par cet utilisateur, dans l'espace de la requête dont il est membre (il y a son profil « Moi ») ; sinon « Espace introuvable. » (voir [Ma journée](../activities/my-day.md#réglages)).
 - Identifiant : 3 à 32 caractères `[a-z0-9._-]`, en minuscules, unique ; email unique, en minuscules.
 
 ## Accès à l'API

@@ -95,7 +95,7 @@ Un jour : `DatePickerInput` de Mantine avec « Aujourd’hui » (`todayPresets`)
 
 ### `DateTimeField`
 
-Un jour et son heure dans un seul sélecteur : `DateTimePicker` de Mantine (24 h), « Aujourd’hui » à l'heure déjà choisie. Props : celles de `DateTimePicker` (sans `type`, `value`, `onChange`, `presets`, `date`), `day` (YYYY-MM-DD), `time` (HH:mm ; vide : le champ dit « 3 nov. 2026, heure à choisir »), `onChange(day, time)` (les deux vides une fois effacé). Une journée entière (sans heure) est un `DateField`. Utilisé par les alarmes (« Date et heure »), les temps (« Début »), « Faite le » d'une occurrence de routine passée, l'envoi programmé d'un mail, `EventWhenCell`.
+Un jour et son heure dans un seul sélecteur : `DateTimePicker` de Mantine (24 h), « Aujourd’hui » à l'heure déjà choisie. Props : celles de `DateTimePicker` (sans `type`, `value`, `onChange`, `presets`, `date`), `day` (YYYY-MM-DD), `time` (HH:mm ; vide : le champ dit « 3 nov. 2026, heure à choisir »), `onChange(day, time)` (les deux vides une fois effacé), `minInstant` (premier moment possible, à la place de `minDate`, qui est alors ignoré : lu à l’heure de Paris et arrondi à la minute supérieure, les jours d’avant grisés, les heures d’avant de ce jour refusées par le sélecteur d’heure, « Aujourd’hui » pas avant lui ; `pickerMoment`). Une journée entière (sans heure) est un `DateField`. Utilisé par les alarmes (« Date et heure »), les temps (« Début »), « Faite le » d'une occurrence de routine passée, l'envoi programmé d'un mail, `EventWhenCell`.
 
 ### `MonthField`
 
@@ -128,8 +128,9 @@ Champs en `PeriodField` : tâche (« Dates » : début et fin ; « Ouverture et 
 
 - `TODAY_LABEL` (« Aujourd’hui »), `THIS_MONTH_LABEL` (« Ce mois-ci »).
 - `pickerDay(bound)` : jour d'une borne donnée à un sélecteur (jour, « YYYY-MM-DD HH:mm:ss » ou instant).
+- `pickerMoment(instant)` : borne d'un sélecteur de date et heure depuis un instant : son jour et son heure à Paris (« YYYY-MM-DD HH:mm:00 »), arrondis à la minute supérieure (jamais avant l'instant). Utilisé par `DateTimeField` (`minInstant`).
 - `parisTodayDays(getDayProps?)` : `getDayProps` d'un calendrier Mantine qui marque aujourd'hui à Paris (`data-today`, mis en avant par `highlightToday` ; Mantine marquerait le jour du fuseau du navigateur), les props de chaque jour données gardées. Utilisé par `DateField`, `DateTimeField`, `PeriodField`.
-- `todayPresets({ min, max, time })` : « Aujourd’hui » (à Paris) d'un sélecteur (`presets` de Mantine ; avec l'heure pour un date et heure), aucun quand aujourd'hui ne peut pas être choisi ; `thisMonthPresets({ min, max })` : « Ce mois-ci ».
+- `todayPresets({ min, max, time })` : « Aujourd’hui » (à Paris) d'un sélecteur (`presets` de Mantine ; avec l'heure pour un date et heure, pas avant une borne `min` « YYYY-MM-DD HH:mm:ss » d'aujourd'hui), aucun quand aujourd'hui ne peut pas être choisi ; `thisMonthPresets({ min, max })` : « Ce mois-ci ».
 - `formDateTime(form, champ du jour, champ de l'heure)` : lien d'un `DateTimeField` avec deux champs d'un formulaire Mantine (valeurs, les deux mis d'un coup, erreur, blur). Interne : `PickerPreset`, `DateTimeBinding`.
 
 ### `date-range.ts`

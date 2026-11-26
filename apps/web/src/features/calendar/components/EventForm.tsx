@@ -1,16 +1,13 @@
 import { relationNoun } from '../../../components/people/people-options';
 import { LinksField } from '../../../components/inputs/LinksField';
-import { copyName, countOf, fitName, plural } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 import { notifySuccess } from '../../../lib/notify';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { openFormPanel } from '../../../components/panels/panels';
 
 import { itemSelectProps } from '../../../components/items/item-look';
 
-import { Anchor, Badge, Fieldset, Select, Stack, Text, TextInput } from '@mantine/core';
-import { PeriodField } from '../../../components/inputs/PeriodField';
-import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, type Recurrence, cutSeries, seriesOn, sharePeople, shiftedSeries, shiftTime, TEXT_MAX } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, TrashIcon } from '@phosphor-icons/react';
+import { Anchor, Badge, Fieldset, Select, Text } from '@mantine/core';
+import { mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, type Recurrence, cutSeries, seriesOn, sharePeople, shiftedSeries, shiftTime } from '@ordo/shared';
+import { ArrowArcRightIcon, CalendarXIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { parisToday } from '../../../lib/dates';
@@ -18,17 +15,13 @@ import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, type CalendarEventScope } from '../api';
-import { archivedIds, archiveEntry, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
+import { archivedIds, unarchived, unarchivedOffered } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { fetchLostOnDelete } from '../../time/api';
-import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
-import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { timeTaskOptions, timeTasks } from '../../time/lib/time-tasks';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf } from '../../geo/lib/location';
 import { useFormLocation } from '../../geo/hooks/use-location-draft';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { askScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { occurrenceInput, routineLinkKey, routineLinkOf, seriesInput, withDays } from '../lib/event-input';
@@ -44,8 +37,7 @@ import { useCalendarCategoryItems } from '../hooks/use-settings-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
-import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
-import { duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { FormDescription } from '../../../components/markdown/DescriptionSection';
 import { DetailLayout, PanelGroup } from '../../../components/panels/DetailLayout';
 import { PANEL_GROUPS } from '../../../components/panels/panel-groups';
@@ -56,83 +48,11 @@ import { inProjectTree } from '../../tasks/lib/task-links';
 import { TrackedTime } from '../../time/components/TrackedTime';
 import { TravelTimes } from '../../geo/components/TravelTimes';
 import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
-import { useCountdownMenuEntries } from '../../countdowns/hooks/use-saved-countdowns';
-import { useSetSavedCountdownLinks } from '../../countdowns/api';
-import { eventCountdownItem } from '../lib/event-countdowns';
 import { calendarPath } from '../../../app/pages';
+import { useEventMenu } from '../hooks/use-event-menu';
+import { eventTimerInput, onEventOccurrence } from '../lib/event-timer';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
-
-interface PostponeFormProps {
-  /** Fields of the event postponed (with the changes of the form). */
-  fields: CalendarEventInput;
-  /** Original label, for the label of the postponement. */
-  label: string;
-  loading: boolean;
-  onCancel: () => void;
-  onConfirm: (input: CalendarEventInput) => void;
-}
-
-/**
- * New date (and label) of a postponement: the event keeps its duration, from the next day by default.
- * @param {PostponeFormProps} props Component props.
- * @returns {JSX.Element} Form.
- */
-function PostponeForm({ fields, label, loading, onCancel, onConfirm }: PostponeFormProps) {
-  const [values, setValues] = useState({
-    label: fitName('Report de l’évènement « ', label, ' »'),
-    startDate: addDays(fields.startDate, 1),
-    endDate: addDays(fields.endDate, 1),
-    startTime: fields.startTime ?? null,
-    endTime: fields.endTime ?? null,
-  });
-  const { endDate } = values;
-  const valid = Boolean(values.label.trim() && values.startDate && (fields.allDay || (values.startTime && values.endTime && (endDate > values.startDate || values.endTime > values.startTime))));
-  return (
-    <Stack gap="sm">
-      <Text size="sm">La date initiale sera annulée (l’évènement reste barré dans l’agenda) et un nouvel évènement, lié à elle, sera créé à la nouvelle date.</Text>
-      <TextInput label="Libellé" required maxLength={TEXT_MAX} value={values.label} onChange={(event) => setValues({ ...values, label: event.currentTarget.value })} />
-      <PeriodField
-        label="Nouvelle date"
-        description="L’évènement garde sa durée ; changez la fin pour la modifier."
-        required
-        weekday
-        keepLength
-        value={[values.startDate, values.endDate]}
-        times={fields.allDay ? undefined : [values.startTime, values.endTime]}
-        onChange={([startDate, end], hours) => startDate && end && setValues({ ...values, startDate, endDate: end, ...(hours ? { startTime: hours[0], endTime: hours[1] } : {}) })}
-      />
-      <AvailabilityHint allDay={fields.allDay} startDate={values.startDate} startTime={values.startTime} endDate={endDate} endTime={values.endTime} />
-      <FormActions
-        onCancel={onCancel}
-        submitLabel="Reporter"
-        submitIcon={<ArrowArcRightIcon aria-hidden />}
-        loading={loading}
-        disabled={!valid}
-        // Its routine links go with it to its new days.
-        onSubmit={() => onConfirm({ ...withDays(fields, values.startDate, endDate), label: values.label.trim(), startTime: values.startTime, endTime: values.endTime, recurrence: null })}
-      />
-    </Stack>
-  );
-}
-
-/**
- * Postponement of an occurrence in its panel: its form, and the postponement once confirmed.
- * @param {{ fields: PostponeFormProps['fields'], occurrence: EventOccurrence, onCancel: () => void, onDone: () => void }} props Fields of the event, occurrence, closing.
- * @returns {JSX.Element} Panel content.
- */
-function PostponePanel({ fields, occurrence, onCancel, onDone }: { fields: PostponeFormProps['fields']; occurrence: EventOccurrence; onCancel: () => void; onDone: () => void }) {
-  const { postpone } = useCalendarEventMutations();
-  return (
-    <PostponeForm
-      fields={fields}
-      label={occurrence.label}
-      loading={postpone.isPending}
-      onCancel={onCancel}
-      onConfirm={(input) => postpone.mutate({ id: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate, input }, formCallbacks(null, 'Évènement reporté.', onDone))}
-    />
-  );
-}
 
 interface EventFormProps {
   context: TaskContext;
@@ -191,27 +111,14 @@ interface SaveTarget {
  */
 export function EventForm({ context, occurrence, defaults, onDone, onDuplicated, scope = 'ALL' }: EventFormProps) {
   const categoryItems = useCalendarCategoryItems();
-  const { create, update, remove, setCalledOff } = useCalendarEventMutations();
-  const countdownEntries = useCountdownMenuEntries();
+  const { create, update } = useCalendarEventMutations();
   // The panel does not follow the cache: the saved timers of the event as saved from it.
   const [savedCountdownIds, setSavedCountdownIds] = useState(occurrence?.savedCountdownIds ?? []);
-  const copyCountdowns = useSetSavedCountdownLinks([calendarQueryKey]);
-
-  /**
-   * Opens the postponement of this occurrence; once postponed, the event form closes too.
-   * @returns {void}
-   */
-  const openPostpone = () =>
-    occurrence &&
-    openFormPanel('Reporter l’évènement', (close) => (
-      <PostponePanel fields={values} occurrence={{ ...occurrence, eventId: target.eventId, occurrenceDate: target.occurrenceDate }} onCancel={close} onDone={() => (close(), onDone())} />
-    ));
 
   const { data: categories } = useCalendarCategories();
   const { data: documentOptions } = useDocumentOptions();
   const { data: calendarsData } = useCalendars();
   const calendars = calendarsData?.calendars ?? [];
-  const setArchived = useSetArchived('CALENDAR_EVENT', [calendarQueryKey]);
   // Archived (its series), or in an archived calendar (its container): read only.
   const calendarArchived = occurrence ? archivedIds(calendars).has(occurrence.calendarId) : false;
   const archived = Boolean(occurrence?.archived) || calendarArchived;
@@ -305,6 +212,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     readOnly,
   });
   const values = form.values;
+
   // Put in the form (and saved, field by field) once chosen, cleared or left.
   const place = useFormLocation(values, (change) => form.setValues(change), commit);
   // One occurrence edited alone: the fields of the series stay as they are (the API keeps them).
@@ -349,55 +257,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   // A new event only: an existing one is saved field by field (Enter saves the text typed).
   const handleSubmit = form.onSubmit((input) => create.mutate(input, formCallbacks(form, 'Évènement créé.', onDone)));
 
-  /**
-   * Deletes the event (asking which occurrences for a recurring one), telling the times without project
-   * and the comments deleted with it.
-   * @returns {Promise<void>}
-   */
-  const handleDelete = async () => {
-    if (!occurrence) return;
-    /**
-     * Runs the deletion.
-     * @param {CalendarEventScope} scope Scope.
-     * @returns {void}
-     */
-    const run = (scope: CalendarEventScope) => remove.mutate({ id: target.eventId, scope, occurrenceDate: target.occurrenceDate }, formCallbacks(null, 'Évènement supprimé.', onDone));
-    const lost = { eventId: target.eventId, occurrenceDate: target.occurrenceDate };
-    if (recurring) {
-      const [THIS, FOLLOWING, ALL] = await Promise.all((['THIS', 'FOLLOWING', 'ALL'] as const).map((scope) => fetchLostOnDelete({ ...lost, scope })));
-      const scope = await askScope({ action: 'delete', note: scopeLostNote({ THIS, FOLLOWING, ALL }) });
-      if (scope) run(scope);
-      return;
-    }
-    confirmDestructive({
-      title: 'Supprimer l’évènement',
-      risks: (
-        <>
-          L’évènement « {occurrence?.label ?? ''} » sera supprimé définitivement.
-          <LostOnDeleteRisk query={{ ...lost, scope: 'ALL' }} />
-        </>
-      ),
-      onConfirm: () => run('ALL'),
-    });
-  };
-
-  /**
-   * Cancels the event (kept struck through) or restores it, for the occurrences chosen when the panel opened.
-   * @param {boolean} calledOff Cancel (true) or restore (false).
-   * @returns {void}
-   */
-  const handleCalledOff = (calledOff: boolean) => {
-    if (!occurrence) return;
-    setCalledOff.mutate(
-      { id: target.eventId, scope: target.scope, occurrenceDate: target.occurrenceDate, calledOff },
-      formCallbacks(null, calledOff ? 'Évènement annulé.' : 'Évènement rétabli.', onDone),
-    );
-  };
-
-  // Tasks of the event a timer on its project takes (the API's rule: the project, its sub-projects, tasks without
-  // project; without project, only those).
-  const timerTasks = new Set(timeTasks(context, values.projectId).map((task) => task.id));
-  const timer = { projectId: values.projectId, taskIds: (values.taskIds ?? []).filter((id) => timerTasks.has(id)), description: values.label, events: [{ eventId: target.eventId, occurrenceDate: target.occurrenceDate }] };
+  // The timer of « Temps passé »: its project and its linked tasks, on this occurrence.
+  const timer = eventTimerInput(context, values, target);
   // When to leave and when back, an event with hours (told once an outward travel is given).
   const leave =
     !values.allDay && values.startTime
@@ -417,36 +278,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
 
   // Its « … » menu: « Dupliquer », « Annuler l’évènement » / « Rétablir », « Reporter », « Archiver » / « Restaurer »
   // (the whole series), « Supprimer », then « Lancer » its saved timers; archived: restored or deleted only.
-  const menu: RowMenuEntry[] = occurrence
-    ? [
-        !readOnly &&
-          onDuplicated &&
-          rowMenuEntry(
-            duplicateRowsAction([{ ...values, label: copyName(values.label), recurrence: recurring ? null : (values.recurrence ?? null) }], {
-              duplicate: async (fields: CalendarEventInput) => {
-                const id = await create.mutateAsync(fields);
-                // The copy launches the same saved timers.
-                if (savedCountdownIds.length) await copyCountdowns.mutateAsync({ target: 'EVENT', id, savedCountdownIds });
-                return { id, fields };
-              },
-              done: 'Évènement dupliqué.',
-              open: ({ id, fields }) => onDuplicated(id, fields),
-            }),
-          ),
-        ...(readOnly
-          ? []
-          : occurrence.calledOff
-            ? [{ label: 'Rétablir', icon: <ArrowCounterClockwiseIcon aria-hidden />, disabled: setCalledOff.isPending, onClick: () => handleCalledOff(false) }]
-            : [
-                { label: 'Annuler l’évènement', icon: <CalendarXIcon aria-hidden />, disabled: setCalledOff.isPending, onClick: () => handleCalledOff(true) },
-                { label: 'Reporter', icon: <ArrowArcRightIcon aria-hidden />, onClick: openPostpone },
-              ]),
-        !calendarArchived && archiveEntry({ archived: occurrence.archived, type: 'Évènement', label: occurrence.label }, setArchived, target.eventId, onDone),
-        { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, disabled: remove.isPending, onClick: () => void handleDelete() },
-        // « Lancer » its saved timers, for this occurrence.
-        ...(readOnly ? [] : countdownEntries({ savedCountdownIds }, eventCountdownItem({ eventId: target.eventId, label: values.label || occurrence.label }, target.occurrenceDate))),
-      ]
-    : [];
+  const menu = useEventMenu(occurrence, { fields: values, target, readOnly, savedCountdownIds, onDuplicated, onDone });
 
   return (
     <form onSubmit={handleSubmit} noValidate>
@@ -664,7 +496,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
               {occurrence && (
                 <TrackedTime
                   seconds={occurrence.trackedSeconds}
-                  on={(entry) => (entry.events ?? []).some((event) => event.eventId === target.eventId && event.occurrenceDate === target.occurrenceDate)}
+                  on={onEventOccurrence(target)}
                   start={timer}
                   disabled={readOnly}
                 />

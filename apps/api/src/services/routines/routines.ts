@@ -39,6 +39,8 @@ import {
   shiftedRoutinePiece,
   weekdayMovedCase,
   cutRoutineBefore,
+  caseAfterItsEnd,
+  NEXT_CASE_REFUSAL,
   shiftedDates,
   type RoutineCategoryInput,
   routineCategorySchema,
@@ -106,8 +108,8 @@ import { checkLinkedDocuments, LINKED_DOCUMENTS_SELECT, linkedDocumentIds } from
 import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
-import { deleteGoneComments, placeLegacyComments, restoreComments, type CommentSnapshot, type GoneCommentOccurrences } from '../core/comments';
-import { assertLossConfirmed, lostOccurrences, occurrenceRowIds, putOccurrenceRows, remapOccurrenceRows, type AfterSave, type LostOccurrences } from '../core/occurrence-rows';
+import { placeLegacyComments, restoreComments, type CommentSnapshot, type GoneCommentOccurrences } from '../core/comments';
+import { assertLossConfirmed, deleteGoneOccurrenceRows, lostOccurrences, occurrenceRowIds, putOccurrenceRows, remapOccurrenceRows, type AfterSave, type LostOccurrences } from '../core/occurrence-rows';
 import {
   constrains,
   dayMoments,
@@ -132,6 +134,7 @@ import {
   type RoutineTiming,
   type ScheduleContext,
   ticksOf,
+  hasSubRoutines,
   LATEST_CHECKS,
 } from './routine-occurrences';
 import { changedRoutineInheritance, clearedRoutineInput, effectiveRoutineOf, freezeRoutineInheritance, loadRoutineInheritance, syncInheritedRoutineProjects, withOwnMoves, type StoredInheritingRoutine } from './routine-inheritance';
@@ -358,13 +361,15 @@ export interface RoutineReminderOccurrence {
  * hours before may ring before it opens), each with its first day (« Ouverture ») and its times of the day not ticked,
  * with their hours (a time without any hour too: from 00:00 to midnight).
  * With reminders « N jours avant » (`ahead` days at most), also the later occurrences that open within those days.
- * An archived routine has none (no occurrence).
+ * An archived routine has none (no occurrence), nor a routine that has sub-routines not archived (a group: its
+ * sub-routines ring theirs, at the times they inherit from it).
  * @param {RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
  * @param {number} [ahead] Most days before of its reminders « N jours avant ». Optional. Default = 0.
  * @returns {RoutineReminderOccurrence[]} Occurrences.
  */
 export function reminderOccurrences(routine: RoutineTiming & { checks: { date: Date; slot: number }[] }, schedules: ScheduleContext = NO_SCHEDULES, ahead = 0): RoutineReminderOccurrence[] {
+  if (hasSubRoutines(routine.id, schedules)) return [];
   const { current, next } = occurrencesOf(routine, undefined, schedules);
   const today = parisToday();
   const last = addDays(today, ahead);
@@ -471,8 +476,8 @@ export interface RoutineSaveOptions {
    */
   movedWith?: readonly string[];
   /**
-   * Occurrences its new rule makes disappear, with comments, confirmed (`assertLossConfirmed`): false
-   * refuses while some would be lost, true deletes those comments once it is saved. Optional. Default = not checked (internal changes).
+   * Occurrences its new rule makes disappear, with comments, started checklists or links with events, confirmed (`assertLossConfirmed`): false
+   * refuses while some would be lost, true deletes those comments, checklists and links with events once it is saved. Optional. Default = not checked (internal changes).
    */
   confirmLoss?: boolean;
   /**
@@ -944,7 +949,7 @@ function timingOf(
 
 /** What a change of the « quand » of routines does to their occurrences and to those of the sub-routines going by it. */
 interface OccurrenceChange {
-  /** Comments of the occurrences that disappear, routine by routine (asked once for all: `assertLossConfirmed`). */
+  /** Comments, checklists and links with events of the occurrences that disappear, routine by routine (asked once for all: `assertLossConfirmed`). */
   losses: LostOccurrences[];
   /** Moves the comments of the occurrence moved by the change, on the sub-routines it moves too. */
   follow: () => Promise<void>;
@@ -958,7 +963,7 @@ interface OccurrenceChange {
 }
 
 /**
- * What a change of the rule of routines takes: the comments of their occurrences that disappear with it (an
+ * What a change of the rule of routines takes: the comments, checklists and links with events of their occurrences that disappear with it (an
  * occurrence now that the new rule does not have), and of those of every sub-routine going by their « quand » or
  * condition (inherited, up the chain), whose occurrences change with them; a routine's times are not on its
  * occurrences. An occurrence moved by the change keeps its comments: on the routines changed, and on the sub-routines
@@ -1020,9 +1025,9 @@ async function occurrenceChange(nexts: readonly Routine[], moved?: { from: strin
  * kind archived, restored or set « Indisponible », a subscription to a kind of another workspace set « Indisponible »)
  * or of its people (a birthday changed, moved or gone: birth date, archiving, link of a relation to a contributor,
  * creation, deletion), the occurrences of the routines that it makes disappear (their condition, or the slots
- * « Indisponible », no longer leave them any moment; those ticked stay) lose their comments, as with a change of their
+ * « Indisponible », no longer leave them any moment; those ticked stay) lose their comments, checklists and links with events, as with a change of their
  * rule. Without `confirmLoss: true` while some would be lost, nothing changes
- * (CONFIRMATION_REQUIRED, asked once for all the routines); confirmed, those comments are deleted once the change is
+ * (CONFIRMATION_REQUIRED, asked once for all the routines); confirmed, those are deleted once the change is
  * saved (the caller runs what it returns after its save: a save refused loses nothing). Only the routines of
  * the workspace are looked at (not archived, with a condition or cases; every one when slots « Indisponible » may
  * count), and, for a change of schedules, those of the other workspaces naming them or setting a kind of this
@@ -1461,6 +1466,9 @@ function checkWrite(id: string, done: boolean, occurrence: string, index: number
   return prisma.routineCheck.deleteMany({ where: { routineId: id, date, slot: index } });
 }
 
+/** Refusal of a tick by hand on a routine that has sub-routines (a group, never ticked). */
+const PARENT_TICK = 'Une routine qui a des sous-routines ne se coche pas : cochez ses sous-routines.';
+
 /**
  * Ticks or unticks a time of the day of an occurrence of a routine (by default the first time of its current one).
  * An occurrence can be ticked from its first day (« Ouverture »), even due later.
@@ -1473,6 +1481,8 @@ function checkWrite(id: string, done: boolean, occurrence: string, index: number
  */
 export async function setRoutineDone(id: string, done: boolean, date?: string | null, slot?: number | null, doneAt?: Date | null): Promise<string> {
   const [routine, slots, checks] = await Promise.all([findRoutine(id), loadScheduleContext(), prisma.routineCheck.findMany({ where: { routineId: id }, ...LATEST_CHECKS })]);
+  // A parent is a group of its sub-routines: never ticked (its ticks of before stay, not shown).
+  if (hasSubRoutines(id, slots)) throw clientError('BAD_USER_INPUT', PARENT_TICK);
   const { occurrence, index } = checkableOccurrence({ ...routine, checks }, slots, date, slot, doneAt, done);
   await checkWrite(id, done, occurrence, index, doneAt);
   return occurrence;
@@ -1489,19 +1499,32 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
  * @param {boolean} done Target state.
  * @param {string | null} [doneOn] Day they were done (YYYY-MM-DD, not after today); ticking only. Optional. Default = now.
  * @param {string[] | null} [dates] Occurrence of each routine (same order as `ids`). Optional. Default = the current one of each (unticking: the one ticked last of two due the same day).
+ * @param {{ id: string, slot: number, doneAt: Date }[] | null} [ticks] Ticking: only these times of the day, each at the
+ * time it was done (the « Annuler » of an untick gives back those it unticked, `doneOn` aside). Optional. Default = every
+ * time of the day of each occurrence.
  * @returns {Promise<number>} Number of routines changed.
  */
-export async function bulkSetRoutinesDone(ids: string[], done: boolean, doneOn: string | null = null, dates: string[] | null = null): Promise<number> {
+export async function bulkSetRoutinesDone(
+  ids: string[],
+  done: boolean,
+  doneOn: string | null = null,
+  dates: string[] | null = null,
+  ticks: { id: string; slot: number; doneAt: Date }[] | null = null,
+): Promise<number> {
   const today = parisToday();
   if (done && doneOn && doneOn > today) throw fieldError('doneOn', 'Une routine ne peut pas être faite dans le futur.', 'Jour à venir.');
   if (dates && dates.length !== ids.length) throw clientError('BAD_USER_INPUT', 'Une occurrence par routine.');
   const dateOf = new Map(dates ? ids.map((id, index) => [id, dates[index]]) : []);
+  // The times of the day given, with when each was done.
+  const given = done && ticks ? new Map(ticks.map((tick) => [`${tick.id}:${tick.slot}`, tick.doneAt])) : null;
   const now = new Date();
   const context = await loadScheduleContext();
   const writes: { id: string; occurrence: string; index: number; doneAt: Date | null }[] = [];
   let count = 0;
   // An archived routine is read only: not ticked.
   for (const routine of await prisma.routine.findMany({ where: { id: { in: ids }, archivedAt: null }, include: { checks: LATEST_CHECKS } })) {
+    // A parent is a group of its sub-routines: never ticked, left aside.
+    if (hasSubRoutines(routine.id, context)) continue;
     // Unticked without a day given: the occurrence last ticked among two due the same day.
     const current = dateOf.get(routine.id) ?? occurrencesOf(routine, today, context, !done).current;
     if (!current) continue;
@@ -1511,7 +1534,9 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean, doneOn: 
     const daySlots = slotsOf(routine, current, context);
     for (let slot = 0; slot < Math.max(1, daySlots.length); slot += 1) {
       if (done && ticked.has(slot)) continue;
-      const doneAt = done && doneOn ? routineBulkDoneAt(doneOn, daySlots[slot] ?? { fromTime: null, dueTime: null }, now) : null;
+      const at = given?.get(`${routine.id}:${slot}`);
+      if (given && !at) continue;
+      const doneAt = at ?? (done && doneOn ? routineBulkDoneAt(doneOn, daySlots[slot] ?? { fromTime: null, dueTime: null }, now) : null);
       writes.push({ id: routine.id, doneAt, ...checkableOccurrence(routine, context, current, slot, doneAt, done) });
     }
     count += 1;
@@ -1521,13 +1546,15 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean, doneOn: 
 }
 
 /**
- * Refuses to move or change an occurrence of a routine that is ticked (one of its times of the day).
+ * Refuses to move or change an occurrence of a routine that is ticked (one of its times of the day); a routine that has
+ * sub-routines not archived is never ticked (its ticks of before are not read).
  * @param {string} id Routine id.
  * @param {string} date Occurrence (the day that identifies it: its day, or the day of its rule when kept apart).
  * @param {'déplacer' | 'changer'} verb What is refused, in the message.
  * @returns {Promise<void>}
  */
 async function assertNotTicked(id: string, date: string, verb: 'déplacer' | 'changer'): Promise<void> {
+  if (await prisma.routine.count({ where: { parentId: id, archivedAt: null } })) return;
   if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
     throw clientError('BAD_USER_INPUT', `Cette occurrence est déjà cochée : décochez-la pour la ${verb}.`);
   }
@@ -2006,6 +2033,10 @@ export async function changeRoutineOccurrence(
       const from = delta === 0 || listed ? item.from && own : addDays(own, delta);
       pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false, movedRule).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? from), slots }));
     }
+    // A piece starting past its end (its end held before the next case): its occurrences would be lost.
+    if ((split ? pieces.slice(1) : pieces).some((piece) => caseAfterItsEnd(piece, start))) {
+      throw fieldError('to', NEXT_CASE_REFUSAL);
+    }
     // Moved before its first time: the routine starts as much earlier, its other cases where they were.
     const earlier = earlierCases([...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)], new Set(split ? pieces.slice(1) : pieces), start);
     changes = { cases: earlier.cases, ...(earlier.startDate !== start && { startDate: earlier.startDate }) };
@@ -2126,7 +2157,7 @@ export async function followingOccurrencesGone(id: string, date: string): Promis
 /**
  * Cancels an occurrence of a routine from the calendar: this one alone (an exception: it stays shown, struck through,
  * with its comments), or deletes it and the following ones (its repetitions end before it, their
- * comments deleted; archived with its sub-routines when nothing comes before). Ticked occurrences stay in the history.
+ * comments, checklists and links with events deleted; archived with its sub-routines when nothing comes before). Ticked occurrences keep their ticks.
  * @param {string} id Routine id.
  * @param {string} date Occurrence (the day that identifies it: its day, or the day of its rule when kept apart).
  * @param {'THIS' | 'FOLLOWING'} scope Occurrences deleted.
@@ -2149,10 +2180,10 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
     await saveMoves(found, { before: moves, moves: next, dead }, date);
     return { archived: false, comments: [] };
   }
-  // The following ones go, with their comments (those written before placed first), deleted once it is saved; an
-  // occurrence that stays (one from before moved after the cut) keeps its own.
+  // The following ones go, with their comments (those written before placed first), checklists and links with events,
+  // deleted once it is saved; an occurrence that stays (one from before moved after the cut) keeps its own.
   await placeLegacyRoutineComments([id]);
-  const dropComments = () => deleteGoneComments({ routines: followingGone(routine, schedules, moves, date) });
+  const dropComments = () => deleteGoneOccurrenceRows({ routines: followingGone(routine, schedules, moves, date) });
   const origin = movedFrom(moves, date);
   const cut = followingCut(routine, origin);
   const pastMoves = withDead(dead, moves.filter((move) => move.from < origin));

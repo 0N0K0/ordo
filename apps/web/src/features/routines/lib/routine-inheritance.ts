@@ -1,5 +1,6 @@
 import { ROUTINE_INHERITED_COLUMNS, ROUTINE_REQUIRED_FIELDS, ROUTINE_WHEN_FIELDS, marksInherited, type RoutineInheritableField, type RoutineSlot } from '@ordo/shared';
 import { inheritedRow } from '../../../components/inheritance/inheritance';
+import { unarchived } from '../../../lib/archive';
 import type { InheritableFieldOption } from '../../../components/inheritance/InheritanceForm';
 import type { RoutinesDataQuery } from '../../../graphql/graphql';
 
@@ -87,4 +88,23 @@ export function routineRow(routine: RoutineRow): RoutineRow {
 export function routineParentName(routine: { parentId: string | null }, byId: ReadonlyMap<string, { label: string }>): string {
   const parent = routine.parentId ? byId.get(routine.parentId) : undefined;
   return parent ? `« ${parent.label} »` : 'la routine parente';
+}
+
+/** Fields of the « quand » of a routine marked in its cells when its sub-routines inherit them. */
+const HEIRS_FIELDS: readonly RoutineInheritableField[] = [...ROUTINE_WHEN_FIELDS, 'SLOT_CONDITION'];
+
+/** What the cells of a parent routine say of a field its sub-routines inherit. */
+export const ROUTINE_HEIRS_MENTION = 'Hérité par ses sous-routines';
+
+/**
+ * Fields of the « quand » of a routine (first time, repetition, cases, moments, exceptions, « Ouverture », condition)
+ * that at least one of its sub-routines not archived inherits: its cells mark them (« Héritée par ses
+ * sous-routines »); a field none of them inherits is left as is.
+ * @param {{ id: string }} routine Routine.
+ * @param {readonly { parentId: string | null, archived: boolean, inheritedFields: readonly string[] }[]} routines Routines of the workspace.
+ * @returns {Set<RoutineInheritableField>} Fields.
+ */
+export function routineHeirsFields(routine: { id: string }, routines: readonly { parentId: string | null; archived: boolean; inheritedFields: readonly string[] }[]): Set<RoutineInheritableField> {
+  const heirs = unarchived(routines).filter((item) => item.parentId === routine.id);
+  return new Set(HEIRS_FIELDS.filter((field) => heirs.some((heir) => marksInherited(heir, field))));
 }

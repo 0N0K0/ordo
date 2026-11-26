@@ -1,4 +1,4 @@
-import { collator, escapeText, type MailSortBy, NO_SUBJECT, sameName, sumOf, UNNAMED_FILE } from '@ordo/shared';
+import { collator, compareMailDates, dateHeader, escapeText, mailTime, type MailSortBy, NO_SUBJECT, sameName, sumOf, UNNAMED_FILE } from '@ordo/shared';
 import type { FetchMessageObject, ImapFlow, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow';
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
@@ -227,17 +227,23 @@ interface MailSort {
 }
 
 /**
- * UIDs of mails sorted on their sender, subject
- * (without "Re:" or "Fwd:") or size; latest first between equals.
+ * UIDs of mails sorted on their date (`mailTime`: the Date header, else when the server received it), sender,
+ * subject (without "Re:" or "Fwd:") or size; latest first between equals. By date, only the Date header and the
+ * received date of each mail are fetched.
  * @param {ImapFlow} client Client with the folder open.
  * @param {number[]} uids UIDs.
  * @param {MailSort} sort Order.
  * @returns {Promise<number[]>} Sorted UIDs.
  */
-async function sortedUids(client: ImapFlow, uids: number[], sort: MailSort): Promise<number[]> {
+export async function sortedUids(client: ImapFlow, uids: number[], sort: MailSort): Promise<number[]> {
   if (!uids.length) return uids;
+  const byDate = sort.by === 'date';
+  const times = new Map<number, number>();
   const keys = new Map<number, string | number>();
-  for await (const message of client.fetch(uids, { uid: true, envelope: true, size: true }, { uid: true })) {
+  const fields = byDate ? { uid: true, internalDate: true, headers: ['date'] } : { uid: true, internalDate: true, envelope: true, size: true };
+  for await (const message of client.fetch(uids, fields, { uid: true })) {
+    times.set(message.uid, mailTime(byDate ? dateHeader(message.headers?.toString()) : message.envelope?.date, message.internalDate));
+    if (byDate) continue;
     if (sort.by === 'size') keys.set(message.uid, message.size ?? 0);
     else if (sort.by === 'subject') keys.set(message.uid, (message.envelope?.subject ?? '').replace(/^\s*((re|fwd?|tr)\s*:\s*)+/i, '').trim());
     else {
@@ -245,12 +251,14 @@ async function sortedUids(client: ImapFlow, uids: number[], sort: MailSort): Pro
       keys.set(message.uid, (person?.name || person?.address || '').trim());
     }
   }
+  const dateOrder = (a: number, b: number, ascending: boolean) => compareMailDates({ time: times.get(a) ?? 0, uid: a }, { time: times.get(b) ?? 0, uid: b }, ascending);
+  if (byDate) return [...uids].sort((a, b) => dateOrder(a, b, sort.ascending));
   const direction = sort.ascending ? 1 : -1;
   return [...uids].sort((a, b) => {
     const x = keys.get(a) ?? '';
     const y = keys.get(b) ?? '';
     const order = typeof x === 'number' && typeof y === 'number' ? x - y : collator.compare(String(x), String(y));
-    return order !== 0 ? order * direction : b - a;
+    return order !== 0 ? order * direction : dateOrder(a, b, false);
   });
 }
 
@@ -282,7 +290,7 @@ export function toSummary(message: FetchMessageObject, keywords: boolean, marks:
     subject: message.envelope?.subject || NO_SUBJECT,
     from: envelopeAddresses(message.envelope?.from),
     to: envelopeAddresses(message.envelope?.to),
-    date: new Date(message.envelope?.date ?? message.internalDate ?? Date.now()),
+    date: new Date(mailTime(message.envelope?.date, message.internalDate) || Date.now()),
     seen: message.flags?.has('\\Seen') ?? false,
     flagged: message.flags?.has('\\Flagged') ?? false,
     hasAttachments: hasAttachment(message.bodyStructure),
@@ -333,9 +341,8 @@ export async function listMessages(
           uids = uids.filter((uid) => (marks.get(messageIds.get(uid) ?? '')?.done ?? false) === (state === 'done'));
         }
       }
-      // By date: the UIDs follow the arrival; otherwise sorted on the headers of every mail.
-      if (sort.by === 'date') uids.sort((a, b) => (sort.ascending ? a - b : b - a));
-      else uids = await sortedUids(client, uids, sort);
+      // Every mail found is sorted before the page is cut, so the next page goes on from this one.
+      uids = await sortedUids(client, uids, sort);
       const pageUids = uids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
       if (pageUids.length === 0) return { messages: [], total: uids.length };
       const messages: MailSummary[] = [];

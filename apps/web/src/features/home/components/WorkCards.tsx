@@ -4,7 +4,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { parisDay } from '../../../lib/dates';
 import { Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { ItemBadge } from '../../../components/items/ItemBadge';
-import { addDays, formatDuration, TASK_WAIT_REASON_LABELS } from '@ordo/shared';
+import { addDays, formatDuration, TASK_WAIT_REASON_LABELS, isTaskOverdue } from '@ordo/shared';
 import { nextRings } from '../../alarms/lib/alarm-labels';
 import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
@@ -24,7 +24,6 @@ import { SubSection } from '../../../components/page/SubSection';
 import * as fmt from '../../../lib/format';
 import { LateBadge } from '../../../components/feedback/LateBadge';
 import { taskNumber } from '../../tasks/hooks/use-task-context';
-import { isTaskOverdue } from '../../tasks/lib/task-overdue';
 
 interface TasksCardProps {
   context: TaskContext | null;

@@ -15,14 +15,16 @@ import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCale
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { SubscriptionRow } from './SubscriptionRow';
 import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
+import { subscribersArchiveRisk } from '../lib/layer-label';
 
 /**
  * Calendars of the workspace, as every settings list: added, edited (label, color, image), reordered by drag and drop,
- * exported as iCalendar (one, or all), deleted (with their events; the last one stays).
+ * exported as iCalendar (one, or all), deleted (with their events; the last one stays); archiving one other workspaces
+ * subscribe to is confirmed first (their subscriptions go for good).
  * @returns {JSX.Element} Section.
  */
 function OwnCalendars() {
-  const { data, isPending } = useCalendars();
+  const { data, isPending, refetch } = useCalendars();
   const { create, update, remove } = useCalendarMutations();
   const calendars = data?.calendars ?? [];
   return (
@@ -41,6 +43,10 @@ function OwnCalendars() {
           <DownloadSimpleIcon aria-hidden />
         </IconAction>
       )}
+      archiveRisk={{
+        reload: async () => (await refetch({ throwOnError: true })).data?.calendars,
+        risk: (calendar) => subscribersArchiveRisk(calendar.subscriberCount, 'ce calendrier'),
+      }}
       undeletable={() => (calendars.length === 1 ? 'Le dernier calendrier ne peut pas être supprimé' : null)}
       deleteMessage={(calendar) => (
         <>

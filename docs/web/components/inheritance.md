@@ -15,10 +15,12 @@ Briques qui montrent et changent ce qu’une sous-tâche ou une sous-routine pre
 - `InheritedFieldState` : `origin` (`null` sans parent), `onClear?` (« Vider »), `onInherit?` (« Rétablir l’héritage »), `parts?` (champs hérités d’un groupe quand ils ne le sont pas tous).
 - `InheritanceNote({ origin, from, onClear?, onInherit?, parts?, about?, readOnly? })` : la ligne sous un champ hérité, la même pour `InheritedField` et pour chaque bout d’un `PeriodField` : « Hérité de … » avec « Vider », ou « Vidé exprès » avec « Rétablir l’héritage » ; `about` la précède (« Ouverture : Hérité de … ») ; rien quand il n’y a rien à dire.
 - `InheritedField({ origin, from, onClear?, onInherit?, parts?, compact?, readOnly?, children })` : un champ qui peut venir du parent. Hérité : valeur grisée (texte atténué en italique, pastilles et avatars estompés : `InheritedField.module.css`), « Hérité de « #12 … » » dessous avec « Vider » ; vidé exprès : « Vidé exprès » avec « Rétablir l’héritage » ; propre : « Rétablir l’héritage ». `compact` (cellule d’un tableau) : grisé, la mention en infobulle, sans action. Taper ou choisir une valeur la rend propre (le champ l’enregistre comme d’habitude).
+- `HeirsMark({ mention, children })` : une valeur d’un parent que ses sous-éléments héritent, dans une cellule : la valeur telle quelle (toujours modifiable), et dessous `mention` en petit texte atténué après une petite icône d’arbre (`TreeViewIcon`). Utilisé par `inheritedCells`.
 
 ## `inherited-cells.tsx`
 
-- `inheritedCells(cells, item, fields, from)` : cellules d’une ligne, chaque colonne d’un champ hérité enveloppée dans `InheritedField` compact. Utilisée par `TaskBoard` et `RoutinesPage`.
+- `InheritedByHeirs` : `fields` (champs qu’au moins un sous-élément non archivé hérite), `mention` (« Hérité par ses sous-routines »).
+- `inheritedCells(cells, item, fields, from, heirs?)` : cellules d’une ligne, chaque colonne d’un champ hérité enveloppée dans `InheritedField` compact ; avec `heirs`, chaque colonne d’un champ que ses sous-éléments héritent marquée par `HeirsMark`. Utilisée par `TaskBoard` et `RoutinesPage` (`heirs` : une routine parente, les champs de son « quand »).
 
 ## `form-inheritance.ts`
 

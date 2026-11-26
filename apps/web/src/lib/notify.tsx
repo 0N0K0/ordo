@@ -121,13 +121,27 @@ export function closeToast(id: string): void {
 }
 
 /**
+ * Success toast: closes on its own.
+ * @param {string} message Message.
+ * @returns {object} Toast.
+ */
+const successToast = (message: string) => ({ color: FEEDBACK_COLORS.success, icon: <SuccessFeedbackIcon />, message, autoClose: AUTO_CLOSE_MS });
+
+/**
+ * Error toast: stays until closed.
+ * @param {string} message Message.
+ * @returns {object} Toast.
+ */
+const errorToast = (message: string) => ({ color: FEEDBACK_COLORS.error, icon: <ErrorFeedbackIcon />, title: 'Erreur', message, autoClose: false as const });
+
+/**
  * Shows a success toast that closes on its own.
  * @param {string} message Message to display.
  * @returns {void}
  */
 export function notifySuccess(message: string): void {
   // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
-  notifications.show({ color: FEEDBACK_COLORS.success, icon: <SuccessFeedbackIcon />, message, autoClose: AUTO_CLOSE_MS });
+  notifications.show(successToast(message));
 }
 
 /**
@@ -150,7 +164,7 @@ export function notifyWarning(title: string, message: string): void {
 export function notifyError(message: string, actions: NotifyAction[] = []): void {
   const id = `ordo-error-${(sequence += 1)}`;
   // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
-  notifications.show({ id, color: FEEDBACK_COLORS.error, icon: <ErrorFeedbackIcon />, title: 'Erreur', message: actions.length ? toastBody(id, [message], actions) : message, autoClose: false });
+  notifications.show({ ...errorToast(message), id, message: actions.length ? toastBody(id, [message], actions) : message });
 }
 
 /**
@@ -206,11 +220,68 @@ const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
  * @returns {void}
  */
 export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERROR, actions: NotifyAction[] = []): void {
+  const message = failureMessage(error, fallback);
+  if (message !== null) notifyError(message, actions);
+}
+
+/**
+ * Message of a failure as its error toast tells it, or null when it is silent: an expired session (the app goes back
+ * to the sign-in page), an action declined at its confirmation.
+ * @param {unknown} error What was thrown.
+ * @param {string} fallback Message when it has none.
+ * @returns {string | null} Message.
+ */
+function failureMessage(error: unknown, fallback: string): string | null {
   // eslint-disable-next-line no-restricted-syntax -- notifyFailure itself.
-  if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') return;
+  if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') return null;
   // Declined at its confirmation: nothing failed.
-  if (error instanceof ActionDeclined) return;
-  notifyError(error instanceof Error && error.message ? error.message : fallback, actions);
+  if (error instanceof ActionDeclined) return null;
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+/** A toast « … en cours » turned, in place, into the outcome of its action. */
+export interface ProgressToast {
+  /** Turns it into a success toast. */
+  success: (message: string) => void;
+  /** Turns it into an error toast (stays until closed). */
+  error: (message: string) => void;
+  /** Turns it into the error toast of a failure (`notifyFailure` rules: closed when silent). */
+  failure: (error: unknown) => void;
+}
+
+/**
+ * Shows a toast with a spinner while a long action runs (« Envoi sur GitHub… »), without close button, then turns it in
+ * place into the success or the error toast of its outcome (shown anew if it was swiped away meanwhile). Not
+ * `notifications.promise`: the outcome follows the rules of the app's toasts (`failureMessage`, silent failures).
+ * @param {string} message What runs.
+ * @returns {ProgressToast} How it ends.
+ */
+export function notifyProgress(message: string): ProgressToast {
+  const id = `ordo-progress-${(sequence += 1)}`;
+  let dismissed = false;
+  // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
+  notifications.show({ id, loading: true, message, autoClose: false, withCloseButton: false, onClose: () => (dismissed = true) });
+  /**
+   * Turns the toast into its outcome.
+   * @param {object} toast Toast of the outcome.
+   * @returns {void}
+   */
+  const settle = (toast: ReturnType<typeof successToast> | ReturnType<typeof errorToast>) => {
+    // Swiped away while it ran: the outcome is shown in a toast of its own (an update would find nothing).
+    // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
+    if (dismissed) notifications.show(toast);
+    // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
+    else notifications.update({ id, loading: false, withCloseButton: true, title: undefined, onClose: undefined, ...toast });
+  };
+  return {
+    success: (text) => settle(successToast(text)),
+    error: (text) => settle(errorToast(text)),
+    failure: (error) => {
+      const text = failureMessage(error, UNEXPECTED_ERROR);
+      if (text === null) notifications.hide(id);
+      else settle(errorToast(text));
+    },
+  };
 }
 
 /**

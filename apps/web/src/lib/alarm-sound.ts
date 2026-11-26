@@ -40,10 +40,10 @@ export function unlockAudioOnGesture(): () => void {
    * Removes the listeners.
    * @returns {void}
    */
-  const cleanup = () => {
+  function cleanup() {
     window.removeEventListener('pointerdown', unlock);
     window.removeEventListener('keydown', unlock);
-  };
+  }
   window.addEventListener('pointerdown', unlock);
   window.addEventListener('keydown', unlock);
   return cleanup;
@@ -120,16 +120,16 @@ export function startRingtone(id: RingtoneId, { loop, durationMs }: { loop: bool
   output.connect(context.destination);
   playNotes(context, output, id);
   const repeat = loop ? window.setInterval(() => playNotes(context, output, id), RINGTONE_NOTES[id].period * 1000) : undefined;
+  const end = window.setTimeout(stop, durationMs);
   /**
    * Stops the ringtone (notes under way cut).
    * @returns {void}
    */
-  const stop = () => {
+  function stop() {
     window.clearInterval(repeat);
     window.clearTimeout(end);
     output.disconnect();
-  };
-  const end = window.setTimeout(stop, durationMs);
+  }
   return stop;
 }
 

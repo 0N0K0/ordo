@@ -138,7 +138,7 @@ export function DataViewBar<R>({
                   {displayOptions}
                 </>
               }
-              columns={<DataColumnsPanel columns={view.columns} layout={view.layout} onLayoutChange={view.setLayout} />}
+              columns={<DataColumnsPanel columns={view.columns} layout={view.layout} onLayoutChange={view.setLayout} defaultLayout={view.newViewLayout} />}
               exports={
                 <>
                   <TableExportButtons view={view} />

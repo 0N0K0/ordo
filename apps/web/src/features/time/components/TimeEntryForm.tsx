@@ -91,6 +91,20 @@ const timeEntryFormValues = (entry: TimeEntry): TimeEntryFormValues => {
   };
 };
 
+/**
+ * Values of the form of a new time: the hour that just ended (start an hour ago in Paris, to the minute, for 1:00), so
+ * « Ajouter » with them is accepted (a time is over by now).
+ * @param {string} [projectId] Project of the new time. Optional.
+ * @returns {TimeEntryFormValues} Values.
+ */
+const newEntryFormValues = (projectId?: string): TimeEntryFormValues => {
+  const hourAgo = Date.now() - 3_600_000;
+  let { date, time } = parisParts(new Date(hourAgo));
+  // In the hour repeated in autumn, that time read back is the later one: an hour earlier, it still ends by now.
+  if (parisInstant(date, time).getTime() > hourAgo) ({ date, time } = parisParts(new Date(hourAgo - 3_600_000)));
+  return { projectId: projectId ?? '', routineIds: [], taskIds: [], events: [], description: '', date, start: time, duration: '1:00' };
+};
+
 /** Fields of a time saved on leaving them, in its panel. */
 const ON_BLUR = ['duration', 'description'] as const;
 
@@ -105,9 +119,7 @@ const ON_BLUR = ['duration', 'description'] as const;
 export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: TimeEntryFormProps) {
   const { create, update } = useTimeMutations();
   const base = useAppForm<TimeEntryFormValues>({
-    initialValues: entry
-      ? timeEntryFormValues(entry)
-      : { projectId: defaultProjectId ?? '', routineIds: [], taskIds: [], events: [], description: '', date: parisToday(), start: '09:00', duration: '1:00' },
+    initialValues: entry ? timeEntryFormValues(entry) : newEntryFormValues(defaultProjectId),
     schema: timeEntryFormSchema,
   });
   // The time of the cache followed (changed in a cell, another tab), whatever list holds it.
@@ -142,7 +154,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
             onChange={(projectId) => form.setValues({ projectId: projectId ?? '', taskIds: [], routineIds: [] })}
           />
           <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-            <DateTimeField label="Début" required {...formDateTime(form, 'date', 'start')} />
+            <DateTimeField label="Début" required maxDate={parisToday()} {...formDateTime(form, 'date', 'start')} />
             <TextInput label="Durée" required placeholder="1:30" description="1:30, 1h30, 90 ou 1,5h" {...form.getInputProps('duration')} />
           </SimpleGrid>
           <TimeSubjectsFields

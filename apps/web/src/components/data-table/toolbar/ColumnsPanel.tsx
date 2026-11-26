@@ -42,6 +42,8 @@ interface ColumnsListProps {
   onToggle: (id: string, visible: boolean) => void;
   /** Back to the default columns. Optional. */
   onReset?: () => void;
+  /** Those columns are not known yet: the button is disabled. Optional. Default = false. */
+  resetDisabled?: boolean;
   /** Tip about the headers. Optional. Default = true. */
   withHint?: boolean;
   /** Height the list of columns takes at most, scrolling beyond (a long list in a settings panel). Optional. Default = none. */
@@ -54,7 +56,7 @@ interface ColumnsListProps {
  * @param {ColumnsListProps} props Component props.
  * @returns {JSX.Element} Panel.
  */
-function ColumnsList({ items, onReorder, onToggle, onReset, withHint = true, maxHeight }: ColumnsListProps) {
+function ColumnsList({ items, onReorder, onToggle, onReset, resetDisabled = false, withHint = true, maxHeight }: ColumnsListProps) {
   const ids = items.map((item) => item.id);
 
   return (
@@ -70,7 +72,7 @@ function ColumnsList({ items, onReorder, onToggle, onReset, withHint = true, max
         </SortableArea>
       </Box>
       {onReset && (
-        <ActionButton priority="tertiary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onReset}>
+        <ActionButton priority="tertiary" icon={<ArrowCounterClockwiseIcon aria-hidden />} disabled={resetDisabled} onClick={onReset}>
           Colonnes par défaut
         </ActionButton>
       )}
@@ -87,16 +89,21 @@ interface DataColumnsPanelProps<R> {
   columns: readonly DataColumn<R>[];
   layout: ColumnLayout;
   onLayoutChange: (layout: ColumnLayout) => void;
+  /** Layout « Colonnes par défaut » goes back to (a view: that of its new views), null while unknown (the button disabled). Optional. Default = empty (the app's columns). */
+  defaultLayout?: ColumnLayout | null;
   /** Height the list takes at most, scrolling beyond. Optional. Default = none. */
   maxHeight?: number;
 }
+
+/** Empty layout: the columns of the app, those hidden by default hidden. */
+const APP_LAYOUT: Readonly<ColumnLayout> = Object.freeze({ columnOrder: [], hiddenColumns: [], columnSizing: {} });
 
 /**
  * Columns of a data table, from its layout.
  * @param {DataColumnsPanelProps<R>} props Component props.
  * @returns {JSX.Element} Panel.
  */
-export function DataColumnsPanel<R>({ columns, layout, onLayoutChange, maxHeight }: DataColumnsPanelProps<R>) {
+export function DataColumnsPanel<R>({ columns, layout, onLayoutChange, defaultLayout = APP_LAYOUT, maxHeight }: DataColumnsPanelProps<R>) {
   const byId = mapById(columns);
   const items = columnOrder(columns, layout).map((id) => {
     const column = byId.get(id)!;
@@ -107,7 +114,8 @@ export function DataColumnsPanel<R>({ columns, layout, onLayoutChange, maxHeight
       items={items}
       onReorder={(order) => onLayoutChange(withOrder(columns, layout, order))}
       onToggle={(id, visible) => onLayoutChange(withVisibility(columns, layout, id, visible))}
-      onReset={() => onLayoutChange({ columnOrder: [], hiddenColumns: [], columnSizing: {} })}
+      onReset={() => defaultLayout && onLayoutChange({ ...defaultLayout })}
+      resetDisabled={!defaultLayout}
       maxHeight={maxHeight}
     />
   );

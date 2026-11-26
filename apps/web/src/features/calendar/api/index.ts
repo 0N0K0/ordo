@@ -133,6 +133,7 @@ const WorkSchedulesDocument = graphql(`
       budgetContext
       sharedContext
       position
+      subscriberCount
     }
     defaultScheduleKind {
       label
@@ -174,6 +175,8 @@ const SubscribedSchedulesDocument = graphql(`
   query SubscribedWorkSchedules {
     subscribedWorkSchedules {
       id
+      archived
+      kindArchived
       label
       startDate
       endDate
@@ -186,6 +189,7 @@ const SubscribedSchedulesDocument = graphql(`
       dayDisplay
       dayBar
       monthDisplay
+      unavailable
       workspaceId
       workspaceLabel
     }
@@ -350,6 +354,7 @@ const CalendarsDocument = graphql(`
       color
       iconUrl
       position
+      subscriberCount
     }
     calendarSubscriptions {
       id
@@ -862,7 +867,8 @@ export function useSlotSourceArchiving(kind: 'WORK_SCHEDULE' | 'CONTRIBUTOR' | '
 /**
  * Schedules as the shared functions read them (those of this workspace, or of another one subscribed to): their
  * cases and exceptions validated (invalid ones left out), archived or of an archived kind (the slot conditions do not
- * count them), « Indisponible » in this workspace.
+ * count them), « Indisponible » in this workspace. A schedule of another workspace says itself whether its kind is
+ * archived there (`kindArchived`).
  * @param {object[]} schedules Schedules.
  * @param {ReadonlySet<string>} [archivedKinds] Kinds archived (ids). Optional. Default = none.
  * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
@@ -879,6 +885,7 @@ export function scheduleRules(
     ephemeris?: boolean | null;
     unavailable?: boolean | null;
     archived?: boolean | null;
+    kindArchived?: boolean | null;
   }[],
   archivedKinds: ReadonlySet<string> = new Set(),
 ): WorkScheduleRule[] {
@@ -893,7 +900,7 @@ export function scheduleRules(
     ephemeris: schedule.ephemeris ?? false,
     unavailable: Boolean(schedule.unavailable),
     archived: Boolean(schedule.archived),
-    kindArchived: Boolean(schedule.typeId && archivedKinds.has(schedule.typeId)),
+    kindArchived: Boolean(schedule.kindArchived) || Boolean(schedule.typeId && archivedKinds.has(schedule.typeId)),
   }));
 }
 

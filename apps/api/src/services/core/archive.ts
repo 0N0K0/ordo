@@ -12,6 +12,17 @@ import { PARIS } from '../../today';
 /** Message of the error refusing a change of an archived element (or of its sub-elements). */
 export const ARCHIVED_MESSAGE = 'Élément archivé : restaurez-le pour le modifier.';
 
+/**
+ * Messages refusing an archived element of another workspace (it is not restored from here, so not
+ * `ARCHIVED_MESSAGE`): a calendar or a kind of schedules subscribed to.
+ */
+export const FOREIGN_ARCHIVED_MESSAGES = {
+  // eslint-disable-next-line no-restricted-syntax -- the archived element of another workspace: cannot be restored from here.
+  calendar: 'Ce calendrier est archivé.',
+  // eslint-disable-next-line no-restricted-syntax -- the archived element of another workspace: cannot be restored from here.
+  scheduleType: 'Ce type est archivé.',
+} as const;
+
 /** Main elements of the features archived through the generic mutation, by kind: the Prisma model of each. */
 const MAIN = {
   MILESTONE: 'milestone',
@@ -65,6 +76,8 @@ export interface ArchiveOptions {
   along?: (ids: string[]) => Promise<ArchiveTargets>;
   /** Run once found, before the change, with the elements whose state changes, by kind (those along included); what it returns runs once the change is saved. Optional. Default = none. */
   settle?: (changing: ArchiveTargets) => Promise<(() => Promise<void>) | void>;
+  /** Other writes saved in the same transaction as the change, from the elements whose state changes, by kind (those along included). Optional. Default = none. */
+  writes?: (changing: ArchiveTargets) => Prisma.PrismaPromise<unknown>[];
 }
 
 /**
@@ -100,14 +113,15 @@ const archivedWhere = (archived: boolean): Record<string, unknown> => ({ archive
  * kinds that go along with them (`along`), in one transaction. Archiving keeps the date of those archived already.
  * `settle` runs once they are found, before they change: what it does elsewhere (the occurrences of routines a
  * schedule, a kind or a person archived makes disappear, asked then; their comments deleted by what it returns, once
- * saved).
+ * saved). `writes` are saved with the change, in the same transaction (the subscriptions of other workspaces to an
+ * archived calendar or kind of schedules).
  * @param {ArchivableKind} kind Kind of the elements.
  * @param {readonly string[]} ids Elements.
  * @param {boolean} archived Archives (else restores).
  * @param {ArchiveOptions} [options] Elements along and what it does elsewhere. Optional. Default = none.
  * @returns {Promise<void>}
  */
-export async function setArchived(kind: ArchivableKind, ids: readonly string[], archived: boolean, { along, settle }: ArchiveOptions = {}): Promise<void> {
+export async function setArchived(kind: ArchivableKind, ids: readonly string[], archived: boolean, { along, settle, writes }: ArchiveOptions = {}): Promise<void> {
   const unique = [...new Set(ids)];
   await assertAllExist(delegate(ARCHIVABLE[kind]), unique, 'Élément');
   if (!unique.length) return;
@@ -122,11 +136,12 @@ export async function setArchived(kind: ArchivableKind, ids: readonly string[], 
   }
   const after = settle && Object.values(changing).some((list) => list.length) ? await settle(changing) : undefined;
   const archivedAt = archived ? new Date() : null;
-  await prisma.$transaction(
-    (Object.entries(changing) as [ArchivableKind, string[]][]).map(([target, targetIds]) =>
+  await prisma.$transaction([
+    ...(Object.entries(changing) as [ArchivableKind, string[]][]).map(([target, targetIds]) =>
       delegate(ARCHIVABLE[target]).updateMany({ where: { id: { in: targetIds } }, data: { archivedAt, ...(ALONG_WITH_PARENT.has(ARCHIVABLE[target]) && { archivedByCascade: false }) } }),
     ),
-  );
+    ...(writes?.(changing) ?? []),
+  ]);
   if (after) await after();
 }
 
@@ -195,6 +210,18 @@ export function archivedError(field?: string): GraphQLError {
 export function refuseArchived(record: { archivedAt: Date | null }, field?: string): void {
   // eslint-disable-next-line no-restricted-syntax -- refuseArchived itself.
   if (record.archivedAt) throw archivedError(field);
+}
+
+/**
+ * Refuses an archived element of another workspace (BAD_USER_INPUT « Ce calendrier est archivé. »…): it cannot be
+ * restored from here, unlike `refuseArchived`.
+ * @param {{ archivedAt: Date | null }} record Element of another workspace, already loaded.
+ * @param {keyof typeof FOREIGN_ARCHIVED_MESSAGES} what What it is (its message).
+ * @returns {void}
+ */
+export function refuseForeignArchived(record: { archivedAt: Date | null }, what: keyof typeof FOREIGN_ARCHIVED_MESSAGES): void {
+  // eslint-disable-next-line no-restricted-syntax -- refuseForeignArchived itself: not restored from here.
+  if (record.archivedAt) throw clientError('BAD_USER_INPUT', FOREIGN_ARCHIVED_MESSAGES[what]);
 }
 
 /**

@@ -207,6 +207,25 @@
     opacity: 1 !important;
   }
 
+  /* Archived schedule (or of an archived kind), shown on demand: faded as an archived event (`.archived`), over the
+     lightness of its look (these looks set their opacity with !important). */
+  .workHours.archived,
+  .slotBar.archived {
+    /* Effets */
+    opacity: calc(var(--onoko-planned-opacity) * var(--onoko-muted-opacity)) !important;
+  }
+
+  .typedSlot.archived {
+    /* Effets */
+    opacity: calc(var(--onoko-planned-typed-opacity) * var(--onoko-muted-opacity)) !important;
+  }
+
+  .slotBorderLeft.archived,
+  .slotBorderBottom.archived {
+    /* Effets */
+    opacity: var(--onoko-muted-opacity) !important;
+  }
+
   /* Travel to an event and back: hatched in its color (the border), dashed. */
   .travel {
     /* Typographie */

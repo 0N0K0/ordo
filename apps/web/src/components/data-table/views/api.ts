@@ -82,8 +82,19 @@ const taskViewsQueryKey = ['taskViews'] as const;
 export function useTaskViews(projectId: string | null, kind: ViewKind = 'TASKS', tableKey: string | null = null) {
   return useQuery({
     queryKey: [...taskViewsQueryKey, kind, tableKey, projectId],
-    queryFn: async () => (await execute(TaskViewsDocument, { projectId, kind, tableKey })).taskViews as TaskViewRecord[],
+    queryFn: () => fetchTaskViews(projectId, kind, tableKey),
   });
+}
+
+/**
+ * Saved views of a scope, read from the API (`useTaskViews` keeps them in the cache).
+ * @param {string | null} projectId Project, or null for the page.
+ * @param {ViewKind} kind Kind of views.
+ * @param {string | null} tableKey Table of the views of kind TABLE.
+ * @returns {Promise<TaskViewRecord[]>} Views.
+ */
+export async function fetchTaskViews(projectId: string | null, kind: ViewKind, tableKey: string | null): Promise<TaskViewRecord[]> {
+  return (await execute(TaskViewsDocument, { projectId, kind, tableKey })).taskViews as TaskViewRecord[];
 }
 
 /**

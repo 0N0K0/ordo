@@ -18,13 +18,12 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { parisCalendarOptions } from '../lib/paris-calendar';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
-import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
+import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineGroupIds, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength, taskPlacement, type TaskSpanKind } from '@ordo/shared';
 import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
 import { parisMidnight, parisToday, parisParts } from '../../../lib/dates';
-import { taskPlacement, type TaskSpanKind } from '../lib/task-calendar';
 import { notifyError, notifyWarning, onMutationError } from '../../../lib/notify';
 import { useSlotRules } from '../hooks/use-slot-rules';
 import { useRoutineOccurrences, useRoutinesData } from '../../routines/api';
@@ -53,7 +52,7 @@ import { slotColumns } from '../lib/slot-columns';
 import { EPHEMERIDES_TITLE, schedulesTitle, unavailableWarning } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
-import { scopedInput } from '../lib/event-input';
+import { newEventDefaults, scopedInput } from '../lib/event-input';
 import { birthdayEvents, isArchivedOccurrence, occurrenceSpan, scheduleSources, type ShownSlots, slotBarLook, slotLookClasses } from '../lib/calendar-events';
 import { usePersonOpener } from '../hooks/use-person-opener';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
@@ -73,9 +72,9 @@ import { ScheduleColumnDefaults } from '../components/ScheduleColumnDefaults';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { currentWeek, calendarFirstDay } from '../../../lib/week';
 import { useAsyncAction } from '../../../lib/use-async-action';
-import { HiddenChecklist } from '../components/HiddenChecklist';
+import { CalendarDisplayChoices } from '../components/CalendarDisplayChoices';
 import { archivedIds, unarchived } from '../../../lib/archive';
-import { inWorkspace } from '../lib/layer-label';
+import { calendarChoices, scheduleChoices } from '../lib/layer-label';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { taggedKey } from '../../../lib/tagged-key';
 import { ViewTabs, type ViewWords } from '../../../components/data-table/views/ViewTabs';
@@ -358,23 +357,24 @@ export function CalendarPage() {
        * @param {ShownSlots} source Look of its kind and its slots.
        * @returns {void}
        */
-      const showSlots = ({ color, label, foreign, display, ephemeris, slots }: ShownSlots) => {
-        // Hatched from another workspace, dotted an éphéméride.
-        const hatched = slotLookClasses({ foreign, ephemeris });
+      const showSlots = ({ color, label, foreign, display, ephemeris, archived, slots }: ShownSlots) => {
+        // Hatched from another workspace, dotted an éphéméride, faded when archived.
+        const hatched = slotLookClasses({ foreign, ephemeris, archived });
         const background = {
           display: 'background',
           ...(color ? { backgroundColor: color } : {}),
           classNames: [color ? classes.typedSlot : classes.workHours, ...hatched],
         };
         /**
-         * Thin line of planned slots: a background event narrowed, in the full color.
+         * Thin line of planned slots: a background event narrowed, in the full color (faded when archived).
          * @param {string} className Line on the left or at the bottom.
+         * @param {number} lane Lane of the line that day.
          * @returns {EventInput} Event props.
          */
         const line = (className: string, lane: number) => ({
           display: 'background',
           backgroundColor: color ?? 'var(--mantine-color-green-6)',
-          classNames: [className],
+          classNames: [className, ...(archived ? [classes.archived] : [])],
           extendedProps: { slotLane: lane },
         });
         const days = new Set<string>();
@@ -406,7 +406,7 @@ export function CalendarPage() {
                 });
             } else {
               // Its bar on the day, in the all-day row.
-              if (display.dayBar) result.push({ ...day, title: label, editable: false, extendedProps: { kind: 'slot' }, ...slotBarLook({ color, foreign, ephemeris }) });
+              if (display.dayBar) result.push({ ...day, title: label, editable: false, extendedProps: { kind: 'slot' }, ...slotBarLook({ color, foreign, ephemeris, archived }) });
               if (display.dayDisplay === 'DAY_BACKGROUND')
                 result.push({
                   id: `work-whole:${slot.scheduleId}:${slot.date}`,
@@ -436,7 +436,9 @@ export function CalendarPage() {
           });
         }
       };
-      for (const { schedule, rule, color, label, foreign, display, ephemeris } of schedules ? scheduleSources(schedules, foreignSchedules ?? [], scheduleTypes ?? [], defaultKind) : []) {
+      // Those archived, or of an archived kind, in their workspace too: in the background with « Afficher les archivés »,
+      // and those of the workspace of an archived kind (not archived themselves) changed like the others.
+      for (const { schedule, rule, archived, color, label, foreign, display, ephemeris } of schedules ? scheduleSources(schedules, foreignSchedules ?? [], scheduleTypes ?? [], defaultKind, true) : []) {
         // An archived schedule (read only) stays in the background.
         if (!foreign && editingSlots && !('archived' in schedule && schedule.archived)) {
           // Being changed: each slot an event (an éphéméride dotted), moved to another day or hour, stretched, or opened.
@@ -458,8 +460,8 @@ export function CalendarPage() {
           }
           continue;
         }
-        if (!config.schedules || config.hiddenScheduleIds.includes(rule.id) || !kept.schedule(schedule.id)) continue;
-        showSlots({ color, label, foreign, display, ephemeris, slots: plannedSlots([rule], range.from, range.to) });
+        if (!config.schedules || (archived && !showArchived) || config.hiddenScheduleIds.includes(rule.id) || !kept.schedule(schedule.id)) continue;
+        showSlots({ color, label, foreign, display, ephemeris, archived, slots: plannedSlots([rule], range.from, range.to) });
       }
       // Slots in the background at the same time stand side by side, each part of a slot as wide as the slots there
       // are then (alone, the whole day).
@@ -529,8 +531,8 @@ export function CalendarPage() {
       const routineCategory = mapById(routinesData?.routineCategories ?? []);
       // Manual order of the routines: those of a same window follow it.
       const order = manualOrder(routinesData?.routines ?? []);
-      // A parent routine is done through its sub-routines: only they show.
-      const parents = new Set((routinesData?.routines ?? []).flatMap((routine) => (routine.parentId && (!routine.archived || showArchived) ? [routine.parentId] : [])));
+      // A parent routine (a group of sub-routines not archived) is never done itself: only its sub-routines show.
+      const parents = routineGroupIds(routinesData?.routines ?? []);
       type RoutineEvent = { block: RoutineBlock | null; event: EventInput };
       const events: RoutineEvent[] = [];
       for (const occurrence of routineOccurrences.data ?? []) {
@@ -769,26 +771,11 @@ export function CalendarPage() {
 
   const api = () => calendarRef.current?.getApi();
   const [settingsTab, setSettingsTab] = useSettingsTab(SETTINGS_TABS);
-  // Calendars that can be shown: those of the workspace, and those of other workspaces it subscribes to.
-  const calendarChoices = [
-    ...ownCalendars.map((calendar) => ({
-      id: calendar.id,
-      label: calendar.label,
-      color: calendar.color,
-    })),
-    ...subscriptions.map((subscription) => ({
-      id: subscription.calendarId,
-      label: inWorkspace(subscription.label, subscription.workspace.label),
-      color: subscription.color,
-    })),
-  ];
-  // Slots that can be shown or hidden: of the workspace, then of the workspaces it subscribes to.
-  const scheduleChoices = scheduleSources(schedules ?? [], foreignSchedules ?? [], scheduleTypes ?? [], defaultKind).map(({ schedule, label, color }) => ({
-    id: schedule.id,
-    label,
-    color: color ?? 'green',
-  }));
-  const hiddenSchedules = new Set(config.hiddenScheduleIds);
+  // Calendars that can be shown: those of the workspace, and those of other workspaces it subscribes to; then the
+  // slots, of the workspace and of the workspaces it subscribes to.
+  const shownCalendars = calendarChoices(ownCalendars, subscriptions);
+  // The archived ones (or of an archived kind) offered with « Afficher les archivés » only.
+  const shownSchedules = scheduleChoices(scheduleSources(schedules ?? [], foreignSchedules ?? [], scheduleTypes ?? [], defaultKind, showArchived));
   // Downloads the displayed view as a PDF (calendars shown, tasks, slots and timers as displayed), to print.
   const { run: exportPdf, loading: exporting } = useAsyncAction(
     async () => {
@@ -869,34 +856,9 @@ export function CalendarPage() {
                 title={views.current ? `Affichage de la vue « ${views.current.label} »` : 'Affichage'}
                 description="Propres à la vue : enregistrez-les avec elle (menu de son onglet, « Enregistrer les modifications »)."
               >
-                <HiddenChecklist
-                  label="Calendriers"
-                  empty="Aucun calendrier."
-                  choices={calendarChoices}
-                  hidden={hidden}
-                  onChange={(hiddenCalendarIds) => change({ hiddenCalendarIds })}
-                />
-                <HiddenChecklist
-                  label={`${schedulesTitle(perso)} et ${EPHEMERIDES_TITLE.toLowerCase()}`}
-                  empty="Aucun créneau."
-                  choices={scheduleChoices}
-                  hidden={hiddenSchedules}
-                  disabled={!config.schedules}
-                  onChange={(hiddenScheduleIds) => change({ hiddenScheduleIds })}
-                />
-                <LabeledField label="Aussi dans l’agenda" gap="xs">
-                  {(
-                    [
-                      ['tasks', 'Tâches', config.tasks],
-                      ['routines', 'Routines', showRoutines],
-                      ['schedules', `${schedulesTitle(perso)} et ${EPHEMERIDES_TITLE.toLowerCase()}`, config.schedules],
-                      ['timers', 'Chronos', showTimers],
-                    ] as const
-                  ).map(([key, label, checked]) => (
-                    <Switch key={key} label={label} checked={checked} onChange={(event) => change({ [key]: event.currentTarget.checked })} />
-                  ))}
+                <CalendarDisplayChoices shown={config} calendars={shownCalendars} schedules={shownSchedules} alsoLabel="Aussi dans l’agenda" onChange={change}>
                   <ShowArchivedSwitch checked={showArchived} onChange={(includeArchived) => change({ includeArchived })} />
-                </LabeledField>
+                </CalendarDisplayChoices>
                 <LabeledField label="Heures (semaine, jour)" gap="xs">
                   <Switch
                     label="Par 5 minutes"
@@ -985,26 +947,13 @@ export function CalendarPage() {
           select={(info: DateSelectArg) => {
             const start = parisParts(info.start);
             const end = parisParts(info.end);
+            // A new event goes into the first calendar shown; a day picked, all day.
             openEvent({
-              defaults: {
-                // A new event goes into the first calendar shown.
-                calendarId: unarchived(ownCalendars).find((calendar) => !hidden.has(calendar.id))?.id ?? null,
-                ...(info.allDay
-                  ? {
-                      allDay: true,
-                      startDate: start.date,
-                      startTime: null,
-                      endDate: addDays(end.date, -1),
-                      endTime: null,
-                    }
-                  : {
-                      allDay: false,
-                      startDate: start.date,
-                      startTime: start.time,
-                      endDate: end.date,
-                      endTime: end.time,
-                    }),
-              },
+              defaults: newEventDefaults(
+                ownCalendars,
+                hidden,
+                info.allDay ? { startDate: start.date, endDate: addDays(end.date, -1) } : { startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time },
+              ),
             });
             info.view.calendar.unselect();
           }}

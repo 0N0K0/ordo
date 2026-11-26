@@ -22,9 +22,9 @@ export const CommentSnapshotInput = builder.inputType('CommentSnapshotInput', {
   }),
 });
 
-/** Argument of the changes that may make occurrences disappear with their comments or times. */
+/** Argument of the changes that may make occurrences disappear with their comments, times, started checklists or routine–event links. */
 export const CONFIRM_LOSS_DESCRIPTION =
-  'Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.';
+  'Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).';
 
 /** Argument of the moves of an occurrence of a rule on the last day of the month to another day (« Celle-ci et les suivantes », « Toutes »). */
 export const MOVED_RULE_DESCRIPTION =

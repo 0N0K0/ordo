@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   alarmInputSchema,
   alarmRule,
@@ -7,6 +7,7 @@ import {
   durationSchema,
   durationText,
   entrySeconds,
+  entryMeets,
   entrySecondsWithin,
   formatClock,
   formatDuration,
@@ -14,8 +15,13 @@ import {
   parseDuration,
   previousOccurrence,
   reachedDurationMax,
+  TIME_END_IN_FUTURE,
+  TIME_START_IN_FUTURE,
   timeEntryFormSchema,
+  timeEntryFutureError,
 } from '../../src/tasks/time';
+import { addDays } from '../../src/dates/days';
+import { parisInstant } from '../../src/dates/reminders';
 import { rule } from '../rules';
 
 describe('durations of a time: 1 minute to 24 hours', () => {
@@ -133,6 +139,23 @@ describe('timeEntryFormSchema', () => {
     expect(timeEntryFormSchema.safeParse({ ...values, events: ['e:2026-11-23'] }).success).toBe(true);
   });
 
+  it('a time over by now: neither its start nor its end after now, read in Paris', () => {
+    vi.useFakeTimers({ now: parisInstant('2026-11-25', '10:00') });
+    try {
+      const withProject = { ...values, projectId: 'p' };
+      const issues = (fields: Partial<typeof values>) => timeEntryFormSchema.safeParse({ ...withProject, ...fields }).error?.issues.map(({ path, message }) => ({ path, message }));
+      expect(issues({ date: '2026-11-25', start: '10:01', duration: '0:01' })).toEqual([{ path: ['start'], message: TIME_START_IN_FUTURE }]);
+      // Its end: under the duration and the start (a start changed alone shows it).
+      expect(issues({ date: '2026-11-25', start: '09:30', duration: '0:31' })).toEqual([
+        { path: ['duration'], message: TIME_END_IN_FUTURE },
+        { path: ['start'], message: TIME_END_IN_FUTURE },
+      ]);
+      expect(issues({ date: '2026-11-25', start: '09:30', duration: '0:30' })).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('refuses a duration not understood', () => {
     expect(timeEntryFormSchema.safeParse({ ...values, projectId: 'p', duration: '25 h' }).error?.issues[0].message).toBe('Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h.');
   });
@@ -227,5 +250,45 @@ describe('reachedDurationMax: a timer that has run 24 hours, pauses left out', (
   it('stopped: its recorded duration (24 hours at most)', () => {
     expect(reachedDurationMax({ ...running, endedAt: '2026-11-24T08:00:00Z', duration: DURATION_MAX_SECONDS }, at('2026-11-25T00:00:00Z'))).toBe(true);
     expect(reachedDurationMax({ ...running, endedAt: '2026-11-23T09:00:00Z', duration: 3600 }, at('2026-11-25T00:00:00Z'))).toBe(false);
+  });
+});
+
+describe('timeEntryFutureError: a time added by hand is over by now', () => {
+  const now = Date.parse('2026-11-25T10:00:00.000Z');
+
+  it('its start after now, then its end after now; ending right now is fine', () => {
+    expect(timeEntryFutureError(new Date('2026-11-25T10:00:01.000Z'), 60, now)).toEqual({ field: 'start', message: TIME_START_IN_FUTURE });
+    expect(timeEntryFutureError(new Date('2026-11-25T09:59:30.000Z'), 60, now)).toEqual({ field: 'duration', message: TIME_END_IN_FUTURE });
+    expect(timeEntryFutureError(new Date('2026-11-25T09:59:00.000Z'), 60, now)).toBeNull();
+  });
+
+  it('across the changes of time in Paris', () => {
+    // 2026-03-29 01:30 to 03:30 in Paris is one hour.
+    expect(timeEntryFutureError(parisInstant('2026-03-29', '01:30'), 3600, parisInstant('2026-03-29', '03:30').getTime())).toBeNull();
+    expect(timeEntryFutureError(parisInstant('2026-03-29', '01:30'), 3601, parisInstant('2026-03-29', '03:30').getTime())?.field).toBe('duration');
+  });
+});
+
+describe('entryMeets: a time during part of a period', () => {
+  const day = (date: string) => [parisInstant(date).getTime(), parisInstant(addDays(date, 1)).getTime()] as const;
+  const entry = { startedAt: '2026-11-24T22:30:00.000Z', endedAt: '2026-11-24T23:30:00.000Z', pausedAt: null, pausedSeconds: 0, duration: 3600 };
+
+  it('a time past midnight in Paris meets both days; its end excluded', () => {
+    expect(entryMeets(entry, ...day('2026-11-24'))).toBe(true);
+    expect(entryMeets(entry, ...day('2026-11-25'))).toBe(true);
+    expect(entryMeets({ ...entry, endedAt: '2026-11-24T23:00:00.000Z' }, ...day('2026-11-25'))).toBe(false);
+  });
+
+  it('a running timer up to now, a paused one up to its pause', () => {
+    const running = { ...entry, endedAt: null, duration: null };
+    expect(entryMeets(running, ...day('2026-11-26'), Date.parse('2026-11-26T08:00:00.000Z'))).toBe(true);
+    expect(entryMeets({ ...running, pausedAt: '2026-11-24T23:10:00.000Z' }, ...day('2026-11-26'), Date.parse('2026-11-26T08:00:00.000Z'))).toBe(false);
+  });
+
+  it('days in Paris around the change of time', () => {
+    // 2026-10-25 lasts 25 hours in Paris: 23:30 that day is 22:30 UTC.
+    const late = { ...entry, startedAt: '2026-10-25T22:30:00.000Z', endedAt: '2026-10-25T22:50:00.000Z', duration: 1200 };
+    expect(entryMeets(late, ...day('2026-10-25'))).toBe(true);
+    expect(entryMeets(late, ...day('2026-10-26'))).toBe(false);
   });
 });
