@@ -776,7 +776,7 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
 }
 
 /**
- * Case moved with its whole period by a number of days: its bounds and anchor, the end, skipped days and pauses of
+ * Case moved with its whole period by a number of days: its bounds and anchor, the end and exceptions of
  * its rule, its weekdays, and its monthly and yearly values (those of its first day, moved). Weekly with its weeks
  * counted (every n weeks, even or odd weeks), its weekdays changing week and those that do not become two cases, each
  * on its own weeks (`shiftedRulePieces`).

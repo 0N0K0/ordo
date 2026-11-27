@@ -65,7 +65,7 @@ export function TypicalWeeksPanel({ period, hidden: initiallyHidden, onClose }: 
   );
   return (
     <Stack gap="sm">
-      <Text size="sm">Une page par semaine type : les semaines de la période qui ont les mêmes créneaux et éphémérides, d’après leurs répétitions seules (sans les jours modifiés, déplacés, supprimés ou en pause).</Text>
+      <Text size="sm">Une page par semaine type : les semaines de la période qui ont les mêmes créneaux et éphémérides, d’après leurs répétitions seules (sans leurs exceptions : jours modifiés, déplacés ou supprimés).</Text>
       <PeriodField label="Période" required value={[from, to]} onChange={([start, end]) => start && end && setPeriod([start, end])} />
       {loaded ? (
         <>

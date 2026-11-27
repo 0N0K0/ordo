@@ -1,6 +1,6 @@
 import { linkInputs } from '../../../lib/links';
 import { unarchived } from '../../../lib/archive';
-import { addDays, type CalendarEventInput, daysBetween, minutesToTime, occurrenceKey, readOccurrenceKey, shiftedRoutineLink, timeToMinutes } from '@ordo/shared';
+import { addDays, type CalendarEventInput, daysBetween, minutesToTime, occurrenceKey, readOccurrenceKey, shiftedRoutineLink, storedRecurrence, timeToMinutes } from '@ordo/shared';
 import type { CalendarEventScope, EventOccurrence } from '../api';
 
 /** A routine done during an event, on one of its days. */
@@ -44,7 +44,7 @@ export function occurrenceInput(occurrence: EventOccurrence): CalendarEventInput
     startTime: occurrence.startTime,
     endDate: occurrence.endDate,
     endTime: occurrence.endTime,
-    recurrence: (occurrence.recurrence as CalendarEventInput['recurrence']) ?? null,
+    recurrence: storedRecurrence(occurrence.recurrence),
     reminders: occurrence.reminders,
     travelBefore: occurrence.travelBefore,
     travelAfter: occurrence.travelAfter,

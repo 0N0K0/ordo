@@ -77,7 +77,7 @@ Source : `placeLegacyComments` (`services/core/comments.ts`), `placeLegacyRoutin
 - Les commentaires existants n’ont pas d’occurrence (`occurrenceDate` vide) : la migration `20261120120000_comment_occurrences` n’ajoute que la colonne.
 - L’API les place la première fois qu’ils sont lus (`comments`, `commentCounts`, `lostOnDelete`), ou avant un changement des occurrences (déplacement, coupure, report, suppression), avec les règles d’occurrences de l’application, puis les enregistre :
   - routine : l’occurrence en cours le jour où le commentaire a été écrit (`createdAt`, heure de Paris), calculée comme `currentDate` (règle, cas, créneaux, exceptions, « Ouverture ») ; aucune en cours ce jour-là : la suivante ; aucune non plus (écrit après la fin de sa répétition) : la dernière (`lastOccurrenceBefore`, cherchée sur dix ans en arrière) ; sinon la première ; sinon le premier jour de la routine. Une routine archivée est calculée comme si elle ne l’était pas ;
-  - évènement récurrent : la première occurrence affichée de la série (dates exclues, pauses et occurrences supprimées une à une sautées ; cherchée sur dix ans ; aucune : laissés sans date).
+  - évènement récurrent : la première occurrence affichée de la série (exceptions « rien » et occurrences annulées sautées ; cherchée sur dix ans ; aucune : laissés sans date).
 - Un commentaire sans date d’un évènement **unique** est le sien (sa seule occurrence) : il n’est jamais déplacé. Sur un évènement récurrent, un commentaire sans date ne peut être qu’ancien : un évènement unique devenu récurrent passe aussitôt les siens à sa première occurrence affichée. Aucun marqueur n’est donc nécessaire.
 
 ## Archivage : lecture seule

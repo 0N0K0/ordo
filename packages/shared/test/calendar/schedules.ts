@@ -1,14 +1,13 @@
-import type { Recurrence } from '../../src/dates/recurrence';
 import type { ScheduleCase, WorkScheduleRule } from '../../src/calendar/work-schedules';
-import { rule } from '../rules';
+import { rule, type RuleFields } from '../rules';
 
 /**
  * Schedule case for a test: weekly rule given, 09:00–12:00 (or whole days), no period nor anchor.
- * @param {Partial<Recurrence>} fields Fields of its rule.
+ * @param {RuleFields} fields Fields of its rule (former pauses read as exceptions).
  * @param {Partial<ScheduleCase>} [other] Other fields of the case. Optional.
  * @returns {ScheduleCase} Case.
  */
-export const scheduleCase = (fields: Partial<Recurrence>, other: Partial<ScheduleCase> = {}): ScheduleCase => ({
+export const scheduleCase = (fields: RuleFields, other: Partial<ScheduleCase> = {}): ScheduleCase => ({
   since: null,
   until: null,
   anchor: null,

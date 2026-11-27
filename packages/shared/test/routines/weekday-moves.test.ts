@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { caseAfterItsEnd, cutRoutineBefore, INEXACT_MOVE_REFUSAL, NEXT_CASE_REFUSAL, shiftedRoutinePiece, shiftMovesAll, weekdayMovedCase } from '../../src/routines/routines';
 import { crossedWeeks, occurrenceDates, occurrencesBefore, weeksChange, type Recurrence } from '../../src/dates/recurrence';
-import { addDays, daysBetween, weekdayOfDate } from '../../src/dates/days';
+import { addDays, weekdayOfDate } from '../../src/dates/days';
 import { rule } from '../rules';
 
 /**
@@ -69,7 +69,10 @@ function movesOf(seed: number, wanted: number, { single = false, longPauses = fa
     let weekly = rule({ frequency: 'WEEKLY', weekdays, ...rhythm, until: end === 1 ? addDays(start, 60 + random(120)) : null, count: end === 2 ? 5 + random(15) : null });
     const old = occurrenceDates(weekly, start, start, LAST);
     if (old.length < 6) continue;
-    if (random(2)) weekly = { ...weekly, exceptions: [old[2 + random(3)]], pauses: [{ from: old[4 + random(2)], to: addDays(old[4], longPauses ? random(730) : random(10)) }] };
+    if (random(2)) {
+      const [from, to] = [old[4 + random(2)], addDays(old[4], longPauses ? random(730) : random(10))].sort();
+      weekly = rule({ ...weekly, exceptions: [old[2 + random(3)]], pauses: [{ from, to }] });
+    }
     const occurrences = occurrenceDates(weekly, start, start, LAST);
     if (occurrences.length < 4) continue;
     const date = occurrences[random(Math.min(occurrences.length, 12))];
@@ -144,20 +147,15 @@ describe('weekday moves, more generated moves', () => {
     }
   });
 
-  it('long pauses holding moved occurrences: cut at them, their other days never turned into excluded dates', () => {
+  it('long former pauses (read as exceptions) holding moved occurrences: exactly the former occurrences', () => {
     for (const move of movesOf(5, 250, { longPauses: true })) {
-      const shift = daysBetween(move.date, move.to);
-      const former = new Set(move.weekly.exceptions.flatMap((day) => [day, addDays(day, shift)]));
-      const paused = (day: string) => !former.has(day) && move.weekly.pauses.some((pause) => day >= pause.from && day <= pause.to);
       const all = shiftedRoutinePiece(move.weekly, move.start, move.date, move.to, false);
       expect(occurrenceDates(all.recurrence, all.start, all.start, SEEN), JSON.stringify(move)).toEqual(expectedOf(move, false));
-      expect(all.recurrence.exceptions.filter(paused), JSON.stringify(move)).toEqual([]);
       if (occurrenceDates(move.weekly, move.start, move.start, addDays(move.date, -1)).length === 0) continue;
       const before = ruleBefore(move);
       const piece = shiftedRoutinePiece(move.weekly, move.start, move.date, move.to, true);
       const actual = [...occurrenceDates(before, move.start, move.start, SEEN), ...occurrenceDates(piece.recurrence, piece.start, piece.start, SEEN)].sort();
       expect(actual, JSON.stringify(move)).toEqual(expectedOf(move, true));
-      expect([...before.exceptions, ...piece.recurrence.exceptions].filter(paused), JSON.stringify(move)).toEqual([]);
     }
   });
 
@@ -248,16 +246,14 @@ describe('one weekday of several moved alone: the cases found', () => {
     );
   });
 
-  it('a ten-year pause holding a moved occurrence: cut at that day, not a thousand excluded dates', () => {
+  it('a former ten-year pause holding a moved occurrence: its days of the weekday moved go with it', () => {
     // Mondays and Thursdays from Monday 2026-11-02, paused from 11-10 for ten years; the Mondays moved to Wednesdays.
     const weekly = rule({ frequency: 'WEEKLY', weekdays: [1, 4], pauses: [{ from: '2026-11-10', to: '2036-11-10' }] });
     const piece = shiftedRoutinePiece(weekly, '2026-11-02', '2026-11-02', '2026-11-04', false);
-    expect(piece.recurrence.pauses).toEqual([
-      { from: '2026-11-10', to: '2026-11-10' },
-      { from: '2026-11-12', to: '2036-11-10' },
-    ]);
-    // The Monday 2036-11-10 was paused: its Wednesday stays away.
-    expect(piece.recurrence.exceptions).toEqual(['2036-11-12']);
+    // Its paused Mondays stay away on their Wednesdays, its Thursdays stay where they were.
+    expect(piece.recurrence.exceptions).toContain('2036-11-12');
+    expect(piece.recurrence.exceptions).toContain('2026-11-12');
+    expect(piece.recurrence.exceptions).not.toContain('2026-11-16');
     expect(occurrenceDates(piece.recurrence, piece.start, piece.start, '2026-12-31')).toEqual(['2026-11-04', '2026-11-05', '2026-11-11']);
   });
 
@@ -268,11 +264,11 @@ describe('one weekday of several moved alone: the cases found', () => {
     expect(occurrenceDates(piece.recurrence, piece.start, piece.start, SEEN)).toEqual(['2026-11-13', '2026-11-20', '2026-11-27']);
   });
 
-  it('pauses: a paused occurrence stays away once moved, a moved one landing in a pause the other weekdays keep is not lost', () => {
+  it('former pauses: a paused occurrence stays away once moved, a moved one landing on a paused day of the other weekdays is not lost', () => {
     const weekly = rule({ frequency: 'WEEKLY', weekdays: [1, 4] });
     for (const pauses of [[{ from: '2027-11-08', to: '2027-11-08' }], [{ from: '2027-11-09', to: '2027-11-09' }]]) {
       for (const until of [null, '2028-01-01']) {
-        const move: Move = { weekly: { ...weekly, pauses, until }, start: '2026-11-02', date: '2026-11-09', to: '2026-11-10' };
+        const move: Move = { weekly: rule({ ...weekly, pauses, until }), start: '2026-11-02', date: '2026-11-09', to: '2026-11-10' };
         const piece = shiftedRoutinePiece(move.weekly, move.start, move.date, move.to, false);
         expect(occurrenceDates(piece.recurrence, piece.start, piece.start, SEEN), JSON.stringify(move)).toEqual(expectedOf(move, false));
       }

@@ -422,7 +422,7 @@ const teamMeeting = await recurring({
   start: addDays(monday, -28),
   from: 9 * 60 + 30,
   to: 10 * 60,
-  recurrence: rule({ weekdays: [1], pauses: [{ from: addDays(monday, 42), to: addDays(monday, 55) }] }),
+  recurrence: rule({ weekdays: [1], exceptions: [addDays(monday, 42), addDays(monday, 49)] }),
   categoryIds: [meetings],
   location: 'Salle Ada',
 });

@@ -30,23 +30,23 @@ export interface TypicalWeek {
 }
 
 /**
- * Bare rule of a case: without its days deleted one by one nor its pauses. A rule limited to a number of occurrences
- * ends on its last occurrence as it counts them (its days deleted and paused not counted, `lastCountedOccurrence`):
+ * Bare rule of a case: without its exceptions. A rule limited to a number of occurrences
+ * ends on its last occurrence as it counts them (its exceptions not counted, `lastCountedOccurrence`):
  * the days it gives back are those it skipped, its end does not move.
  * @param {Recurrence} rule Rule of the case.
  * @param {string} start First day its rhythm and its count start from.
  * @returns {Recurrence} Bare rule.
  */
 function bareRule(rule: Recurrence, start: string): Recurrence {
-  const bare = { ...rule, exceptions: [], pauses: [] };
+  const bare = { ...rule, exceptions: [] };
   if (rule.count === null) return bare;
-  // No occurrence at all (every one deleted or paused): none either, a day before its first one.
+  // No occurrence at all (every one an exception): none either, a day before its first one.
   return { ...bare, count: null, until: lastCountedOccurrence(rule, start) ?? addDays(start, -1) };
 }
 
 /**
- * A schedule reduced to its rules: its cases that repeat, by their bare rule (`bareRule`: without days deleted one by
- * one nor pauses), and without its exceptions (days or periods changed, moved or paused); none when it has no case
+ * A schedule reduced to its rules: its cases that repeat, by their bare rule (`bareRule`: without the exceptions of
+ * its rule), and without the exceptions of the schedule (days or periods changed, moved or without slots); none when it has no case
  * that repeats.
  * @param {WorkScheduleRule} schedule Schedule.
  * @returns {WorkScheduleRule | null} Schedule of its rules, or none.

@@ -1993,8 +1993,8 @@ interface ShiftedPiece {
  * its weeks along: it becomes a piece of its own (its even or odd weeks swapped, its rhythm counted from its first
  * day moved: `movedWeekdays`), its other weekdays another one on their former weeks (from the occurrence when split);
  * a number of occurrences then becomes the day of the last one (moved for the weekday moved), so that the pieces keep
- * the same occurrences together. A rule without weekdays moves its rhythm with the occurrence. The end, excluded dates
- * and pauses of a piece whose occurrences all move move with them (`shiftedDates`), those of the weekdays that stay do not.
+ * the same occurrences together. A rule without weekdays moves its rhythm with the occurrence. The end and exceptions
+ * of a piece whose occurrences all move move with them (`shiftedDates`), those of the weekdays that stay do not.
  * @param {Recurrence} rule Rule.
  * @param {string} start First day it counts from.
  * @param {string} date Occurrence.

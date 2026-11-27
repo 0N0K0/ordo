@@ -97,8 +97,8 @@ describe('occurrenceDates: the last day of the month', () => {
     expect(occurrenceDates(MONTHLY_LAST, '2026-11-10', '2026-11-01', '2027-02-28')).toEqual(['2026-11-30', '2026-12-31', '2027-01-31', '2027-02-28']);
   });
 
-  it('every 2 months, counted, with an excluded date and a pause (neither counted)', () => {
-    const counted = { ...MONTHLY_LAST, interval: 2, count: 3, exceptions: ['2027-03-31'], pauses: [{ from: '2027-05-01', to: '2027-05-31' }] };
+  it('every 2 months, counted, with two exceptions (not counted)', () => {
+    const counted = { ...MONTHLY_LAST, interval: 2, count: 3, exceptions: ['2027-03-31', '2027-05-31'] };
     expect(occurrenceDates(counted, '2027-01-31', '2027-01-01', '2028-12-31')).toEqual(['2027-01-31', '2027-07-31', '2027-09-30']);
   });
 
@@ -145,10 +145,10 @@ describe('moves of a rule on the last day of the month: never decided, the new r
     expect(refusalOf(() => shiftedSeries(MONTHLY_LAST, '2026-10-31', -16, null, '2027-02-12')).proposal.monthDay).toBe(12);
   });
 
-  it('« Toutes »: its end, excluded dates and pauses moved as another rule, in the rule proposed', () => {
-    const ended = { ...MONTHLY_LAST, until: '2027-06-30', exceptions: ['2027-01-31'], pauses: [{ from: '2027-03-01', to: '2027-03-31' }] };
+  it('« Toutes »: its end and exceptions moved as another rule, in the rule proposed', () => {
+    const ended = { ...MONTHLY_LAST, until: '2027-06-30', exceptions: ['2027-01-31', '2027-03-31'] };
     const { proposal } = refusalOf(() => shiftedSeries(ended, '2026-10-31', -1, null, '2026-11-29'));
-    expect(proposal).toMatchObject({ until: '2027-06-29', exceptions: ['2027-01-30'], pauses: [{ from: '2027-02-28', to: '2027-03-30' }], monthDay: 29 });
+    expect(proposal).toMatchObject({ until: '2027-06-29', exceptions: ['2027-01-30', '2027-03-30'], monthDay: 29 });
   });
 
   it('« Toutes » with the new rule chosen: that rule, the series moved by as many days', () => {

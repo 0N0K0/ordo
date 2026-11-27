@@ -1438,7 +1438,7 @@ model Alarm {
   weekdays    Int[]
   /// Last day of the schedule, included.
   endDate     DateTime?      @db.Date
-  /// Repetition in the common form (rule, end, pauses, deleted dates); none: frequency, interval, weekdays, endDate.
+  /// Repetition in the common form (rule, end, « rien » exceptions; former pauses read as exceptions); none: frequency, interval, weekdays, endDate.
   recurrence  Json?
   /// Tracking time between two rings (TRACKING_DURATION).
   minutes     Int?

@@ -7,7 +7,7 @@ import { cachedItem } from '../../../lib/mutation';
 import { copyName } from '../../../lib/text';
 import { treasuryKey, useTreasuryMutations, type ForecastEntry, type TreasuryEntry } from '../api';
 import { newSplitLine, type LineLink, type LineValues } from './lines';
-import { directionOf } from '@ordo/shared';
+import { directionOf, storedRecurrence } from '@ordo/shared';
 
 /** Values of the entry form (and of an entry changed in a cell of a table). */
 export interface EntryValues extends Record<string, unknown> {
@@ -62,7 +62,7 @@ export function entryValues(entry: TreasuryEntry | ForecastEntry | undefined, de
     projectId: entry?.projectId ?? null,
     note: entry?.note ?? '',
     url: entry?.url ?? '',
-    recurrence: (entry?.recurrence as Recurrence | null) ?? null,
+    recurrence: storedRecurrence(entry?.recurrence),
     // A copy settles no document: the original already does.
     allocations: (defaults.copy ? [] : (entry?.allocations ?? [])).map((allocation) => ({
       documentId: allocation.documentId ?? null,

@@ -16,7 +16,6 @@ import {
 } from '@ordo/shared';
 import type { RepetitionTimes } from './RepetitionEditor';
 import * as fmt from '../../lib/format';
-import { countOf } from '../../lib/text';
 
 /**
  * Nth weekday as text: "le 2e mardi", "le dernier vendredi".
@@ -102,7 +101,6 @@ export function describeRecurrence(rule: Recurrence, start: string, weekdays = t
   }
   if (rule.until) text += `, jusqu’au ${fmt.dayInWords(rule.until)}`;
   if (rule.count) text += `, ${rule.count} fois`;
-  if (rule.pauses.length) text += ` (${countOf(rule.pauses.length, 'pause')})`;
   return text;
 }
 

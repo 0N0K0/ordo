@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
-import { INHERITANCE_RULES, PARIS_TIME_RULES, planReferencesConfig, TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
+import { INHERITANCE_RULES, PARIS_TIME_RULES, planReferencesConfig, RECURRENCE_RULES, TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
 
 // Detail panels saved field by field (useFieldSave): every one of the app.
 const D22_PANELS =
@@ -306,6 +306,7 @@ const RESTRICTED_SYNTAX = [
   },
   // Days and times: read in Paris, whatever the zone of the browser.
   ...PARIS_TIME_RULES,
+  ...RECURRENCE_RULES,
   {
     // A bound of a picker from the browser's clock: its day and time are read in the zone of the browser.
     selector: "JSXAttribute[name.name=/^(minDate|maxDate)$/] > JSXExpressionContainer > :matches(NewExpression[callee.name='Date'], CallExpression[callee.object.name='Date'][callee.property.name='now'])",

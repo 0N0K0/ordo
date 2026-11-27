@@ -267,12 +267,11 @@ describe('shiftedRoutineRule: the rule going on from an occurrence changed', () 
     expect(shiftedRoutineRule(daily, '2026-11-01', '2026-11-10', '2026-11-12', false)).toEqual(daily);
   });
 
-  it('all its occurrences moved: its end, excluded dates and pauses move with them, as an event series', () => {
+  it('all its occurrences moved: its end and exceptions move with them, as an event series', () => {
     const daily = rule({ frequency: 'DAILY', interval: 2, until: '2026-12-31', exceptions: ['2026-11-15'], pauses: [{ from: '2026-12-01', to: '2026-12-05' }] });
     expect(shiftedRoutineRule(daily, '2026-11-01', '2026-11-11', '2026-11-13', false)).toMatchObject({
       until: '2027-01-02',
-      exceptions: ['2026-11-17'],
-      pauses: [{ from: '2026-12-03', to: '2026-12-07' }],
+      exceptions: ['2026-11-17', '2026-12-03', '2026-12-04', '2026-12-05', '2026-12-06', '2026-12-07'],
     });
   });
 
@@ -293,10 +292,10 @@ describe('shiftedRoutineRule: the rule going on from an occurrence changed', () 
     expect(shiftedRoutineRule(weekly, '2026-11-02', '2026-11-09', '2026-11-10', false)).toMatchObject({ weekdays: [2], until: '2026-12-29', exceptions: ['2026-11-24'] });
   });
 
-  it('weekly on several listed days: only the excluded dates of the weekday moved move; its pauses stay', () => {
+  it('weekly on several listed days: only the exceptions of the weekday moved move (those of a former pause too)', () => {
     const weekly = rule({ frequency: 'WEEKLY', weekdays: [1, 5], until: '2026-12-25', exceptions: ['2026-11-16', '2026-11-20'], pauses: [{ from: '2026-12-07', to: '2026-12-11' }] });
     const shifted = shiftedRoutineRule(weekly, '2026-11-02', '2026-11-13', '2026-11-14', false);
-    expect(shifted).toMatchObject({ weekdays: [1, 6], until: '2026-12-26', exceptions: ['2026-11-16', '2026-11-21'], pauses: [{ from: '2026-12-07', to: '2026-12-11' }] });
+    expect(shifted).toMatchObject({ weekdays: [1, 6], until: '2026-12-26', exceptions: ['2026-11-16', '2026-11-21', '2026-12-07', '2026-12-12'] });
     expect(occurrenceDates(shifted, '2026-11-02', '2026-11-14', '2026-11-22')).toEqual(['2026-11-14']);
   });
 

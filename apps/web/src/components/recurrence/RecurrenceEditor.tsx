@@ -1,8 +1,5 @@
-import { LabeledField } from '../inputs/LabeledField';
-import { AddItemButton } from '../actions/AddItemButton';
 import { Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { DateField } from '../inputs/DateField';
-import { PeriodField } from '../inputs/PeriodField';
 import {
   DEFAULT_RECURRENCE,
   dayOfMonthOf,
@@ -20,11 +17,8 @@ import {
   weekPositionOptions,
   type WeekParity,
 } from '@ordo/shared';
-import { PauseIcon } from '@phosphor-icons/react';
-import { DeletedDates } from './DeletedDates';
 import { MonthDayField } from './MonthDayField';
 import { describeRecurrence } from './describe-recurrence';
-import { RemoveButton } from '../actions/RemoveButton';
 import { plural } from '../../lib/text';
 
 const FREQUENCIES: { value: RecurrenceFrequency | 'NONE'; label: string }[] = [
@@ -81,7 +75,7 @@ interface RecurrenceEditorProps {
  * Rule of a repetition: frequency, interval, weekdays and even / odd weeks (every one, or one out of n), the day of
  * the month (by number, or nth weekday of the month or of its even / odd weeks) or of the year
  * (chosen, prefilled from the first date; or « Le dernier jour du mois », whatever its length), end (date or number),
- * paused periods and deleted dates, with a readable summary.
+ * with a readable summary (its exceptions are changed from its occurrences).
  * Each change is given at once (`onChange`); `onCommit` follows a choice at once, and a number once it is left.
  * @param {RecurrenceEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
@@ -316,31 +310,6 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
               <NumberInput label="Nombre de fois" min={1} max={9999} w={140} value={rule.count ?? 1} onChange={(count) => update({ count: typeof count === 'number' ? count : 1 })} onBlur={onCommit} />
             )}
           </Group>
-
-          <LabeledField label="Pauses">
-            {rule.pauses.map((pause, index) => (
-              <Group key={index} gap="xs" wrap="nowrap">
-                <PauseIcon aria-hidden />
-                <PeriodField
-                  aria-label={`Pause ${index + 1}`}
-                  required
-                  value={[pause.from, pause.to]}
-                  onChange={([from, to]) => from && choose({ pauses: rule.pauses.map((item, position) => (position === index ? { from, to: to ?? from } : item)) })}
-                  popoverProps={comboboxProps}
-                  style={{ flex: 1 }}
-                />
-                <RemoveButton label="Retirer" aria-label={`Retirer la pause ${index + 1}`} onClick={() => choose({ pauses: rule.pauses.filter((_, position) => position !== index) })} />
-              </Group>
-            ))}
-            {rule.pauses.length === 0 && (
-              <Text size="xs" c="dimmed">
-                Aucune occurrence pendant une pause (congés…), la répétition reprend ensuite.
-              </Text>
-            )}
-            <AddItemButton onClick={() => choose({ pauses: [...rule.pauses, { from: start, to: start }] })}>Ajouter une pause</AddItemButton>
-          </LabeledField>
-
-          <DeletedDates dates={rule.exceptions} onChange={(dates) => choose({ exceptions: dates })} />
 
           <Text size="sm" c="dimmed">
             {describeRecurrence(rule, start, weekly)}.

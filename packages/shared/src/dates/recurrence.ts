@@ -122,9 +122,56 @@ export const WEEKDAY_PARITY_REFUSAL = 'Une semaine paire ou impaire du mois va s
 /** Refusal of a 4th even or odd week of the month: a month has 3 of them at most. */
 export const FOURTH_PARITY_WEEK_REFUSAL = 'Un mois n’a jamais de 4e semaine paire ou impaire : choisissez la 1re, la 2e, la 3e ou la dernière.';
 
+/** Most « rien » exceptions (days without their occurrence) a rule keeps. */
+export const MAX_RULE_EXCEPTIONS = 5000;
+
+/** Former paused period of a rule (dates included), read to turn it into exceptions. */
+const legacyPauseSchema = z.object({ from: daySchema(), to: daySchema() }).refine(...endAfter('from', 'to'));
+
+/**
+ * Whether a day may be an occurrence of a rule whatever its first date: its listed weekdays, and its chosen day of the
+ * month, weekday, month and week. Narrows the days of a former pause turned into exceptions.
+ * @param {{ frequency: RecurrenceFrequency, weekdays: number[], monthlyMode: string, monthDay?: number | null, weekday?: number | null, month?: number | null, week?: number | null }} rule Rule.
+ * @param {string} day YYYY-MM-DD.
+ * @returns {boolean} It may be.
+ */
+function mayOccurOn(
+  rule: { frequency: RecurrenceFrequency; weekdays: number[]; monthlyMode: string; monthDay?: number | null; weekday?: number | null; month?: number | null; week?: number | null },
+  day: string,
+): boolean {
+  if (rule.frequency === 'WEEKLY') return !rule.weekdays.length || rule.weekdays.includes(weekdayOfDate(day));
+  if (rule.frequency === 'DAILY') return true;
+  // Yearly by a weekday of an ISO week: its week and weekday, when chosen.
+  if (rule.frequency === 'YEARLY' && rule.monthlyMode === 'WEEK') return (!rule.week || isoWeek(day) === rule.week) && (!rule.weekday || weekdayOfDate(day) === rule.weekday);
+  if (rule.frequency === 'YEARLY' && rule.month && monthOfYear(day) !== rule.month) return false;
+  // By a weekday of the month: that weekday, when chosen.
+  if (rule.monthlyMode === 'WEEKDAY') return !rule.weekday || weekdayOfDate(day) === rule.weekday;
+  // By a day number (any other mode): that day, when chosen.
+  if (!rule.monthDay) return true;
+  const last = daysInMonth(yearOfDay(day), monthOfYear(day));
+  return dayOfMonthOf(day) === (rule.monthDay === LAST_DAY ? last : Math.min(rule.monthDay, last));
+}
+
+/**
+ * Exceptions of a rule with the days of its former pauses added (those that may be occurrences, `mayOccurOn`), in
+ * order, `MAX_RULE_EXCEPTIONS` at most: past that, the last paused days are left out (they occur again).
+ * @param {Parameters<typeof mayOccurOn>[0] & { exceptions: string[], until: string | null }} rule Rule (its end bounds the days).
+ * @param {readonly { from: string, to: string }[]} pauses Former pauses.
+ * @returns {string[]} Exceptions.
+ */
+function withPausedDays(rule: Parameters<typeof mayOccurOn>[0] & { exceptions: string[]; until: string | null }, pauses: readonly { from: string; to: string }[]): string[] {
+  const days = new Set(rule.exceptions);
+  for (const pause of [...pauses].sort((a, b) => a.from.localeCompare(b.from))) {
+    // Past the end of the rule, no occurrence to take away.
+    const to = rule.until && rule.until < pause.to ? rule.until : pause.to;
+    for (let day = pause.from; day <= to && days.size < MAX_RULE_EXCEPTIONS; day = addDays(day, 1)) if (mayOccurOn(rule, day)) days.add(day);
+  }
+  return [...days].sort();
+}
+
 /**
  * Repetition of an event or a task, computed on calendar dates (from its first date).
- * Paused periods and excluded dates do not occur, and do not count in `count`.
+ * Its exceptions (days without their occurrence) do not occur, and do not count in `count`.
  */
 export const recurrenceSchema = z
   .object({
@@ -171,12 +218,12 @@ export const recurrenceSchema = z
     until: daySchema().nullable(),
     /** Number of occurrences. */
     count: z.number().int().min(1, 'Au moins 1.').max(9999, '9 999 maximum.').nullable(),
-    /** Dates that do not occur (occurrences deleted one by one). */
-    exceptions: z.array(daySchema()).max(5000),
+    /** « Rien » exceptions: days whose occurrence does not take place (« Supprimer cette occurrence »). */
+    exceptions: z.array(daySchema()).max(MAX_RULE_EXCEPTIONS),
     /** How long each occurrence lasts from its first day (none: a day, or the length of the event). */
     duration: occurrenceDurationSchema.nullish(),
-    /** Paused periods, dates included. */
-    pauses: z.array(z.object({ from: daySchema(), to: daySchema() }).refine(...endAfter('from', 'to'))).max(100),
+    /** Former paused periods (read only): turned into exceptions, never written again. */
+    pauses: z.array(legacyPauseSchema).max(100).optional(),
   })
   .refine((rule) => rule.until === null || rule.count === null, 'Choisissez une date de fin ou un nombre d’occurrences.')
   .superRefine((rule, context) => {
@@ -186,8 +233,9 @@ export const recurrenceSchema = z
     if (!rule.weekdayParity) return;
     if (rule.frequency !== 'MONTHLY' || rule.monthlyMode !== 'WEEKDAY') context.addIssue({ code: 'custom', path: ['weekdayParity'], message: WEEKDAY_PARITY_REFUSAL });
     else if (rule.position === 4) context.addIssue({ code: 'custom', path: ['position'], message: FOURTH_PARITY_WEEK_REFUSAL });
-  });
-export type Recurrence = z.infer<typeof recurrenceSchema>;
+  })
+  .transform(({ pauses, ...rule }) => (pauses?.length ? { ...rule, exceptions: withPausedDays(rule, pauses) } : rule));
+export type Recurrence = z.output<typeof recurrenceSchema>;
 
 /**
  * Whether a rule repeats on the last day of the month (monthly), or of its month (yearly).
@@ -238,7 +286,6 @@ export const DEFAULT_RECURRENCE: Recurrence = {
   until: null,
   count: null,
   exceptions: [],
-  pauses: [],
 };
 
 /** Every day: the rule of a new routine (and of a task turned into a routine). */
@@ -373,7 +420,7 @@ function dayOfMonthMatches(rule: Recurrence, start: Date, day: Date): boolean {
 }
 
 /**
- * Whether the rule would occur on a date, before the end conditions, exceptions and pauses.
+ * Whether the rule would occur on a date, before the end conditions and exceptions.
  * @param {Recurrence} rule Rule.
  * @param {Date} start First date.
  * @param {Date} day Candidate date.
@@ -423,7 +470,7 @@ function matches(rule: Recurrence, start: Date, day: Date): boolean {
 /**
  * Dates on which a rule occurs between two dates (included), from its first date.
  * @param {Recurrence} rule Rule.
- * @param {string} start First date (always an occurrence, unless excluded or paused).
+ * @param {string} start First date (always an occurrence, unless it has an exception).
  * @param {string} from Range start.
  * @param {string} to Range end, included.
  * @returns {string[]} Dates, in order.
@@ -432,7 +479,6 @@ export function occurrenceDates(rule: Recurrence, start: string, from: string, t
   const first = parseDay(start);
   const last = rule.until && rule.until < to ? rule.until : to;
   const exceptions = new Set(rule.exceptions);
-  const skipped = (date: string) => exceptions.has(date) || rule.pauses.some((pause) => date >= pause.from && date <= pause.to);
   const result: string[] = [];
   let counted = 0;
   // Counted occurrences start at the first date, so the scan does too when a count is set.
@@ -441,7 +487,7 @@ export function occurrenceDates(rule: Recurrence, start: string, from: string, t
     const day = new Date(time);
     if (!matches(rule, first, day)) continue;
     const date = formatDay(day);
-    if (skipped(date)) continue;
+    if (exceptions.has(date)) continue;
     counted += 1;
     if (rule.count !== null && counted > rule.count) break;
     if (date >= from) result.push(date);
@@ -450,7 +496,7 @@ export function occurrenceDates(rule: Recurrence, start: string, from: string, t
 }
 
 /**
- * Last occurrence of a rule limited to a number of occurrences, as it counts them (its days excluded and paused not
+ * Last occurrence of a rule limited to a number of occurrences, as it counts them (its exceptions not
  * counted): the day its series ends, to keep the same occurrences once the rule changes (its count turned into an end).
  * @param {Recurrence} rule Rule (with a count; without one, its last occurrence within a hundred years).
  * @param {string} start First date (where the count starts).
@@ -507,7 +553,7 @@ export const lastDayStandIn = (rule: Recurrence): Recurrence => (isLastDayRule(r
  * Rule proposed for a rule on the last day of the month once moved (the user chooses it in a form): the rule moved as
  * another would be (from `lastDayStandIn`), on the values of the day the occurrence goes to; that day the last of its
  * month, on the last day of the month again.
- * @param {Recurrence} moved Rule moved (its end, excluded dates, pauses, number of occurrences).
+ * @param {Recurrence} moved Rule moved (its end, exceptions, number of occurrences).
  * @param {string} to Day the occurrence goes to.
  * @returns {Recurrence} Rule proposed.
  */
@@ -564,7 +610,15 @@ export interface RulePiece {
 }
 
 /**
- * Rule with its end, excluded dates and pauses moved by a number of days.
+ * Pattern of a rule: its rhythm alone, without end, number of occurrences nor exceptions (its days of the rule).
+ * @param {Recurrence} rule Rule.
+ * @returns {Recurrence} Pattern.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the brick itself.
+export const rulePattern = (rule: Recurrence): Recurrence => ({ ...rule, until: null, count: null, exceptions: [] });
+
+/**
+ * Rule with its end and exceptions moved by a number of days.
  * @param {Recurrence} rule Rule.
  * @param {number} days Days moved (negative: earlier).
  * @returns {Recurrence} Rule.
@@ -573,7 +627,6 @@ export const shiftedDates = (rule: Recurrence, days: number): Recurrence => ({
   ...rule,
   until: rule.until && addDays(rule.until, days),
   exceptions: rule.exceptions.map((day) => addDays(day, days)),
-  pauses: rule.pauses.map((pause) => ({ from: addDays(pause.from, days), to: addDays(pause.to, days) })),
 });
 
 /**
@@ -581,7 +634,7 @@ export const shiftedDates = (rule: Recurrence, days: number): Recurrence => ({
  * turned, even or odd weeks moved with them in their order (`parityShift`; their parity swapped when they change week
  * an odd number of times), and the day its rhythm counts from
  * (every n weeks) moved with them: the first of those weekdays on its rhythm from the anchor, moved (its week goes with
- * them). Its end, excluded dates and pauses are left as given.
+ * them). Its end and exceptions are left as given.
  * @param {Recurrence} rule Rule (its weeks before the move).
  * @param {string | null} anchor Day its rhythm counts from before the move; null: not wanted (no anchor returned).
  * @param {readonly number[]} weekdays Its weekdays that move (all of them, or the weekday of a rule without weekdays).
@@ -599,15 +652,15 @@ export function movedWeekdays(rule: Recurrence, anchor: string | null, weekdays:
     weekdays: rule.weekdays.length ? weekdays.map((weekday) => ((((weekday - 1 + days) % 7) + 7) % 7) + 1).sort((a, b) => a - b) : [],
   };
   if (anchor === null) return { rule: turned, anchor: null };
-  const pattern: Recurrence = { ...rule, weekdays: weekdays.length ? [...weekdays] : rule.weekdays, until: null, count: null, exceptions: [], pauses: [] };
+  const pattern: Recurrence = { ...rulePattern(rule), weekdays: weekdays.length ? [...weekdays] : rule.weekdays };
   // Its rhythm and two weeks more (a year of 53 weeks has two odd weeks in a row).
   const first = occurrenceDates(pattern, anchor, anchor, addDays(anchor, 7 * rhythmInterval(rule) + 20))[0] ?? anchor;
   return { rule: turned, anchor: addDays(first, days) };
 }
 
 /**
- * Rule moved with its whole series by a number of days, so that it still falls on its days: its end, excluded dates
- * and pauses, its weekdays, and its monthly and yearly values (those of its first occurrence, moved). Weekly, its days
+ * Rule moved with its whole series by a number of days, so that it still falls on its days: its end and exceptions,
+ * its weekdays, and its monthly and yearly values (those of its first occurrence, moved). Weekly, its days
  * all change week together, or its weeks are not counted (every week): `shiftedRulePieces` splits the others.
  * @param {Recurrence} rule Rule.
  * @param {string | null} first First occurrence before the move (its monthly and yearly values, and the weekday of a
@@ -664,12 +717,12 @@ export interface MovedSeries {
 
 /**
  * Whether a series has a day of its rule at all: one without end always has; one with an end date, a day of its rule
- * from its first day to that date. Its excluded dates and pauses do not count: they can be given back later.
+ * from its first day to that date. Its exceptions do not count: they can be given back later.
  * @param {MovedSeries} series Series.
  * @returns {boolean} It has one.
  */
 const hasOccurrence = (series: MovedSeries): boolean =>
-  series.rule.until === null || occurrenceDates({ ...series.rule, exceptions: [], pauses: [] }, series.start, series.start, series.rule.until).length > 0;
+  series.rule.until === null || occurrenceDates({ ...series.rule, exceptions: [] }, series.start, series.start, series.rule.until).length > 0;
 
 /**
  * Series of events a series becomes once moved (`shiftedRulePieces`): one (from its first day, moved), or, weekly with its weeks counted and only

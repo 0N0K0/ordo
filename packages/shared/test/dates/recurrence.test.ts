@@ -126,7 +126,7 @@ describe('occurrenceDates: frequencies', () => {
   });
 });
 
-describe('occurrenceDates: end, exclusions, pauses', () => {
+describe('occurrenceDates: end, exceptions', () => {
   it('ends on its last date, included', () => {
     expect(occurrenceDates(rule({ frequency: 'DAILY', interval: 1, until: '2026-11-04' }), '2026-11-02', '2026-11-01', '2026-11-30')).toEqual(['2026-11-02', '2026-11-03', '2026-11-04']);
   });
@@ -135,7 +135,7 @@ describe('occurrenceDates: end, exclusions, pauses', () => {
     expect(occurrenceDates(rule({ frequency: 'DAILY', interval: 1, count: 3 }), '2026-11-02', '2026-11-03', '2026-11-30')).toEqual(['2026-11-03', '2026-11-04']);
   });
 
-  it('excluded dates and paused days do not occur and are not counted', () => {
+  it('exceptions, and the days of a former pause, do not occur and are not counted', () => {
     const repeated = rule({ frequency: 'DAILY', interval: 1, count: 3, exceptions: ['2026-11-03'], pauses: [{ from: '2026-11-05', to: '2026-11-06' }] });
     expect(occurrenceDates(repeated, '2026-11-02', '2026-11-01', '2026-11-30')).toEqual(['2026-11-02', '2026-11-04', '2026-11-07']);
   });
@@ -169,8 +169,27 @@ describe('recurrenceSchema', () => {
     expect(recurrenceSchema.safeParse(rule({ interval: 999, count: 9999 })).success).toBe(true);
   });
 
-  it('refuses a pause ending before it starts', () => {
-    expect(recurrenceSchema.safeParse(rule({ pauses: [{ from: '2026-11-10', to: '2026-11-09' }] })).success).toBe(false);
+  it('refuses a former pause ending before it starts', () => {
+    expect(recurrenceSchema.safeParse({ ...rule({}), pauses: [{ from: '2026-11-10', to: '2026-11-09' }] }).success).toBe(false);
+  });
+
+  it('reads former pauses as exceptions on the days they may occur, and never keeps them', () => {
+    const read = rule({ weekdays: [1], exceptions: ['2026-11-30'], pauses: [{ from: '2026-11-09', to: '2026-11-17' }] });
+    expect(read.exceptions).toEqual(['2026-11-09', '2026-11-16', '2026-11-30']);
+    expect('pauses' in read).toBe(false);
+    expect(rule({ frequency: 'MONTHLY', monthDay: 31, pauses: [{ from: '2027-02-01', to: '2027-04-30' }] }).exceptions).toEqual(['2027-02-28', '2027-03-31', '2027-04-30']);
+  });
+
+  it('a former pause on a day-of-month rule with a weekday left from another mode: every paused day of the month taken away', () => {
+    expect(rule({ frequency: 'MONTHLY', monthlyMode: 'DAY', monthDay: null, weekday: 3, pauses: [{ from: '2026-12-10', to: '2026-12-10' }] }).exceptions).toEqual(['2026-12-10']);
+  });
+
+  it('a former pause past the end of the rule: only its days up to that end', () => {
+    expect(rule({ frequency: 'DAILY', until: '2026-11-11', pauses: [{ from: '2026-11-10', to: '2026-11-20' }] }).exceptions).toEqual(['2026-11-10', '2026-11-11']);
+  });
+
+  it('a former pause too long for the exceptions: its last days left out, 5000 exceptions at most', () => {
+    expect(rule({ frequency: 'DAILY', pauses: [{ from: '2026-01-01', to: '2046-01-01' }] }).exceptions).toHaveLength(5000);
   });
 });
 
@@ -310,10 +329,10 @@ describe('shiftedRulePieces', () => {
     expect(shiftedRulePieces(MON_FRI_2W, '2026-11-02', 0, '2026-11-02')).toEqual([{ rule: MON_FRI_2W, anchor: null }]);
   });
 
-  it('daily: end, exclusions and pauses moved, one piece', () => {
+  it('daily: end and exceptions moved, one piece', () => {
     const daily = rule({ frequency: 'DAILY', interval: 2, until: '2026-11-30', exceptions: ['2026-11-10'], pauses: [{ from: '2026-11-20', to: '2026-11-21' }] });
     expect(shiftedRulePieces(daily, null, 2, '2026-11-02')).toEqual([
-      { rule: { ...daily, until: '2026-12-02', exceptions: ['2026-11-12'], pauses: [{ from: '2026-11-22', to: '2026-11-23' }] }, anchor: null },
+      { rule: { ...daily, until: '2026-12-02', exceptions: ['2026-11-12', '2026-11-22', '2026-11-23'] }, anchor: null },
     ]);
   });
 

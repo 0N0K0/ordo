@@ -83,7 +83,16 @@ export const PARIS_TIME_RULES = [
   },
 ];
 
+/** Repetitions: the pattern of a rule (its rhythm alone) comes from one brick. */
+export const RECURRENCE_RULES = [
+  {
+    selector: "ObjectExpression:has(> SpreadElement):has(> Property[key.name='exceptions'][value.elements.length=0]):has(> Property[key.name='count'][value.raw='null'])",
+    message: 'Motif d’une règle (sans fin, nombre de fois ni exceptions) : rulePattern(rule) (@ordo/shared).',
+  },
+];
+
 export const SHARED_SYNTAX_RULES = [
+  ...RECURRENCE_RULES,
   ...TEXT_SIZE_RULES,
   ...INHERITANCE_RULES,
   ...PARIS_TIME_RULES,

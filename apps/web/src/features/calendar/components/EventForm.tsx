@@ -6,7 +6,7 @@ import { notifySuccess } from '../../../lib/notify';
 import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Anchor, Badge, Fieldset, Select, Text } from '@mantine/core';
-import { formatDuration, readReminders, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, type Recurrence, cutSeries, seriesOn, sharePeople, shiftedSeries, shiftTime } from '@ordo/shared';
+import { formatDuration, readReminders, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, type Recurrence, cutSeries, seriesOn, sharePeople, shiftedSeries, shiftTime, storedRecurrence } from '@ordo/shared';
 import { ArrowArcRightIcon, CalendarXIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
@@ -175,7 +175,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     occurrenceDate: occurrence?.occurrenceDate ?? null,
     scope: occurrence?.occurrenceDate != null ? (scope ?? 'ALL') : 'ALL',
     ruleStart: occurrence?.seriesStartDate ?? occurrence?.startDate ?? '',
-    rule: (occurrence?.recurrence as Recurrence | null | undefined) ?? null,
+    rule: storedRecurrence(occurrence?.recurrence),
   }));
   // The saves run one after the other: each reads where the previous one left the event.
   const saveTarget = useRef(target);

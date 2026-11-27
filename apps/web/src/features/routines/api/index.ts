@@ -1,7 +1,7 @@
 import { routinesKey } from '../../../lib/query-keys';
 import { linkInputs } from '../../../lib/links';
 import { untilNextParisDay } from '../../../lib/dates';
-import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineBulkDoneAt, routineBulkValues, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
+import { ancestorsOf, storedRecurrence, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineBulkDoneAt, routineBulkValues, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
 import { ownedFields } from '../../../components/inheritance/inheritance';
 import { routineRow } from '../lib/routine-inheritance';
 import type { Reminder, RoutineBulkChanges } from '@ordo/shared';
@@ -635,7 +635,7 @@ export function routineInputOf(routine: Routine): RoutineInput {
     typeId: routine.typeId,
     parentId: routine.parentId,
     startDate: routine.startDate,
-    recurrence: routine.recurrence as Recurrence,
+    recurrence: storedRecurrence(routine.recurrence) ?? (routine.recurrence as Recurrence),
     estimate: routine.estimate,
     fromTime: routine.fromTime,
     dueTime: routine.dueTime,

@@ -1,6 +1,6 @@
 import { IconAction } from '../../../components/actions/IconAction';
 import { Badge, Group, Popover, Stack, Text } from '@mantine/core';
-import type { LinkedDocumentIds, Recurrence } from '@ordo/shared';
+import { type LinkedDocumentIds, storedRecurrence } from '@ordo/shared';
 import { LinkIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { ellipsis } from '../../../lib/text';
 import { useState } from 'react';
@@ -119,7 +119,7 @@ export function SettledCell({ entry }: { entry: AnyEntry }) {
  * @returns {JSX.Element} Cell.
  */
 export function RecurrenceCell({ entry, save }: { entry: AnyEntry; save: EntrySave }) {
-  return <RuleField label="" weekly={false} value={(entry.recurrence as Recurrence | null) ?? null} start={entry.date} onChange={(recurrence) => save(entry, { recurrence })} />;
+  return <RuleField label="" weekly={false} value={storedRecurrence(entry.recurrence)} start={entry.date} onChange={(recurrence) => save(entry, { recurrence })} />;
 }
 
 /**

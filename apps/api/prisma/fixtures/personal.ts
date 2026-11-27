@@ -188,7 +188,7 @@ export async function seedPersonal({
     startTime: '14:00',
     endDate: addDays(monday, -26),
     endTime: '15:00',
-    recurrence: rule({ weekdays: [3], pauses: [{ from: addDays(monday, 38), to: addDays(monday, 45) }] }),
+    recurrence: rule({ weekdays: [3], exceptions: [addDays(monday, 44)] }),
     contributorIds: [lea.id],
     categoryIds: [kids],
   });
@@ -429,7 +429,7 @@ export async function seedPersonal({
   const chores = await routine('Ménage', rule({ weekdays: [6] }), { categoryIds: [homeCategory], estimate: 90, assigneeIds: meId ? [meId, alex.id] : [alex.id] });
   await routine('Aspirateur', rule({ weekdays: [6] }), { parentId: chores.id, categoryIds: [homeCategory], estimate: 30 });
   await routine('Changer les draps', rule({ interval: 2, weekdays: [6] }), { parentId: chores.id, categoryIds: [homeCategory], estimate: 20 });
-  await routine('Arroser le jardin', rule({ frequency: 'DAILY', pauses: [{ from: day(30), to: day(44) }] }), {
+  await routine('Arroser le jardin', rule({ frequency: 'DAILY', exceptions: Array.from({ length: 15 }, (_, index) => day(30 + index)) }), {
     categoryIds: [homeCategory],
     fromTime: '19:00',
     dueTime: '21:00',

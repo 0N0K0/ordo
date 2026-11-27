@@ -172,7 +172,7 @@ export const occurrenceInclude = {
 } as const;
 
 /**
- * First occurrence of a recurring event shown in the calendar: the first day of its rule (its excluded dates and pauses
+ * First occurrence of a recurring event shown in the calendar: the first day of its rule (its « rien » exceptions
  * left out), not deleted on its own (a `cancelled` exception); scanned year by year over ten years.
  * @param {Pick<CalendarEvent, 'id' | 'startDate' | 'recurrence'>} event Event.
  * @param {object} [client] Client or transaction. Optional. Default = the client of the workspace.

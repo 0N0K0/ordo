@@ -14,7 +14,7 @@ interface EventTiming {
 }
 
 /**
- * Days, hours and repetition of an event, right in its panel (no modal): the rule (its end and its pauses), the whole
+ * Days, hours and repetition of an event, right in its panel (no modal): the rule (its end), the whole
  * day, the start and the end, and the length of each occurrence of an all-day event. Each change is given at once
  * (`onChange`); `onCommit` follows a choice at once (a frequency, a weekday, the period…) and a number once it is left
  * (the interval, the count…): the event panel saves then. With `ruleLocked` (one occurrence of a series edited alone),

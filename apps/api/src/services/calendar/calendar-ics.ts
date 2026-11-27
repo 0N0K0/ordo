@@ -1,4 +1,4 @@
-import { addDays, dayOfMonthOf, daysBetween, fileName, formatDay, minutesBeforeMoment, readReminders, reminderAnchorOf, occurrenceDates, type ItemLink, type Recurrence, rhythmInterval, ruleValues, storedRecurrence, weekdayOfDate, zonedInstant } from '@ordo/shared';
+import { addDays, dayOfMonthOf, daysBetween, fileName, formatDay, minutesBeforeMoment, readReminders, reminderAnchorOf, occurrenceDates, type ItemLink, type Recurrence, rhythmInterval, ruleValues, rulePattern, storedRecurrence, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import { orNotFound } from '../../graphql/errors';
 import { occurrenceInclude, toOccurrence, type EventWithRelations } from './calendar-events';
@@ -84,12 +84,11 @@ function clampedDates(rule: Recurrence, start: string, until: string | null): st
   const day = ruleValues(rule, start).monthDay;
   if (day <= 28 || rule.monthlyMode !== 'DAY' || (rule.frequency !== 'YEARLY' && rule.frequency !== 'MONTHLY')) return [];
   const horizon = addDays(start, 366 * HORIZON_YEARS);
-  const pattern = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
-  return occurrenceDates(pattern, start, start, until && until < horizon ? until : horizon).filter((date) => dayOfMonthOf(date) !== day);
+  return occurrenceDates(rulePattern(rule), start, start, until && until < horizon ? until : horizon).filter((date) => dayOfMonthOf(date) !== day);
 }
 
 /**
- * RRULE of a rule, ending on its last occurrence (a count of Ordo leaves out paused and excluded dates, an
+ * RRULE of a rule, ending on its last occurrence (a count of Ordo leaves out its exceptions, an
  * iCalendar count does not: the end date keeps the same occurrences).
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.
@@ -126,24 +125,24 @@ function rrule(rule: Recurrence, start: string, time: string | null): string[] {
 }
 
 /**
- * Dates of the pattern of a rule that do not occur: excluded dates, and those of its paused periods.
+ * Dates of the pattern of a rule that do not occur: its « rien » exceptions that are days of its pattern (a former
+ * pause turned into exceptions may hold other days), and the occurrences cancelled.
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.
  * @param {string[]} cancelled Occurrences deleted (exceptions marked cancelled).
  * @returns {string[]} Dates.
  */
 function excludedDates(rule: Recurrence, start: string, cancelled: string[]): string[] {
-  const pattern = { ...rule, count: null, exceptions: [], pauses: [] };
-  const horizon = addDays(start, 366 * HORIZON_YEARS);
-  const paused = rule.pauses.flatMap((pause) => occurrenceDates(pattern, start, pause.from, pause.to < horizon ? pause.to : horizon));
-  return [...new Set([...rule.exceptions, ...paused, ...cancelled])].filter((date) => date >= start).sort();
+  const pattern = rulePattern(rule);
+  const skipped = rule.exceptions.filter((date) => date >= start && occurrenceDates(pattern, start, date, date).length > 0);
+  return [...new Set([...skipped, ...cancelled])].filter((date) => date >= start).sort();
 }
 
 /**
  * Rule written as the iCalendar rule of a rule iCalendar cannot tell (`rrule`): even or odd weeks, every other week
  * (every 2n weeks for one out of n) from its first date; a weekday of an even or odd week of the month, the nth
  * weekday of the month. None for the others (written exactly).
- * @param {Recurrence} rule Rule (without end, excluded dates nor pauses).
+ * @param {Recurrence} rule Rule (without end nor exceptions).
  * @param {string} start First date.
  * @returns {Recurrence | null} Rule, or null.
  */
@@ -167,7 +166,7 @@ function icsApproximation(rule: Recurrence, start: string): Recurrence | null {
  * of Ordo it does not have (RDATE).
  */
 function parityDates(rule: Recurrence, start: string, until: string | null): { extra: string[]; missing: string[] } {
-  const bare = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
+  const bare = rulePattern(rule);
   const approximation = icsApproximation(bare, start);
   if (!approximation) return { extra: [], missing: [] };
   const horizon = addDays(start, 366 * HORIZON_YEARS);
@@ -180,14 +179,14 @@ function parityDates(rule: Recurrence, start: string, until: string | null): { e
 }
 
 /**
- * First date of a rule from the start of its series (the pattern alone: an excluded or paused first date is excluded
+ * First date of a rule from the start of its series (the pattern alone: a first date with an exception is excluded
  * by EXDATE), looked for close first, then further; the start itself when none is found.
  * @param {Recurrence} rule Rule.
  * @param {string} start Start of the series.
  * @returns {string} First date.
  */
 function firstRuleDate(rule: Recurrence, start: string): string {
-  const pattern = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
+  const pattern = rulePattern(rule);
   for (const days of [14, 400, 366 * HORIZON_YEARS]) {
     const [first] = occurrenceDates(pattern, start, start, addDays(start, days));
     if (first) return first;
