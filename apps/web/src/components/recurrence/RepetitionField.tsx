@@ -2,6 +2,7 @@ import { Group, Input, Modal, Stack, Text } from '@mantine/core';
 import { PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { FormActions } from '../dialogs/FormActions';
+import { InModalContext } from '../dialogs/in-modal';
 import { ActionButton } from '../actions/ActionButton';
 
 interface RepetitionFieldProps<V> {
@@ -100,19 +101,21 @@ interface RepetitionModalProps<V> {
 export function RepetitionModal<V>({ opened, onClose, title, draft, setDraft, editor, valid, onApply, header }: RepetitionModalProps<V>) {
   return (
     <Modal opened={opened} onClose={onClose} title={title} size="xl">
-      <Stack gap="md">
-        {header}
-        {editor(draft, setDraft)}
-        <FormActions
-          onCancel={onClose}
-          submitLabel="Appliquer"
-          disabled={valid ? !valid(draft) : false}
-          onSubmit={() => {
-            onApply(draft);
-            onClose();
-          }}
-        />
-      </Stack>
+      <InModalContext.Provider value>
+        <Stack gap="md">
+          {header}
+          {editor(draft, setDraft)}
+          <FormActions
+            onCancel={onClose}
+            submitLabel="Appliquer"
+            disabled={valid ? !valid(draft) : false}
+            onSubmit={() => {
+              onApply(draft);
+              onClose();
+            }}
+          />
+        </Stack>
+      </InModalContext.Provider>
     </Modal>
   );
 }

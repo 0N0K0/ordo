@@ -165,6 +165,14 @@ const sameValue = (a: unknown, b: unknown): boolean => a === b || (!(a instanceo
 const fieldOf = (path: string): string => path.split('.')[0];
 
 /**
+ * Whether one of these fields, or one of their parts (« links.0.url »), is in error: a folded group of them unfolds.
+ * @param {Record<string, unknown>} errors Errors of the form, by path.
+ * @param {readonly string[]} fields Fields.
+ * @returns {boolean} In error.
+ */
+export const hasFieldError = (errors: Record<string, unknown>, fields: readonly string[]): boolean => Object.entries(errors).some(([path, error]) => Boolean(error) && fields.includes(fieldOf(path)));
+
+/**
  * Errors of some fields, as the schema finds them on all the values (a rule across fields counts), by path.
  * @param {Schema} schema Standard schema.
  * @param {Record<string, unknown>} values Values.

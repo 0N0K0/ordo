@@ -1,4 +1,4 @@
-import { Stack, Text, TextInput } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { addDays, type CalendarEventInput, TEXT_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -9,6 +9,7 @@ import { fitName } from '../../../lib/text';
 import { useCalendarEventMutations, type EventOccurrence } from '../api';
 import { withDays } from '../lib/event-input';
 import { AvailabilityHint } from './AvailabilityHint';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 interface PostponeFormProps {
   /** Fields of the event postponed (with the changes of the form). */
@@ -38,7 +39,7 @@ function PostponeForm({ fields, label, loading, onCancel, onConfirm }: PostponeF
   return (
     <Stack gap="sm">
       <Text size="sm">La date initiale sera annulée (l’évènement reste barré dans l’agenda) et un nouvel évènement, lié à elle, sera créé à la nouvelle date.</Text>
-      <TextInput label="Libellé" required maxLength={TEXT_MAX} value={values.label} onChange={(event) => setValues({ ...values, label: event.currentTarget.value })} />
+      <LabelField maxLength={TEXT_MAX} value={values.label} onChange={(event) => setValues({ ...values, label: event.currentTarget.value })} />
       <PeriodField
         label="Nouvelle date"
         description="L’évènement garde sa durée ; changez la fin pour la modifier."

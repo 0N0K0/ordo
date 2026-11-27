@@ -6,12 +6,12 @@ import { notifySuccess } from '../../../lib/notify';
 import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Anchor, Badge, Fieldset, Select, Text } from '@mantine/core';
-import { mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, type Recurrence, cutSeries, seriesOn, sharePeople, shiftedSeries, shiftTime } from '@ordo/shared';
+import { formatDuration, readReminders, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, type Recurrence, cutSeries, seriesOn, sharePeople, shiftedSeries, shiftTime } from '@ordo/shared';
 import { ArrowArcRightIcon, CalendarXIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { parisToday } from '../../../lib/dates';
-import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks, hasFieldError } from '../../../lib/form';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, type CalendarEventScope } from '../api';
@@ -28,6 +28,8 @@ import { occurrenceInput, routineLinkKey, routineLinkOf, seriesInput, withDays }
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
+import { summaryLabels } from '../../../components/actions/fold-summary';
+import { reminderLabel } from '../../../components/inputs/reminder-presets';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { useRoutineOccurrences, useRoutinesData } from '../../routines/api';
 import { EventRepetition } from './EventRepetition';
@@ -282,6 +284,18 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   // (the whole series), « Supprimer », then « Lancer » its saved timers; archived: restored or deleted only.
   const menu = useEventMenu(occurrence, { fields: values, target, readOnly, savedCountdownIds, onDuplicated, onDone });
 
+  // What each folded group shows after its title.
+  const summaries = {
+    ranking: [...summaryLabels(calendars, [values.calendarId ?? defaultCalendarId]), ...summaryLabels(categories ?? [], values.categoryIds)],
+    people: values.contributorIds.length + (values.relationIds?.length ?? 0) + (values.beneficiaryIds?.length ?? 0) + (values.beneficiaryRelationIds?.length ?? 0),
+    dates: [
+      values.startDate && `${fmt.day(values.startDate)}${!values.allDay && values.startTime ? ` ${values.startTime}` : ''}`,
+      values.recurrence ? 'Répété' : null,
+      occurrence && occurrence.trackedSeconds > 0 && formatDuration(occurrence.trackedSeconds),
+    ],
+    place: [values.location],
+    alarms: [...readReminders(values.reminders).map((reminder) => reminderLabel(reminder, { target: 'event' })), savedCountdownIds.length > 0 && countOf(savedCountdownIds.length, 'minuteur')],
+  };
   return (
     <form onSubmit={handleSubmit} noValidate>
       <DetailLayout
@@ -376,7 +390,12 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
         main={
           <>
             <FormDescription field={fieldProps('description')} commit={() => commit(['description'])} targets={context.targetsFor(values.projectId ?? null)} suggestions={context.suggestionsFor(values.projectId ?? null)} readOnly={readOnly} />
-            <PanelGroup title={PANEL_GROUPS.relations}>
+            <PanelGroup
+              title={PANEL_GROUPS.relations}
+              collapsible
+              summary={(values.taskIds?.length ?? 0) + (values.routineLinks?.length ?? 0)}
+              invalid={hasFieldError(form.errors, ['taskIds', 'routineLinks'])}
+            >
               {series(
                 <BatchMultiSelect
                   label="Tâches"
@@ -429,7 +448,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
         }
         side={
           <>
-            <PanelGroup title={PANEL_GROUPS.ranking}>
+            <PanelGroup title={PANEL_GROUPS.ranking} collapsible summary={summaries.ranking} invalid={hasFieldError(form.errors, ['calendarId', 'categoryIds'])}>
               {series(
                 <>
                   <Select
@@ -455,7 +474,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                 </>,
               )}
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.people}>
+            <PanelGroup title={PANEL_GROUPS.people} collapsible defaultExpanded={false} summary={summaries.people} invalid={hasFieldError(form.errors, ['contributorIds', 'relationIds', 'beneficiaryIds', 'beneficiaryRelationIds'])}>
               {series(
                 <>
                   <BeneficiariesSelect
@@ -474,7 +493,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                 </>,
               )}
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.dates}>
+            <PanelGroup title={PANEL_GROUPS.dates} collapsible defaultExpanded={false} summary={summaries.dates} invalid={hasFieldError(form.errors, ['startDate', 'endDate', 'startTime', 'endTime', 'recurrence', 'allDay'])}>
               <EventRepetition
                 ruleStart={ruleStart}
                 ruleLocked={seriesFields}
@@ -504,7 +523,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                 />
               )}
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.place}>
+            <PanelGroup title={PANEL_GROUPS.place} collapsible defaultExpanded={false} summary={summaries.place} invalid={hasFieldError(form.errors, ['location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter'])}>
               <EventLocation value={place.value} error={form.errors.location} onChange={place.onChange} onBlur={place.leave} />
               {!values.allDay && (
                 <TravelTimes
@@ -518,7 +537,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                 />
               )}
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.alarms}>
+            <PanelGroup title={PANEL_GROUPS.alarms} collapsible defaultExpanded={false} summary={summaries.alarms} invalid={hasFieldError(form.errors, ['reminders'])}>
               {series(
                 <EventRemindersField allDay={values.allDay} value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} />,
               )}
@@ -534,7 +553,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                 />
               )}
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.resources}>
+            <PanelGroup title={PANEL_GROUPS.resources} collapsible defaultExpanded={false} invalid={hasFieldError(form.errors, ['links', 'libraryDocumentIds', 'projectResourceIds'])}>
               <LinksField form={form} onRemoved={() => commit(['links'])} />
               {series(
                 <DocumentsField

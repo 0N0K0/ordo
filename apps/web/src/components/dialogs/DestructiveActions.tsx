@@ -2,6 +2,7 @@ import { Group, Radio, Stack, Text } from '@mantine/core';
 import { TrashIcon, XIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { ActionButton } from '../actions/ActionButton';
+import { DialogFooter } from './DialogFooter';
 
 interface DestructiveActionsProps {
   onConfirm: () => void;
@@ -15,20 +16,23 @@ interface DestructiveActionsProps {
 }
 
 /**
- * Buttons of every destructive dialog, bottom-right: the confirmation first (filled red), then Cancel (light).
+ * Buttons of every destructive dialog, bottom-right: the confirmation first (filled red), then Cancel (light); in the
+ * footer of the modal, always visible (`DialogFooter`).
  * @param {DestructiveActionsProps} props Component props.
  * @returns {JSX.Element} Buttons.
  */
 export function DestructiveActions({ onConfirm, onCancel, loading = false, confirmLabel = 'Supprimer', confirmIcon = <TrashIcon aria-hidden /> }: DestructiveActionsProps) {
   return (
-    <Group justify="flex-end" gap="sm">
-      <ActionButton danger icon={confirmIcon} onClick={onConfirm} loading={loading} data-autofocus>
-        {confirmLabel}
-      </ActionButton>
-      <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onCancel}>
-        Annuler
-      </ActionButton>
-    </Group>
+    <DialogFooter>
+      <Group justify="flex-end" gap="sm">
+        <ActionButton danger icon={confirmIcon} onClick={onConfirm} loading={loading} data-autofocus>
+          {confirmLabel}
+        </ActionButton>
+        <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onCancel}>
+          Annuler
+        </ActionButton>
+      </Group>
+    </DialogFooter>
   );
 }
 

@@ -5,7 +5,7 @@ import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { listSelectProps } from '../../../components/items/item-look';
 
 import { PAGES, sheetPath } from '../../../app/pages';
-import { Paper, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Paper, SimpleGrid, Stack, Text, Textarea } from '@mantine/core';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { ClipboardTextIcon, CookingPotIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
@@ -49,6 +49,7 @@ import { SavedCountdownsField } from '../../countdowns/components/SavedCountdown
 import { useCountdownMenuEntries } from '../../countdowns/hooks/use-saved-countdowns';
 import { sheetCountdownItem } from '../lib/sheet-countdowns';
 import { deleteSheetsAction } from '../lib/delete-sheets';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 type ItemChange = Partial<Omit<SheetItemInput, 'id'>>;
 
@@ -131,7 +132,7 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
         <Stack gap="sm">
           {!sheet.archived && <SaveStatus saving={saving} />}
           <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-            <TextInput label="Libellé" required readOnly={sheet.archived} {...form.getInputProps('label')} />
+            <LabelField sticky={false} readOnly={sheet.archived} {...form.getInputProps('label')} />
             {context && (
               <ProjectSelect
                 context={context}

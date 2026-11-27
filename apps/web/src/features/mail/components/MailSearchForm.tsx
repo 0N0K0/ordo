@@ -11,6 +11,7 @@ import { unarchived } from '../../../lib/archive';
 import { formRange } from '../../../components/inputs/date-range';
 import { PeriodField } from '../../../components/inputs/PeriodField';
 import { accountLabel } from '../lib/mail-format';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 type SearchValues = MailSearchCriteria & { label: string } & Record<string, unknown>;
 
@@ -63,7 +64,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
         <Text size="sm" c="dimmed">
           Un dossier de recherche rassemble les mails qui répondent à ses critères, dans une ou plusieurs boîtes. Il n’existe que dans Ordo : rien n’est créé sur le serveur.
         </Text>
-        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+        <LabelField data-autofocus {...form.getInputProps('label')} />
         <BatchMultiSelect
           label="Boîtes"
           placeholder={values.accountIds.length ? undefined : 'Toutes les boîtes'}

@@ -40,6 +40,7 @@ import { openMemberForm } from '../lib/open-member';
 import type { Contributor } from '../../tasks/api';
 import { PersonDetailsFields } from '../../../components/people/PersonDetailsFields';
 import { NO_PERSON_DETAILS_VALUES, PERSON_DETAILS_ON_BLUR, personDetailsProps, personDetailsValues, type PersonDetailsValues } from '../../../components/people/person-details';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
@@ -188,7 +189,7 @@ export function ContextForm({ label = '', onDone }: { label?: string; onDone: (c
       )}
     >
       <Stack gap="sm">
-        <TextInput label="Libellé" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('label')} />
+        <LabelField data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('label')} />
         <ColorField required {...form.getInputProps('color')} />
         <FormActions onCancel={() => onDone()} submitLabel="Créer" loading={saveContext.isPending} />
       </Stack>
@@ -373,7 +374,7 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="sm">
           {relation && !readOnly && <SaveStatus saving={saving} />}
-          <TextInput label="Nom" required data-autofocus={relation ? undefined : true} placeholder="Paul, Mamie, Association du quartier…" {...form.getInputProps('name')} />
+          <LabelField label="Nom" data-autofocus={relation ? undefined : true} placeholder="Paul, Mamie, Association du quartier…" {...form.getInputProps('name')} />
           <Select
             label="Contributeur"
             description="Si cette personne intervient aussi sur des projets ou des tâches : le contributeur a alors ses coordonnées et son anniversaire."

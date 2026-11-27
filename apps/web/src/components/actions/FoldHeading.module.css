@@ -46,8 +46,27 @@
     /* Dimension */
     min-width: 0;
 
-    [data-inline] > & {
+    [data-inline] > &,
+    [data-summary] > & {
+      /* Agencement */
       flex: none;
     }
+  }
+
+  /* After the title of a folded group: one line, cut by « … » (in full in the tooltip). */
+  .summary {
+    /* Agencement */
+    flex: 1;
+
+    /* Dimension */
+    min-width: 0;
+    overflow: hidden;
+
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 400;
+    color: var(--mantine-color-dimmed);
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 }

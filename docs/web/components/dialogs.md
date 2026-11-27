@@ -2,7 +2,12 @@
 
 Briques des confirmations destructives, des boutons de bas de formulaire et du formulaire de libellé seul. Source : `apps/web/src/components/dialogs/`. Les modales elles-mêmes s'ouvrent par `openModal` et les formulaires par `openFormPanel` (voir [Panneaux](panels.md)).
 
-Règle UX : un formulaire s'ouvre dans le panneau latéral ; une modale ne sert qu'aux confirmations (voir [Conventions](../app.md#conventions)).
+Règle UX : un formulaire s'ouvre dans le panneau latéral ; une modale ne sert qu'aux confirmations, sauf le sous-formulaire d'un champ ouvert depuis le panneau (répétition, exceptions, horaires) (voir [Conventions](../app.md#conventions)). Dans toute modale, les boutons sont dans son pied, toujours visible : le contenu défile au-dessus.
+
+## `DialogFooter.tsx`, `in-modal.ts`
+
+- `InModalContext` (`in-modal.ts`) : vrai dans une modale ; donné par `openModal` et `RepetitionModal`.
+- `DialogFooter({ children })` : pied d'une modale, collé en bas pendant que le contenu défile (`DialogFooter.module.css`, fond de la modale) ; hors d'une modale (un formulaire du panneau), les boutons tels quels. Utilisé par `FormActions` et `DestructiveActions` (donc par toutes les modales), et par la question « Fermer le mail » (trois boutons à elle). eslint interdit une ligne de boutons écrite à la main (`Group justify="flex-end"`) écrite dans l'appel d'`openModal` ou d'`answerInModal`, ou dans un `Modal`, hors d'un `DialogFooter` (garde au mieux : un dialogue écrit dans son propre composant n'est pas vu).
 
 ## `confirm-destructive.tsx`
 
@@ -29,7 +34,7 @@ La modale se ferme avant l'action. eslint interdit d'écrire « irréversible »
 
 ## `DestructiveActions.tsx`
 
-- `DestructiveActions` : boutons de tout dialogue destructif, en bas à droite : confirmation (rouge plein, `data-autofocus`) puis « Annuler » (`secondary`). Props : `onConfirm`, `onCancel`, `loading`, `confirmLabel` (défaut « Supprimer »), `confirmIcon`. Utilisé par `confirmDestructive` et par les dialogues destructifs à options (agenda, tâches, projets).
+- `DestructiveActions` : boutons de tout dialogue destructif, en bas à droite : confirmation (rouge plein, `data-autofocus`) puis « Annuler » (`secondary`) ; dans le pied de la modale (`DialogFooter`). Props : `onConfirm`, `onCancel`, `loading`, `confirmLabel` (défaut « Supprimer »), `confirmIcon`. Utilisé par `confirmDestructive` et par les dialogues destructifs à options (agenda, tâches, projets).
 - `DeleteButton` : bouton « Supprimer » d'un formulaire (corbeille, rouge plein), à placer dans la zone `danger` de `FormActions` ; la suppression passe par `confirmDestructive`. Props : `onClick`, `loading`, `children` (défaut « Supprimer »).
 - `DestructiveRisks({ children, reversible? })` : texte des risques suivi de « Cette action est irréversible. » (constante interne `IRREVERSIBLE`, le seul endroit où la phrase est écrite), sauf `reversible`.
 - `CascadeChoice` : choix, lors d'une suppression, pour ce qui dépend de l'élément (sous-tâches, sous-projets) : garder (`'detach'`, libellé `keepLabel`) ou « Les supprimer aussi, définitivement » (`'delete'`, en rouge). Props : `label`, `keepLabel`, `value`, `onChange`. Utilisé par les tâches et les projets.
@@ -38,7 +43,7 @@ La modale se ferme avant l'action. eslint interdit d'écrire « irréversible »
 
 ### `FormActions`
 
-Boutons de tout formulaire et dialogue, en bas à droite : « Annuler » (`secondary`) puis l'action (`primary`, soumet le formulaire). ~65 fichiers. Props :
+Boutons de tout formulaire et dialogue, en bas à droite : « Annuler » (`secondary`) puis l'action (`primary`, soumet le formulaire) ; dans une modale, dans son pied (`DialogFooter`), sauf en taille `xs` (édition en place). ~65 fichiers. Props :
 
 - `submitLabel` (défaut « Enregistrer » ; `null` : pas de bouton de soumission, dialogue seulement fermé) ;
 - `submitIcon` : défaut selon le libellé (fonction interne `defaultSubmitIcon`) : disquette pour « Enregistrer… », « + » pour « Créer… » / « Ajouter… », crayon pour « Renommer », flèches pour « Déplacer » / « Transférer », téléchargement pour « Télécharger… », coche sinon ;
@@ -65,7 +70,7 @@ eslint interdit une promesse écrite à la main autour d'`openModal` (`answerInM
 ## `LabelForm.tsx`
 
 - `LabelFormProps` (interface) : `initial`, `schema` (règle zod du libellé, ex. `requiredText()` ou `mailFolderNameSchema`), `submitLabel` (« Créer », « Renommer »), `onSubmit(label)` (une promesse garde le formulaire ouvert, en attente ; son échec va sous le champ ou en toast), `onDone`, `fieldLabel` (défaut « Libellé » : « Nom » seulement pour une personne), `placeholder`.
-- `LabelForm` : formulaire d'un seul libellé (créer ou renommer une vue, un tableau de bord, un dossier), validé comme les autres (`useAppForm` : au blur puis à chaque changement), envoyé par `useAsyncAction` ; le libellé est passé par `schema.parse` (donc nettoyé). Champ requis, autofocus.
+- `LabelForm` : formulaire d'un seul libellé (`LabelField`) (créer ou renommer une vue, un tableau de bord, un dossier), validé comme les autres (`useAppForm` : au blur puis à chaque changement), envoyé par `useAsyncAction` ; le libellé est passé par `schema.parse` (donc nettoyé). Champ requis, autofocus.
 
 ## `open-label-form.tsx`
 

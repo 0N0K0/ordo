@@ -1,10 +1,10 @@
-import { ArrowBendUpRightIcon, CalendarDotsIcon, PencilSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
+import { ArrowBendUpRightIcon, CalendarDotsIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import type { RowAction, RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { useCountdownMenuEntries } from '../../countdowns/hooks/use-saved-countdowns';
 import { useRoutinesData, type Routine, type RoutineOccurrence } from '../api';
 import { useRoutineRowsActions } from '../components/RoutineBulkBar';
-import { openRoutineForm } from '../lib/open-routine-form';
+import { addSubRoutineEntry, openRoutineForm } from '../lib/open-routine-form';
 import { openRoutineMove } from '../lib/open-routine-move';
 import { routineCountdownItem } from '../lib/routine-countdowns';
 import { movableOccurrence } from '../lib/routine-format';
@@ -53,7 +53,7 @@ export function useRoutineOccurrenceMenu() {
     return {
       primary: !readOnly && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRoutineForm(occurrence ? { routine, occurrenceDate: occurrence.date } : { routine }) },
       items: [
-        !readOnly && { label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) },
+        !readOnly && addSubRoutineEntry(routine),
         !readOnly && canMove && 'divider',
         !readOnly && canMove && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine, occurrence ?? undefined) },
         !readOnly && canMove && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine, date) },

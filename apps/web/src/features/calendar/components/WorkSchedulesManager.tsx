@@ -3,7 +3,7 @@ import { countOf, copyName } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Fieldset, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Fieldset, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { StackedLines } from '../../../components/data-table/cells/StackedValues';
 import { DEFAULT_SCHEDULE_KIND_LABEL, readReminders, readScheduleCases, readScheduleExceptions, type ReminderFields, type ScheduleCase, type ScheduleException, type WorkScheduleInput, wholeDaysCase, workScheduleSchema } from '@ordo/shared';
 import { CalendarStarIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
@@ -42,6 +42,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { followBounds } from '../../../components/inputs/date-range';
 import { UnavailableSwitch } from './UnavailableSwitch';
 import { NO_KIND, NO_KIND_LABEL, scheduleRows, useScheduleColumns, type ScheduleRow } from '../hooks/use-schedule-columns';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 interface ScheduleValues extends Record<string, unknown> {
   label: string;
@@ -143,7 +144,7 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
           <Stack gap="md">
             {schedule && !readOnly && <SaveStatus saving={saving} />}
             <Group grow align="flex-start">
-              <TextInput label="Libellé" required data-autofocus placeholder={ephemeris ? 'Vacances, Noël, Anniversaire de Léa…' : undefined} {...form.getInputProps('label')} />
+              <LabelField sticky={false} data-autofocus placeholder={ephemeris ? 'Vacances, Noël, Anniversaire de Léa…' : undefined} {...form.getInputProps('label')} />
               <CreatableSelect
                 label="Type"
                 placeholder={ephemeris ? NO_KIND_LABEL : (defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL)}

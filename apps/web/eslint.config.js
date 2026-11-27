@@ -1219,6 +1219,20 @@ const RESTRICTED_SYNTAX = [
     selector: "VariableDeclarator[id.name=/^ME(_KEY)?$/][init.type='Literal']",
     message: 'Utiliser ME_KEY (components/people/people-keys) : la valeur de « Moi ».',
   },
+  {
+    selector: "JSXOpeningElement[name.name='TextInput']:has(> JSXAttribute[name.name='label'][value.value='Libellé'])",
+    message: 'Utiliser LabelField (components/inputs/LabelField) : le libellé requis, fixe en haut du panneau au défilement.',
+  },
+  {
+    selector:
+      "CallExpression[callee.name=/^(openModal|answerInModal)$/] JSXElement[openingElement.name.name!='DialogFooter'] > JSXElement > JSXOpeningElement[name.name='Group']:has(> JSXAttribute[name.name='justify'][value.value='flex-end'])",
+    message: 'Utiliser FormActions ou DestructiveActions, sinon DialogFooter (components/dialogs) : les boutons d’une modale dans son pied, toujours visible.',
+  },
+  {
+    selector:
+      "JSXElement[openingElement.name.name='Modal'] JSXElement[openingElement.name.name!='DialogFooter'] > JSXElement > JSXOpeningElement[name.name='Group']:has(> JSXAttribute[name.name='justify'][value.value='flex-end'])",
+    message: 'Utiliser FormActions ou DestructiveActions, sinon DialogFooter (components/dialogs) : les boutons d’une modale dans son pied, toujours visible.',
+  },
   // Holes of the rules.
   {
     selector: "JSXElement[openingElement.name.name=/^(Anchor|UnstyledButton|Button)$/] ~ JSXElement[openingElement.name.name='Collapse']",

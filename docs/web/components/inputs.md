@@ -81,6 +81,11 @@ Mots des rappels, les mêmes dans l'éditeur et là où ils sont dits :
 
 `ContactListField({ kind, value, onChange, errors?, onBlur? })` : liste à libellés pour joindre une personne ou une organisation, la même pour chaque sorte : `kind="phones"` « Téléphones » (libellé et numéro, « Ajouter un numéro ») ou `kind="emails"` « Adresses mail » (libellé et adresse, « Ajouter une adresse »), ajout et retrait ; l’erreur de chacun sous lui (`errors`, chemins `N.label`, `N.number` ou `N.address`) ; `onBlur` : un champ quitté, une entrée retirée (enregistrés alors dans un panneau enregistré champ par champ). Téléphones : clients, services et contacts (`ClientPartyForms`), contributeurs et relations ; adresses mail : contributeurs et relations (`PersonDetailsFields`).
 
+## Libellé
+
+- `LabelField` (`LabelField.tsx`, `LabelField.module.css`) : champ du libellé d'un formulaire (« Libellé » par défaut, « Nom » d'une personne, d'un client, d'un minuteur), requis par défaut, le même dans tous les formulaires : **fixe en haut du panneau latéral** pendant que le reste du formulaire défile (`position: sticky`, fond du panneau ; classe `sticky`, aussi celle de la ligne du titre de `DetailLayout`). Props de `TextInput`, et `sticky` (défaut vrai ; faux : le libellé d'une page, d'une ligne de liste ou d'un jeu de données). Fixe seulement dans son parent : placé dans une ligne (`Group`), il défile avec elle. eslint interdit un `TextInput` « Libellé » écrit à la main.
+- `LabelFieldProps` (interface) : props de `LabelField`.
+
 ## Couleur, icône, liens, groupe de contrôles
 
 - `ColorField` : champ couleur d'un formulaire, le même partout : hexadécimal, palette du thème (`useColorSwatches`) en rangées de 9, libellé « Couleur » par défaut. `onCommit(color)` : la couleur choisie, aussitôt quand elle est prise dans le nuancier, le sélecteur ou la pipette, en quittant le champ quand elle est tapée (une couleur tapée à moitié n’en est pas une) ; non contrôlé (`defaultValue`), seulement quand elle a changé. `onChangeEnd` de Mantine n'est pas dans ses props (il annonce chaque couleur valide en cours de frappe). Dans un panneau enregistré champ par champ : `commitProps('color')` de `useFieldSave` (imposé par eslint dans ces panneaux). Tient lieu de `ColorInput`, interdit par eslint.

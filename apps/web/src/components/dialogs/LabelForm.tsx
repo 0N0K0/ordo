@@ -1,8 +1,9 @@
-import { Stack, TextInput } from '@mantine/core';
+import { Stack } from '@mantine/core';
 import { z } from 'zod';
 import { showFormError, useAppForm } from '../../lib/form';
 import { useAsyncAction } from '../../lib/use-async-action';
 import { FormActions } from './FormActions';
+import { LabelField } from '../inputs/LabelField';
 
 export interface LabelFormProps {
   /** Label to start from (empty for a new element). */
@@ -33,7 +34,7 @@ export function LabelForm({ initial, schema, submitLabel, onSubmit, onDone, fiel
   return (
     <form noValidate onSubmit={form.onSubmit(({ label }) => run(schema.parse(label)))}>
       <Stack gap="md">
-        <TextInput label={fieldLabel} required data-autofocus placeholder={placeholder} {...form.getInputProps('label')} />
+        <LabelField label={fieldLabel} data-autofocus placeholder={placeholder} {...form.getInputProps('label')} />
         <FormActions onCancel={onDone} submitLabel={submitLabel} loading={loading} />
       </Stack>
     </form>

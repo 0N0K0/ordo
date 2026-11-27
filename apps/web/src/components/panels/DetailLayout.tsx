@@ -1,6 +1,11 @@
-import { Fieldset, Group, TextInput, Title, type TextInputProps } from '@mantine/core';
-import type { ReactNode } from 'react';
+import { Collapse, Fieldset, Group, Title, type TextInputProps } from '@mantine/core';
+import { useId, useState, type ReactNode } from 'react';
+import { FoldHeading } from '../actions/FoldHeading';
+import type { FoldSummary } from '../actions/fold-summary';
 import { SaveStatus } from '../feedback/SaveStatus';
+import { LabelField } from '../inputs/LabelField';
+// The same class as the label field of the other forms: fixed at the top of the scrolled panel.
+import labelClasses from '../inputs/LabelField.module.css';
 import classes from './DetailLayout.module.css';
 
 interface DetailLayoutProps {
@@ -56,14 +61,15 @@ function Locked({ readOnly, children }: { readOnly: boolean; children: ReactNode
 export function DetailLayout({ status, title, focusTitle = false, menu, project, mentions, notes, saving, readOnly = false, main, comments, side, footer }: DetailLayoutProps) {
   return (
     <div className={classes.root}>
+      {/* The title line stays at the top of the panel while it scrolls. */}
+      <div className={`${classes.line} ${labelClasses.sticky}`}>
+        <Locked readOnly={readOnly}>
+          {status}
+          <LabelField sticky={false} className={classes.grow} data-autofocus={focusTitle || undefined} {...title} />
+        </Locked>
+        {menu && <div className={classes.end}>{menu}</div>}
+      </div>
       <header className={classes.header}>
-        <div className={classes.line}>
-          <Locked readOnly={readOnly}>
-            {status}
-            <TextInput label="Libellé" required className={classes.grow} data-autofocus={focusTitle || undefined} {...title} />
-          </Locked>
-          {menu && <div className={classes.end}>{menu}</div>}
-        </div>
         {(project || mentions || saving !== undefined) && (
           <div className={classes.line}>
             {project && (
@@ -98,28 +104,59 @@ export function DetailLayout({ status, title, focusTitle = false, menu, project,
 interface PanelGroupProps {
   /** Title of the group (« Classement », « Parties prenantes »…). Optional: a field alone (the place of a task). */
   title?: ReactNode;
-  /** Action on the right of the title. Optional. */
+  /** Action on the right of the title (shown while the group is unfolded). Optional. */
   action?: ReactNode;
+  /** Folds and unfolds by its title (a titled group only). Optional. Default = false. */
+  collapsible?: boolean;
+  /** Unfolded when the panel opens (a collapsible group). Optional. Default = true. */
+  defaultExpanded?: boolean;
+  /** What it holds, after its title while folded: its values, or the number of its people or items (`foldSummary`). Optional. */
+  summary?: FoldSummary;
+  /** A field of the group is in error: unfolded, so its error shows. Optional. Default = false. */
+  invalid?: boolean;
   children: ReactNode;
 }
 
 /**
- * Group of fields of a panel laid out by `DetailLayout`: a rule above it, its title, then its fields.
+ * Group of fields of a panel laid out by `DetailLayout`: a rule above it, its title, then its fields. Collapsible, its
+ * title folds and unfolds it (`FoldHeading`, `aria-expanded` and `aria-controls`), and shows its summary while folded;
+ * its fields stay mounted (hidden), their saves go on; a field in error unfolds it (`invalid`).
  * @param {PanelGroupProps} props Component props.
  * @returns {JSX.Element} Group.
  */
-export function PanelGroup({ title, action, children }: PanelGroupProps) {
+export function PanelGroup({ title, action, collapsible = false, defaultExpanded = true, summary, invalid = false, children }: PanelGroupProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  // A field in error unfolds the group, which stays unfolded once the error is fixed.
+  if (invalid && !expanded) setExpanded(true);
+  const id = useId();
+  if (!collapsible || !title) {
+    return (
+      <section className={classes.group}>
+        {title && (
+          <Group justify="space-between" gap="xs" wrap="nowrap">
+            <Title order={3} size="h5">
+              {title}
+            </Title>
+            {action}
+          </Group>
+        )}
+        {children}
+      </section>
+    );
+  }
   return (
     <section className={classes.group}>
-      {title && (
-        <Group justify="space-between" gap="xs" wrap="nowrap">
-          <Title order={3} size="h5">
+      <Group justify="space-between" gap="xs" wrap="nowrap">
+        <Title order={3} size="h5" className={classes.foldTitle}>
+          <FoldHeading expanded={expanded} onToggle={() => setExpanded(!expanded)} aria-controls={id} summary={expanded ? undefined : summary}>
             {title}
-          </Title>
-          {action}
-        </Group>
-      )}
-      {children}
+          </FoldHeading>
+        </Title>
+        {expanded && action}
+      </Group>
+      <Collapse id={id} expanded={expanded} transitionDuration={150} keepMountedMode="display-none">
+        <div className={classes.groupFields}>{children}</div>
+      </Collapse>
     </section>
   );
 }

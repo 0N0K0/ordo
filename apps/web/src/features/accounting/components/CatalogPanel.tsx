@@ -3,7 +3,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { Fieldset, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Fieldset, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
@@ -31,6 +31,7 @@ import { CATALOG_KINDS, catalogColumns } from '../lib/accounting-columns';
 import { ChipChoiceCell } from '../../../components/data-table/cells/ChipChoiceCell';
 import { stateOf } from '../../../components/data-table/table/state-column';
 import { ItemBadge } from '../../../components/items/ItemBadge';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 /** Values of the form of a catalogue item. */
 type CatalogValues = CatalogItemInput & Record<string, unknown>;
@@ -88,7 +89,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
               {...form.getInputProps('kind')}
               onChange={(kind) => form.setValues({ kind: kind as CatalogItemInput['kind'], ...(kind === 'DISBURSEMENT' && { vatRate: 0, unit: 'FLAT' }) })}
             />
-            <TextInput label="Libellé" required data-autofocus={item ? undefined : true} {...form.getInputProps('label')} />
+            <LabelField data-autofocus={item ? undefined : true} {...form.getInputProps('label')} />
             <Textarea label="Description" description="Reprise dans la ligne (markdown)." autosize minRows={2} {...form.getInputProps('description')} />
             <SimpleGrid cols={{ base: 1, sm: disbursement ? 2 : 3 }} spacing="sm">
               <Select label="Unité" allowDeselect={false} data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))} {...form.getInputProps('unit')} />

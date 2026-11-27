@@ -24,3 +24,19 @@ export function useSetBlockedRoutines(routines: readonly Routine[]) {
     }
   };
 }
+
+/**
+ * Change of the « Sous-routines » of a routine, as « Bloque »: the routines added are put under it, those removed are
+ * taken out of any parent; written in the « Routine parente » of those other routines (the API checks it as any
+ * parent: no loop, an archived parent refused; occurrences lost asked first).
+ * @returns {(parentId: string, children: readonly string[], next: readonly string[]) => void} Applier: the routine, its
+ *   sub-routines shown, and those chosen.
+ */
+export function useSetSubRoutines() {
+  const { patch } = useRoutineMutations();
+  return (parentId: string, children: readonly string[], next: readonly string[]) => {
+    const { added, removed } = listDiff(children, next);
+    for (const id of added) patch.mutate({ id, input: { parentId } }, ON_ERROR);
+    for (const id of removed) patch.mutate({ id, input: { parentId: null } }, ON_ERROR);
+  };
+}
