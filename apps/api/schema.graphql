@@ -4529,21 +4529,24 @@ type RoutineReminderOccurrence {
   """
   date: Date!
 
-  """
-  Its first day (« Ouverture »): the day its reminders « N jours avant » count from (the due day `date`: those from the end).
-  """
+  """Its first day (« Ouverture »)."""
   day: Date!
 
   """Due day of the occurrence."""
   dueDate: Date!
 
   """
-  First day of its opening its condition allows one of its times of the day not ticked on (the first day « Ma journée » shows it): the day of its reminders « À HH:MM » and of those « avant » the start or the end of the opening day; null: none.
+  First day of its opening its condition allows one of its times of the day not ticked on (the first day « Ma journée » shows it): the day its reminders counted from the opening ring on or count from (« À HH:MM », « N jours avant », « avant » the start or the end of the opening; the due day `date`: those from the end); null: none (those do not ring).
   """
   firstDay: Date
 
   """
-  Its times of the day not ticked, with their hours (the moments its reminders « N min avant » count from: `routineSlotAnchors`).
+  Its times of the day not ticked allowed on `firstDay`, with their hours that day (the moments its reminders « N min avant » the start or the end of the opening count from).
+  """
+  openingSlots: [RoutineReminderSlot!]!
+
+  """
+  Its times of the day not ticked, with their hours (the moments its reminders « N min avant » the due day count from: `routineSlotAnchors`).
   """
   slots: [RoutineReminderSlot!]!
 }

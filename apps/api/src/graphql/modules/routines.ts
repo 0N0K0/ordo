@@ -137,14 +137,19 @@ const RoutineReminderOccurrenceRef = builder.objectRef<routines.RoutineReminderO
   fields: (t) => ({
     date: t.field({ type: 'Date', description: 'Day that identifies the occurrence: its due day, or the day of its rule when moved and kept apart.', resolve: (occurrence) => parseDay(occurrence.date) }),
     dueDate: t.field({ type: 'Date', description: 'Due day of the occurrence.', resolve: (occurrence) => parseDay(occurrence.dueDate) }),
-    day: t.field({ type: 'Date', description: 'Its first day (« Ouverture »): the day its reminders « N jours avant » count from (the due day `date`: those from the end).', resolve: (occurrence) => parseDay(occurrence.day) }),
+    day: t.field({ type: 'Date', description: 'Its first day (« Ouverture »).', resolve: (occurrence) => parseDay(occurrence.day) }),
     firstDay: t.field({
       type: 'Date',
       nullable: true,
-      description: 'First day of its opening its condition allows one of its times of the day not ticked on (the first day « Ma journée » shows it): the day of its reminders « À HH:MM » and of those « avant » the start or the end of the opening day; null: none.',
+      description: 'First day of its opening its condition allows one of its times of the day not ticked on (the first day « Ma journée » shows it): the day its reminders counted from the opening ring on or count from (« À HH:MM », « N jours avant », « avant » the start or the end of the opening; the due day `date`: those from the end); null: none (those do not ring).',
       resolve: (occurrence) => parseOptionalDay(occurrence.firstDay),
     }),
-    slots: t.field({ type: [RoutineReminderSlotRef], description: 'Its times of the day not ticked, with their hours (the moments its reminders « N min avant » count from: `routineSlotAnchors`).', resolve: (occurrence) => occurrence.slots }),
+    slots: t.field({ type: [RoutineReminderSlotRef], description: 'Its times of the day not ticked, with their hours (the moments its reminders « N min avant » the due day count from: `routineSlotAnchors`).', resolve: (occurrence) => occurrence.slots }),
+    openingSlots: t.field({
+      type: [RoutineReminderSlotRef],
+      description: 'Its times of the day not ticked allowed on `firstDay`, with their hours that day (the moments its reminders « N min avant » the start or the end of the opening count from).',
+      resolve: (occurrence) => occurrence.openingSlots,
+    }),
   }),
 });
 

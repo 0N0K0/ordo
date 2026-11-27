@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { upcomingReminders, UPCOMING_REMINDER_DAYS } from '../../src/dates/upcoming-reminders';
-import { routineRings } from '../../src/dates/reminder-rings';
+import { routineRings, taskRings } from '../../src/dates/reminder-rings';
+import { scheduleCase } from '../calendar/schedules';
 import type { ReminderValue } from '../../src/dates/reminders';
 
 // 09:00 in Paris (UTC+1 in November).
@@ -249,7 +250,8 @@ describe('upcomingReminders', () => {
 });
 
 describe('reminders of a routine opened before the first day it shows on', () => {
-  // Due on Saturday 28, opened on Friday 27 whose condition allows no moment: it shows from Saturday only.
+  // Due on Saturday 28, opened on Friday 27 whose condition allows no moment: it shows from Saturday only, its moment 0
+  // there from 10:00 to 12:00 (08:30–20:30 on its due day), its moment 1 not allowed on Saturday.
   const reminders: ReminderValue[] = [
     { before: null, at: '08:00' },
     { before: 15, at: null },
@@ -257,39 +259,72 @@ describe('reminders of a routine opened before the first day it shows on', () =>
     { before: null, at: '09:00', days: 1 },
     { before: 10, at: null, anchor: 'end' },
   ];
+  const slots = [
+    { slot: 0, fromTime: '08:30', dueTime: '20:30' },
+    { slot: 1, fromTime: '18:00', dueTime: '19:00' },
+  ];
   /**
-   * Rings of the routine, as « ISO instant » strings, in order.
-   * @param {string | null | undefined} firstDay First day of its opening it shows on.
-   * @returns {string[]} Instants.
+   * Rings of the routine, as [key, ISO instant], by instant.
+   * @param {object} fields First day it shows on and its times of the day that day.
+   * @returns {[string, string][]} Rings.
    */
-  const rings = (firstDay: string | null | undefined) =>
+  const rings = (fields: { firstDay?: string | null; openingSlots?: typeof slots }) =>
     routineRings([
       {
         ...routine('r', [], reminders),
         currentDate: '2026-11-28',
-        reminderOccurrences: [{ date: '2026-11-28', dueDate: '2026-11-28', day: '2026-11-27', firstDay, slots: [{ slot: 0, fromTime: '08:30', dueTime: '20:30' }] }],
+        reminderOccurrences: [{ date: '2026-11-28', dueDate: '2026-11-28', day: '2026-11-27', slots, ...fields }],
       },
     ])
-      .map((ring) => ring.at.toISOString())
-      .sort();
+      .map((ring): [string, string] => [ring.key.replace('routine:r|2026-11-28:', ''), ring.at.toISOString()])
+      .sort((a, b) => a[1].localeCompare(b[1]) || a[0].localeCompare(b[0]));
 
-  it('« À HH:MM » and those « avant » the opening day on the first day it shows on; « N jours avant » from its opening day', () => {
-    expect(rings('2026-11-28')).toEqual([
-      // 1 day before its opening (Friday 27), at 09:00.
-      '2026-11-26T08:00:00.000Z',
-      // Saturday: « À 08:00 », 15 min before 08:30, 10 min before the end of the opening day and of its due day (20:30).
-      '2026-11-28T07:00:00.000Z',
-      '2026-11-28T07:15:00.000Z',
-      '2026-11-28T19:20:00.000Z',
-      '2026-11-28T19:20:00.000Z',
+  it('from the opening: the first day it shows on, for the moments allowed that day, at their hours that day', () => {
+    expect(rings({ firstDay: '2026-11-28', openingSlots: [{ slot: 0, fromTime: '10:00', dueTime: '12:00' }] })).toEqual([
+      // 1 day before the first day it shows on, at 09:00.
+      ['days:1:09:00', '2026-11-27T08:00:00.000Z'],
+      ['at:08:00', '2026-11-28T07:00:00.000Z'],
+      // 15 min before 10:00, 10 min before 12:00: moment 0 that day only.
+      ['0:before:15', '2026-11-28T08:45:00.000Z'],
+      ['0:openEnd:before:10', '2026-11-28T10:50:00.000Z'],
+      // 10 min before the end of each moment on its due day.
+      ['1:end:before:10', '2026-11-28T17:50:00.000Z'],
+      ['0:end:before:10', '2026-11-28T19:20:00.000Z'],
     ]);
   });
 
-  it('without a first day given: its opening day, as before', () => {
-    expect(rings(undefined)).toEqual(['2026-11-26T08:00:00.000Z', '2026-11-27T07:00:00.000Z', '2026-11-27T07:15:00.000Z', '2026-11-27T19:20:00.000Z', '2026-11-28T19:20:00.000Z']);
+  it('without a first day given: its opening day and its times of the day, as before', () => {
+    expect(rings({}).map(([key]) => key)).toEqual(['days:1:09:00', 'at:08:00', '0:before:15', '1:before:15', '1:openEnd:before:10', '0:openEnd:before:10', '1:end:before:10', '0:end:before:10']);
   });
 
-  it('no day it shows on: neither « À HH:MM » nor those « avant » the opening day', () => {
-    expect(rings(null)).toEqual(['2026-11-26T08:00:00.000Z', '2026-11-28T19:20:00.000Z']);
+  it('no day it shows on: nothing from the opening, « N jours avant » included', () => {
+    expect(rings({ firstDay: null, openingSlots: [] }).map(([key]) => key)).toEqual(['1:end:before:10', '0:end:before:10']);
+  });
+});
+
+describe('reminders of a task with « Horaires »', () => {
+  // Open from Thursday 26 to Monday 30 November, doable Monday to Friday.
+  const weekdays = [scheduleCase({ weekdays: [1, 2, 3, 4, 5] })];
+  const reminders: ReminderValue[] = [
+    { before: null, at: '08:00' },
+    { before: null, at: '09:00', days: 1 },
+  ];
+  /**
+   * Keys of the rings of the task over the next days.
+   * @param {unknown} hours Its « Horaires ».
+   * @returns {string[]} Keys.
+   */
+  const keys = (hours: unknown) =>
+    taskRings([{ id: 't', label: 'Tâche', closed: false, archived: false, effectiveMinDate: '2026-11-26', effectiveDeadline: '2026-11-30', hours, reminders }], NOW, 4)
+      .map((ring) => ring.key)
+      .sort();
+
+  it('« À HH:MM » only on the days its hours allow; « N jours avant » still from its « Échéance »', () => {
+    expect(keys(weekdays)).toEqual(['task:t:2026-11-26:at:08:00', 'task:t:2026-11-27:at:08:00', 'task:t:2026-11-30:at:08:00', 'task:t:2026-11-30:days:1:09:00']);
+  });
+
+  it('without hours: every day of its opening', () => {
+    expect(keys([])).toHaveLength(6);
+    expect(keys(undefined)).toHaveLength(6);
   });
 });

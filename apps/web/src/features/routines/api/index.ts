@@ -78,6 +78,11 @@ const RoutinesDataDocument = graphql(`
           fromTime
           dueTime
         }
+        openingSlots {
+          slot
+          fromTime
+          dueTime
+        }
       }
       cases
       moves

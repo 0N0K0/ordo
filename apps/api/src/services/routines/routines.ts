@@ -349,19 +349,29 @@ export interface RoutineReminderOccurrence {
   date: string;
   /** Its due day. */
   dueDate: string;
-  /** Its first day (« Ouverture »): the day its reminders « N jours avant » count from. */
+  /** Its first day (« Ouverture »). */
   day: string;
   /**
    * First day of its opening its condition allows one of its times of the day not ticked on (`firstShownDay`): the day
-   * of its reminders « À HH:MM » and of those « avant » the start or the end of the opening day; null: none.
+   * its reminders counted from the opening ring on or count from (« À HH:MM », « N jours avant », « avant » the start or
+   * the end of the opening); null: none (those do not ring).
    */
   firstDay: string | null;
+  /** Its times of the day not ticked allowed on `firstDay`, with their hours that day (those « avant » the opening ring for). */
+  openingSlots: RemindedRoutineSlot[];
   /**
    * Its times of the day not ticked, with their hours (« dès », « jusqu'à »): the shared `routineSlotAnchors` gives the
    * moments their reminders « N min avant » count from.
    */
   slots: RemindedRoutineSlot[];
 }
+
+/**
+ * Time of the day of an occurrence as its reminders read it: its rank and its hours.
+ * @param {{ index: number, fromTime: string | null, dueTime: string | null }} slot Time of the day.
+ * @returns {RemindedRoutineSlot} Time of the day.
+ */
+const remindedSlot = ({ index, fromTime, dueTime }: { index: number; fromTime: string | null; dueTime: string | null }): RemindedRoutineSlot => ({ slot: index, fromTime, dueTime });
 
 /**
  * Occurrences the reminders of a routine ring for: its current one while not done and its next one (a reminder up to 24
@@ -397,13 +407,15 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
     if (slots.every((slot, index) => ticked.has(index) || slot.optional)) return [];
     const span = occurrenceOn(routine, due, schedules) ?? { start: due, end: due };
     const open = slots.flatMap((slot, index) => (ticked.has(index) ? [] : [{ ...slot, index, done: false }]));
+    const first = firstShownDay(routine, due, span, open, schedules);
     return [
       {
         date: due,
         dueDate: span.end,
         day: span.start,
-        firstDay: firstShownDay(routine, due, span, open, schedules),
-        slots: open.map(({ index, fromTime, dueTime }) => ({ slot: index, fromTime, dueTime })),
+        firstDay: first?.day ?? null,
+        slots: open.map(remindedSlot),
+        openingSlots: first?.slots.map(remindedSlot) ?? [],
       },
     ];
   });
@@ -449,16 +461,25 @@ export function slotsOnDay<S extends RoutineDaySlot & { done: boolean }>(given: 
 
 /**
  * First day of the opening of an occurrence of a routine some of its times of the day can be done on (`slotsOnDay`):
- * the first day « Ma journée » shows it.
+ * the first day « Ma journée » shows it, with those times that day (their hours that day).
  * @param {RoutineTiming} routine Routine.
  * @param {string} occurrence Day that identifies the occurrence.
  * @param {RoutineSpan} span Occurrence: its first day to its due day.
- * @param {readonly (RoutineDaySlot & { done: boolean })[]} slots Its times of the day (`slotsOf`).
+ * @param {readonly S[]} slots Its times of the day (`slotsOf`), with their ranks.
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
- * @returns {string | null} Day; null: none.
+ * @returns {{ day: string, slots: S[] } | null} Day and times allowed that day; null: none.
  */
-function firstShownDay(routine: RoutineTiming, occurrence: string, span: RoutineSpan, slots: readonly (RoutineDaySlot & { done: boolean })[], schedules: ScheduleContext = NO_SCHEDULES): string | null {
-  for (let day = span.start; day <= span.end; day = addDays(day, 1)) if (slotsOnDay(routine, occurrence, day, slots, schedules).some((slot) => slot.windows.length)) return day;
+function firstShownDay<S extends RoutineDaySlot & { done: boolean; index: number }>(
+  routine: RoutineTiming,
+  occurrence: string,
+  span: RoutineSpan,
+  slots: readonly S[],
+  schedules: ScheduleContext = NO_SCHEDULES,
+): { day: string; slots: S[] } | null {
+  for (let day = span.start; day <= span.end; day = addDays(day, 1)) {
+    const allowed = slotsOnDay(routine, occurrence, day, slots, schedules).filter((slot) => slot.windows.length);
+    if (allowed.length) return { day, slots: allowed };
+  }
   return null;
 }
 

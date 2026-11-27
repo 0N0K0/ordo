@@ -379,6 +379,8 @@ export function reminderDaysAhead(reminders: readonly ReminderValue[]): number {
 export interface TaskReminderDays {
   minDate?: string | null;
   deadline?: string | null;
+  /** Whether its « Horaires » allow a day: its « À HH:MM » ring only on those. Optional. Default = every day. */
+  hoursAllow?: (day: string) => boolean;
 }
 
 /**
@@ -396,8 +398,8 @@ export function taskRemindsOn(task: TaskReminderDays, day: string): boolean {
 
 /**
  * Reminders of a task around now: those « À HH:MM » of the day before and of today in Paris (a late one may still ring
- * after midnight), and of the next `ahead` days, on the days it reminds on; those « N jours avant, à HH:MM » once,
- * counted from its « Échéance ».
+ * after midnight), and of the next `ahead` days, on the days it reminds on that its « Horaires » allow (`hoursAllow`);
+ * those « N jours avant, à HH:MM » once, counted from its « Échéance ».
  * @param {string} key Key of the task.
  * @param {TaskReminderDays & { reminders: readonly ReminderValue[] }} task Task.
  * @param {Date} now Now.
@@ -410,7 +412,7 @@ export function taskReminders(key: string, task: TaskReminderDays & { reminders:
   const days = Array.from({ length: ahead + 2 }, (_, index) => addDays(today, index - 1));
   return [
     ...(task.deadline ? remindersAt(`${key}:${task.deadline}`, task.deadline, task.reminders, false) : []),
-    ...days.filter((day) => taskRemindsOn(task, day)).flatMap((day) => remindersAt(`${key}:${day}`, day, onDays)),
+    ...days.filter((day) => taskRemindsOn(task, day) && (task.hoursAllow?.(day) ?? true)).flatMap((day) => remindersAt(`${key}:${day}`, day, onDays)),
   ];
 }
 
