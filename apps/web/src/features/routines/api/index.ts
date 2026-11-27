@@ -72,6 +72,7 @@ const RoutinesDataDocument = graphql(`
         date
         dueDate
         day
+        firstDay
         slots {
           slot
           fromTime

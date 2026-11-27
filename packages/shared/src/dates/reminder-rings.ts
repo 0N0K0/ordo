@@ -157,8 +157,14 @@ export interface RemindedRoutineOccurrence {
   date: string;
   /** Due day, when it is not `date` (moved and kept apart). Optional. Default = `date`. */
   dueDate?: string | null;
-  /** Opening day (« Ouverture »). */
+  /** Opening day (« Ouverture »): the day its reminders « N jours avant » count from. */
   day: string;
+  /**
+   * First day of its opening its condition allows a time of the day on (the first day « Ma journée » shows it): the
+   * day of its reminders « À HH:MM » and of those « avant » the start or the end of the opening day; null: none (those
+   * do not ring). Optional. Default = `day`.
+   */
+  firstDay?: string | null;
   /** Its times of the day not ticked. */
   slots: readonly RemindedRoutineSlot[];
 }
@@ -184,16 +190,28 @@ export interface RemindedRoutine {
 export type RoutineRing<R> = PlannedRing & { routine: R; slot: number; current: boolean };
 
 /**
+ * Day of the reminders of an occurrence of a routine counted from its opening day (« À HH:MM », « avant » the start or
+ * the end of the opening day): the first day of its opening it shows on (`firstDay`, else its opening day); null: none.
+ * @param {Pick<RemindedRoutineOccurrence, 'day' | 'firstDay'>} occurrence Occurrence.
+ * @returns {string | null} Day.
+ */
+const openingRingDay = (occurrence: Pick<RemindedRoutineOccurrence, 'day' | 'firstDay'>): string | null => (occurrence.firstDay === undefined ? occurrence.day : occurrence.firstDay);
+
+/**
  * Instants the reminders « avant » of a time of the day of an occurrence count from: its start and
  * its end (`routineSlotSpan`, as the agenda shows it: « dès » / « jusqu'à », the other one from the time to spend on
- * it), on the opening day (`start`, `openEnd`) and on the due day (`dueStart`, `end`), Paris time. A time without any
- * hour has none (no reminder « avant »).
+ * it), on the first day of the opening it shows on (`start`, `openEnd`: `openingRingDay`; none without such a day) and
+ * on the due day (`dueStart`, `end`), Paris time. A time without any hour has none (no reminder « avant »).
  * @param {RemindedRoutineOccurrence} occurrence Occurrence.
  * @param {RemindedRoutineSlot} slot Time of the day.
  * @param {number | null} minutes Time to spend on the routine (`estimate`).
- * @returns {Record<ReminderAnchor, Date> | null} Instant of each anchor, null without any hour.
+ * @returns {Partial<Record<ReminderAnchor, Date>> | null} Instant of each anchor, null without any hour.
  */
-export function routineSlotAnchors(occurrence: Pick<RemindedRoutineOccurrence, 'date' | 'day' | 'dueDate'>, slot: Omit<RemindedRoutineSlot, 'slot'>, minutes: number | null): Record<ReminderAnchor, Date> | null {
+export function routineSlotAnchors(
+  occurrence: Pick<RemindedRoutineOccurrence, 'date' | 'day' | 'dueDate' | 'firstDay'>,
+  slot: Omit<RemindedRoutineSlot, 'slot'>,
+  minutes: number | null,
+): Partial<Record<ReminderAnchor, Date>> | null {
   const span = routineSlotSpan(slot, minutes);
   if (!span) return null;
   /**
@@ -203,7 +221,8 @@ export function routineSlotAnchors(occurrence: Pick<RemindedRoutineOccurrence, '
    */
   const end = (day: string) => (span.end ? parisInstant(day, span.end) : parisInstant(addDays(day, 1)));
   const due = occurrence.dueDate ?? occurrence.date;
-  return { start: parisInstant(occurrence.day, span.start), openEnd: end(occurrence.day), dueStart: parisInstant(due, span.start), end: end(due) };
+  const opening = openingRingDay(occurrence);
+  return { ...(opening && { start: parisInstant(opening, span.start), openEnd: end(opening) }), dueStart: parisInstant(due, span.start), end: end(due) };
 }
 
 /**
@@ -232,8 +251,9 @@ export function routineRingOf(key: string): { routineId: string; date: string; s
 /**
  * Reminders of the routines, for the occurrences the API gives: each « N min avant » before each
  * time of the day not ticked that has an hour, from one of its four anchors (`routineSlotAnchors`: the start or the end
- * of the time on the opening day or on the due day), each « À HH:MM » and « N jours avant » once per occurrence, from its opening day
- * (from the end: its due day). An archived routine has none. When its assignees are kept busy, a reminder waits for the
+ * of the time on the first day of the opening it shows on, or on the due day), each « À HH:MM » once per occurrence on
+ * the first day of the opening it shows on (none without such a day), each « N jours avant » once per occurrence from
+ * its opening day (from the end: their due day). An archived routine has none. When its assignees are kept busy, a reminder waits for the
  * next free moment (`defer`, the same for the app and the server: `nextAllowedMoment`). The ring tells the window of
  * its time of the day and the place.
  * @template {RemindedRoutine} R
@@ -247,13 +267,22 @@ export function routineRings<R extends RemindedRoutine>(routines: readonly R[], 
     return routine.reminderOccurrences.flatMap((occurrence) => {
       const key = routineRingPrefix(routine.id, occurrence.date);
       const first = occurrence.slots[0]?.slot ?? 0;
+      const opening = openingRingDay(occurrence);
       const planned = [
         ...occurrence.slots.flatMap((slot) => {
           const anchors = routineSlotAnchors(occurrence, slot, routine.estimate);
           if (!anchors) return [];
-          return ROUTINE_REMINDER_ANCHORS.flatMap((anchor) => remindersBefore(`${key}:${slot.slot}`, anchors[anchor], routine.reminders, anchor)).map((reminder) => ({ ...reminder, slot: slot.slot }));
+          return ROUTINE_REMINDER_ANCHORS.flatMap((anchor) => {
+            const moment = anchors[anchor];
+            return moment ? remindersBefore(`${key}:${slot.slot}`, moment, routine.reminders, anchor) : [];
+          }).map((reminder) => ({ ...reminder, slot: slot.slot }));
         }),
-        ...[...remindersAt(key, occurrence.day, routine.reminders), ...remindersAt(key, occurrence.dueDate ?? occurrence.date, routine.reminders, true, 'end')].map((reminder) => ({ ...reminder, slot: first })),
+        ...[
+          // « À HH:MM » the first day it shows on, « N jours avant » its opening day.
+          ...(opening ? remindersAt(key, opening, routine.reminders.filter((reminder) => !reminder.days)) : []),
+          ...remindersAt(key, occurrence.day, routine.reminders, false),
+          ...remindersAt(key, occurrence.dueDate ?? occurrence.date, routine.reminders, true, 'end'),
+        ].map((reminder) => ({ ...reminder, slot: first })),
       ];
       const current = routine.currentDate === occurrence.date;
       return planned.flatMap((reminder) => {

@@ -74,6 +74,7 @@ const ElsewhereRemindersDocument = graphql(`
         date
         dueDate
         day
+        firstDay
         slots {
           slot
           fromTime

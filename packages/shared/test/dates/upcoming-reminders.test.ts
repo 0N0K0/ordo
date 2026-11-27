@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { upcomingReminders, UPCOMING_REMINDER_DAYS } from '../../src/dates/upcoming-reminders';
+import { routineRings } from '../../src/dates/reminder-rings';
 import type { ReminderValue } from '../../src/dates/reminders';
 
 // 09:00 in Paris (UTC+1 in November).
@@ -244,5 +245,51 @@ describe('upcomingReminders', () => {
       { day: '2026-11-27', time: null },
       { day: '2026-11-27', time: '10:00' },
     ]);
+  });
+});
+
+describe('reminders of a routine opened before the first day it shows on', () => {
+  // Due on Saturday 28, opened on Friday 27 whose condition allows no moment: it shows from Saturday only.
+  const reminders: ReminderValue[] = [
+    { before: null, at: '08:00' },
+    { before: 15, at: null },
+    { before: 10, at: null, anchor: 'openEnd' },
+    { before: null, at: '09:00', days: 1 },
+    { before: 10, at: null, anchor: 'end' },
+  ];
+  /**
+   * Rings of the routine, as « ISO instant » strings, in order.
+   * @param {string | null | undefined} firstDay First day of its opening it shows on.
+   * @returns {string[]} Instants.
+   */
+  const rings = (firstDay: string | null | undefined) =>
+    routineRings([
+      {
+        ...routine('r', [], reminders),
+        currentDate: '2026-11-28',
+        reminderOccurrences: [{ date: '2026-11-28', dueDate: '2026-11-28', day: '2026-11-27', firstDay, slots: [{ slot: 0, fromTime: '08:30', dueTime: '20:30' }] }],
+      },
+    ])
+      .map((ring) => ring.at.toISOString())
+      .sort();
+
+  it('« À HH:MM » and those « avant » the opening day on the first day it shows on; « N jours avant » from its opening day', () => {
+    expect(rings('2026-11-28')).toEqual([
+      // 1 day before its opening (Friday 27), at 09:00.
+      '2026-11-26T08:00:00.000Z',
+      // Saturday: « À 08:00 », 15 min before 08:30, 10 min before the end of the opening day and of its due day (20:30).
+      '2026-11-28T07:00:00.000Z',
+      '2026-11-28T07:15:00.000Z',
+      '2026-11-28T19:20:00.000Z',
+      '2026-11-28T19:20:00.000Z',
+    ]);
+  });
+
+  it('without a first day given: its opening day, as before', () => {
+    expect(rings(undefined)).toEqual(['2026-11-26T08:00:00.000Z', '2026-11-27T07:00:00.000Z', '2026-11-27T07:15:00.000Z', '2026-11-27T19:20:00.000Z', '2026-11-28T19:20:00.000Z']);
+  });
+
+  it('no day it shows on: neither « À HH:MM » nor those « avant » the opening day', () => {
+    expect(rings(null)).toEqual(['2026-11-26T08:00:00.000Z', '2026-11-28T19:20:00.000Z']);
   });
 });

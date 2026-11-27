@@ -349,8 +349,13 @@ export interface RoutineReminderOccurrence {
   date: string;
   /** Its due day. */
   dueDate: string;
-  /** Its first day (« Ouverture »): the day of its reminders « À HH:MM ». */
+  /** Its first day (« Ouverture »): the day its reminders « N jours avant » count from. */
   day: string;
+  /**
+   * First day of its opening its condition allows one of its times of the day not ticked on (`firstShownDay`): the day
+   * of its reminders « À HH:MM » and of those « avant » the start or the end of the opening day; null: none.
+   */
+  firstDay: string | null;
   /**
    * Its times of the day not ticked, with their hours (« dès », « jusqu'à »): the shared `routineSlotAnchors` gives the
    * moments their reminders « N min avant » count from.
@@ -360,8 +365,9 @@ export interface RoutineReminderOccurrence {
 
 /**
  * Occurrences the reminders of a routine ring for: its current one while not done and its next one (a reminder up to 24
- * hours before may ring before it opens), each with its first day (« Ouverture ») and its times of the day not ticked,
- * with their hours (a time without any hour too: from 00:00 to midnight).
+ * hours before may ring before it opens), each with its first day (« Ouverture »), the first day of its opening it
+ * shows on (`firstShownDay`), and its times of the day not ticked, with their hours (a time without any hour too: from
+ * 00:00 to midnight).
  * With reminders « N jours avant » (`ahead` days at most), also the later occurrences that open within those days.
  * An archived routine has none (no occurrence), nor a routine that has sub-routines not archived (a group: its
  * sub-routines ring theirs, at the times they inherit from it).
@@ -389,8 +395,17 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
     const slots = slotsOf(routine, due, schedules);
     // A done occurrence (every required time ticked) rings no more.
     if (slots.every((slot, index) => ticked.has(index) || slot.optional)) return [];
-    const span = occurrenceOn(routine, due, schedules);
-    return [{ date: due, dueDate: span?.end ?? due, day: span?.start ?? due, slots: slots.flatMap((slot, index) => (ticked.has(index) ? [] : [{ slot: index, fromTime: slot.fromTime, dueTime: slot.dueTime }])) }];
+    const span = occurrenceOn(routine, due, schedules) ?? { start: due, end: due };
+    const open = slots.flatMap((slot, index) => (ticked.has(index) ? [] : [{ ...slot, index, done: false }]));
+    return [
+      {
+        date: due,
+        dueDate: span.end,
+        day: span.start,
+        firstDay: firstShownDay(routine, due, span, open, schedules),
+        slots: open.map(({ index, fromTime, dueTime }) => ({ slot: index, fromTime, dueTime })),
+      },
+    ];
   });
 }
 
@@ -430,6 +445,21 @@ export function slotsOnDay<S extends RoutineDaySlot & { done: boolean }>(given: 
     const allowed = windows[slot.moment]?.windows ?? [];
     return allowed.length ? withinWindows(slot, allowed) : { ...slot, windows: [] };
   });
+}
+
+/**
+ * First day of the opening of an occurrence of a routine some of its times of the day can be done on (`slotsOnDay`):
+ * the first day « Ma journée » shows it.
+ * @param {RoutineTiming} routine Routine.
+ * @param {string} occurrence Day that identifies the occurrence.
+ * @param {RoutineSpan} span Occurrence: its first day to its due day.
+ * @param {readonly (RoutineDaySlot & { done: boolean })[]} slots Its times of the day (`slotsOf`).
+ * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
+ * @returns {string | null} Day; null: none.
+ */
+function firstShownDay(routine: RoutineTiming, occurrence: string, span: RoutineSpan, slots: readonly (RoutineDaySlot & { done: boolean })[], schedules: ScheduleContext = NO_SCHEDULES): string | null {
+  for (let day = span.start; day <= span.end; day = addDays(day, 1)) if (slotsOnDay(routine, occurrence, day, slots, schedules).some((slot) => slot.windows.length)) return day;
+  return null;
 }
 
 /**

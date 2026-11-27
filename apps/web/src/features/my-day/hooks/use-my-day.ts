@@ -10,9 +10,9 @@ import {
   readBirthDate,
   readSlotCondition,
   readTaskHours,
-  routineCountsOn,
   routineDayEntries,
   routineGroupStatesOn,
+  routineSlotInGroupOn,
   taskDayReasons,
   type MyDayItem,
   type MyDayLayout,
@@ -303,8 +303,9 @@ export function useMyDay(day: string): MyDay {
         doneAt: parisTime(slot.doneAt),
         cancelled: occurrence.cancelled,
         eventKeys: linkedKeys(dayOccurrences, (event) => event.routineLinks.some((link) => link.routineId === routine.id && link.date === occurrence.date)),
-        // Under its parent only when it counts for it that day (open that day not done yet, or done that day); else on its own.
-        groupKey: !late && routineCountsOn(occurrence, day) ? groupKeyOf(routine) : undefined,
+        // Under its parent when it counts for it that day (open that day not done yet, or done that day), an optional one
+        // always; else on its own.
+        groupKey: !late && routineSlotInGroupOn(occurrence, slot, day) ? groupKeyOf(routine) : undefined,
       });
     }
     // Tasks: every task of the workspace with a reason that day, kept by the filter of the tasks.

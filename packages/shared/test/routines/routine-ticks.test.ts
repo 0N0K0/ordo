@@ -6,6 +6,7 @@ import {
   routineDayEntries,
   routineGroupIds,
   routineGroupStatesOn,
+  routineSlotInGroupOn,
   routineSlotShownOn,
   routineTickPrefill,
   type RoutineDayRoutine,
@@ -229,8 +230,27 @@ describe('routineGroupStatesOn', () => {
     expect(routineGroupStatesOn(tree, occurrences, DAY).get('p')).toMatchObject({ counted: 3, done: 1, complete: false });
   });
 
-  it('a sub-routine with optional moments only does not count', () => {
-    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, false, { optional: true })])], DAY).has('p')).toBe(false);
+  it('a sub-routine with optional moments only does not count, but makes its parent present (without progress)', () => {
+    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, false, { optional: true })])], DAY).get('p')).toEqual({ counted: 0, done: 0, complete: false, moments: [] });
+    // All its optional moments ticked that day: done (at the bottom).
+    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, true, { optional: true })])], DAY).get('p')).toMatchObject({ counted: 0, complete: true });
+    // With another sub-routine counting: only that one counts.
+    const occurrences = [occurrence('a', [slot(0, false, { optional: true })]), occurrence('b', [slot(0, true)])];
+    expect(routineGroupStatesOn(tree, occurrences, DAY).get('p')).toMatchObject({ counted: 1, done: 1, complete: true });
+    // Neither cancelled, nor its optional moments not allowed that day, nor out of its opening.
+    for (const item of [
+      occurrence('a', [slot(0, false, { optional: true })], { cancelled: true }),
+      occurrence('a', [slot(0, false, { optional: true, windows: [] })]),
+      occurrence('a', [slot(0, false, { optional: true })], { startDate: '2026-11-26', dueDate: '2026-11-27' }),
+    ])
+      expect(routineGroupStatesOn(tree, [item], DAY).has('p')).toBe(false);
+  });
+
+  it('a parent present through a sub-routine itself present through optional moments only', () => {
+    const routines = [routine('p'), routine('g', 'p'), routine('a', 'g')];
+    const states = routineGroupStatesOn(routines, [occurrence('a', [slot(0, false, { optional: true })])], DAY);
+    expect(states.get('g')).toMatchObject({ counted: 0 });
+    expect(states.get('p')).toMatchObject({ counted: 0, complete: false });
   });
 
   it('a sub-routine ticked before its « Ouverture » counts on its first day, as done', () => {
@@ -289,6 +309,19 @@ describe('routineDoneDay', () => {
     expect(at([slot(0, true), slot(1, false, { optional: true })])).toBe(DAY);
     expect(at([])).toBeNull();
     expect(at([slot(0, true, { optional: true })])).toBeNull();
+  });
+});
+
+describe('routineSlotInGroupOn', () => {
+  it('an optional moment always goes under its parent; a required one when its occurrence counts; never a cancelled one', () => {
+    const optional = slot(1, false, { optional: true });
+    // Done before that day: its optional moment still under its parent, its required one no longer.
+    const doneBefore = occurrence('a', [slot(0, true, { doneAt: '2026-11-24T08:00:00Z' }), optional], { startDate: '2026-11-23', dueDate: '2026-11-27' });
+    expect(routineSlotInGroupOn(doneBefore, optional, DAY)).toBe(true);
+    expect(routineSlotInGroupOn(doneBefore, doneBefore.slots[0], DAY)).toBe(false);
+    const open = occurrence('a', [slot(0, false), optional]);
+    expect(routineSlotInGroupOn(open, open.slots[0], DAY)).toBe(true);
+    expect(routineSlotInGroupOn({ ...open, cancelled: true }, optional, DAY)).toBe(false);
   });
 });
 
