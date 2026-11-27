@@ -123,6 +123,7 @@ Une occurrence va de son premier jour (son ouverture) à son jour d'échéance (
 - **Son identité ne change pas** : le jour qui l’identifie (`date`), ses coches, commentaires, liens et exceptions restent ceux de son jour d’échéance de règle ; ses moments et leurs rangs aussi (`slotsOf` les calcule comme avant).
 - Elle sert à l’état et au retard (`currentDueDate`, `nextDueDate`, `dueDate` des occurrences : l’échéance réelle ; `currentRuleDueDate`, `nextRuleDueDate`, `ruleDueDate` : celle de la règle, ou le jour où elle a été déplacée), au jour d’affichage (`shownDate`), à « Ma journée » (dont une occurrence annulée, affichée à son échéance réelle), à l’agenda et à son PDF, aux rappels de l’échéance (avec les moments permis ce jour-là, à leurs heures de ce jour-là), à « Reporter au lendemain » (le lendemain de l’échéance réelle) ; « Annuler » d’un report revient au jour de la règle (`ruleDueDate`), jamais à l’échéance réelle.
 - Écrans : l’échéance réelle, avec l’infobulle « Échéance du mer. 2 déc., hors créneaux » quand elle diffère (`RealDueDate`).
+- Un lien avec un évènement garde le jour qui identifie l’occurrence (`date`) et s’affiche à son échéance réelle, le jour où l’occurrence s’affiche (voir [Agenda](calendar.md)).
 - La transformation en tâche prend l’échéance de la règle ; une parente garde l’échéance réelle de sa propre règle (pas celles de ses sous-routines).
 
 ### « Ouverture » (`routineOpenDate`)
