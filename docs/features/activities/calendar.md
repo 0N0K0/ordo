@@ -66,7 +66,7 @@ Placement des tâches (`taskPlacement`) :
 - début passé sans fin : du début à aujourd’hui (la tâche continue) ;
 - début futur sans fin : son jour de début seul ;
 - fin seule : ce jour-là ;
-- échéance (la sienne, sinon celle de son parent, de son jalon ou de son premier sprint) : affichée à part ce jour-là, sauf si la période finit déjà dessus ; en retard (échéance passée, tâche non fermée) : affichée aujourd’hui, portée par sa période si elle atteint aujourd’hui, en couleur de retard.
+- échéance réelle (`dueDay` : la sienne, sinon celle de son parent, de son jalon ou de son premier sprint, ramenée au dernier jour que ses horaires permettent ; voir [Tâches](../../business-rules/activities/tasks.md#dates-et-retard)) : affichée à part ce jour-là ; la glisser enregistre le jour où elle est posée comme « Échéance », sauf si la période finit déjà dessus ; en retard (échéance passée, tâche non fermée) : affichée aujourd’hui, portée par sa période si elle atteint aujourd’hui, en couleur de retard.
 
 Routines : une routine parente (qui a des sous-routines non archivées) n’est pas affichée, ni dans l’agenda ni dans son PDF, seules ses sous-routines le sont. Une routine à heures est placée dans sa fenêtre, aussi longue que son estimation (30 min sans elle ou à 0, `routineMinutes`), chaque personne ne faisant qu’une chose à la fois (trajets compris), celles attendues d’abord, puis l’ordre manuel (`placeRoutineBlocks`).
 

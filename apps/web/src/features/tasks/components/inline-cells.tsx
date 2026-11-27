@@ -1,4 +1,4 @@
-import { Select, Text, UnstyledButton } from '@mantine/core';
+import { Select, Stack, Text, UnstyledButton } from '@mantine/core';
 import { ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
@@ -29,6 +29,8 @@ import { dateRangeProps } from '../../../components/inputs/date-range';
 import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { inheritedDateHint } from '../lib/inherited-dates';
+import { NO_TASK_DUE_DAY, TASK_DUE_SHIFT_REASON, taskExcludedDay } from '../lib/task-due';
+import { RealDueDate } from '../../../components/feedback/RealDueDate';
 import { LocationCell } from '../../geo/components/LocationCell';
 import { parisToday } from '../../../lib/dates';
 import { taskHoursLines } from '../lib/task-hours-text';
@@ -308,7 +310,7 @@ export function DateCell({ task, column, alert }: DateCellProps) {
   const bounds = dateRangeProps({ value: [task[startKey], task[endKey]], onChange: ([start, end]) => apply({ [startKey]: start, [endKey]: end }) })[side];
   // Without its own « Ouverture » / « Échéance »: the one it goes by (parent, milestone, project, sprint), shown in place (a date typed wins).
   const inherited = column === 'minDate' || column === 'deadline' ? inheritedDateHint(task, column) : null;
-  return (
+  const field = (
     <DateField
       {...stoppedCellField}
       aria-label={fieldLabel(DATE_LABELS[column], task, count)}
@@ -321,7 +323,16 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       popoverProps={{ withinPortal: true }}
       c={alert ? LATE_COLOR : undefined}
       fw={alert ? 600 : undefined}
+      excludedDay={column === 'deadline' ? taskExcludedDay(task) : undefined}
     />
+  );
+  if (column !== 'deadline') return field;
+  // Its real « Échéance » under it when its « Horaires » move it (or allow no day).
+  return (
+    <Stack gap={0}>
+      {field}
+      <RealDueDate day={task.dueDay ?? null} ruleDay={task.effectiveDeadline ?? null} reason={TASK_DUE_SHIFT_REASON} noneLabel={NO_TASK_DUE_DAY} />
+    </Stack>
   );
 }
 

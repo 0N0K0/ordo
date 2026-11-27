@@ -125,7 +125,7 @@ function TaskRow({ row, item, context, today }: RowContext & { row: Row<MyDayEnt
       label={<OpenLabel onClick={() => link.open(task.id)}>{context.taskLabel(task)}</OpenLabel>}
       details={
         <>
-          {item.late && task.effectiveDeadline && <LateBadge due={task.effectiveDeadline} today={today} />}
+          {item.late && task.dueDay && <LateBadge due={task.dueDay} today={today} />}
           <OtherWindows row={row} />
         </>
       }

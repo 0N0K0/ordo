@@ -435,6 +435,11 @@ Héritage des sous-tâches à l’écran (règles : [Héritage](../../../busines
 
 - `leafEffort(task, context)` : effort compté dans une somme (le sien sans sous-tâches, 0 pour un parent). Utilisé par `SprintsPanel` et les tableaux de bord.
 
+### `lib/task-due.ts`
+
+- `taskExcludedDay(task)` : jours que les horaires d’une tâche excluent (`hoursAllowDay`), grisés dans ses sélecteurs d’« Échéance » ; aucun sans horaires. `TASK_DUE_SHIFT_REASON` (« hors horaires »), `NO_TASK_DUE_DAY` (« Aucun jour possible selon ses horaires »). Utilisés par `DateCell`, `TaskPanel`, `TaskDueNotice`.
+- `TaskDueNotice({ task })` (`components/TaskDueNotice.tsx`) : avertissements de l’échéance réelle sous « Ouverture et échéance » du panneau : « L’échéance réelle est le … : le … est hors de ses horaires. », « Aucun jour possible selon ses horaires. », « L’échéance réelle (…) tombe avant l’ouverture. » ; rien n’est déplacé.
+
 ### `lib/inherited-dates.ts`
 
 - `inheritedDateHint(task, field)` : « 12 nov. 2026 (parent) », « (jalon) », « (projet) » ou « (sprint) » quand la tâche n’a pas d’« Ouverture » ou d’« Échéance » à elle (`minDateSource`, `deadlineSource`, mots de `INHERIT_SOURCE_LABELS`), à la place du champ vide (tableau et panneau) ; `null` avec sa propre date ou sans date suivie. Remplace `sprintDateHint`.

@@ -48,6 +48,8 @@ import { taskCountdownItem } from '../lib/task-countdowns';
 import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
 import { tasksQueryKey } from '../../../lib/query-keys';
 import { inheritedDateHint } from '../lib/inherited-dates';
+import { taskExcludedDay } from '../lib/task-due';
+import { TaskDueNotice } from './TaskDueNotice';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { TaskDoneButton } from './TaskDoneButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -365,9 +367,11 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                         En retard.
                       </Text>
                     )}
+                    <TaskDueNotice task={task} />
                   </>
                 }
                 readOnly={locked}
+                excluded={[undefined, taskExcludedDay(task)]}
                 value={[task.minDate, task.deadline]}
                 hints={[inheritedDateHint(task, 'minDate'), inheritedDateHint(task, 'deadline')]}
                 inheritance={[inheritedBound('MIN_DATE'), inheritedBound('DEADLINE')]}

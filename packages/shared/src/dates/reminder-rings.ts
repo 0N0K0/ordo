@@ -6,8 +6,7 @@ import { parseTaggedKey, taggedKey } from '../core/tagged-key';
 import { subtreeOf, type TreeItem } from '../core/tree';
 import { routineSlotSpan, windowText } from '../routines/routines';
 import { taskNumbered } from '../tasks/tasks';
-import { readTaskHours } from '../tasks/task-hours';
-import { itemWindowsOn } from '../calendar/slot-conditions';
+import { hoursAllowDay, readTaskHours, taskDueDay } from '../tasks/task-hours';
 import { entrySeconds, previousOccurrence, type AlarmType } from '../tasks/time';
 import { addDays } from './days';
 import { dayText, weekdayText } from './format';
@@ -123,6 +122,8 @@ export interface RemindedTask {
   effectiveDeadline?: string | null;
   /** « Horaires » it goes by (`readTaskHours`; none: any day). Optional. */
   hours?: unknown;
+  /** Its real « Échéance » when already known (`dueDay` of the API). Optional. Default = `taskDueDay`. */
+  dueDay?: string | null;
   reminders: readonly ReminderValue[];
 }
 
@@ -142,9 +143,9 @@ export function taskRings<T extends RemindedTask>(tasks: readonly T[], now: Date
   return tasks.flatMap((task) => {
     if (task.closed || task.archived || !task.reminders.length) return [];
     const hours = readTaskHours(task.hours);
-    const hoursAllow = (day: string) => itemWindowsOn(null, () => [], day, hours)?.length !== 0;
-    const days = { minDate: task.effectiveMinDate, deadline: task.effectiveDeadline, reminders: task.reminders, hoursAllow };
-    const lines = shownLines([task.effectiveDeadline && `Échéance : ${dayText(task.effectiveDeadline)}`]);
+    const dueDay = task.dueDay !== undefined ? task.dueDay : taskDueDay(task.effectiveDeadline, hours);
+    const days = { minDate: task.effectiveMinDate, deadline: task.effectiveDeadline, dueDay, reminders: task.reminders, hoursAllow: (day: string) => hoursAllowDay(hours, day) };
+    const lines = shownLines([dueDay && `Échéance : ${dayText(dueDay)}`]);
     return taskReminders(taggedKey('task', task.id), days, now, ahead).map((reminder) => ({ ...reminder, title: task.label, lines, task }));
   });
 }

@@ -317,7 +317,7 @@ export function useMyDay(day: string): MyDay {
         {
           startDate: task.startDate ?? null,
           endDate: task.endDate ?? null,
-          effectiveDeadline: task.effectiveDeadline ?? null,
+          dueDay: task.dueDay ?? null,
           effectiveMinDate: task.effectiveMinDate ?? null,
           statusCategory,
           closedAt: task.closed ? (task.closedAt ?? null) : null,

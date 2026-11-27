@@ -75,6 +75,8 @@ interface TaskState {
   /** How it is closed (done or cancelled); null while open. */
   closeReason: TaskCloseReason | null;
   archived: boolean;
+  /** Its real « Échéance » (`taskDueDay`): what the conditions on the « Échéance » read (the actions write the stored one). */
+  dueDay: string | null;
   /** Values of the watched fields, those it goes by. */
   values: Record<TaskAutomationField, FieldValue>;
   /** State of each inherited field (inherited, own, emptied). */
@@ -271,6 +273,7 @@ async function loadSnapshot(): Promise<Snapshot> {
       closed: row.closedAt !== null,
       closeReason: row.closedAt !== null ? (row.closeReason ?? 'COMPLETED') : null,
       archived: row.archivedAt !== null,
+      dueDay: effective.dueDay,
       values: {
         STATUS: row.statusId,
         PRIORITY: effective.priorityId,
@@ -448,7 +451,8 @@ function filterValue(field: TaskAutomationFilterField, task: TaskState, snapshot
     case 'endDate':
       return { kind: 'date', value: values.END_DATE };
     case 'deadline':
-      return { kind: 'date', value: values.DEADLINE };
+      // Its real « Échéance », the one the screens show and sort by.
+      return { kind: 'date', value: task.dueDay };
     case 'minDate':
       return { kind: 'date', value: values.MIN_DATE };
     case 'closed':

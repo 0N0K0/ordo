@@ -5443,11 +5443,16 @@ type Task {
   deadlineSource: InheritSource
   description: String
 
+  """
+  Real « Échéance »: the one it goes by (`effectiveDeadline`), moved back to the last day its « Horaires » allow (`taskDueDay`); null without « Échéance », or when no day within a year before it is allowed. What overdue, « Ma journée », the agenda, reminders, sorts and filters read; the stored one stays (GitHub, inheritance).
+  """
+  dueDay: Date
+
   """Values it goes by."""
   effective: TaskEffective!
 
   """
-  « Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else its parent’s, else its milestone’s, else the end of its first sprint.
+  « Échéance » the task goes by (stored or inherited; its real one: `dueDay`): its own, else its parent’s, else its milestone’s, else the end of its first sprint.
   """
   effectiveDeadline: Date
 

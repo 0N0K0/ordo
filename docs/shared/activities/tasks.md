@@ -54,7 +54,7 @@ Champs de `taskFormSchema` :
 | ------ | ---- |
 | `TASK_INHERITABLE_FIELDS` / `TaskInheritableField` | Champs hérités : `PROJECT`, `ASSIGNEES`, `BENEFICIARIES`, `SLOT_CONDITION`, `HOURS`, `MIN_DATE`, `DEADLINE`, `LOCATION`, `PRIORITY`, `MILESTONE`. |
 | `InheritingTask`, `SprintDays`, `MilestoneDays`, `TaskInheritanceContext` | Tâche telle que l'héritage la lit (jours YYYY-MM-DD, ids), jours d'un sprint, jalon (projet, échéance, archivé), et le contexte : toutes les tâches de l'espace, jalons, projets (ouverture), sprints. |
-| `effectiveTask(task, context)` / `EffectiveTask` | Tâche telle qu'elle va : chaque champ hérité pris du parent (en direct, en remontant la chaîne, sans boucle), ses dates aussi de son jalon, de son projet ou de son premier sprint (voir [Dates suivies](../../business-rules/activities/tasks.md#dates-suivies)), et l'origine de chaque champ (`origins`). Seul calcul de l'héritage d'une tâche : l'API le lit pour tout comportement et le donne à l'app. |
+| `effectiveTask(task, context)` / `EffectiveTask` | Tâche telle qu'elle va : chaque champ hérité pris du parent (en direct, en remontant la chaîne, sans boucle), ses dates aussi de son jalon, de son projet ou de son premier sprint (voir [Dates suivies](../../business-rules/activities/tasks.md#dates-suivies)), et l'origine de chaque champ (`origins`). Seul calcul de l'héritage d'une tâche : l'API le lit pour tout comportement et le donne à l'app ; `dueDay` : son échéance réelle (`taskDueDay` de son « Échéance » avec ses horaires suivis). |
 | `taskFieldOrigin(task, field)` | Origine d'un champ d'une tâche effective. |
 | `TASK_INHERITED_COLUMNS` | Colonnes de chaque champ hérité, dates à part (un lieu : texte et point) ; lues par `effectiveTask` et par le web (`taskRow`). |
 | `TASK_FIELD_INPUTS`, `taskFieldsGiven(input)` | Clés d’une entrée (une tâche, une modification, plusieurs) qui donnent une valeur propre à chaque champ hérité, et les champs qu’une entrée rend propres : l’API les rend propres, le web l’affiche aussitôt. |
@@ -68,6 +68,8 @@ Champs de `taskFormSchema` :
 | `HOURS_START_REQUIRED` | « Choisissez le jour à partir duquel compter. » |
 | `hoursCaseNeedsStart(item)` | Le cas demande-t-il « À partir du » : sa règle compte depuis un jour (`ruleCountsFromDay`) et il n'a pas de période à lui (son premier jour compte alors). |
 | `readTaskHours(value)` | Horaires stockés ou reçus (JSON) validés, cas invalides écartés (`readScheduleCases`). |
+| `hoursAllowDay(hours, day)` | Les horaires permettent un jour : un horaire ce jour-là (`casesSlotsOn`) ; sans horaires, chaque jour. Utilisé par `taskDueDay`, `taskRings`, `taskExcludedDay` (web). |
+| `taskDueDay(deadline, hours)` | Échéance réelle : le dernier jour, l’échéance comprise, que les horaires permettent (`lastAllowedDay`) ; sans horaires l’échéance ; null sans échéance ou sans jour permis dans l’année. Utilisé par `effectiveTask` (`dueDay`), `taskRings`, `upcomingReminders`. |
 
 Le test « faisable » est `conditionAllowsAt(condition, slotsOn, date, time, hours)` (voir [calendar](calendar.md)).
 
@@ -75,8 +77,8 @@ Le test « faisable » est `conditionAllowsAt(condition, slotsOn, date, time, ho
 
 | Export | Rôle |
 | ------ | ---- |
-| `isTaskOverdue(task, today)` | En retard : « Échéance » suivie (`effectiveDeadline`, calculée avec `effectiveTask` : la sienne, celle de son parent, de son jalon ou de son premier sprint) strictement avant aujourd’hui, et tâche non fermée. La seule règle du retard (tableau, panneau, accueil, agenda, « Ma journée ») ; le lint du web refuse une comparaison `deadline < …` / `effectiveDeadline < …` écrite à la main. |
-| `TaskDates`, `TaskSpanKind`, `TaskSpan`, `TaskPlacement` | Dates d’une tâche pour l’agenda (`startDate`, `endDate`, `effectiveDeadline`) ; façon dont une période a été posée (`dates` : ses dates, `open` : jusqu’à aujourd’hui) ; période (jours compris) ; placement (`span`, `deadline` à part, `overdue`). |
+| `isTaskOverdue(task, today)` | En retard : échéance réelle (`dueDay` : `taskDueDay` de l’« Échéance » suivie, calculée avec `effectiveTask` : la sienne, celle de son parent, de son jalon ou de son premier sprint) strictement avant aujourd’hui, et tâche non fermée. La seule règle du retard (tableau, panneau, accueil, agenda, « Ma journée ») ; le lint du web refuse une comparaison `deadline < …`, `dueDay < …` / `effectiveDeadline < …` écrite à la main. |
+| `TaskDates`, `TaskSpanKind`, `TaskSpan`, `TaskPlacement` | Dates d’une tâche pour l’agenda (`startDate`, `endDate`, `dueDay` : son échéance réelle) ; façon dont une période a été posée (`dates` : ses dates, `open` : jusqu’à aujourd’hui) ; période (jours compris) ; placement (`span`, `deadline` à part, `overdue`). |
 | `taskPlacement(task, today)` | Où une tâche s’affiche dans l’agenda (règle dans [Agenda](../../features/activities/calendar.md)) : début et fin, tous les jours de l’un à l’autre ; début passé sans fin, du début à aujourd’hui ; début futur sans fin, ce jour seul ; fin seule, ce jour-là ; échéance à part ce jour-là sauf si la période finit dessus ; en retard, aujourd’hui (portée par sa période quand elle atteint aujourd’hui). Utilisé par `CalendarPage` (web) et `taskDayReasons`. |
 | `TASK_DAY_REASONS`, `TaskDayReason` | Raisons d’une tâche dans « Ma journée », dans cet ordre : `late`, `due`, `inProgress`, `planned`, `open`, `done`, `cancelled`. |
 | `DayTask` | Tâche lue par « Ma journée » : `TaskDates`, `effectiveMinDate`, `statusCategory`, `closedAt` (un instant : `Date` ou texte ISO avec son fuseau), `cancelled?`, `times?` (ses temps, `TimeSpanEntry`). |

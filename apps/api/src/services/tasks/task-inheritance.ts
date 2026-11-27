@@ -77,15 +77,22 @@ export async function loadTaskInheritance(): Promise<TaskInheritanceContext> {
   };
 }
 
+/** Effective tasks computed once per loaded context (its real « Échéance » reads its hours over up to a year). */
+const effectiveMemo = new WeakMap<TaskInheritanceContext, Map<string, EffectiveTask>>();
+
 /**
- * Effective task of an id (`effectiveTask`), none for a task missing from the context.
+ * Effective task of an id (`effectiveTask`, computed once per loaded context), none for a task missing from the context.
  * @param {TaskInheritanceContext} context Loaded context.
  * @param {string} id Task.
  * @returns {EffectiveTask | null} Task as it goes.
  */
 export function effectiveTaskOf(context: TaskInheritanceContext, id: string): EffectiveTask | null {
   const task = context.tasks.get(id);
-  return task ? effectiveTask(task, context) : null;
+  if (!task) return null;
+  let memo = effectiveMemo.get(context);
+  if (!memo) effectiveMemo.set(context, (memo = new Map()));
+  if (!memo.has(id)) memo.set(id, effectiveTask(task, context));
+  return memo.get(id)!;
 }
 
 /**

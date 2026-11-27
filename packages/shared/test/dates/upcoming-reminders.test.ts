@@ -345,6 +345,15 @@ describe('reminders of a task with « Horaires »', () => {
     expect(Object.keys(rings({ minDate: '2026-11-26', deadline: '2026-11-28' }, weekdays)).sort()).toEqual(['task:t:2026-11-26:at:08:00', 'task:t:2026-11-27:at:08:00', 'task:t:2026-11-28:days:1:09:00']);
   });
 
+  it('an « Ouverture » without any day allowed up to its « Échéance »: « À HH:MM » on the last day allowed before it', () => {
+    // Open on Saturday 28, due on Sunday 29: Friday 27.
+    expect(Object.keys(rings({ minDate: '2026-11-28', deadline: '2026-11-29' }, weekdays)).sort()).toEqual(['task:t:2026-11-27:at:08:00', 'task:t:2026-11-29:days:1:09:00']);
+  });
+
+  it('no day allowed within a year: nothing rings', () => {
+    expect(rings({ minDate: null, deadline: '2026-11-29' }, [scheduleCase({ weekdays: [1] }, { until: '2024-01-01' })])).toEqual({});
+  });
+
   it('without hours: every day of its opening', () => {
     expect(keys([])).toHaveLength(6);
     expect(keys(undefined)).toHaveLength(6);

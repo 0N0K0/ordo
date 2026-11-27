@@ -10,11 +10,11 @@ Une tâche est dans « Ma journée » d’un jour pour au moins une de ces raiso
 
 | Raison | Règle |
 | ------ | ----- |
-| En retard (`late`) | Le jour affiché est aujourd’hui et la tâche est en retard (`isTaskOverdue` : « Échéance » suivie passée, tâche ouverte ; voir [Dates et retard](tasks.md#dates-et-retard)). Un autre jour, une tâche en retard n’y est pas par son retard. |
-| Échéance (`due`) | Son « Échéance » suivie (la sienne, sinon celle de son parent, de son jalon ou de son premier sprint : [Dates suivies](tasks.md#dates-suivies)) est ce jour. |
+| En retard (`late`) | Le jour affiché est aujourd’hui et la tâche est en retard (`isTaskOverdue` : échéance réelle passée, tâche ouverte ; voir [Dates et retard](tasks.md#dates-et-retard)). Un autre jour, une tâche en retard n’y est pas par son retard. |
+| Échéance (`due`) | Son échéance réelle (`dueDay` : son « Échéance » suivie, la sienne, sinon celle de son parent, de son jalon ou de son premier sprint, ramenée au dernier jour que ses horaires permettent ; voir [Dates et retard](tasks.md#dates-et-retard)) est ce jour. |
 | En cours (`inProgress`) | Son statut est de la catégorie « En cours » (`IN_PROGRESS`, voir [Catégories de statut](tasks.md#catégories-de-statut)) : aujourd’hui ; un jour passé, seulement si l’un de ses temps (chrono ou temps saisi, voir [Temps passé](time.md)) a tourné pendant ce jour de Paris (`entryMeets`, un chrono en cours jusqu’à maintenant) ; jamais un jour à venir. |
 | Prévue (`planned`) | Ses dates (« Début » – « Fin ») la placent ce jour dans l’agenda (`taskPlacement`) : tous les jours du début à la fin ; un début passé sans fin, du début à aujourd’hui ; un début seul à venir, ce jour ; une fin seule, ce jour. |
-| Période d’ouverture (`open`) | Elle a une « Ouverture » et une « Échéance » suivies, et le jour est de l’une à l’autre (bornes comprises). Une « Ouverture » seule, ou une « Échéance » seule, n’ouvre pas de période ; une « Ouverture » suivie après l’« Échéance » suivie (dates héritées, non comparées) ne couvre que le jour de l’échéance. |
+| Période d’ouverture (`open`) | Elle a une « Ouverture » suivie et une échéance réelle, et le jour est de l’une à l’autre (bornes comprises). Une « Ouverture » seule, ou une « Échéance » seule, n’ouvre pas de période ; une « Ouverture » suivie après l’« Échéance » suivie (dates héritées, non comparées) ne couvre que le jour de l’échéance. |
 | Faite (`done`) | Fermée comme terminée, le jour de Paris de sa fermeture (`closedAt`). |
 | Annulée (`cancelled`) | Fermée comme annulée, le jour de Paris de sa fermeture (une tâche terminée puis annulée garde sa date de fermeture). |
 

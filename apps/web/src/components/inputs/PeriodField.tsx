@@ -6,7 +6,7 @@ import { parisToday } from '../../lib/dates';
 import { ActionButton } from '../actions/ActionButton';
 import { InheritanceNote, type InheritedFieldState } from '../inheritance/InheritedField';
 import inheritedClasses from '../inheritance/InheritedField.module.css';
-import { parisTodayDays, todayPresets } from './date-fields';
+import { excludedDays, parisTodayDays, todayPresets } from './date-fields';
 import type { RangeBinding } from './date-range';
 import classes from './PeriodField.module.css';
 import { boundText, PERIOD_BOUNDS, PERIOD_OPEN_BOUNDS, periodError, pickPeriodDay, type PeriodDraft, type PeriodSide } from './period-field';
@@ -48,6 +48,8 @@ export interface PeriodFieldProps extends RangeBinding<string | null> {
   optionalTimes?: boolean;
   /** Days shown with their weekday. Optional. */
   weekday?: boolean;
+  /** Days greyed in the calendar for each bound, still choosable (`excludedDays`: days its « Horaires » exclude). Optional. */
+  excluded?: PerBound<((day: string) => boolean) | undefined>;
   /** Error of the field, before those of its bounds. Optional. */
   error?: ReactNode;
   disabled?: boolean;
@@ -96,6 +98,7 @@ export function PeriodField({
   openBounds = PERIOD_OPEN_BOUNDS,
   hints,
   inheritance,
+  excluded,
   min,
   max,
   sameDay = false,
@@ -308,15 +311,17 @@ export function PeriodField({
                 onChange={pick}
                 minDate={endMin}
                 maxDate={max}
-                getDayProps={parisTodayDays((day) => {
-                  const range = Boolean(start && end && start !== end);
-                  return {
-                    selected: day === start || day === end,
-                    inRange: range && day >= start! && day <= end!,
-                    firstInRange: range && day === start,
-                    lastInRange: range && day === end,
-                  };
-                })}
+                getDayProps={parisTodayDays(
+                  excludedDays(excluded?.[active], (day) => {
+                    const range = Boolean(start && end && start !== end);
+                    return {
+                      selected: day === start || day === end,
+                      inRange: range && day >= start! && day <= end!,
+                      firstInRange: range && day === start,
+                      lastInRange: range && day === end,
+                    };
+                  }),
+                )}
               />
               {opened && periodError(draft.days, withTimes ? draft.times : undefined) && (
                 <Text size="xs" c="var(--mantine-color-error)">

@@ -1109,7 +1109,7 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser readOnlyCells(columns, row) (components/data-table/table/data-table) : le texte de chaque colonne, la cellule d’une colonne commune.',
   },
   {
-    selector: "BinaryExpression[operator='<'][left.property.name=/^(deadline|effectiveDeadline)$/], BinaryExpression[operator='<'][left.name=/^(deadline|effectiveDeadline)$/]",
+    selector: "BinaryExpression[operator='<'][left.property.name=/^(deadline|effectiveDeadline|dueDay)$/], BinaryExpression[operator='<'][left.name=/^(deadline|effectiveDeadline|dueDay)$/]",
     message: 'Utiliser isTaskOverdue(task, today) (@ordo/shared) : une seule règle de retard.',
   },
   {
