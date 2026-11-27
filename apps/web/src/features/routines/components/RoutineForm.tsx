@@ -1,9 +1,9 @@
-import { readDeadTimes, readReminders, type DeadTime, type Reminder } from '@ordo/shared';
-import { removedLinksNote } from '../../../lib/text';
+import { formatDuration, readDeadTimes, readReminders, type DeadTime, type Reminder } from '@ordo/shared';
+import { countOf, removedLinksNote } from '../../../lib/text';
+import { summaryLabels } from '../../../components/actions/fold-summary';
+import { reminderLabel } from '../../../components/inputs/reminder-presets';
 import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-references';
 import { Group, NumberInput, Select } from '@mantine/core';
-import { ArrowSquareInIcon } from '@phosphor-icons/react';
-import { ActionButton } from '../../../components/actions/ActionButton';
 import {
   opensFits,
   readOpens,
@@ -24,11 +24,9 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { unarchived, unarchivedOffered } from '../../../lib/archive';
 import { parisToday } from '../../../lib/dates';
-import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks, hasFieldError } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { EmptyState } from '../../../components/feedback/EmptyState';
-import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { DateField } from '../../../components/inputs/DateField';
 import { FormDescription } from '../../../components/markdown/DescriptionSection';
 import { DetailLayout, PanelGroup } from '../../../components/panels/DetailLayout';
@@ -36,7 +34,7 @@ import { PANEL_GROUPS } from '../../../components/panels/panel-groups';
 import { TrackedTime } from '../../time/components/TrackedTime';
 import { onRoutine } from '../../time/api';
 import { RoutineDoneToggles } from './DoneToggle';
-import { openRoutineForm } from '../lib/open-routine-form';
+import { addSubRoutineEntry } from '../lib/open-routine-form';
 import { AssigneesSelect, LabelSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
@@ -50,7 +48,6 @@ import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { useRoutineCategoryItems } from '../hooks/use-category-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { SubSection } from '../../../components/page/SubSection';
 import { optionalNumberProps } from '../../../components/inputs/number-format';
 import { LinksField } from '../../../components/inputs/LinksField';
 import { DocumentsField } from '../../documents/components/DocumentsField';
@@ -58,7 +55,7 @@ import { inProjectTree } from '../../tasks/lib/task-links';
 import { linkInputs } from '../../../lib/links';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { useConvertActivity } from '../hooks/use-convert-activity';
-import { useSetBlockedRoutines } from '../hooks/use-routine-blocks';
+import { useSetBlockedRoutines, useSetSubRoutines } from '../hooks/use-routine-blocks';
 import { useRoutineRowsActions } from './RoutineBulkBar';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
@@ -237,6 +234,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   const countdownEntries = useCountdownMenuEntries();
   const routines = data?.routines ?? [];
   const setBlocked = useSetBlockedRoutines(routines);
+  const setSubRoutines = useSetSubRoutines();
   const base = useAppForm<RoutineFormValues>({
     initialValues: routine
       ? routineFormValues(routine)
@@ -347,9 +345,20 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
    * @returns {TreeOption[]} Options.
    */
   const linkOptions = (linked: string[]) => routineTreeOptions(routines, context ? linkableRoutine(context, form.values.projectId, routine?.id ?? null, linked) : () => false);
+  /**
+   * Options of « Sous-routines »: the active routines that are neither this one nor one of its parents (no loop); its
+   * sub-routines stay, archived ones too.
+   * @param {Routine} parent Routine of the panel.
+   * @returns {TreeOption[]} Options.
+   */
+  const subRoutineOptions = (parent: Routine) => {
+    const above = new Set<string>([parent.id]);
+    for (let id = parent.parentId; id && !above.has(id); id = routines.find((item) => item.id === id)?.parentId ?? null) above.add(id);
+    return routineTreeOptions(routines, (item) => item.parentId === parent.id || (!item.archived && !above.has(item.id)));
+  };
 
   /**
-   * Its « … » menu, as the task's: « Dupliquer », « Transformer en tâche » (refused with sub-routines),
+   * Its « … » menu, as the task's: « Ajouter une sous-routine », « Dupliquer », « Transformer en tâche » (refused with sub-routines),
    * « Archiver », « Supprimer » (the actions of its row, `useRoutineRowsActions`); archived: « Restaurer »,
    * « Supprimer »; then « Lancer » each of its dead times, for the occurrence open. Deleted or transformed,
    * its panel closes (`closeRoutinePanels`).
@@ -360,6 +369,8 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
     const { duplicate, inheritance, archive, remove } = rowActionsOf([item]);
     if (item.archived) return [archive, remove].map(rowMenuEntry);
     return [
+      addSubRoutineEntry(item),
+      'divider',
       rowMenuEntry(duplicate),
       ...(item.parentId ? [rowMenuEntry(inheritance)] : []),
       convert.toTask(item, routines.some((other) => other.parentId === item.id)),
@@ -376,6 +387,27 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   const blocked = current ? blockedRoutineIds(routines, current.id) : [];
   const subRoutines = routine ? routines.filter((item) => item.parentId === routine.id) : [];
   const commentsDate = routine ? (occurrenceDate ?? panelOccurrence(routine)) : null;
+  // What each folded group shows after its title; a group with a field in error stays unfolded.
+  const { values } = form;
+  /**
+   * Whether one of these fields is in error.
+   * @param {...string} fields Fields of the group.
+   * @returns {boolean} In error.
+   */
+  const invalid = (...fields: string[]) => hasFieldError(form.errors, fields);
+  const summaries = {
+    relations: (values.parentId ? 1 : 0) + subRoutines.length + values.requiredIds.length + blocked.length + values.relatedIds.length,
+    ranking: [...summaryLabels(data?.routineCategories ?? [], values.categoryIds), ...summaryLabels(context?.priorities ?? [], [values.priorityId]), ...summaryLabels(context?.types ?? [], [values.typeId])],
+    people: values.assigneeIds.length + values.beneficiaryIds.length + values.beneficiaryRelationIds.length,
+    planning: [
+      values.startDate && `Première fois ${fmt.day(values.startDate)}`,
+      typeof values.estimate === 'number' && `${values.estimate} min`,
+      values.deadTimes.length > 0 && countOf(values.deadTimes.length, 'temps mort'),
+      current && current.trackedSeconds > 0 && formatDuration(current.trackedSeconds),
+    ],
+    place: [values.location],
+    alarms: [...values.reminders.map((reminder) => reminderLabel(reminder, { target: 'routine' })), current && current.savedCountdownIds.length > 0 && countOf(current.savedCountdownIds.length, 'minuteur')],
+  };
   // The fields of its « quand » and its place, with the inheritance of a sub-routine.
   const scheduleProps = { values: form.values, errors: form.errors, onChange: (changes: Partial<RoutineFormValues>) => form.setValues(changes), onCommit: commit };
 
@@ -414,7 +446,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
         main={
           <>
             <FormDescription field={fieldProps('description')} commit={() => commit(['description'])} targets={context?.targetsFor(form.values.projectId) ?? NO_TARGETS} suggestions={context?.suggestionsFor(form.values.projectId) ?? NO_SUGGESTIONS} readOnly={readOnly} />
-            <PanelGroup title={PANEL_GROUPS.relations}>
+            <PanelGroup title={PANEL_GROUPS.relations} collapsible defaultExpanded={false} summary={summaries.relations} invalid={invalid('parentId', 'requiredIds', 'relatedIds')}>
               <Select
                 label="Routine parente"
                 placeholder="Aucune"
@@ -431,20 +463,23 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
                 }}
               />
               {current && (
-                <SubSection title="Sous-routines" gap="xs">
-                  {subRoutines.length ? (
-                    subRoutines.map((item) => (
-                      <div key={item.id}>
-                        <ActionButton priority="tertiary" icon={<ArrowSquareInIcon aria-hidden />} onClick={() => openRoutineForm({ routine: item })}>
-                          {item.label}
-                        </ActionButton>
-                      </div>
-                    ))
-                  ) : (
-                    <EmptyState compact message="Aucune sous-routine." />
-                  )}
-                  {!readOnly && <AddItemButton onClick={() => openRoutineForm({ parent: current })}>Ajouter une sous-routine</AddItemButton>}
-                </SubSection>
+                <BatchMultiSelect
+                  label="Sous-routines"
+                  description="Routines rangées sous celle-ci : les choisir ici leur donne cette routine pour parente, les retirer les sort de toute parente."
+                  placeholder={subRoutines.length ? undefined : 'Aucune'}
+                  {...treeSelectProps(subRoutineOptions(current))}
+                  searchable
+                  clearable
+                  value={subRoutines.map((item) => item.id)}
+                  // Written in the « Routine parente » of the routines chosen or removed, saved at once.
+                  onChange={(next) =>
+                    setSubRoutines(
+                      current.id,
+                      subRoutines.map((item) => item.id),
+                      next,
+                    )
+                  }
+                />
               )}
               <BatchMultiSelect
                 label="Dépend de"
@@ -493,7 +528,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
         }
         side={
           <>
-            <PanelGroup title={PANEL_GROUPS.ranking}>
+            <PanelGroup title={PANEL_GROUPS.ranking} collapsible summary={summaries.ranking} invalid={invalid('categoryIds', 'priorityId', 'typeId')}>
               <InheritedField {...inherited('CATEGORIES')}>
                 <BatchMultiSelect
                   onCreate={itemCreator('Nouvelle catégorie', categoryItems, { tree: unarchived(data?.routineCategories ?? []) })}
@@ -516,7 +551,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
                 </>
               )}
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.people}>
+            <PanelGroup title={PANEL_GROUPS.people} collapsible defaultExpanded={false} summary={summaries.people} invalid={invalid('assigneeIds', 'beneficiaryIds', 'beneficiaryRelationIds')}>
               {context && (
                 <InheritedField {...inherited('ASSIGNEES')}>
                   <AssigneesSelect
@@ -535,7 +570,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
                 />
               </InheritedField>
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.planning}>
+            <PanelGroup title={PANEL_GROUPS.planning} collapsible defaultExpanded={false} summary={summaries.planning} invalid={invalid('startDate', 'estimate', 'deadTimes')}>
               <InheritedField {...inherited('START_DATE')}>
                 <DateField label="Première fois" required value={form.values.startDate || null} onChange={(date) => date && form.setFieldValue('startDate', date)} error={form.errors.startDate} />
               </InheritedField>
@@ -555,14 +590,14 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
                 />
               )}
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.place}>
+            <PanelGroup title={PANEL_GROUPS.place} collapsible defaultExpanded={false} summary={summaries.place} invalid={invalid('location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter')}>
               <RoutinePlace {...scheduleProps} inherited={{ from: parentName, state: inheritance.field('LOCATION'), readOnly }} />
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.alarms}>
+            <PanelGroup title={PANEL_GROUPS.alarms} collapsible defaultExpanded={false} summary={summaries.alarms} invalid={invalid('reminders')}>
               <RoutineReminders {...scheduleProps} />
               <SavedCountdownsField target="ROUTINE" id={current?.id ?? null} value={current?.savedCountdownIds ?? []} invalidate={[routinesKey]} readOnly={readOnly} />
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.resources}>
+            <PanelGroup title={PANEL_GROUPS.resources} collapsible defaultExpanded={false} invalid={invalid('links', 'libraryDocumentIds', 'projectResourceIds')}>
               <LinksField form={form} onRemoved={() => commit(['links'])} />
               <DocumentsField
                 value={{ libraryDocumentIds: form.values.libraryDocumentIds, projectResourceIds: form.values.projectResourceIds }}

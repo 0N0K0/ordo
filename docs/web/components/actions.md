@@ -143,8 +143,15 @@ Rangée d'actions sans titre (sous une liste, au-dessus d'une liste vide), toujo
 
 ### `FoldHeading.tsx`
 
-`FoldHeading` : en-tête d'une section, d'un groupe ou d'une liste qui se plie, toute la ligne cliquable, partout (groupes de tableau compris) : chevron, `icon`, titre, compte (`CountBadge` gris `xs`, la taille des compteurs de groupe), `aside` à droite. Props : `expanded`, `onToggle`, `children`, `count`, `icon`, `aside`, `inline` (petit bouton dans une cellule, « détails (3) »), `about`, `radius` (défaut `sm`) ; les autres props vont au bouton. Le clic ne remonte pas. Styles : `FoldHeading.module.css`. Imposé par eslint pour tout bouton `aria-expanded` sans `aria-haspopup` et tout en-tête au-dessus d'un `Collapse`.
+`FoldHeading` : en-tête d'une section, d'un groupe ou d'une liste qui se plie, toute la ligne cliquable, partout (groupes de tableau compris) : chevron, `icon`, titre, compte (`CountBadge` gris `xs`, la taille des compteurs de groupe), `aside` à droite. Props : `expanded`, `onToggle`, `children`, `count`, `icon`, `aside`, `inline` (petit bouton dans une cellule, « détails (3) »), `about`, `radius` (défaut `sm`), `summary` (après le titre, « Alarmes · 15 min avant, à 08:00 +2 », sur une ligne coupée par « … », en entier dans une infobulle au survol et au focus clavier, et pour les lecteurs d'écran par un texte caché ; `fold-summary.ts`) ; les autres props vont au bouton. Le clic ne remonte pas. Styles : `FoldHeading.module.css`. Imposé par eslint pour tout bouton `aria-expanded` sans `aria-haspopup` et tout en-tête au-dessus d'un `Collapse`.
 
 ## `move-entries.tsx`
 
 `moveEntries(index, count, move)` : entrées « Monter » / « Descendre » d'un élément d'une liste ordonnée, désactivées aux extrémités. Utilisé dans la facturation, les espaces et les tableaux de bord.
+
+
+### `fold-summary.ts`
+
+- `FoldSummary` (type) : ce que tient un groupe réduit : ses valeurs (les vides ignorées) ou le nombre de ses personnes ou éléments.
+- `foldSummary(summary)` : `{ text, full }` : 2 valeurs au plus puis « +N » (constante interne `SHOWN_VALUES`), ou le nombre seul ; la liste entière pour l'infobulle ; `null` pour un groupe vide. Utilisé par `FoldHeading`.
+- `summaryLabels(items, ids)` : libellés des éléments choisis, dans l'ordre choisi (résumé d'un « Classement »).

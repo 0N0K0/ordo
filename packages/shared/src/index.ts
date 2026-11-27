@@ -50,6 +50,8 @@ export * from './dates/countdowns';
 export * from './dates/months';
 export * from './calendar/event-busy';
 export * from './calendar/calendar-views';
+export * from './calendar/slot-display';
+export * from './calendar/typical-weeks';
 export * from './tables/aggregates';
 export * from './core/text';
 export * from './core/numbers';

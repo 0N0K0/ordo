@@ -6,12 +6,18 @@ import {
   routineDayEntries,
   routineGroupIds,
   routineGroupStatesOn,
+  routineSlotInGroupOn,
   routineSlotShownOn,
   routineTickPrefill,
   type RoutineDayRoutine,
   type RoutineTickOccurrence,
   type RoutineTickSlot,
 } from '../../src/routines/routine-ticks';
+import { caseSpans } from '../../src/dates/repetition';
+import { routineOpenDate } from '../../src/routines/routines';
+import { conditionWindows, scheduleSlotsOn, windowsAllowed, type SlotCondition } from '../../src/calendar/slot-conditions';
+import { rule } from '../rules';
+import { schedule, scheduleCase } from '../calendar/schedules';
 
 /** 25 Nov 2026, 14:30 in Paris (UTC+1 in winter). */
 const NOW = new Date('2026-11-25T13:30:00Z');
@@ -224,8 +230,27 @@ describe('routineGroupStatesOn', () => {
     expect(routineGroupStatesOn(tree, occurrences, DAY).get('p')).toMatchObject({ counted: 3, done: 1, complete: false });
   });
 
-  it('a sub-routine with optional moments only does not count', () => {
-    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, false, { optional: true })])], DAY).has('p')).toBe(false);
+  it('a sub-routine with optional moments only does not count, but makes its parent present (without progress)', () => {
+    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, false, { optional: true })])], DAY).get('p')).toEqual({ counted: 0, done: 0, complete: false, moments: [] });
+    // All its optional moments ticked that day: done (at the bottom).
+    expect(routineGroupStatesOn(tree, [occurrence('a', [slot(0, true, { optional: true })])], DAY).get('p')).toMatchObject({ counted: 0, complete: true });
+    // With another sub-routine counting: only that one counts.
+    const occurrences = [occurrence('a', [slot(0, false, { optional: true })]), occurrence('b', [slot(0, true)])];
+    expect(routineGroupStatesOn(tree, occurrences, DAY).get('p')).toMatchObject({ counted: 1, done: 1, complete: true });
+    // Neither cancelled, nor its optional moments not allowed that day, nor out of its opening.
+    for (const item of [
+      occurrence('a', [slot(0, false, { optional: true })], { cancelled: true }),
+      occurrence('a', [slot(0, false, { optional: true, windows: [] })]),
+      occurrence('a', [slot(0, false, { optional: true })], { startDate: '2026-11-26', dueDate: '2026-11-27' }),
+    ])
+      expect(routineGroupStatesOn(tree, [item], DAY).has('p')).toBe(false);
+  });
+
+  it('a parent present through a sub-routine itself present through optional moments only', () => {
+    const routines = [routine('p'), routine('g', 'p'), routine('a', 'g')];
+    const states = routineGroupStatesOn(routines, [occurrence('a', [slot(0, false, { optional: true })])], DAY);
+    expect(states.get('g')).toMatchObject({ counted: 0 });
+    expect(states.get('p')).toMatchObject({ counted: 0, complete: false });
   });
 
   it('a sub-routine ticked before its « Ouverture » counts on its first day, as done', () => {
@@ -287,6 +312,19 @@ describe('routineDoneDay', () => {
   });
 });
 
+describe('routineSlotInGroupOn', () => {
+  it('an optional moment always goes under its parent; a required one when its occurrence counts; never a cancelled one', () => {
+    const optional = slot(1, false, { optional: true });
+    // Done before that day: its optional moment still under its parent, its required one no longer.
+    const doneBefore = occurrence('a', [slot(0, true, { doneAt: '2026-11-24T08:00:00Z' }), optional], { startDate: '2026-11-23', dueDate: '2026-11-27' });
+    expect(routineSlotInGroupOn(doneBefore, optional, DAY)).toBe(true);
+    expect(routineSlotInGroupOn(doneBefore, doneBefore.slots[0], DAY)).toBe(false);
+    const open = occurrence('a', [slot(0, false), optional]);
+    expect(routineSlotInGroupOn(open, open.slots[0], DAY)).toBe(true);
+    expect(routineSlotInGroupOn({ ...open, cancelled: true }, optional, DAY)).toBe(false);
+  });
+});
+
 describe('routineCountsOn', () => {
   it('never counts a cancelled occurrence', () => {
     expect(routineCountsOn(occurrence('a', [slot(0, false)], { cancelled: true }), DAY)).toBe(false);
@@ -319,5 +357,93 @@ describe('routineDayEntries', () => {
     expect(routineDayEntries([late], [], DAY, { today: DAY, allowedToday: () => [] })).toEqual([]);
     expect(routineDayEntries([late], [], '2026-11-24', { today: DAY, allowedToday: () => null })).toEqual([]);
     expect(routineDayEntries([routine('a')], occurrences, '2026-11-21', { today: DAY })).toEqual([]);
+  });
+});
+
+describe('a weekly routine opened the day before, on a slot of its due days only', () => {
+  // Every week on Wednesday and Sunday from Tuesday 1 September 2026, opened 1 day before, from 08:30 to 20:30 on the
+  // slot « Entretien de la maison » (Wednesday and Sunday, 08:30–20:30); « Repas » every day, 12:30–13:30.
+  const TUESDAY = '2026-09-01';
+  const WEDNESDAY = '2026-09-02';
+  const weekly = rule({ weekdays: [3, 7] });
+  const upkeep = schedule([scheduleCase({ weekdays: [3, 7] }, { times: { allDay: false, ranges: [{ start: '08:30', end: '20:30' }] } })], { id: 'upkeep', startDate: TUESDAY });
+  const meal = schedule([scheduleCase({ frequency: 'DAILY' }, { times: { allDay: false, ranges: [{ start: '12:30', end: '13:30' }] } })], { id: 'meal', startDate: TUESDAY });
+  const onUpkeep: SlotCondition = { type: 'group', id: 'g', combinator: 'and', children: [{ type: 'condition', id: 'c', field: 'schedules', operator: 'in', value: ['upkeep'] }] };
+  const slotsOn = scheduleSlotsOn([upkeep, meal]);
+  /**
+   * Windows of the moment of the routine on a day, as its condition allows them.
+   * @param {string} day Day.
+   * @returns {{ fromTime: string | null, dueTime: string | null }[]} Windows.
+   */
+  const momentOn = (day: string) => windowsAllowed({ fromTime: '08:30', dueTime: '20:30' }, conditionWindows(onUpkeep, (query) => slotsOn(query, day)));
+  const tree = [routine('p'), routine('a', 'p'), routine('b', 'p')];
+  /**
+   * Occurrences of the parent and its sub-routines, open from Tuesday, due on Wednesday, as the list of a day gives
+   * them: their moment kept to the hours that day allows (none: without any window).
+   * @param {string} day Day shown.
+   * @returns {RoutineTickOccurrence[]} Occurrences.
+   */
+  const occurrencesOn = (day: string): RoutineTickOccurrence[] => {
+    const windows = momentOn(day);
+    const slots = [slot(0, false, windows.length ? { fromTime: windows[0].fromTime, dueTime: windows.at(-1)!.dueTime, windows } : { fromTime: '08:30', dueTime: '20:30', windows: [] })];
+    return tree.map((item) => occurrence(item.id, slots, { date: WEDNESDAY, startDate: TUESDAY, dueDate: WEDNESDAY }));
+  };
+
+  it('its occurrence due on Wednesday opens on Tuesday, its first day', () => {
+    const [first] = caseSpans({ since: null, until: null, anchor: null, rule: weekly, times: null }, TUESDAY, TUESDAY, WEDNESDAY);
+    expect(first).toEqual({ start: WEDNESDAY, end: WEDNESDAY });
+    expect(routineOpenDate(first.end, { mode: 'BEFORE', days: 1 }, weekly.frequency)).toBe(TUESDAY);
+  });
+
+  it('on Tuesday, no slot « Entretien »: no moment, nothing listed, the parent absent', () => {
+    expect(momentOn(TUESDAY)).toEqual([]);
+    const occurrences = occurrencesOn(TUESDAY);
+    expect(routineDayEntries(tree, occurrences, TUESDAY, { today: '2026-11-27' })).toEqual([]);
+    expect(occurrences.some((item) => routineCountsOn(item, TUESDAY))).toBe(false);
+    expect(routineGroupStatesOn(tree, occurrences, TUESDAY).has('p')).toBe(false);
+  });
+
+  it('on Wednesday, the sub-routines within the hours of the slot, under their parent', () => {
+    expect(momentOn(WEDNESDAY)).toEqual([{ fromTime: '08:30', dueTime: '20:30' }]);
+    const occurrences = occurrencesOn(WEDNESDAY);
+    const entries = routineDayEntries(tree, occurrences, WEDNESDAY, { today: '2026-11-27' });
+    expect(entries.map((entry) => [entry.routine.id, entry.slot.fromTime, entry.slot.dueTime])).toEqual([
+      ['a', '08:30', '20:30'],
+      ['b', '08:30', '20:30'],
+    ]);
+    expect(routineGroupStatesOn(tree, occurrences, WEDNESDAY).get('p')).toMatchObject({ counted: 2, done: 0, moments: [{ index: 0, fromTime: '08:30', dueTime: '20:30', done: false }] });
+  });
+});
+
+describe('moments its condition does not allow that day', () => {
+  const window = { startDate: DAY, dueDate: '2026-11-27' };
+  const notAllowed = { windows: [] };
+  const tree = [routine('p'), routine('a', 'p')];
+
+  it('an occurrence without any moment, or without any allowed that day: not counted, not listed, not done', () => {
+    for (const item of [occurrence('a', []), occurrence('a', [slot(0, false, notAllowed)], window)]) {
+      expect(routineCountsOn(item, DAY)).toBe(false);
+      expect(routineDayEntries(tree, [item], DAY, { today: DAY })).toEqual([]);
+      expect(routineDoneDay(item)).toBeNull();
+      expect(routineGroupStatesOn(tree, [item], DAY).has('p')).toBe(false);
+    }
+  });
+
+  it('only its optional moments allowed that day: those listed, not counted', () => {
+    const item = occurrence('a', [slot(0, false, notAllowed), slot(1, false, { optional: true }), slot(2, false, { optional: true, ...notAllowed })], window);
+    expect(routineCountsOn(item, DAY)).toBe(false);
+    expect(routineDayEntries(tree, [item], DAY, { today: DAY }).map((entry) => entry.slot.index)).toEqual([1]);
+  });
+
+  it('a required moment not allowed that day is still to do: the one allowed, ticked, does not make it done', () => {
+    const item = occurrence('a', [slot(0, false, notAllowed), slot(1, true)], window);
+    expect(routineCountsOn(item, DAY)).toBe(true);
+    expect(routineDayEntries(tree, [item], DAY, { today: DAY }).map((entry) => entry.slot.index)).toEqual([1]);
+    expect(routineGroupStatesOn(tree, [item], DAY).get('p')).toMatchObject({ counted: 1, done: 0, complete: false });
+  });
+
+  it('a ticked moment shows on the day it was done, allowed that day or not', () => {
+    const item = occurrence('a', [slot(0, true, notAllowed)], window);
+    expect(routineDayEntries(tree, [item], DAY, { today: DAY }).map((entry) => entry.slot.index)).toEqual([0]);
   });
 });

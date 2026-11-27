@@ -1,5 +1,5 @@
 import { ColorField } from '../../../components/inputs/ColorField';
-import { Fieldset, Stack, TextInput } from '@mantine/core';
+import { Fieldset, Stack } from '@mantine/core';
 import { clientFormSchema, type ClientFormValues } from '@ordo/shared';
 import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
 import { useCreateClient, useProjectTree, useUpdateClient, type Client } from '../api';
@@ -8,6 +8,7 @@ import { formIconProps } from '../../../components/inputs/icon-field';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 interface ClientFormProps {
   /** Client to edit; creates a new one when absent. */
@@ -62,7 +63,7 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="md">
           {client && !readOnly && <SaveStatus saving={saving} />}
-          <TextInput label="Nom" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('name')} />
+          <LabelField label="Nom" data-autofocus={onDone ? true : undefined} {...form.getInputProps('name')} />
           <ColorField placeholder="Aucune" {...commitProps('color')} />
           <IconField
             {...formIconProps(form, 'icon', 'removeIcon')}

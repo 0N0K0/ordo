@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { readStoredList } from '../core/rules';
-import { addDays, dayIn, PARIS_ZONE } from './days';
+import { addDays, dayIn, lastAllowedDay, PARIS_ZONE } from './days';
 import { zonedInstant } from './recurrence';
 import { isRingtone, type RingtoneId } from './ringing';
 import { timeOfDaySchema, timeToMinutes } from './times';
@@ -379,6 +379,13 @@ export function reminderDaysAhead(reminders: readonly ReminderValue[]): number {
 export interface TaskReminderDays {
   minDate?: string | null;
   deadline?: string | null;
+  /** Whether its « Horaires » allow a day: its reminders ring only on those (`taskReminders`). Optional. Default = every day. */
+  hoursAllow?: (day: string) => boolean;
+  /**
+   * Its real « Échéance » (`taskDueDay`: the last day on or before its « Échéance » its hours allow; null: none within a
+   * year). Optional. Default = from `hoursAllow`.
+   */
+  dueDay?: string | null;
 }
 
 /**
@@ -394,10 +401,13 @@ export function taskRemindsOn(task: TaskReminderDays, day: string): boolean {
   return day >= from && day <= task.deadline;
 }
 
+
 /**
- * Reminders of a task around now: those « À HH:MM » of the day before and of today in Paris (a late one may still ring
- * after midnight), and of the next `ahead` days, on the days it reminds on; those « N jours avant, à HH:MM » once,
- * counted from its « Échéance ».
+ * Reminders of a task around now, on the days its « Horaires » allow (`hoursAllow`), from its real « Échéance »
+ * (`dueDay`: none without one): those « À HH:MM » of the day before and of today in Paris (a late one may still ring
+ * after midnight), and of the next `ahead` days, on each day from its « Ouverture » to its « Échéance » its hours allow
+ * (none allowed, or without « Ouverture »: its real « Échéance »); those « N jours avant, à HH:MM » once, counted from
+ * its real « Échéance », a ring on an excluded day moved back to the last day allowed before it.
  * @param {string} key Key of the task.
  * @param {TaskReminderDays & { reminders: readonly ReminderValue[] }} task Task.
  * @param {Date} now Now.
@@ -408,9 +418,22 @@ export function taskReminders(key: string, task: TaskReminderDays & { reminders:
   const today = dayIn(now, PARIS_ZONE);
   const onDays = task.reminders.filter((reminder) => !reminder.days);
   const days = Array.from({ length: ahead + 2 }, (_, index) => addDays(today, index - 1));
+  const allows = task.hoursAllow;
+  const deadline = task.deadline;
+  // Every ring falls on its « Échéance » or before: none left once it is past.
+  if (!deadline || deadline < days[0]) return [];
+  const anchor = task.dueDay === undefined ? lastAllowedDay(allows, deadline) : task.dueDay;
+  if (!anchor) return [];
+  // No day of its « Ouverture » allowed (or none, or one after its « Échéance »): its real « Échéance » only.
+  const from = task.minDate && task.minDate < deadline ? task.minDate : deadline;
+  const ringsOn = (day: string) => (anchor < from ? day === anchor : taskRemindsOn(task, day) && (allows?.(day) ?? true));
   return [
-    ...(task.deadline ? remindersAt(`${key}:${task.deadline}`, task.deadline, task.reminders, false) : []),
-    ...days.filter((day) => taskRemindsOn(task, day)).flatMap((day) => remindersAt(`${key}:${day}`, day, onDays)),
+    // « N jours avant »: each counted from the anchor, its ring moved back to the last day allowed (keyed by the « Échéance »).
+    ...task.reminders.filter((reminder) => reminder.days).flatMap((reminder) => {
+      const ring = addDays(anchor, -reminder.days!);
+      return remindersAt(`${key}:${deadline}`, addDays(lastAllowedDay(allows, ring) ?? ring, reminder.days!), [reminder], false);
+    }),
+    ...days.filter(ringsOn).flatMap((day) => remindersAt(`${key}:${day}`, day, onDays)),
   ];
 }
 

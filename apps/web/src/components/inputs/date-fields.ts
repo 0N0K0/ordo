@@ -34,6 +34,20 @@ export function parisTodayDays<P extends object = object>(getDayProps?: (day: st
 }
 
 /**
+ * Props of each day of a date picker greying the days some rule excludes (the « Horaires » of a task): still
+ * choosable, only dimmed; the props given of each day kept.
+ * @param {((day: string) => boolean) | undefined} excluded Whether a day is excluded (YYYY-MM-DD); none: no day greyed.
+ * @param {(day: string) => P} [getDayProps] Props of each day. Optional. Default = none.
+ * @returns {(day: string) => P} Props of each day.
+ */
+export function excludedDays<P extends object = object>(excluded: ((day: string) => boolean) | undefined, getDayProps?: (day: string) => P): (day: string) => P {
+  return (day) => {
+    const props = getDayProps?.(day) as P;
+    return excluded?.(day) ? { ...props, style: { opacity: 0.4 } } : props;
+  };
+}
+
+/**
  * « Aujourd'hui » of a date picker (Mantine `presets`), the same in each one: picks today (with a time for a date-time
  * picker); none when today cannot be picked.
  * @param {{ min?: string | Date | null, max?: string | Date | null, time?: string | null }} [options] Days possible, time of a date-time picker (HH:mm). Optional.

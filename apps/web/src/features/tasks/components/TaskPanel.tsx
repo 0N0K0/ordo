@@ -9,7 +9,11 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Group, Select, Text } from '@mantine/core';
-import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type TaskInheritableField, isTaskOverdue } from '@ordo/shared';
+import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type TaskInheritableField, isTaskOverdue, formatDuration, readDeadTimes } from '@ordo/shared';
+import * as fmt from '../../../lib/format';
+import { countOf } from '../../../lib/text';
+import { summaryLabels } from '../../../components/actions/fold-summary';
+import { reminderLabel } from '../../../components/inputs/reminder-presets';
 import { ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { TaskGithubBadge } from '../../github/components/TaskGithubBadge';
 import { useState } from 'react';
@@ -48,6 +52,9 @@ import { taskCountdownItem } from '../lib/task-countdowns';
 import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
 import { tasksQueryKey } from '../../../lib/query-keys';
 import { inheritedDateHint } from '../lib/inherited-dates';
+import { NO_TASK_DUE_DAY, TASK_DUE_SHIFT_REASON, taskExcludedDay } from '../lib/task-due';
+import { RealDueDate } from '../../../components/feedback/RealDueDate';
+import { TaskDueNotice } from './TaskDueNotice';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { TaskDoneButton } from './TaskDoneButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -174,6 +181,29 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const excluded = subtreeOf(context.tasks, task.id);
   const candidates = linkableTasks(context, task.projectId, task.id);
   const resolve = (ids: string[]) => ids.map((id) => context.taskById.get(id)).filter((item): item is Task => !!item);
+  // What each folded group shows after its title.
+  const milestone = context.milestonesFor(task.projectId, task.milestoneId).find((item) => item.id === task.milestoneId);
+  const summaries = {
+    relations: (task.parentId ? 1 : 0) + subtasks.length + task.blockedByIds.length + task.blockingIds.length + task.relatedIds.length,
+    ranking: [...summaryLabels(context.statuses, [task.statusId]), ...summaryLabels(context.priorities, [task.priorityId]), ...summaryLabels(context.types, [task.typeId]), ...summaryLabels(context.tags, task.tagIds)],
+    people: task.assigneeIds.length + task.beneficiaryIds.length + task.beneficiaryRelationIds.length,
+    workload: [task.effort != null && `Effort ${fmt.number(task.effort)}`, task.trackedSeconds > 0 && formatDuration(task.trackedSeconds)],
+    periods: [
+      milestone && context.milestoneLabel(milestone),
+      ...context
+        .sprintsFor(task.projectId, task.sprintIds)
+        .filter((sprint) => task.sprintIds.includes(sprint.id))
+        .map((sprint) => context.sprintLabel(sprint)),
+      task.startDate && `Du ${fmt.day(task.startDate)}`,
+      task.endDate && `Au ${fmt.day(task.endDate)}`,
+      task.minDate && `Ouverture ${fmt.day(task.minDate)}`,
+      task.deadline && `Échéance ${fmt.day(task.deadline)}`,
+      readDeadTimes(task.deadTimes).length > 0 && countOf(readDeadTimes(task.deadTimes).length, 'temps mort'),
+      readSlotCondition(task.slotCondition) && 'Condition de créneaux',
+      readTaskHours(task.hours).length > 0 && 'Horaires',
+    ],
+    alarms: [...task.reminders.map((reminder) => reminderLabel(reminder, { day: '' })), task.savedCountdownIds.length > 0 && countOf(task.savedCountdownIds.length, 'minuteur')],
+  };
 
   /**
    * Moves the task (and its sub-tasks) to another project, or out of any. Leaving the project tree removes the links
@@ -246,7 +276,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         main={
           <>
             <TaskDescription task={task} context={context} locked={locked} save={saveNow} />
-            <PanelGroup title={PANEL_GROUPS.relations}>
+            <PanelGroup title={PANEL_GROUPS.relations} collapsible defaultExpanded={false} summary={summaries.relations}>
               <TaskSelect
                 context={context}
                 labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}
@@ -309,7 +339,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         }
         side={
           <>
-            <PanelGroup title={PANEL_GROUPS.ranking}>
+            <PanelGroup title={PANEL_GROUPS.ranking} collapsible summary={summaries.ranking}>
               <LabelSelect kind="status" label="Statut" labels={context.statuses} value={task.statusId} onChange={(statusId) => save({ statusId })} />
               <InheritedField {...inherited('PRIORITY')}>
                 <LabelSelect kind="priority" label="Priorité" labels={context.priorities} value={task.priorityId} onChange={(priorityId) => save({ priorityId })} />
@@ -317,7 +347,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               <LabelSelect kind="type" label="Type" labels={context.types} value={task.typeId} onChange={(typeId) => save({ typeId })} />
               <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.people}>
+            <PanelGroup title={PANEL_GROUPS.people} collapsible defaultExpanded={false} summary={summaries.people}>
               <InheritedField {...inherited('ASSIGNEES')}>
                 <AssigneesSelect contributors={context.assignableFor([task.projectId], task.assigneeIds)} value={task.assigneeIds} onChange={(assigneeIds) => save({ assigneeIds })} />
               </InheritedField>
@@ -325,11 +355,11 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
               </InheritedField>
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.workload}>
+            <PanelGroup title={PANEL_GROUPS.workload} collapsible defaultExpanded={false} summary={summaries.workload} invalid={Boolean(text.form.errors.effort)}>
               <EffortInput {...text.form.getInputProps('effort')} />
               <TrackedTime seconds={task.trackedSeconds} on={(entry) => entry.taskIds.includes(task.id)} start={{ projectId: task.projectId, taskIds: [task.id] }} disabled={locked} />
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.periods}>
+            <PanelGroup title={PANEL_GROUPS.periods} collapsible defaultExpanded={false} summary={summaries.periods}>
               <InheritedField {...inherited('MILESTONE')}>
                 <Select
                   label="Jalon"
@@ -365,9 +395,12 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                         En retard.
                       </Text>
                     )}
+                    <TaskDueNotice task={task} />
                   </>
                 }
                 readOnly={locked}
+                excluded={[undefined, taskExcludedDay(task)]}
+                shownBounds={[undefined, task.dueDay !== task.effectiveDeadline ? <RealDueDate day={task.dueDay ?? null} ruleDay={task.effectiveDeadline ?? null} reason={TASK_DUE_SHIFT_REASON} noneLabel={NO_TASK_DUE_DAY} /> : undefined]}
                 value={[task.minDate, task.deadline]}
                 hints={[inheritedDateHint(task, 'minDate'), inheritedDateHint(task, 'deadline')]}
                 inheritance={[inheritedBound('MIN_DATE'), inheritedBound('DEADLINE')]}
@@ -381,8 +414,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <TaskHoursField value={readTaskHours(task.hours)} onChange={(hours) => save({ hours })} readOnly={locked} />
               </InheritedField>
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.alarms}>
-              <TaskRemindersField value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
+            <PanelGroup title={PANEL_GROUPS.alarms} collapsible defaultExpanded={false} summary={summaries.alarms}>
+              <TaskRemindersField value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} noDueDay={Boolean(task.effectiveDeadline) && !task.dueDay} disabled={locked} onChange={(reminders) => save({ reminders })} />
               <SavedCountdownsField target="TASK" id={task.id} value={task.savedCountdownIds} invalidate={[tasksQueryKey]} readOnly={locked} />
             </PanelGroup>
             <PanelGroup>
@@ -390,7 +423,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <TaskLocation task={task} save={save} />
               </InheritedField>
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.resources}>
+            <PanelGroup title={PANEL_GROUPS.resources} collapsible defaultExpanded={false}>
               <TaskLinks task={task} locked={locked} save={saveNow} />
               <DocumentsField
                 value={{ libraryDocumentIds: task.libraryDocumentIds, projectResourceIds: task.projectResourceIds }}

@@ -17,6 +17,7 @@ import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 import { unarchived } from '../../../lib/archive';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { DialogFooter } from '../../../components/dialogs/DialogFooter';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { accountLabel } from '../lib/mail-format';
 import { FoldHeading } from '../../../components/actions/FoldHeading';
@@ -274,52 +275,54 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
       (close) => (
         <Stack gap="md">
           <Text size="sm">Enregistrez le brouillon pour reprendre ce mail plus tard (dossier Brouillons de la boîte), ou supprimez-le : il sera alors perdu définitivement.</Text>
-          <Group justify="flex-end" gap="sm">
-            <ActionButton
-              danger
-              icon={<TrashIcon aria-hidden />}
-              onClick={() => {
-                close();
-                void discard()
-                  .then(() => {
-                    notifySuccess('Brouillon supprimé.');
-                    onDone();
-                  })
-                  .catch(onMutationError)
-                  .finally(() => {
-                    closing.current = false;
-                  });
-              }}
-            >
-              Supprimer le brouillon
-            </ActionButton>
-            <ActionButton
-              icon={<FloppyDiskIcon aria-hidden />}
-              onClick={() => {
-                close();
-                void save()
-                  .then(() => {
-                    notifySuccess('Brouillon enregistré.');
-                    onDone();
-                  })
-                  .catch(onMutationError)
-                  .finally(() => {
-                    closing.current = false;
-                  });
-              }}
-            >
-              Enregistrer le brouillon
-            </ActionButton>
-            <ActionButton
-              priority="secondary"
-              icon={<PencilSimpleLineIcon aria-hidden />}
-              onClick={() => {
-                close();
-              }}
-            >
-              Continuer la rédaction
-            </ActionButton>
-          </Group>
+          <DialogFooter>
+            <Group justify="flex-end" gap="sm">
+              <ActionButton
+                danger
+                icon={<TrashIcon aria-hidden />}
+                onClick={() => {
+                  close();
+                  void discard()
+                    .then(() => {
+                      notifySuccess('Brouillon supprimé.');
+                      onDone();
+                    })
+                    .catch(onMutationError)
+                    .finally(() => {
+                      closing.current = false;
+                    });
+                }}
+              >
+                Supprimer le brouillon
+              </ActionButton>
+              <ActionButton
+                icon={<FloppyDiskIcon aria-hidden />}
+                onClick={() => {
+                  close();
+                  void save()
+                    .then(() => {
+                      notifySuccess('Brouillon enregistré.');
+                      onDone();
+                    })
+                    .catch(onMutationError)
+                    .finally(() => {
+                      closing.current = false;
+                    });
+                }}
+              >
+                Enregistrer le brouillon
+              </ActionButton>
+              <ActionButton
+                priority="secondary"
+                icon={<PencilSimpleLineIcon aria-hidden />}
+                onClick={() => {
+                  close();
+                }}
+              >
+                Continuer la rédaction
+              </ActionButton>
+            </Group>
+          </DialogFooter>
         </Stack>
       ),
       // Closed without an answer: writing goes on.

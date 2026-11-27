@@ -27,6 +27,7 @@ import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SignedAmount } from '../../../components/money/SignedAmount';
 import { shoppingListPath } from '../../../app/pages';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 const listSchema = shoppingListFormSchema;
 
@@ -55,7 +56,7 @@ function ListForm({ list }: { list: ShoppingList }) {
     <form noValidate onSubmit={form.onSubmit(() => undefined)}>
       <Stack gap="md">
         <SaveStatus saving={saving} />
-        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+        <LabelField data-autofocus {...form.getInputProps('label')} />
         {/* The tasks of the list stay offered, even closed. */}
         <BatchMultiSelect
           label="Tâches"

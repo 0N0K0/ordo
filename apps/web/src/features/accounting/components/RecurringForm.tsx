@@ -1,4 +1,4 @@
-import { Fieldset, Stack, Switch, TextInput } from '@mantine/core';
+import { Fieldset, Stack, Switch } from '@mantine/core';
 import { DateField } from '../../../components/inputs/DateField';
 import { DEFAULT_RECURRENCE, recurrenceSchema, recurringInvoiceSchema, type Recurrence } from '@ordo/shared';
 import { parisToday } from '../../../lib/dates';
@@ -7,6 +7,7 @@ import { useRecurringInvoices, useRecurringMutations, type RecurringInvoice } fr
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { RuleField } from '../../../components/recurrence/RuleField';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 interface RecurringFormProps {
   /** Invoice made recurring (new schedule). */
@@ -89,7 +90,7 @@ export function RecurringForm({ documentId, recurring, onDone }: RecurringFormPr
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="md">
           {recurring && !readOnly && <SaveStatus saving={saving} />}
-          <TextInput label="Libellé" required data-autofocus={recurring ? undefined : true} placeholder="Maintenance mensuelle…" {...form.getInputProps('label')} />
+          <LabelField data-autofocus={recurring ? undefined : true} placeholder="Maintenance mensuelle…" {...form.getInputProps('label')} />
           <DateField label="Première facture le" required {...form.getInputProps('startDate')} />
           <RuleField
             required

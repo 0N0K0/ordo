@@ -1,5 +1,5 @@
 import { plural } from '../../../lib/text';
-import { Checkbox, Stack, Text, TextInput } from '@mantine/core';
+import { Checkbox, Stack, Text } from '@mantine/core';
 import { shoppingListFormSchema } from '@ordo/shared';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
 import { shoppingListPath } from '../../../app/pages';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 const schema = shoppingListFormSchema.extend({ baseListIds: z.array(z.string()) });
 type Values = z.input<typeof schema>;
@@ -66,7 +67,7 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+        <LabelField data-autofocus {...form.getInputProps('label')} />
         <BatchMultiSelect
           label="Tâches"
           required={Boolean(projectIds)}

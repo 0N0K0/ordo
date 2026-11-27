@@ -136,11 +136,11 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
   const calendar = calendarRingPage(label);
   const projectOf = (id: string) => projects.find((project) => project.id === id);
 
-  // Tasks: the « Ouverture » and « Échéance » they go by (their own, their parent's, their milestone's, project's or
+  // Tasks: the « Ouverture », « Échéance » and « Horaires » they go by (their own, their parent's, their milestone's, project's or
   // sprint's: `effectiveTask`); their link is their page.
   const reminded = tasks.map((task) => {
     const dates = effectiveTaskOf(inheritance, task.id);
-    return { ...task, closed: false, archived: false, effectiveMinDate: dates?.minDate ?? null, effectiveDeadline: dates?.deadline ?? null, reminders: readReminders(task.reminders) };
+    return { ...task, closed: false, archived: false, effectiveMinDate: dates?.minDate ?? null, effectiveDeadline: dates?.deadline ?? null, hours: dates?.hours ?? null, reminders: readReminders(task.reminders) };
   });
   // Routines: the occurrences their reminders ring for, the times of the day of their current one (the line).
   const routines = routineRows.map((routine) => {

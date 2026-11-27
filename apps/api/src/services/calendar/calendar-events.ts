@@ -59,6 +59,7 @@ import { storedLocation } from '../core/geo';
 import { effectiveTasks } from '../tasks/task-inheritance';
 import { effectiveRoutineOf, loadRoutineInheritance, type StoredInheritingRoutine } from '../routines/routine-inheritance';
 import { linkShownDays, loadLinkShownDays, resolveRoutineLinks, ROUTINE_LINK_SELECT, type RoutineLinkRow } from './routine-link-days';
+import { loadScheduleContext, type ScheduleContext } from '../routines/routine-occurrences';
 
 /** One occurrence of an event in a period, with the fields of its series (or of its own changes). */
 export interface EventOccurrence {
@@ -206,6 +207,22 @@ export async function placeLegacyEventComments(ids: readonly string[]): Promise<
 /** Days the routine links of an event loaded show on (`linkShownDays`), by its list of links: computed once for all its occurrences. */
 const linkDaysOfEvent = new WeakMap<readonly RoutineLinkRow[], (link: RoutineLinkRow) => string>();
 
+/** Without the schedules loaded: the days of the rules only (an occurrence its condition moves back is not seen). */
+const RULE_DAYS_ONLY: ScheduleContext = { slotsOn: () => [] };
+
+/**
+ * Loads once what tells the days the routine links of some events show on (`linkShownDays`: the real due day of each
+ * occurrence, with the schedules of the workspace), before their occurrences are built (`linksWithin`).
+ * @param {readonly { routineLinks: readonly RoutineLinkRow[] }[]} events Events loaded.
+ * @returns {Promise<void>}
+ */
+async function primeLinkDays(events: readonly { routineLinks: readonly RoutineLinkRow[] }[]): Promise<void> {
+  const unknown = events.filter((event) => event.routineLinks.length && !linkDaysOfEvent.has(event.routineLinks));
+  if (!unknown.length) return;
+  const shownDay = linkShownDays(await loadScheduleContext());
+  for (const event of unknown) linkDaysOfEvent.set(event.routineLinks, shownDay);
+}
+
 /**
  * Routines linked on the days of an occurrence: those shown on one of its days (an occurrence moved there and kept
  * apart included, its link stored on the day of its rule).
@@ -215,9 +232,9 @@ const linkDaysOfEvent = new WeakMap<readonly RoutineLinkRow[], (link: RoutineLin
  * @returns {{ routineId: string, date: string, shownDate: string }[]} Links of those days (the day that identifies each occurrence, the day it shows on).
  */
 function linksWithin(links: readonly RoutineLinkRow[], from: string, to: string): { routineId: string; date: string; shownDate: string }[] {
-  // One computation per event loaded, shared by all its occurrences.
+  // One computation per event loaded, shared by all its occurrences (loaded with the schedules: `primeLinkDays`).
   let shownDay = linkDaysOfEvent.get(links);
-  if (!shownDay) linkDaysOfEvent.set(links, (shownDay = linkShownDays()));
+  if (!shownDay) linkDaysOfEvent.set(links, (shownDay = linkShownDays(RULE_DAYS_ONLY)));
   return links
     .map((link) => ({ routineId: link.routineId, date: formatDay(link.date), shownDate: shownDay(link) }))
     .filter((link) => link.shownDate >= from && link.shownDate <= to);
@@ -249,7 +266,7 @@ function heldRoutineLinks(eventId: string, client: Prisma.TransactionClient = pr
 async function routineLinksOn(eventId: string, days: { from: string; to?: string } | null): Promise<Prisma.CalendarEventRoutineWhereInput> {
   if (!days) return { eventId };
   const held = await heldRoutineLinks(eventId);
-  const shownDay = linkShownDays();
+  const shownDay = linkShownDays(await loadScheduleContext());
   const within = held.filter((link) => {
     const day = shownDay(link);
     return day >= days.from && (days.to === undefined || day <= days.to);
@@ -318,7 +335,8 @@ async function shownRoutineLinks(
   event: EventWithRelations,
   client: Prisma.TransactionClient = prisma,
 ): Promise<{ held: (RoutineLinkRow & { id: string; day: string })[]; occurrences: EventOccurrence[] }> {
-  const shownDay = linkShownDays();
+  // The days computed when the event was loaded (`findEventWithRelations`), else with the schedules loaded now.
+  const shownDay = linkDaysOfEvent.get(event.routineLinks) ?? linkShownDays(await loadScheduleContext());
   const held = (await heldRoutineLinks(event.id, client)).map((link) => ({ ...link, day: shownDay(link) }));
   const days = held.map((link) => link.day).sort();
   return { held, occurrences: days.length ? seriesOccurrences(event, days[0], days.at(-1)!) : [] };
@@ -1282,6 +1300,7 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
     },
     include: occurrenceInclude,
   });
+  await primeLinkDays(events);
   const result = events.flatMap((event) => seriesOccurrences(event, from, to));
   return result.sort((a, b) => a.start.getTime() - b.start.getTime());
 }
@@ -1340,8 +1359,10 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
  * @param {string} id Event id.
  * @returns {Promise<EventWithRelations>} Event.
  */
-function findEventWithRelations(id: string): Promise<EventWithRelations> {
-  return orNotFound(prisma.calendarEvent.findUnique({ where: { id }, include: occurrenceInclude }), 'Évènement');
+async function findEventWithRelations(id: string): Promise<EventWithRelations> {
+  const event = await orNotFound(prisma.calendarEvent.findUnique({ where: { id }, include: occurrenceInclude }), 'Évènement');
+  await primeLinkDays([event]);
+  return event;
 }
 
 /**

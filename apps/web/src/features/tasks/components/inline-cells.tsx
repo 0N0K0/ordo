@@ -1,4 +1,4 @@
-import { Select, Text, UnstyledButton } from '@mantine/core';
+import { Select, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
@@ -29,6 +29,10 @@ import { dateRangeProps } from '../../../components/inputs/date-range';
 import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { inheritedDateHint } from '../lib/inherited-dates';
+import { NO_TASK_DUE_DAY, TASK_DUE_SHIFT_REASON, taskExcludedDay } from '../lib/task-due';
+import { RealDueWarning } from '../../../components/feedback/RealDueDate';
+import { realDueTooltip } from '../../../components/feedback/real-due';
+import * as fmt from '../../../lib/format';
 import { LocationCell } from '../../geo/components/LocationCell';
 import { parisToday } from '../../../lib/dates';
 import { taskHoursLines } from '../lib/task-hours-text';
@@ -306,9 +310,11 @@ export function DateCell({ task, column, alert }: DateCellProps) {
   const side = column === startKey ? 'start' : 'end';
   // A single task keeps a valid period (the other bound follows); with several, the API checks every task.
   const bounds = dateRangeProps({ value: [task[startKey], task[endKey]], onChange: ([start, end]) => apply({ [startKey]: start, [endKey]: end }) })[side];
+  // The « Échéance » shown as its real day (the picker opens on the stored one).
+  const due = column === 'deadline' ? { day: task.dueDay ?? null, ruleDay: task.effectiveDeadline ?? null, reason: TASK_DUE_SHIFT_REASON } : null;
   // Without its own « Ouverture » / « Échéance »: the one it goes by (parent, milestone, project, sprint), shown in place (a date typed wins).
-  const inherited = column === 'minDate' || column === 'deadline' ? inheritedDateHint(task, column) : null;
-  return (
+  const inherited = column === 'minDate' ? inheritedDateHint(task, column) : column === 'deadline' && due?.day ? inheritedDateHint({ ...task, effectiveDeadline: due.day }, column) : null;
+  const field = (
     <DateField
       {...stoppedCellField}
       aria-label={fieldLabel(DATE_LABELS[column], task, count)}
@@ -321,8 +327,13 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       popoverProps={{ withinPortal: true }}
       c={alert ? LATE_COLOR : undefined}
       fw={alert ? 600 : undefined}
+      excludedDay={column === 'deadline' ? taskExcludedDay(task) : undefined}
+      valueFormatter={due?.ruleDay && due.day !== due.ruleDay ? () => (due.day ? fmt.weekday(due.day) : '') : undefined}
+      leftSection={due && !due.day && due.ruleDay ? <RealDueWarning label={NO_TASK_DUE_DAY} /> : undefined}
     />
   );
+  const tooltip = due && realDueTooltip(due);
+  return tooltip ? <Tooltip label={tooltip}>{field}</Tooltip> : field;
 }
 
 /**

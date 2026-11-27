@@ -14,16 +14,22 @@ interface TaskRemindersFieldProps extends ItemRemindersProps {
   /** « Ouverture » and « Échéance » of the task (YYYY-MM-DD). */
   minDate: string | null | undefined;
   deadline: string | null | undefined;
+  /** Its « Horaires » allow no day before its « Échéance » (no real one): nothing rings, the field disabled. Optional. */
+  noDueDay?: boolean;
 }
+
+/** Why the reminders of a task with an « Échéance » but no real one are disabled. */
+export const NO_DUE_DAY_REMINDERS = 'Aucun jour possible selon ses horaires : rien ne sonnera.';
 
 /**
  * « Rappels » of a task (its creation form, its panel, the panel of its reminders): times of the day, rung every day
  * from its « Ouverture » to its « Échéance » (the « Échéance » day only without « Ouverture »), or once some days
- * before its « Échéance » (« N jours avant, à HH:MM »); disabled without « Échéance ».
+ * before its « Échéance » (« N jours avant, à HH:MM »); disabled without « Échéance », or without a real one
+ * (`noDueDay`: `NO_DUE_DAY_REMINDERS`).
  * @param {TaskRemindersFieldProps} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function TaskRemindersField({ value, minDate, deadline, onChange, error, disabled = false }: TaskRemindersFieldProps) {
+export function TaskRemindersField({ value, minDate, deadline, noDueDay = false, onChange, error, disabled = false }: TaskRemindersFieldProps) {
   return (
     <RemindersSelect
       kinds={DAY_REMINDER_KINDS}
@@ -33,11 +39,13 @@ export function TaskRemindersField({ value, minDate, deadline, onChange, error, 
       description={
         !deadline
           ? 'Donnez-lui une échéance pour recevoir des rappels.'
-          : minDate
+          : noDueDay
+            ? NO_DUE_DAY_REMINDERS
+            : minDate
             ? 'Chaque jour de l’ouverture à l’échéance, à ces heures ; ou quelques jours avant l’échéance.'
             : 'Le jour de l’échéance, à ces heures ; ou quelques jours avant.'
       }
-      disabled={disabled || !deadline}
+      disabled={disabled || !deadline || noDueDay}
       value={value}
       onChange={onChange}
       error={error}

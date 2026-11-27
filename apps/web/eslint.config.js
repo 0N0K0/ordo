@@ -1109,7 +1109,7 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser readOnlyCells(columns, row) (components/data-table/table/data-table) : le texte de chaque colonne, la cellule d’une colonne commune.',
   },
   {
-    selector: "BinaryExpression[operator='<'][left.property.name=/^(deadline|effectiveDeadline)$/], BinaryExpression[operator='<'][left.name=/^(deadline|effectiveDeadline)$/]",
+    selector: "BinaryExpression[operator='<'][left.property.name=/^(deadline|effectiveDeadline|dueDay)$/], BinaryExpression[operator='<'][left.name=/^(deadline|effectiveDeadline|dueDay)$/]",
     message: 'Utiliser isTaskOverdue(task, today) (@ordo/shared) : une seule règle de retard.',
   },
   {
@@ -1219,6 +1219,20 @@ const RESTRICTED_SYNTAX = [
     selector: "VariableDeclarator[id.name=/^ME(_KEY)?$/][init.type='Literal']",
     message: 'Utiliser ME_KEY (components/people/people-keys) : la valeur de « Moi ».',
   },
+  {
+    selector: "JSXOpeningElement[name.name='TextInput']:has(> JSXAttribute[name.name='label'][value.value='Libellé'])",
+    message: 'Utiliser LabelField (components/inputs/LabelField) : le libellé requis, fixe en haut du panneau au défilement.',
+  },
+  {
+    selector:
+      "CallExpression[callee.name=/^(openModal|answerInModal)$/] JSXElement[openingElement.name.name!='DialogFooter'] > JSXElement > JSXOpeningElement[name.name='Group']:has(> JSXAttribute[name.name='justify'][value.value='flex-end'])",
+    message: 'Utiliser FormActions ou DestructiveActions, sinon DialogFooter (components/dialogs) : les boutons d’une modale dans son pied, toujours visible.',
+  },
+  {
+    selector:
+      "JSXElement[openingElement.name.name='Modal'] JSXElement[openingElement.name.name!='DialogFooter'] > JSXElement > JSXOpeningElement[name.name='Group']:has(> JSXAttribute[name.name='justify'][value.value='flex-end'])",
+    message: 'Utiliser FormActions ou DestructiveActions, sinon DialogFooter (components/dialogs) : les boutons d’une modale dans son pied, toujours visible.',
+  },
   // Holes of the rules.
   {
     selector: "JSXElement[openingElement.name.name=/^(Anchor|UnstyledButton|Button)$/] ~ JSXElement[openingElement.name.name='Collapse']",
@@ -1283,6 +1297,16 @@ const RESTRICTED_SYNTAX = [
     // The working hours count neither the éphémérides nor the archived créneaux (as the conditions).
     selector: "CallExpression[callee.name='scheduleRules'] > CallExpression.arguments[callee.name='slotSchedules']",
     message: 'Utiliser useWorkingHours (features/calendar/api) : les heures de travail, sans éphémérides ni créneaux archivés.',
+  },
+  {
+    // Where the slots of a kind show (bar, background, thin line) is decided once, for the agenda and its PDF.
+    selector: "BinaryExpression > MemberExpression[property.name=/^(dayDisplay|monthDisplay)$/]",
+    message: 'Utiliser slotPlacements (@ordo/shared) : les places des créneaux selon l’affichage de leur type, les mêmes pour l’agenda et son PDF.',
+  },
+  {
+    // How a slot looks, on screen and in the PDF, is chosen once for both.
+    selector: "Property[key.name='print'] > ObjectExpression, Property[key.name='print'] > TSSatisfiesExpression > ObjectExpression",
+    message: 'Utiliser slotLook (features/calendar/lib/calendar-events) : l’aspect d’un créneau à l’écran et dans le PDF, choisi au même endroit.',
   },
   {
     // The schedules a page shows leave out those archived, or of an archived kind, in their workspace: scheduleSources says it.

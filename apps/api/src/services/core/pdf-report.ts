@@ -140,11 +140,25 @@ export async function issuerName(): Promise<string> {
  * company (or the name of the company or of the workspace) and the title at the top, the date of the export, the
  * issuer and the page number at the bottom. The content goes between `top` and `bottom`; pages added keep these
  * margins.
- * @param {{ title: string, filename?: string, autoFirstPage?: boolean }} options Title (header and PDF properties), name
- * of the file without its extension (default: the title), and whether the first page is added at once (default true).
+ * @param {{ title: string, pageTitles?: readonly string[], filename?: string, autoFirstPage?: boolean, singlePageNumber?: boolean }} options
+ * Title (header and PDF properties), titles in the header of each page instead (a page without one: the title), name
+ * of the file without its extension (default: the title), whether the first page is added at once (default true), and
+ * whether a document of a single page shows « Page 1 / 1 » (default true).
  * @returns {Promise<Report>} Document, content area and finisher.
  */
-export async function startReport({ title, filename = title, autoFirstPage = true }: { title: string; filename?: string; autoFirstPage?: boolean }): Promise<Report> {
+export async function startReport({
+  title,
+  pageTitles = [],
+  filename = title,
+  autoFirstPage = true,
+  singlePageNumber = true,
+}: {
+  title: string;
+  pageTitles?: readonly string[];
+  filename?: string;
+  autoFirstPage?: boolean;
+  singlePageNumber?: boolean;
+}): Promise<Report> {
   const from = await issuer();
   const exportedAt = exportFormat.format(new Date());
   const top = REPORT_MARGIN + HEADER_HEIGHT;
@@ -192,7 +206,7 @@ export async function startReport({ title, filename = title, autoFirstPage = tru
         .font('regular')
         .fontSize(8.5)
         .fillColor(COLORS.muted)
-        .text(title, titleLeft, headerTop + 8, { width: REPORT_MARGIN + width - titleLeft, align: 'right', lineBreak: false, ellipsis: true });
+        .text(pageTitles[index - range.start] ?? title, titleLeft, headerTop + 8, { width: REPORT_MARGIN + width - titleLeft, align: 'right', lineBreak: false, ellipsis: true });
       doc
         .moveTo(REPORT_MARGIN, headerTop + 28)
         .lineTo(REPORT_MARGIN + width, headerTop + 28)
@@ -209,7 +223,7 @@ export async function startReport({ title, filename = title, autoFirstPage = tru
         .stroke();
       doc.font('regular').fontSize(7).fillColor(COLORS.muted);
       doc.text(`${from.name} · Exporté le ${exportedAt}`, REPORT_MARGIN, footerTop, { width: width * 0.7, lineBreak: false, ellipsis: true });
-      doc.text(`Page ${index + 1} / ${range.count}`, REPORT_MARGIN + width * 0.7, footerTop, { width: width * 0.3, align: 'right', lineBreak: false });
+      if (singlePageNumber || range.count > 1) doc.text(`Page ${index + 1} / ${range.count}`, REPORT_MARGIN + width * 0.7, footerTop, { width: width * 0.3, align: 'right', lineBreak: false });
     }
     return { filename: fileName(filename, 'pdf'), content: await end() };
   };

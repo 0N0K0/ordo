@@ -10,9 +10,9 @@ import {
   readBirthDate,
   readSlotCondition,
   readTaskHours,
-  routineCountsOn,
   routineDayEntries,
   routineGroupStatesOn,
+  routineSlotInGroupOn,
   taskDayReasons,
   type MyDayItem,
   type MyDayLayout,
@@ -159,8 +159,9 @@ function routineWindows(slot: RoutineSlot): TimeWindow[] | null {
  * (`myDayRows`):
  * - tasks: those `taskDayReasons` gives a reason that day (their times of that day loaded on a past day, for « en
  *   cours »), placed by their windows (`itemWindowsOn`: their hours, their condition, the slots « Indisponible »);
- * - routines: each time of the day of an occurrence open that day (done: on the day it was done; on a past day, not
- *   done: « non faite »), cancelled on its due day, and today the late ones (their current occurrence past due)
+ * - routines: each time of the day of an occurrence open that day, within the hours its condition allows that day (none
+ *   that day: not in the day) (done: on the day it was done; on a past day, not done: « non faite »), cancelled on its
+ *   due day, and today the late ones (their current occurrence past due)
  *   (`routineDayEntries`); a parent routine (a group) as the head of its sub-routines of the day, its progress read from
  *   those that count that day (`routineGroupStatesOn`: open that day not done yet, or done that day), present only when
  *   one does; archived ones left out;
@@ -302,8 +303,9 @@ export function useMyDay(day: string): MyDay {
         doneAt: parisTime(slot.doneAt),
         cancelled: occurrence.cancelled,
         eventKeys: linkedKeys(dayOccurrences, (event) => event.routineLinks.some((link) => link.routineId === routine.id && link.date === occurrence.date)),
-        // Under its parent only when it counts for it that day (open that day not done yet, or done that day); else on its own.
-        groupKey: !late && routineCountsOn(occurrence, day) ? groupKeyOf(routine) : undefined,
+        // Under its parent when it counts for it that day (open that day not done yet, or done that day), an optional one
+        // always; else on its own.
+        groupKey: !late && routineSlotInGroupOn(occurrence, slot, day) ? groupKeyOf(routine) : undefined,
       });
     }
     // Tasks: every task of the workspace with a reason that day, kept by the filter of the tasks.
@@ -315,7 +317,7 @@ export function useMyDay(day: string): MyDay {
         {
           startDate: task.startDate ?? null,
           endDate: task.endDate ?? null,
-          effectiveDeadline: task.effectiveDeadline ?? null,
+          dueDay: task.dueDay ?? null,
           effectiveMinDate: task.effectiveMinDate ?? null,
           statusCategory,
           closedAt: task.closed ? (task.closedAt ?? null) : null,

@@ -118,6 +118,7 @@ graphql(`
     minDate
     effectiveDeadline
     effectiveMinDate
+    dueDay
     deadlineSource
     minDateSource
     inheritedFields

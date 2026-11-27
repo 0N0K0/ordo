@@ -84,9 +84,10 @@ export type CalendarFormValues = z.infer<typeof calendarFormSchema>;
  * draws them: `event` filled in its color (events, subscribed calendars, birthdays), `task` light with a stripe in its
  * color (tasks, routines), `time` light (tracked times), `travel` faint, its text dimmed (travel times), `slot` filled
  * in its color with a dark text (bars of créneaux and éphémérides, slots being changed), `background` behind the
- * other items (hours or days of créneaux and éphémérides).
+ * other items (hours or days of créneaux and éphémérides), `line` a thin line in its color (on the left of the hours of
+ * créneaux and éphémérides in the week and the day, at the bottom of their days in the month).
  */
-export const CALENDAR_PDF_KINDS = ['event', 'task', 'time', 'travel', 'slot', 'background'] as const;
+export const CALENDAR_PDF_KINDS = ['event', 'task', 'time', 'travel', 'slot', 'background', 'line'] as const;
 export type CalendarPdfKind = (typeof CALENDAR_PDF_KINDS)[number];
 
 /**

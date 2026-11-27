@@ -25,6 +25,7 @@ import { formRange } from '../../../components/inputs/date-range';
 import { PeriodField } from '../../../components/inputs/PeriodField';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 type Delivery = ShoppingList['deliveries'][number];
 
@@ -85,8 +86,8 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         {delivery && <SaveStatus saving={saving} />}
-        <TextInput
-          label="Libellé"
+        <LabelField
+          required={false}
           placeholder="Colis 1, Drive, Pharmacie…"
           data-autofocus={delivery ? undefined : true}
           value={values.label ?? ''}

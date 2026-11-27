@@ -149,7 +149,7 @@ export function ReminderItemPanel({ reminder: clicked, close }: { reminder: Upco
         </NoticeAlert>
       )}
       {reminder.kind === 'task' ? (
-        <TaskRemindersField value={value} minDate={reminder.item.effectiveMinDate} deadline={reminder.item.effectiveDeadline} onChange={change} disabled={missing} />
+        <TaskRemindersField value={value} minDate={reminder.item.effectiveMinDate} deadline={reminder.item.effectiveDeadline} noDueDay={reminder.item.dueDay === null} onChange={change} disabled={missing} />
       ) : reminder.kind === 'routine' ? (
         <RoutineRemindersField timed={routineHasHoursOf(reminder.item)} value={value} onChange={change} disabled={missing} />
       ) : (

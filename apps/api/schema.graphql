@@ -3692,11 +3692,11 @@ type Query {
   routineChecks(from: Date!, to: Date!): [RoutineCheck!]!
 
   """
-  Occurrences of the routines in a period (both days included, 100 days at most), with their times of the day ticked (and when): the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged). With doneInPeriod, also those outside the period with a time of the day done (ticked at) within it, in Paris.
+  Occurrences of the routines in a period (both days included, 100 days at most), with their times of the day ticked (and when): the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged). With doneInPeriod, also those outside the period with a time of the day done (ticked at) within it, in Paris; with doneInPeriod on a single day, their times of the day are kept to the hours their condition allows that day (those without any, not ticked, with no window: neither listed nor counted that day).
   """
   routineOccurrences(
     """
-    Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the times of the day of a day: « Ma journée », the badge of the menu).
+    Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the times of the day of a day: « Ma journée », the badge of the menu); on a single day, the times of the day of each occurrence are those that day allows.
     """
     doneInPeriod: Boolean
     from: Date!
@@ -4019,9 +4019,14 @@ type Routine {
   currentDate: Date
 
   """
-  Due day of the current occurrence (currentDate unless moved and kept apart).
+  Real due day of the current occurrence: the last day of it that its condition allows a moment on (its due day, currentDate unless moved and kept apart, when that day does).
   """
   currentDueDate: Date
+
+  """
+  Due day of the current occurrence by its rule (currentDate unless moved and kept apart), before its condition moves it back.
+  """
+  currentRuleDueDate: Date
 
   """« Temps morts »: waits a timer is launched for from an occurrence."""
   deadTimes: [DeadTime!]!
@@ -4092,8 +4097,15 @@ type Routine {
   """First occurrence after today, by the day that identifies it."""
   nextDate: Date
 
-  """Due day of the next occurrence (nextDate unless moved and kept apart)."""
+  """
+  Real due day of the next occurrence (the last day of it that its condition allows a moment on; nextDate unless moved and kept apart).
+  """
   nextDueDate: Date
+
+  """
+  Due day of the next occurrence by its rule (nextDate unless moved and kept apart), before its condition moves it back.
+  """
+  nextRuleDueDate: Date
 
   """
   « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.
@@ -4416,12 +4428,19 @@ type RoutineOccurrence {
   """
   date: Date!
 
-  """Due day (its last day)."""
+  """
+  Real due day: the last day of it that its condition allows a moment on (its last day when that day does).
+  """
   dueDate: Date!
 
   """Day of the rule it was moved from (an exception)."""
   movedFrom: Date
   routineId: ID!
+
+  """
+  Due day by its rule (or the day it was moved to), before its condition moves it back: the day an undo of a move goes back to.
+  """
+  ruleDueDate: Date!
 
   """
   Day it shows on: its due day once past, today while it runs, its first day before.
@@ -4529,16 +4548,26 @@ type RoutineReminderOccurrence {
   """
   date: Date!
 
-  """
-  Its first day (« Ouverture »): the day of its reminders « À HH:MM » (the due day `date`: those from the end).
-  """
+  """Its first day (« Ouverture »)."""
   day: Date!
 
-  """Due day of the occurrence."""
+  """
+  Real due day of the occurrence (the last day of its opening that its condition allows a moment on): the day of its reminders from the end.
+  """
   dueDate: Date!
 
   """
-  Its times of the day not ticked, with their hours (the moments its reminders « N min avant » count from: `routineSlotAnchors`).
+  First day of its opening its condition allows one of its times of the day not ticked on (the first day « Ma journée » shows it): the day its reminders counted from the opening ring on or count from (« À HH:MM », « N jours avant », « avant » the start or the end of the opening; the due day `date`: those from the end); null: none (those do not ring).
+  """
+  firstDay: Date
+
+  """
+  Its times of the day not ticked allowed on `firstDay`, with their hours that day (the moments its reminders « N min avant » the start or the end of the opening count from).
+  """
+  openingSlots: [RoutineReminderSlot!]!
+
+  """
+  Its times of the day not ticked allowed on its real due day, with their hours that day (the moments its reminders « N min avant » the due day count from: `routineSlotAnchors`).
   """
   slots: [RoutineReminderSlot!]!
 }
@@ -4579,7 +4608,7 @@ type RoutineSlot {
   optional: Boolean!
 
   """
-  Windows it can be done in that day, [{ fromTime, dueTime }] (several where slots cut it).
+  Windows it can be done in that day, [{ fromTime, dueTime }] (several where slots cut it; none: its condition allows none that day, in the occurrences of a single day with doneInPeriod).
   """
   windows: JSON!
 }
@@ -5435,11 +5464,16 @@ type Task {
   deadlineSource: InheritSource
   description: String
 
+  """
+  Real « Échéance »: the one it goes by (`effectiveDeadline`), moved back to the last day its « Horaires » allow (`taskDueDay`); null without « Échéance », or when no day within a year before it is allowed. What overdue, « Ma journée », the agenda, reminders, sorts and filters read; the stored one stays (GitHub, inheritance).
+  """
+  dueDay: Date
+
   """Values it goes by."""
   effective: TaskEffective!
 
   """
-  « Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else its parent’s, else its milestone’s, else the end of its first sprint.
+  « Échéance » the task goes by (stored or inherited; its real one: `dueDay`): its own, else its parent’s, else its milestone’s, else the end of its first sprint.
   """
   effectiveDeadline: Date
 
