@@ -10,7 +10,6 @@ import { RecurrenceEditor } from './RecurrenceEditor';
 import { useCaseFolds, useCaseKeys } from './use-case-folds';
 import { arrayMove } from '@dnd-kit/sortable';
 import { SortableArea } from '../dnd/sortable';
-import { PeriodField } from '../inputs/PeriodField';
 import { DateField } from '../inputs/DateField';
 
 /** Times of the occurrences of what repeats (an event's hours, a schedule's slots, a routine's moments, an alarm's time). */
@@ -61,8 +60,9 @@ interface RepetitionEditorProps<T> {
   /** Settings shown under every mode (slots excluded…). Optional. */
   footer?: ReactNode;
   /**
-   * Day its rhythm counts from asked of each case that needs one (« À partir du », its `anchor`), required: `needed`
-   * tells which cases, `message` is the error while it is missing. Optional. Default = none (rhythms count from `start`).
+   * « Début » required of each case that needs one (its rhythm counts from it, its `start`), one rule too: `needed`
+   * tells which cases, `message` is the error while it is missing. Optional. Default = none (asked of cases only, and
+   * optional: without it, rhythms count from `start`).
    */
   caseStart?: CaseStart<T>;
   /**
@@ -72,14 +72,15 @@ interface RepetitionEditorProps<T> {
   onCommit?: () => void;
 }
 
-/** Day a case's rhythm counts from, asked of the cases that need one. */
+/** « Début » of a case (the day its rhythm counts from), required of the cases that need one. */
 export interface CaseStart<T> {
   needed: (item: RepetitionCase<T>) => boolean;
   message: string;
 }
 
 /**
- * Case settings: its period (cases only), its rule, how long each occurrence lasts and its times.
+ * Case settings: its « Début » (cases only, or when required), its rule with its « Fin », how long each occurrence
+ * lasts and its times.
  * @param {object} props Component props.
  * @returns {JSX.Element} Settings.
  */
@@ -88,52 +89,39 @@ function CaseFields<T>({
   onChange,
   start,
   index,
-  withPeriod,
+  withStart,
   props,
 }: {
   item: RepetitionCase<T>;
   onChange: (changes: Partial<RepetitionCase<T>>) => void;
   start: string;
   index: number;
-  withPeriod: boolean;
+  withStart: boolean;
   props: RepetitionEditorProps<T>;
 }) {
-  const asksStart = props.caseStart?.needed(item) ?? false;
+  const required = props.caseStart?.needed(item) ?? false;
   // Its error once the field is left (validated on blur, then on every change).
   const [startLeft, setStartLeft] = useState(false);
-  // Its rhythm counts from the day chosen when one is asked.
-  const ruleStart = asksStart && item.anchor ? item.anchor : item.since && item.since > start ? item.since : start;
-  // Its rhythm counts from its first day.
+  // Its rhythm counts from its « Début », else from the first day of what repeats.
+  const ruleStart = item.start ?? start;
   return (
     <Stack gap="sm">
-      {withPeriod && (
-        <PeriodField
-          size="xs"
-          w={380}
-          label="Période"
-          placeholder="Toujours"
-          value={[item.since, item.until]}
-          onChange={([since, until]) => {
-            onChange({ since, until, ...(since !== item.since ? { anchor: null } : {}) });
-            props.onCommit?.();
-          }}
-        />
-      )}
-      {asksStart && (
+      {(withStart || required) && (
         <DateField
           size="xs"
           w={190}
-          label="À partir du"
-          required
-          placeholder="À choisir"
-          value={item.anchor}
-          onChange={(anchor) => {
-            onChange({ anchor });
+          label="Début"
+          required={required}
+          placeholder={required ? 'À choisir' : 'Dès le début'}
+          clearable={!required}
+          value={item.start}
+          onChange={(day) => {
+            onChange({ start: day });
             props.onCommit?.();
           }}
           onBlur={() => setStartLeft(true)}
           onDropdownClose={() => setStartLeft(true)}
-          error={startLeft && !item.anchor ? props.caseStart?.message : undefined}
+          error={required && startLeft && !item.start ? props.caseStart?.message : undefined}
         />
       )}
       <RecurrenceEditor
@@ -141,7 +129,7 @@ function CaseFields<T>({
         onChange={(rule) => onChange({ rule })}
         start={ruleStart}
         weekly={props.weekly}
-        allowNone={!withPeriod && props.allowNone !== false}
+        allowNone={!withStart && props.allowNone !== false}
         onCommit={props.onCommit}
       />
       {props.durations && props.durations.length > 0 && item.rule && (
@@ -154,7 +142,7 @@ function CaseFields<T>({
 
 /**
  * Every setting of a repetition: its mode (one rule, cases, or another), then the rule, the length of each occurrence
- * and the times of each case (and the period of each one with cases), as what repeats allows. Each change is given at
+ * and the times of each case (and the « Début » of each one with cases), as what repeats allows. Each change is given at
  * once (`onChange`); `onCommit` follows a choice at once (a case added, removed or moved too), and a number once it is
  * left.
  * @template T
@@ -197,7 +185,7 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
    * New case, every week from the first day.
    * @returns {RepetitionCase<T>} Case.
    */
-  const newCase = (): RepetitionCase<T> => ({ since: null, until: null, anchor: null, rule: withRuleValues(DEFAULT_RECURRENCE, start), times: (times?.empty() ?? null) as T });
+  const newCase = (): RepetitionCase<T> => ({ start: null, rule: withRuleValues(DEFAULT_RECURRENCE, start), times: (times?.empty() ?? null) as T });
   const offered = [
     ...(multiple || modes.length ? [{ value: 'RULE', label: 'Une règle' }] : []),
     ...(multiple ? [{ value: 'CASES', label: 'Plusieurs cas' }] : []),
@@ -213,7 +201,8 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
           onChange={(value) => {
             // Cases keep the rule as their first one; back to one rule keeps the first case.
             if (value === 'CASES' && !cases.length) give([newCase()]);
-            if (value === 'RULE') give(cases.length ? [{ ...cases[0], since: null, until: null }] : [newCase()]);
+            // A « Début » required stays.
+            if (value === 'RULE') give(cases.length ? [{ ...cases[0], start: props.caseStart?.needed(cases[0]) ? cases[0].start : null }] : [newCase()]);
             onModeChange(value);
             onCommit?.();
           }}
@@ -221,7 +210,7 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
         />
       )}
       {custom?.render()}
-      {mode === 'RULE' && cases[0] && <CaseFields item={cases[0]} onChange={(changes) => update(0, changes)} start={start} index={0} withPeriod={false} props={props} />}
+      {mode === 'RULE' && cases[0] && <CaseFields item={cases[0]} onChange={(changes) => update(0, changes)} start={start} index={0} withStart={false} props={props} />}
       {mode === 'CASES' && (
         <Stack gap="xs">
           <SortableArea ids={keys.list} layout="list" onMove={handleMove}>
@@ -245,12 +234,12 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
                     : undefined
                 }
               >
-                <CaseFields item={item} onChange={(changes) => update(index, changes)} start={start} index={index} withPeriod props={props} />
+                <CaseFields item={item} onChange={(changes) => update(index, changes)} start={start} index={index} withStart props={props} />
               </CaseCard>
             ))}
           </SortableArea>
           <Text size="xs" c="dimmed">
-            Chaque cas a sa période, ses jours et ses horaires ; un jour pris par plusieurs cas suit le premier (glissez-les pour les réordonner).
+            Chaque cas a son début, ses jours, sa fin et ses horaires ; un jour pris par plusieurs cas suit le premier (glissez-les pour les réordonner).
           </Text>
           <AddItemButton
             onClick={() => {
@@ -284,7 +273,7 @@ export function RuleEditor({ rule, onChange, ...props }: RuleEditorProps) {
       {...props}
       mode="RULE"
       onModeChange={() => undefined}
-      cases={[{ since: null, until: null, anchor: null, rule, times: null }]}
+      cases={[{ start: null, rule, times: null }]}
       onChange={(cases) => onChange(cases[0]?.rule ?? null)}
     />
   );

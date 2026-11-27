@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema, UserError } from '../core/rules';
 import { addDays, daysBetween, monthOfDay, weekdayOfDate, yearOfDay } from '../dates/days';
 import { DEFAULT_RECURRENCE, isLastDayRule, movedWeekdays, ONE_DAY, proposedMovedRule, RuleChoiceRequired, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
-import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
+import { caseFrom, caseSpanOn, caseSpans, caseUntil, periodCase, repetitionCaseSchema, storedRepetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
 import { monthIndex, shiftMonth } from '../dates/months';
@@ -90,11 +90,21 @@ const scheduleTimesSchema = z.object({
 });
 export type ScheduleTimes = z.infer<typeof scheduleTimesSchema>;
 
-/** A case of a schedule: its period, its rule (with how long each occurrence lasts) and its hours. */
-const scheduleRepetitionCaseSchema = repetitionCaseSchema(scheduleTimesSchema).superRefine((item, context) => {
+/**
+ * Checks a case of a schedule: some weekdays when weekly, and its hours.
+ * @param {{ rule: Recurrence | null, times: ScheduleTimes }} item Case.
+ * @param {z.RefinementCtx} context Refinement context.
+ * @returns {void}
+ */
+function refineScheduleCase(item: { rule: Recurrence | null; times: ScheduleTimes }, context: z.RefinementCtx): void {
   if (item.rule?.frequency === 'WEEKLY' && !item.rule.weekdays.length) context.addIssue({ code: 'custom', path: ['rule', 'weekdays'], message: 'Choisissez au moins un jour.' });
   refineScheduleTimes(item.times, context, ['times']);
-});
+}
+
+/** A case of a schedule: its « Début », its rule (with its end and how long each occurrence lasts) and its hours. */
+const scheduleRepetitionCaseSchema = repetitionCaseSchema(scheduleTimesSchema).superRefine(refineScheduleCase);
+/** The same as stored, maybe in its former form (a period, an anchor), read by `readScheduleCases`. */
+const storedScheduleCaseSchema = storedRepetitionCaseSchema(scheduleTimesSchema).superRefine(refineScheduleCase);
 export type ScheduleCase = RepetitionCase<ScheduleTimes>;
 
 /** Cases a period may have (`scheduleCasesSchema`). */
@@ -162,7 +172,7 @@ export interface WorkScheduleRule {
  * Case of every day, the whole day: that of a new éphéméride (holidays: every day of its period).
  * @returns {ScheduleCase} Case.
  */
-export const wholeDaysCase = (): ScheduleCase => ({ since: null, until: null, anchor: null, rule: { ...DEFAULT_RECURRENCE, frequency: 'DAILY' }, times: { allDay: true, ranges: [] } });
+export const wholeDaysCase = (): ScheduleCase => ({ start: null, rule: { ...DEFAULT_RECURRENCE, frequency: 'DAILY' }, times: { allDay: true, ranges: [] } });
 
 /** Name of an éphéméride without kind (it has no default kind, unlike the créneaux: « Travail »). */
 export const UNTYPED_EPHEMERIS_LABEL = 'Éphéméride';
@@ -262,9 +272,9 @@ function caseAnchor(item: LegacyScheduleCase, periodStart: string): string {
  * period and hours).
  * @param {LegacyScheduleCase} item Case.
  * @param {string} periodStart First day of its period (rhythm start without `from`).
- * @returns {ScheduleCase} Case.
+ * @returns {ScheduleCase | null} Case, none when it has no occurrence left (`periodCase`).
  */
-function scheduleCaseRepetition(item: LegacyScheduleCase, periodStart: string): ScheduleCase {
+function scheduleCaseRepetition(item: LegacyScheduleCase, periodStart: string): ScheduleCase | null {
   const base = { ...DEFAULT_RECURRENCE, interval: item.every };
   const days: Duration = { ...ONE_DAY, count: item.days };
   const toDay = (month: number | null): Duration => ({ ...ONE_DAY, unit: 'TO_DAY', day: item.toDay, month });
@@ -297,7 +307,8 @@ function scheduleCaseRepetition(item: LegacyScheduleCase, periodStart: string): 
       }
       break;
   }
-  return { since: item.since, until: item.until, anchor: caseAnchor(item, periodStart), rule: { ...rule, duration }, times: { allDay: item.allDay, ranges: item.ranges } };
+  // eslint-disable-next-line no-restricted-syntax -- a case of the former form, read through periodCase.
+  return periodCase({ start: null, since: item.since, until: item.until, anchor: caseAnchor(item, periodStart), rule: { ...rule, duration }, times: { allDay: item.allDay, ranges: item.ranges } }, periodStart);
 }
 
 /**
@@ -361,7 +372,7 @@ export function plannedSlots(schedules: readonly WorkScheduleRule[], from: strin
   return result.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
 }
 
-/** First day the rhythm of cases out of any schedule (the « Horaires » of a task) counts from when they have no anchor: a Monday. */
+/** First day the rhythm of cases out of any schedule (the « Horaires » of a task) counts from when they have no « Début »: a Monday. */
 export const OWN_CASES_START = '2000-01-03';
 
 /**
@@ -444,7 +455,8 @@ export function withinSlots(slots: readonly PlannedSlot[], date: string, start: 
 }
 
 /**
- * Cases stored or received (JSON), validated (invalid ones left out); those of the former form converted.
+ * Cases stored or received (JSON), validated (invalid ones left out); those of the former forms converted (a period
+ * and an anchor: `periodCase`; written in the current form on the next save).
  * @param {unknown} value Cases.
  * @param {string} periodStart First day of their period (the rhythms of the former form count from it).
  * @returns {ScheduleCase[]} Cases.
@@ -454,10 +466,12 @@ export function readScheduleCases(value: unknown, periodStart: string): Schedule
   return value.flatMap((item: unknown) => {
     if (item && typeof item === 'object' && 'pattern' in item) {
       const legacy = scheduleCaseSchema.safeParse(item);
-      return legacy.success ? [scheduleCaseRepetition(legacy.data, periodStart)] : [];
+      const converted = legacy.success && scheduleCaseRepetition(legacy.data, periodStart);
+      return converted ? [converted] : [];
     }
-    const parsed = scheduleRepetitionCaseSchema.safeParse(item);
-    return parsed.success ? [parsed.data as ScheduleCase] : [];
+    const parsed = storedScheduleCaseSchema.safeParse(item);
+    const read = parsed.success && periodCase(parsed.data, periodStart);
+    return read ? [read] : [];
   });
 }
 
@@ -500,8 +514,8 @@ export function fromLegacySchedule(legacy: { startDate: string; intervalWeeks: n
     byHours.set(key, group);
   }
   return {
-    cases: [...byHours.values()].map((group): ScheduleCase =>
-      scheduleCaseRepetition(
+    cases: [...byHours.values()].flatMap((group) => {
+      const converted = scheduleCaseRepetition(
         {
           pattern: 'WEEKLY' as const,
           weekdays: group.weekdays,
@@ -523,8 +537,9 @@ export function fromLegacySchedule(legacy: { startDate: string; intervalWeeks: n
           until: null,
         },
         legacy.startDate,
-      ),
-    ),
+      );
+      return converted ? [converted] : [];
+    }),
     exceptions: (pauses.success ? pauses.data : []).map((pause) => ({ from: pause.from, to: pause.to, label: pause.label, cases: [] })),
   };
 }
@@ -703,9 +718,7 @@ type ScheduleSlotScope = 'THIS' | 'FOLLOWING' | 'ALL';
  * @returns {ScheduleCase} Case.
  */
 const singleSlotCase = (slot: ScheduleSlotTime): ScheduleCase => ({
-  since: null,
-  until: null,
-  anchor: null,
+  start: null,
   rule: { ...DEFAULT_RECURRENCE, frequency: 'DAILY' },
   times: { allDay: slot.allDay, ranges: slot.allDay ? [] : [{ start: slot.start, end: slot.end }] },
 });
@@ -749,34 +762,48 @@ const sameHours = (a: ScheduleSlotTime, b: ScheduleSlotTime) => a.allDay === b.a
  * @param {string} periodStart Start of the period of the case.
  * @param {string} date Day of the slot.
  * @param {ScheduleSlotTime} change New day and hours.
- * @param {string | null} since First day the case applies.
+ * @param {string | null} since First day its occurrences are kept (a case split at a day); none: all of them.
  * @param {Recurrence | null} chosen New rule chosen for a rule on the last day of the month.
- * @returns {ScheduleCase} Case.
+ * @returns {ScheduleCase | null} Case, none without occurrence from `since`.
  */
-function movedCase(item: ScheduleCase, periodStart: string, date: string, change: ScheduleSlotTime, since: string | null, chosen: Recurrence | null): ScheduleCase {
-  const to = change.date;
-  const result: ScheduleCase = { ...item, times: { allDay: change.allDay, ranges: change.allDay ? [] : [{ start: change.start, end: change.end }] }, since };
-  if (to === date || !item.rule) return result;
-  const rule = item.rule;
-  // The rhythm moves with the slot: by as many days (days, weeks), or months (months, years).
-  const base = item.anchor ?? item.since ?? periodStart;
-  const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
-  const anchor = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
-  if (rule.frequency === 'WEEKLY') {
-    // Moved into another week: its weeks go with it (even or odd weeks swapped, every n weeks from its week moved).
-    const moved = movedWeekdays(rule, base, [weekdayOf(date)], daysBetween(date, to));
-    return { ...result, anchor: moved.anchor, rule: moved.rule };
-  }
-  if (rule.frequency === 'DAILY') return { ...result, anchor };
-  if (isLastDayRule(rule)) {
-    if (!chosen) throw new RuleChoiceRequired(proposedMovedRule(rule, to), to);
-    return { ...result, anchor, rule: chosen };
-  }
-  return { ...result, anchor, rule: ruleMovedTo(rule, to) };
+function movedCase(item: ScheduleCase, periodStart: string, date: string, change: ScheduleSlotTime, since: string | null, chosen: Recurrence | null): ScheduleCase | null {
+  const result = { ...item, times: { allDay: change.allDay, ranges: change.allDay ? [] : [{ start: change.start, end: change.end }] } };
+  const moved = movedCaseRhythm(item, periodStart, date, change.date, chosen);
+  const next = moved ? { ...result, ...moved } : result;
+  return since ? caseFrom(next, since, periodStart) : next;
 }
 
 /**
- * Case moved with its whole period by a number of days: its bounds and anchor, the end and exceptions of
+ * « Début » and rule of a case once one of its occurrences moves from a day to another (`movedCase`).
+ * @param {ScheduleCase} item Case.
+ * @param {string} periodStart Start of the period of the case.
+ * @param {string} date Day of the occurrence.
+ * @param {string} to Its new day.
+ * @param {Recurrence | null} chosen New rule chosen for a rule on the last day of the month.
+ * @returns {{ start: string, rule: Recurrence } | null} « Début » and rule, none when unchanged (same day, no rule).
+ */
+function movedCaseRhythm(item: ScheduleCase, periodStart: string, date: string, to: string, chosen: Recurrence | null): { start: string; rule: Recurrence } | null {
+  if (to === date || !item.rule) return null;
+  const rule = item.rule;
+  // The rhythm moves with the slot: by as many days (days, weeks), or months (months, years).
+  const base = item.start ?? periodStart;
+  const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
+  const start = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
+  if (rule.frequency === 'WEEKLY') {
+    // Moved into another week: its weeks go with it (even or odd weeks swapped, every n weeks from its week moved).
+    const moved = movedWeekdays(rule, base, [weekdayOf(date)], daysBetween(date, to));
+    return { start: moved.anchor ?? start, rule: moved.rule };
+  }
+  if (rule.frequency === 'DAILY') return { start, rule };
+  if (isLastDayRule(rule)) {
+    if (!chosen) throw new RuleChoiceRequired(proposedMovedRule(rule, to), to);
+    return { start, rule: chosen };
+  }
+  return { start, rule: ruleMovedTo(rule, to) };
+}
+
+/**
+ * Case moved with its whole period by a number of days: its « Début », the end and exceptions of
  * its rule, its weekdays, and its monthly and yearly values (those of its first day, moved). Weekly with its weeks
  * counted (every n weeks, even or odd weeks), its weekdays changing week and those that do not become two cases, each
  * on its own weeks (`shiftedRulePieces`).
@@ -788,12 +815,15 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
  * @returns {ScheduleCase[]} Case, or its pieces.
  */
 function shiftedCases(item: ScheduleCase, periodStart: string, periodEnd: string | null, days: number, chosen: Recurrence | null): ScheduleCase[] {
-  const shift = (day: string | null) => day && addDays(day, days);
-  const result: ScheduleCase = { ...item, since: shift(item.since), until: shift(item.until), anchor: shift(item.anchor) };
+  const result: ScheduleCase = { ...item, start: item.start && addDays(item.start, days) };
   if (!item.rule) return [result];
   const needsFirst = item.rule.frequency === 'MONTHLY' || item.rule.frequency === 'YEARLY' || (item.rule.frequency === 'WEEKLY' && !item.rule.weekdays.length);
-  const pieces = shiftedRulePieces(item.rule, needsFirst ? caseFirstDay(item, periodStart, periodEnd) : null, days, item.anchor ?? item.since ?? periodStart, chosen);
-  return pieces.map((piece) => ({ ...result, rule: piece.rule, anchor: piece.anchor ?? result.anchor }));
+  const pieces = shiftedRulePieces(item.rule, needsFirst ? caseFirstDay(item, periodStart, periodEnd) : null, days, item.start ?? periodStart, chosen);
+  // A piece counting from a day of its own keeps the occurrences from the case's « Début » moved only.
+  return pieces.flatMap((piece) => {
+    const moved = piece.anchor && result.start ? caseFrom({ ...result, start: piece.anchor, rule: piece.rule }, result.start, addDays(periodStart, days)) : { ...result, start: piece.anchor ?? result.start, rule: piece.rule };
+    return moved ? [moved] : [];
+  });
 }
 
 /**
@@ -804,8 +834,8 @@ function shiftedCases(item: ScheduleCase, periodStart: string, periodEnd: string
  * @returns {string | null} Day, none within a year.
  */
 function caseFirstDay(item: ScheduleCase, periodStart: string, periodEnd: string | null): string | null {
-  const start = item.since && item.since > periodStart ? item.since : periodStart;
-  const last = [item.until, periodEnd].reduce<string>((earliest, day) => (day && day < earliest ? day : earliest), addDays(start, 366));
+  const start = item.start && item.start > periodStart ? item.start : periodStart;
+  const last = [item.rule?.until ?? null, periodEnd].reduce<string>((earliest, day) => (day && day < earliest ? day : earliest), addDays(start, 366));
   for (let day = start; day <= last; day = addDays(day, 1)) if (caseOn(item, periodStart, day)) return day;
   return null;
 }
@@ -913,24 +943,31 @@ export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSl
   const range = item.times.ranges.findIndex((other) => other.start === slot.start && other.end === slot.end);
   // Split only when the case had days before this one.
   let earlier = false;
-  const scanStart = [item.since, periodStart, schedule.startDate].reduce<string>((latest, day) => (day && day > latest ? day : latest), periodStart);
+  const scanStart = [item.start, periodStart, schedule.startDate].reduce<string>((latest, day) => (day && day > latest ? day : latest), periodStart);
   for (let day = scanStart; day < slot.date && !earlier; day = addDays(day, 1)) earlier = caseOn(item, periodStart, day);
   const split = scope === 'FOLLOWING' && earlier;
-  const since = split ? slot.date : item.since;
-  const pieces: ScheduleCase[] = [];
-  if (split) pieces.push({ ...item, until: addDays(slot.date, -1) });
+  const since = split ? slot.date : null;
+  /**
+   * A piece of the case, its occurrences kept from the day split at (all of them without split).
+   * @param {ScheduleCase} piece Piece.
+   * @returns {ScheduleCase | null} Piece, none without occurrence left.
+   */
+  const following = (piece: ScheduleCase) => (since ? caseFrom(piece, since, periodStart) : piece);
+  const pieces: (ScheduleCase | null)[] = [];
+  if (split) pieces.push(caseUntil(item, addDays(slot.date, -1), periodStart));
   // Its other hours, and this slot on its other weekdays, stay.
-  if (!item.times.allDay && item.times.ranges.length > 1) pieces.push({ ...item, times: { ...item.times, ranges: item.times.ranges.filter((_, index) => index !== range) }, since });
+  if (!item.times.allDay && item.times.ranges.length > 1) pieces.push(following({ ...item, times: { ...item.times, ranges: item.times.ranges.filter((_, index) => index !== range) } }));
   if (item.rule?.frequency === 'WEEKLY' && item.rule.weekdays.length > 1) {
-    pieces.push({
-      ...item,
-      rule: { ...item.rule, weekdays: item.rule.weekdays.filter((weekday) => weekday !== weekdayOf(slot.date)) },
-      times: { ...item.times, ranges: item.times.allDay ? [] : [item.times.ranges[range]] },
-      since,
-    });
+    pieces.push(
+      following({
+        ...item,
+        rule: { ...item.rule, weekdays: item.rule.weekdays.filter((weekday) => weekday !== weekdayOf(slot.date)) },
+        times: { ...item.times, ranges: item.times.allDay ? [] : [item.times.ranges[range]] },
+      }),
+    );
   }
   if (change) pieces.push(movedCase(item, periodStart, slot.date, change, split && change.date < slot.date ? change.date : since, movedRule));
-  const nextCases = [...cases.slice(0, caseIndex), ...pieces, ...cases.slice(caseIndex + 1)];
+  const nextCases = [...cases.slice(0, caseIndex), ...pieces.filter((piece) => piece !== null), ...cases.slice(caseIndex + 1)];
   if (exception) {
     return { ...period, cases: [...schedule.cases], exceptions: schedule.exceptions.map((other) => (other === exception ? { ...other, cases: nextCases } : other)) };
   }

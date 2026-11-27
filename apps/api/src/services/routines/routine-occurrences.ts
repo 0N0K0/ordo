@@ -398,7 +398,7 @@ export function ruleSpans(routine: RoutineTiming, from: string, to: string, sche
   const sources = cases.length
     ? cases.map((item) => ({ frequency: item.recurrence.frequency, opens: item.opens, spans: (last: string) => routineCaseSpans(item, start, first, last) }))
     : rule
-      ? [{ frequency: rule.frequency, opens: readOpens(routine.opensOn), spans: (last: string) => caseSpans({ since: null, until: null, anchor: null, rule, times: null }, start, first, last) }]
+      ? [{ frequency: rule.frequency, opens: readOpens(routine.opensOn), spans: (last: string) => caseSpans({ start: null, rule, times: null }, start, first, last) }]
       : [];
   for (const { frequency, opens, spans: spansTo } of sources) {
     // An occurrence opening (« Ouverture ») within the period may be due after it.

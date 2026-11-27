@@ -103,8 +103,8 @@ describe('plannedSlots', () => {
     expect(plannedSlots([rule], '2026-11-09', '2026-11-11').map((item) => item.start)).toEqual(['10:00', '12:00', '11:00']);
   });
 
-  it('a case with a period applies within it, its rhythm counted from its first day', () => {
-    const rule = schedule([scheduleCase({ frequency: 'DAILY', interval: 2 }, { since: '2026-11-05', until: '2026-11-09' })]);
+  it('a case with a « Début » and an end applies from one to the other, its rhythm counted from its « Début »', () => {
+    const rule = schedule([scheduleCase({ frequency: 'DAILY', interval: 2, until: '2026-11-09' }, { start: '2026-11-05' })]);
     expect(slotDays(rule, '2026-11-01', '2026-11-30')).toEqual(['2026-11-05', '2026-11-07', '2026-11-09']);
   });
 
@@ -184,16 +184,16 @@ describe('changedScheduleSlot', () => {
 
   it('FOLLOWING: the case stops the day before, a new one follows with the change; its other weekdays stay', () => {
     const changed = changedScheduleSlot(rule, slot('2026-11-09'), slot('2026-11-09', '13:00', '14:00'), 'FOLLOWING');
-    expect(changed.cases.map((item) => [item.since, item.until, item.rule?.weekdays, item.times.ranges[0].start])).toEqual([
+    expect(changed.cases.map((item) => [item.start, item.rule?.until, item.rule?.weekdays, item.times.ranges[0].start])).toEqual([
       [null, '2026-11-08', [1, 3], '09:00'],
-      ['2026-11-09', null, [3], '09:00'],
+      ['2026-11-11', null, [3], '09:00'],
       ['2026-11-09', null, [1, 3], '13:00'],
     ]);
   });
 
   it('FOLLOWING on the first day of the case does not split it', () => {
     const changed = changedScheduleSlot(rule, slot('2026-11-02'), slot('2026-11-02', '13:00', '14:00'), 'FOLLOWING');
-    expect(changed.cases.some((item) => item.until !== null)).toBe(false);
+    expect(changed.cases.some((item) => item.rule?.until)).toBe(false);
   });
 
   it('ALL moved to another weekday: the rhythm follows the day', () => {

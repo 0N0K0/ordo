@@ -89,6 +89,10 @@ export const RECURRENCE_RULES = [
     selector: "ObjectExpression:has(> SpreadElement):has(> Property[key.name='exceptions'][value.elements.length=0]):has(> Property[key.name='count'][value.raw='null'])",
     message: 'Motif d’une règle (sans fin, nombre de fois ni exceptions) : rulePattern(rule) (@ordo/shared).',
   },
+  {
+    selector: "ObjectExpression:has(> Property[key.name='rule']):has(> Property[key.name='times']):has(> Property[key.name=/^(since|until|anchor)$/])",
+    message: 'Un cas a un seul « Début » (start), sa fin dans sa règle : un cas de l’ancienne forme (période, anchor) se lit avec periodCase, se coupe avec caseFrom / caseUntil (@ordo/shared).',
+  },
 ];
 
 export const SHARED_SYNTAX_RULES = [

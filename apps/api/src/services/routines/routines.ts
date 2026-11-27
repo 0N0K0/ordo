@@ -22,7 +22,7 @@ import {
   mergeRefusal,
   occurrenceDueDay,
   occurrenceDates,
-  occurrencesBefore,
+  ruleEndedBefore,
   parseDay,
   previousMove,
   reaches,
@@ -1966,14 +1966,15 @@ export async function removeRoutineMove(id: string, from: string, comments: read
 type RoutineScope = 'THIS' | 'FOLLOWING' | 'ALL';
 
 /**
- * Rule ending before a date: as many occurrences as before it, or up to the day before.
+ * Rule ending before a date (`ruleEndedBefore`); without occurrence before it, a single one left (a count), or up to
+ * the day before.
  * @param {Recurrence} rule Rule.
  * @param {string} start First day it counts from.
  * @param {string} date First occurrence left out.
  * @returns {Recurrence} Rule.
  */
 const endedBefore = (rule: Recurrence, start: string, date: string): Recurrence =>
-  rule.count !== null ? { ...rule, count: Math.max(1, occurrencesBefore(rule, start, date)) } : { ...rule, until: addDays(date, -1) };
+  ruleEndedBefore(rule, start, date) ?? (rule.count !== null ? { ...rule, count: 1 } : { ...rule, until: addDays(date, -1) });
 
 /**
  * A piece of the rule of a routine going on from an occurrence moved: its rule, the day it counts from (none: as

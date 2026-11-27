@@ -72,7 +72,7 @@ describe('typicalWeeks', () => {
 
   it('counts the occurrences of a rule from the first day of its case', () => {
     // From the 2nd (its case), the 9th deleted: the 2nd and the 16th, the 9th given back.
-    const since = schedule([scheduleCase({ weekdays: [1], count: 2, exceptions: ['2026-11-09'] }, { since: '2026-11-02' })], { startDate: '2026-10-05' });
+    const since = schedule([scheduleCase({ weekdays: [1], count: 2, exceptions: ['2026-11-09'] }, { start: '2026-11-02' })], { startDate: '2026-10-05' });
     expect(short(typicalWeeks([since], '2026-11-02', '2026-11-29'))).toEqual([{ name: 'Toutes les semaines, jusqu’au 22/11', weeks: ['2026-11-02', '2026-11-09', '2026-11-16'] }]);
   });
 

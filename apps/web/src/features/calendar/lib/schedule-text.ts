@@ -38,7 +38,7 @@ export const defaultScheduleTimes = (): ScheduleTimes => ({ allDay: false, range
  * @returns {ScheduleCase} Case.
  */
 export function newScheduleCase(start: string): ScheduleCase {
-  return { since: null, until: null, anchor: null, rule: withRuleValues({ ...DEFAULT_RECURRENCE, weekdays: [1, 2, 3, 4, 5] }, start), times: defaultScheduleTimes() };
+  return { start: null, rule: withRuleValues({ ...DEFAULT_RECURRENCE, weekdays: [1, 2, 3, 4, 5] }, start), times: defaultScheduleTimes() };
 }
 
 /**

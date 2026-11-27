@@ -3,15 +3,15 @@ import { lastAllowedDay } from '../dates/days';
 import { casesSlotsOn, OWN_CASES_START, readScheduleCases, scheduleCasesSchema, type ScheduleCase } from '../calendar/work-schedules';
 
 /** Message of a case of the « Horaires » of a task whose rhythm counts from a day not chosen. */
-export const HOURS_START_REQUIRED = 'Choisissez le jour à partir duquel compter.';
+export const HOURS_START_REQUIRED = 'Choisissez son début : le rythme compte depuis ce jour.';
 
 /**
- * Whether a case of the « Horaires » of a task needs the day its rhythm counts from (« À partir du », its `anchor`):
- * its rule counts from a day (`ruleCountsFromDay`) and it has no period of its own (its first day counts then).
- * @param {Pick<ScheduleCase, 'since' | 'rule'>} item Case.
+ * Whether a case of the « Horaires » of a task needs its « Début » (the day its rhythm counts from, `start`): its rule
+ * counts from a day (`ruleCountsFromDay`). A task has no first day of its own to count from.
+ * @param {Pick<ScheduleCase, 'rule'>} item Case.
  * @returns {boolean} It needs one.
  */
-export const hoursCaseNeedsStart = (item: Pick<ScheduleCase, 'since' | 'rule'>): boolean => !item.since && ruleCountsFromDay(item.rule);
+export const hoursCaseNeedsStart = (item: Pick<ScheduleCase, 'rule'>): boolean => ruleCountsFromDay(item.rule);
 
 /**
  * « Horaires » of a task: when it can be done, as cases of days and hours shaped as those of a créneau (20 at most, the
@@ -20,7 +20,7 @@ export const hoursCaseNeedsStart = (item: Pick<ScheduleCase, 'since' | 'rule'>):
  */
 export const taskHoursSchema = scheduleCasesSchema.superRefine((cases, context) =>
   cases.forEach((item, index) => {
-    if (hoursCaseNeedsStart(item) && !item.anchor) context.addIssue({ code: 'custom', path: [index, 'anchor'], message: HOURS_START_REQUIRED });
+    if (hoursCaseNeedsStart(item) && !item.start) context.addIssue({ code: 'custom', path: [index, 'start'], message: HOURS_START_REQUIRED });
   }),
 );
 

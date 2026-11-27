@@ -22,7 +22,7 @@ describe('taskDueDay', () => {
   });
 
   it('no day allowed within a year before it: none (its « Échéance » is not taken)', () => {
-    const past = [scheduleCase({ weekdays: [1] }, { until: '2024-01-01' })];
+    const past = [scheduleCase({ weekdays: [1], until: '2024-01-01' })];
     expect(taskDueDay(SUNDAY, past)).toBeNull();
   });
 

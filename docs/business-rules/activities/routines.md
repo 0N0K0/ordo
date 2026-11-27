@@ -15,7 +15,7 @@ Champs d'une routine qui comptent pour les occurrences :
 | `moments`       | Moments de la journée de la règle : `[{ fromTime, dueTime, optional }]`.                                                                      |
 | `slotCondition` | Condition sur les créneaux de l'agenda (groupe ET / OU), suivant la règle.                                                                      |
 | `opensOn`       | « Ouverture » des occurrences de la règle.                                                                                                  |
-| `cases`         | Cas (chacun : `from`, `until`, `recurrence`, `slots`, `condition`, `opens`) ; non vide, ils remplacent la règle, ses moments et sa condition. |
+| `cases`         | Cas (chacun : `from`, son début, `recurrence`, avec sa fin, `slots`, `condition`, `opens` ; `until`, son ancien dernier jour, seulement lu : le formulaire le passe dans la fin de la règle et enregistre `null`) ; non vide, ils remplacent la règle, ses moments et sa condition. |
 | `moves`         | Exceptions : `[{ from, to, times, apart? }]` (jours `YYYY-MM-DD` ; `apart` : gardée à part de l'occurrence de son nouveau jour).              |
 | `archivedAt`    | Archivée : plus aucune occurrence qui s'ouvre à partir du jour de l'archivage, celles ouvertes avant restent, archivées. `archivedByCascade` : archivée avec sa routine parente. |
 
@@ -114,7 +114,7 @@ Source : `apps/api/src/services/routines/routine-occurrences.ts` (`ruleSpans`, `
 Une occurrence va de son premier jour (son ouverture) à son jour d'échéance (son dernier jour). Elle est identifiée par son jour d'échéance, sauf une occurrence déplacée sur un jour qui a déjà la sienne et **gardée à part** : elle est identifiée par le jour de sa règle (`from` de son exception, `moveKey`) et s'affiche à son nouveau jour, à côté de celle de ce jour. Ce jour qui l'identifie est celui de ses coches (`RoutineCheck`), de ses commentaires, de sa liste à cocher et de ses liens avec des évènements, et le `date` que prennent les écritures d'une occurrence (cocher, déplacer, changer, annuler) ; aucune migration : le jour d'origine est dans son exception. Deux occurrences ont ainsi leurs lignes à part, même dues le même jour.
 
 - Source : les cas s'il y en a, sinon la règle (`storedRule`). Une routine enregistrée avec des créneaux suivis avant les conditions (`scheduleIds` sans `slotCondition`) se répète chaque jour.
-- Un cas compte à partir de son `from` (jamais avant la première fois de la routine) jusqu'à son `until`. Un jour dû par plusieurs cas suit le premier cas (`routineCaseOn`).
+- Un cas compte à partir de son début (`from`, « Début » ; jamais avant la première fois de la routine) jusqu'à la fin de sa règle (jamais, une date ou un nombre de fois). Un ancien cas avec un dernier jour (`until`) s'y arrête encore (sa dernière occurrence tenue dans ce jour) ; le formulaire le montre en fin de sa règle (`caseUntil` : un nombre de fois réduit aux occurrences jusqu'à ce jour, une date de fin plus tôt gardée) et l'enregistre ainsi. Un jour dû par plusieurs cas suit le premier cas (`routineCaseOn`).
 - Rien avant `startDate`. Une routine archivée n'a plus aucune occurrence due ni à venir ; celles ouvertes (premier jour) avant le jour de son archivage (heure de Paris, `archivedOn`) restent, archivées, en lecture seule, même dues ce jour-là ou après ; aucune qui s'ouvre à partir de ce jour. La restaurer remet toutes ses occurrences.
 
 ### Échéance réelle

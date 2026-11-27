@@ -74,7 +74,11 @@ Une seule forme de répétition (`recurrenceSchema`) pour les événements, les 
 
 ### Répétition par cas
 
-Les créneaux et les routines peuvent combiner plusieurs **cas** (1 à 20), chacun avec sa période (`since`, `until`), sa règle et ses horaires (voir [dates](../../shared/cross-cutting/dates.md), `repetition.ts`). Les jours d'occurrence sont l'union des débuts d'occurrence des cas, moins leurs exceptions « rien » (qui ne sont plus recréées).
+Les créneaux, les éphémérides, les horaires des tâches et les routines peuvent combiner plusieurs **cas** (1 à 20), chacun avec son **début**, sa règle (et sa **fin** : jamais, une date ou un nombre de fois) et ses horaires (voir [dates](../../shared/cross-cutting/dates.md), `repetition.ts`). Les jours d'occurrence sont l'union des débuts d'occurrence des cas, moins leurs exceptions « rien » (qui ne sont plus recréées) ; un jour pris par plusieurs cas suit le premier.
+
+- **Début** : le jour d'où compte le rythme du cas (tous les n jours, semaines, mois, ans, nombre de fois), et son premier jour possible ; sans début, le cas commence avec l'élément : le premier jour de la série (routine), le début de la période (créneau, éphéméride, période d'exception). Les horaires d'une tâche n'ont pas de premier jour : un cas dont le rythme compte depuis un jour (`ruleCountsFromDay`) demande son début.
+- **Fin** : celle de sa règle ; une occurrence qui dure plusieurs jours va jusqu'à son dernier jour.
+- Un cas enregistré avec une période (`since`, `until`) et un jour de départ du rythme (`anchor`) est lu ainsi, et réécrit au prochain enregistrement : son début est ce jour de départ, sinon le début de sa période ; un rythme qui partait avant la période commence à sa première occurrence qui y entre (une occurrence de plusieurs jours commencée avant compte) (valeurs mensuelles et annuelles et jour de la semaine de l'ancien départ gardés, nombre de fois diminué des occurrences d'avant) ; la fin de la période devient la fin de la règle (un nombre de fois gardé, réduit aux occurrences jusqu'à elle ; une date de fin plus tôt gardée). Un cas sans plus aucune occurrence n'est pas lu. Les cas des routines (`from`, `until`) gardent leur dernier jour (`until`) jusqu'à leur prochain enregistrement depuis le formulaire, qui le passe dans la fin de leur règle.
 
 ### Fuseaux
 

@@ -814,6 +814,55 @@ export function occurrencesBefore(rule: Recurrence, start: string, date: string)
 }
 
 /**
+ * Rule whose series ends before a date: its count kept, reduced to the occurrences before that date; else its end
+ * date, the day before at the latest.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First date (where its rhythm and count start).
+ * @param {string} date First day left out.
+ * @returns {Recurrence | null} Rule, none when it has no occurrence before that date.
+ */
+export function ruleEndedBefore(rule: Recurrence, start: string, date: string): Recurrence | null {
+  const before = Math.min(occurrencesBefore(rule, start, date), rule.count ?? Infinity);
+  if (!before) return null;
+  if (rule.count !== null) return { ...rule, count: before };
+  const last = addDays(date, -1);
+  return { ...rule, until: rule.until && rule.until < last ? rule.until : last };
+}
+
+/**
+ * Rule counted from a day, its occurrences kept from a later day only: it then starts on its first occurrence from
+ * that day, its monthly and yearly values and its weekday (weekly without weekdays) those of the day it counted
+ * from, its count reduced by the occurrences before. Every n days, weeks, months or years still count from a day of
+ * their rhythm.
+ * The nth weekday of a month left unset stays so (its first occurrence has the same rank: a 4th one that is the last
+ * stays the last).
+ * @param {Recurrence} rule Rule.
+ * @param {string} rhythmStart Day its rhythm and count start.
+ * @param {string} since First day its occurrences are kept.
+ * @param {boolean} [covering] An occurrence started before `since` and lasting up to it is kept (from its own first
+ * day). Optional. Default = false: occurrences starting from `since` only.
+ * @returns {{ start: string, rule: Recurrence } | null} Its new first day and rule, none without occurrence from `since`.
+ */
+export function ruleStartedFrom(rule: Recurrence, rhythmStart: string, since: string, covering = false): { start: string; rule: Recurrence } | null {
+  if (since <= rhythmStart) return { start: rhythmStart, rule };
+  const duration = rule.duration ?? ONE_DAY;
+  const earliest = covering ? addDays(since, 1 - maxSpanDays(duration)) : since;
+  const from = earliest < rhythmStart ? rhythmStart : earliest;
+  const scanEnd = addDays(since, Math.min(36_600, 3_660 * Math.max(1, rhythmInterval(rule))));
+  const last = rule.until && rule.until < scanEnd ? rule.until : scanEnd;
+  let first: string | undefined;
+  // By windows of a year: the scan stops at the first occurrence.
+  for (let window = from; !first && window <= last; window = addDays(window, 366)) {
+    const end = addDays(window, 365);
+    first = occurrenceDates(rule, rhythmStart, window, end < last ? end : last).find((day) => spanEnd(duration, day) >= since);
+  }
+  if (!first) return null;
+  const weekdays = rule.frequency === 'WEEKLY' && !rule.weekdays.length ? [weekdayOfDate(rhythmStart)] : rule.weekdays;
+  const count = rule.count === null ? null : rule.count - occurrencesBefore(rule, rhythmStart, first);
+  return { start: first, rule: { ...withRuleValues(rule, rhythmStart), position: rule.position, weekdays, count } };
+}
+
+/**
  * Offset of a time zone at an instant, in minutes (Paris in winter: 60).
  * @param {number} time Instant in ms.
  * @param {string} timeZone IANA time zone.

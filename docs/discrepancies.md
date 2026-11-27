@@ -21,6 +21,11 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 - **Évènements :** la synthèse et la fenêtre des exceptions d’un évènement ne montrent que ses jours « rien » : ses occurrences annulées ou modifiées seules (`CalendarEventException`) ne sont pas lues par le panneau (l’API ne les donne pas avec l’évènement) ni rétablies depuis la fenêtre (une annulée se rétablit par son menu ; une modifiée n’a pas d’écriture qui retire son exception). Voir [Agenda](features/activities/calendar.md).
 - **Cas (créneaux, horaires des tâches, routines à plusieurs cas) :** une exception « rien » se rétablit mais ne s’ajoute pas depuis la fenêtre (il faudrait choisir le cas qui la porte). Voir [Règles : dates](business-rules/cross-cutting/dates.md).
 
+## Début des cas
+
+- **Routines :** leurs cas gardent l’ancien dernier jour (`until`) tant qu’ils ne sont pas réenregistrés depuis le formulaire (qui le passe dans la fin de la règle) : l’API le lit encore (`routineCaseSpans`, dernière occurrence tenue dans ce jour), et les déplacements (`shiftedCaseUntil`, `caseAfterItsEnd`, `weekdayMovedCase`) ne tiennent que lui à la veille du cas suivant, jamais la fin de la règle d’un cas enregistré sous la nouvelle forme. Voir [Routines](business-rules/activities/routines.md).
+- **Occurrence qui dure plusieurs jours :** un ancien cas avec une période dont la dernière occurrence la dépassait s’arrêtait à la fin de la période ; lu avec la fin dans sa règle, elle va jusqu’à son dernier jour. De même, une occurrence commencée avant la période d’un ancien cas et qui y entrait se montre maintenant depuis son premier jour, avant la période. Le « Début » d’un cas de la plus ancienne forme (`pattern`) est un jour technique (un lundi, un 1er du mois ou de l’année, souvent avant la période) : le résumé ne le dit pas quand il est avant le début de la période, mais le champ « Début » le montre. Voir [Dates](business-rules/cross-cutting/dates.md#répétition-par-cas).
+
 ## Comportements à confirmer
 
 - **Libellé fixe** : celui de `WorkSchedulesManager` est dans une ligne avec « Type » (`sticky={false}`), donc pas fixe au défilement. La garde eslint ne voit que le texte « Libellé » (pas « Nom » ni un libellé calculé). L'« Objet » d'un document comptable (`DocumentEditor`, `ImportedDocumentForm`) reste un `TextInput`, hors de la garde.

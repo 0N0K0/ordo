@@ -24,7 +24,7 @@ import {
   type Recurrence,
   type Span,
 } from '../dates/recurrence';
-import { caseSpans } from '../dates/repetition';
+import { caseSpans, caseUntil } from '../dates/repetition';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
 import { remindersSchema } from '../dates/reminders';
 import { deadTimesSchema } from '../dates/countdowns';
@@ -525,8 +525,12 @@ export function routineCaseOn(cases: readonly RoutineCase[], start: string, date
  * @returns {Span[]} Occurrences.
  */
 export function routineCaseSpans(item: RoutineCase, start: string, from: string, to: string): Span[] {
-  const first = caseStart(item, start);
-  return caseSpans({ since: first, until: item.until ?? null, anchor: null, rule: item.recurrence, times: null }, start, from, to);
+  const repetition = { start: caseStart(item, start), rule: item.recurrence, times: null };
+  // A case with a last day of its own (its former period): its occurrences up to it, the last one held within it.
+  const kept = item.until ? caseUntil(repetition, item.until, start) : repetition;
+  if (!kept) return [];
+  const spans = caseSpans(kept, start, from, to);
+  return item.until ? spans.map((span) => (span.end > item.until! ? { ...span, end: item.until! } : span)) : spans;
 }
 
 /**

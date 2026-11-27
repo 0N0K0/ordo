@@ -129,8 +129,8 @@ export function describeDuration(duration: Duration): string {
 }
 
 /**
- * Text of a case: its period, rule, length and times ("Du 1 juin · Toutes les semaines le samedi · pendant 2 jours ·
- * 8:30–11:30").
+ * Text of a case: its « Début », rule (with its end), length and times ("À partir du 1 juin · Toutes les semaines le
+ * samedi · pendant 2 jours · 8:30–11:30").
  * @template T
  * @param {RepetitionCase<T>} item Case.
  * @param {string} start First day of what repeats.
@@ -138,10 +138,10 @@ export function describeDuration(duration: Duration): string {
  * @returns {string} Text.
  */
 export function describeCase<T>(item: RepetitionCase<T>, start: string, options: { weekly?: boolean; times?: RepetitionTimes<T> } = {}): string {
-  const ruleStart = item.since && item.since > start ? item.since : start;
-  const period = [item.since && `du ${fmt.dayShort(item.since)}`, item.until && `au ${fmt.dayShort(item.until)}`].filter(Boolean).join(' ');
+  const ruleStart = item.start ?? start;
   return [
-    period && fmt.capitalize(period),
+    // A « Début » after the first day only (a case converted from an older form may count from before it).
+    item.start && item.start > start && `À partir du ${fmt.dayShort(item.start)}`,
     item.rule ? describeRecurrence(item.rule, ruleStart, options.weekly !== false) : 'Ne se répète pas',
     item.rule?.duration ? describeDuration(item.rule.duration) : '',
     options.times?.describe(item.times, item.rule),

@@ -390,7 +390,7 @@ describe('a weekly routine opened the day before, on a slot of its due days only
   };
 
   it('its occurrence due on Wednesday opens on Tuesday, its first day', () => {
-    const [first] = caseSpans({ since: null, until: null, anchor: null, rule: weekly, times: null }, TUESDAY, TUESDAY, WEDNESDAY);
+    const [first] = caseSpans({ start: null, rule: weekly, times: null }, TUESDAY, TUESDAY, WEDNESDAY);
     expect(first).toEqual({ start: WEDNESDAY, end: WEDNESDAY });
     expect(routineOpenDate(first.end, { mode: 'BEFORE', days: 1 }, weekly.frequency)).toBe(TUESDAY);
   });

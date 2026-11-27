@@ -20,7 +20,7 @@ import { LabeledField } from '../../../components/inputs/LabeledField';
  */
 const hoursExceptionLines = (hours: ScheduleCase[]): ExceptionLine[] => skippedLines(hours.map((item) => item.rule));
 
-/** « À partir du » asked of each case whose rhythm counts from a day (its error shown under it). */
+/** « Début » required of each case whose rhythm counts from a day (its error shown under it). */
 const HOURS_CASE_START = { needed: hoursCaseNeedsStart, message: HOURS_START_REQUIRED };
 
 /**
@@ -47,7 +47,7 @@ function TaskHoursEditor({ draft, setDraft, start }: { draft: ScheduleCase[]; se
         <AddItemButton onClick={() => setDraft([newScheduleCase(start)])}>Ajouter des horaires</AddItemButton>
       </Stack>
     );
-  // A missing « À partir du » shows under its field.
+  // A missing « Début » shows under its field.
   const exceptions = casesSkippedEntries(draft, setDraft);
   const issue = taskHoursSchema.safeParse(draft).error?.issues.find((item) => item.message !== HOURS_START_REQUIRED)?.message;
   return (

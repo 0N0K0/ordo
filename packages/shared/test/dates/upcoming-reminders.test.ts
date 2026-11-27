@@ -351,7 +351,7 @@ describe('reminders of a task with « Horaires »', () => {
   });
 
   it('no day allowed within a year: nothing rings', () => {
-    expect(rings({ minDate: null, deadline: '2026-11-29' }, [scheduleCase({ weekdays: [1] }, { until: '2024-01-01' })])).toEqual({});
+    expect(rings({ minDate: null, deadline: '2026-11-29' }, [scheduleCase({ weekdays: [1], until: '2024-01-01' })])).toEqual({});
   });
 
   it('without hours: every day of its opening', () => {

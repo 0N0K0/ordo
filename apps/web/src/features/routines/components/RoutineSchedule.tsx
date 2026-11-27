@@ -14,6 +14,7 @@ import {
   type RoutineOpens,
   type SlotCondition,
   type Recurrence,
+  caseUntil,
   type RepetitionCase,
   type RoutineCase,
   type RoutineSlot,
@@ -163,21 +164,22 @@ const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes>
 });
 
 /**
- * Cases of the common editor of a routine as edited: its rule and moments (one rule), or its cases.
+ * Cases of the common editor of a routine as edited: its rule and moments (one rule), or its cases. A case with a
+ * last day of its own (its former period) gets it as the end of its rule (`caseUntil`), written so on the next save.
  * @param {RoutineRepetitionValue} value Repetition.
+ * @param {string} start First date of the routine.
  * @returns {RepetitionCase<RoutineTimes>[]} Cases.
  */
-function editedCases(value: RoutineRepetitionValue): RepetitionCase<RoutineTimes>[] {
+function editedCases(value: RoutineRepetitionValue, start: string): RepetitionCase<RoutineTimes>[] {
   if (value.mode === 'CASES')
-    return value.cases.map((item) => ({
-      since: item.from,
-      until: item.until ?? null,
-      anchor: null,
-      rule: item.recurrence,
-      times: { moments: item.slots, condition: item.condition ?? null, opens: readOpens(item.opens) },
-    }));
+    return value.cases.map((item) => {
+      const edited = { start: item.from, rule: item.recurrence, times: { moments: item.slots, condition: item.condition ?? null, opens: readOpens(item.opens) } };
+      if (!item.until) return edited;
+      // No occurrence up to its last day: none after it either.
+      return caseUntil(edited, item.until, start) ?? { ...edited, rule: { ...item.recurrence, count: null, until: item.until } };
+    });
   return [
-    { since: null, until: null, anchor: null, rule: value.recurrence, times: { moments: value.moments.length ? value.moments : [ANY_TIME], condition: value.slotCondition, opens: value.opensOn } },
+    { start: null, rule: value.recurrence, times: { moments: value.moments.length ? value.moments : [ANY_TIME], condition: value.slotCondition, opens: value.opensOn } },
   ];
 }
 
@@ -200,8 +202,8 @@ function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<Ro
     return {
       ...value,
       cases: cases.map((item) => ({
-        from: item.since,
-        until: item.until,
+        from: item.start,
+        until: null,
         recurrence: item.rule ?? DAILY,
         slots: item.times.moments,
         condition: item.times.condition,
@@ -274,7 +276,7 @@ function RoutineRepetitionEditor({
             opensOn: mode === 'CASES' ? null : draft.cases.length ? fittingOpens(readOpens(draft.cases[0]?.opens), draft.cases[0]?.recurrence ?? null) : draft.opensOn,
           })
         }
-        cases={editedCases(draft)}
+        cases={editedCases(draft, start)}
         onChange={(cases) => setDraft(withEditedCases(draft, cases))}
         start={start}
         multiple

@@ -28,7 +28,7 @@ Répétition d'une seule règle, sans horaires (trésorerie, facturation) : `Rep
 Tous les réglages d'une répétition, selon ce que l'élément permet. Générique sur le type `T` des horaires d'un cas. Props :
 
 - `mode` / `onModeChange` : `'RULE'` (une règle), `'CASES'` (plusieurs cas) ou un mode propre (`RepetitionModeValue`) ;
-- `cases` / `onChange` : les cas (`RepetitionCase<T>` : `since`, `until`, `anchor`, `rule`, `times`) ; un seul en mode règle ;
+- `cases` / `onChange` : les cas (`RepetitionCase<T>` : `start`, son début, `rule`, avec sa fin, `times`) ; un seul en mode règle ;
 - `start` : premier jour de ce qui se répète (les rythmes comptent de lui) ;
 - `multiple` : cas proposés (routines, créneaux) ;
 - `weekly` : jours de semaine et semaines paires / impaires proposés (défaut vrai) ;
@@ -37,10 +37,10 @@ Tous les réglages d'une répétition, selon ce que l'élément permet. Généri
 - `times` (`RepetitionTimes<T>`) : éditeur et résumé des horaires d'un cas ;
 - `modes` : autres modes (ex. une routine qui suit les créneaux de l'agenda), chacun avec `value`, `label`, `render` ;
 - `footer` : réglages sous tous les modes ;
-- `onCommit` : appelé une fois une valeur choisie (fréquence, jour, fin, période, mode, cas ajouté, retiré ou déplacé…) ou un nombre quitté (intervalle, nombre de fois, jour du mois, durée) : un panneau enregistré champ par champ enregistre alors, pas à chaque touche (`EventRepetition`, `RoutineRepetition`) ; il est aussi passé à `times.render`, pour les horaires d’un cas ; `onChange` reste appelé à chaque changement ;
-- `caseStart` (`CaseStart<T>` : `needed(item)`, `message`) : jour d’où compte le rythme demandé aux cas qui en ont besoin (horaires d’une tâche) : champ « À partir du » obligatoire (« À choisir »), son `anchor`, `message` en erreur sous lui, une fois le champ quitté (sortie ou fermeture du calendrier), tant qu’il est vide ; la règle se règle alors depuis ce jour. Sans : les rythmes comptent de `start`.
+- `onCommit` : appelé une fois une valeur choisie (fréquence, jour, fin, début, mode, cas ajouté, retiré ou déplacé…) ou un nombre quitté (intervalle, nombre de fois, jour du mois, durée) : un panneau enregistré champ par champ enregistre alors, pas à chaque touche (`EventRepetition`, `RoutineRepetition`) ; il est aussi passé à `times.render`, pour les horaires d’un cas ; `onChange` reste appelé à chaque changement ;
+- `caseStart` (`CaseStart<T>` : `needed(item)`, `message`) : « Début » requis des cas qui en ont besoin (horaires d’une tâche), en mode règle aussi : champ obligatoire (« À choisir »), `message` en erreur sous lui, une fois le champ quitté (sortie ou fermeture du calendrier), tant qu’il est vide. Sans : « Début » seulement en mode cas, facultatif ; les rythmes comptent de `start` sans début.
 
-Comportement : choix du mode en `SegmentedControl` (« Une règle », « Plusieurs cas », modes propres) quand il y en a plusieurs ; passer en cas garde la règle comme premier cas ; revenir à une règle garde le premier cas (sans période). En mode cas : cartes `CaseCard` réordonnables par glisser-déposer (`SortableArea`), pliables et retirables quand il y en a plusieurs ; texte « Chaque cas a sa période, ses jours et ses horaires ; un jour pris par plusieurs cas suit le premier (glissez-les pour les réordonner). » ; « Ajouter un cas » (nouveau cas : toutes les semaines depuis le premier jour, déplié). Composant interne `CaseFields` : « Période » (`PeriodField`, cas seulement, placeholder « Toujours », chaque bout facultatif : « Dès le début » / « Jusqu’à la fin », « Sans début » / « Sans fin » ; changer le début remet l'ancre à zéro), règle, durée, horaires.
+Comportement : choix du mode en `SegmentedControl` (« Une règle », « Plusieurs cas », modes propres) quand il y en a plusieurs ; passer en cas garde la règle comme premier cas ; revenir à une règle garde le premier cas (sans début, sauf un début requis). En mode cas : cartes `CaseCard` réordonnables par glisser-déposer (`SortableArea`), pliables et retirables quand il y en a plusieurs ; texte « Chaque cas a son début, ses jours, sa fin et ses horaires ; un jour pris par plusieurs cas suit le premier (glissez-les pour les réordonner). » ; « Ajouter un cas » (nouveau cas : toutes les semaines depuis le premier jour, déplié). Composant interne `CaseFields` : « Début » (`DateField`, cas seulement ou requis ; facultatif : placeholder « Dès le début », effaçable), puis la règle comptée depuis lui (sa « Fin » : « Jamais », « À une date », « Après un nombre de fois »), durée, horaires.
 
 - `RepetitionTimes<T>` (interface) : `render(times, onChange, index, rule, onCommit?)` (`onCommit` : celui de l’éditeur, à appeler après un choix, une heure ou un nombre quitté), `describe(times, rule)`, `empty()`.
 - `CaseStart<T>` (interface) : `needed(item)`, `message`.
@@ -114,7 +114,7 @@ Garde eslint : une liste d'exceptions écrite à la main dans du JSX (`….excep
 
 - `describeRecurrence(rule, start, weekdays = true)` : règle en mots : « Toutes les 2 semaines le lundi, le jeudi », « du lundi au vendredi », « Les semaines paires », « Toutes les 2 semaines impaires le lundi », « Tous les mois le 2e mardi », « Le mardi de la 1re semaine paire de chaque mois », « Tous les 2 mois le jeudi de la dernière semaine impaire du mois », « Tous les mois le dernier jour du mois », « Tous les ans le 1er juin », « Tous les ans le dernier jour de février », « … de la semaine 12 », puis « , jusqu'au 20 décembre 2026 », « , 10 fois ». Fonctions internes `nthWeekday`, `weekdayOfParityWeek`, `parityWeeks`, `dayOfRule` (« le 14 », « le dernier jour du mois », « le dernier jour d’avril »).
 - `describeDuration(duration)` : « pendant 3 jours », « toute la semaine », « tout le mois », « jusqu'au 20 août », « jusqu’au dernier jour du mois », « jusqu’au dernier jour de février », « jusqu'à la semaine 12 », « jusqu'à fin août » ; vide pour un seul jour.
-- `describeCase(item, start, { weekly, times })` : texte d'un cas : période, règle (ou « Ne se répète pas »), durée et horaires, séparés par « · ».
+- `describeCase(item, start, { weekly, times })` : texte d'un cas : début après le premier jour (« À partir du 1 juin »), règle avec sa fin (ou « Ne se répète pas »), durée et horaires, séparés par « · ».
 
 ## Plis et clés des cas (`use-case-folds.ts`)
 

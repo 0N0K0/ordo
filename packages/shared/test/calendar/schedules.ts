@@ -2,15 +2,13 @@ import type { ScheduleCase, WorkScheduleRule } from '../../src/calendar/work-sch
 import { rule, type RuleFields } from '../rules';
 
 /**
- * Schedule case for a test: weekly rule given, 09:00–12:00 (or whole days), no period nor anchor.
+ * Schedule case for a test: weekly rule given, 09:00–12:00 (or whole days), no « Début ».
  * @param {RuleFields} fields Fields of its rule (former pauses read as exceptions).
  * @param {Partial<ScheduleCase>} [other] Other fields of the case. Optional.
  * @returns {ScheduleCase} Case.
  */
 export const scheduleCase = (fields: RuleFields, other: Partial<ScheduleCase> = {}): ScheduleCase => ({
-  since: null,
-  until: null,
-  anchor: null,
+  start: null,
   rule: rule(fields),
   times: { allDay: false, ranges: [{ start: '09:00', end: '12:00' }] },
   ...other,

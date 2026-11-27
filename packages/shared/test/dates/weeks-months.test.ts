@@ -50,11 +50,10 @@ describe('months', () => {
 });
 
 describe('« Horaires » of a task', () => {
-  it('a case whose rhythm counts from a day, without period, needs that day', () => {
+  it('a case whose rhythm counts from a day needs its « Début »', () => {
     const everyTwo = scheduleCase({ weekdays: [1], interval: 2 });
-    expect(taskHoursSchema.safeParse([everyTwo]).error?.issues[0]).toMatchObject({ message: HOURS_START_REQUIRED, path: [0, 'anchor'] });
-    expect(taskHoursSchema.safeParse([{ ...everyTwo, anchor: '2026-11-02' }]).success).toBe(true);
-    expect(taskHoursSchema.safeParse([{ ...everyTwo, since: '2026-11-02' }]).success).toBe(true);
+    expect(taskHoursSchema.safeParse([everyTwo]).error?.issues[0]).toMatchObject({ message: HOURS_START_REQUIRED, path: [0, 'start'] });
+    expect(taskHoursSchema.safeParse([{ ...everyTwo, start: '2026-11-02' }]).success).toBe(true);
     expect(taskHoursSchema.safeParse([scheduleCase({ weekdays: [1], weekParity: 'EVEN' })]).success).toBe(true);
   });
 

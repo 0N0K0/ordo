@@ -52,7 +52,7 @@ function bareRule(rule: Recurrence, start: string): Recurrence {
  * @returns {WorkScheduleRule | null} Schedule of its rules, or none.
  */
 export function ruleOnlySchedule(schedule: WorkScheduleRule): WorkScheduleRule | null {
-  const cases = schedule.cases.flatMap((item) => (item.rule ? [{ ...item, rule: bareRule(item.rule, item.anchor ?? item.since ?? schedule.startDate) }] : []));
+  const cases = schedule.cases.flatMap((item) => (item.rule ? [{ ...item, rule: bareRule(item.rule, item.start ?? schedule.startDate) }] : []));
   return cases.length ? { ...schedule, cases, exceptions: [] } : null;
 }
 

@@ -64,9 +64,9 @@ Champs de `taskFormSchema` :
 
 | Export | Rôle |
 | ------ | ---- |
-| `taskHoursSchema` | « Horaires » d'une tâche : les cas d'un créneau (`scheduleCasesSchema`, voir [calendar](calendar.md)), mêmes règles et messages ; en plus, un cas qui demande le jour d'où compter (`hoursCaseNeedsStart`) sans `anchor` est refusé : `HOURS_START_REQUIRED` (chemin `[index, 'anchor']`) ; aucun : n'importe quand. |
-| `HOURS_START_REQUIRED` | « Choisissez le jour à partir duquel compter. » |
-| `hoursCaseNeedsStart(item)` | Le cas demande-t-il « À partir du » : sa règle compte depuis un jour (`ruleCountsFromDay`) et il n'a pas de période à lui (son premier jour compte alors). |
+| `taskHoursSchema` | « Horaires » d'une tâche : les cas d'un créneau (`scheduleCasesSchema`, voir [calendar](calendar.md)), mêmes règles et messages ; en plus, un cas qui demande son début (`hoursCaseNeedsStart`) sans `start` est refusé : `HOURS_START_REQUIRED` (chemin `[index, 'start']`) ; aucun : n'importe quand. |
+| `HOURS_START_REQUIRED` | « Choisissez son début : le rythme compte depuis ce jour. » |
+| `hoursCaseNeedsStart(item)` | Le cas demande-t-il son « Début » : sa règle compte depuis un jour (`ruleCountsFromDay`). |
 | `readTaskHours(value)` | Horaires stockés ou reçus (JSON) validés, cas invalides écartés (`readScheduleCases`). |
 | `hoursAllowDay(hours, day)` | Les horaires permettent un jour : un horaire ce jour-là (`casesSlotsOn`) ; sans horaires, chaque jour. Utilisé par `taskDueDay`, `taskRings`, `taskExcludedDay` (web). |
 | `taskDueDay(deadline, hours)` | Échéance réelle : le dernier jour, l’échéance comprise, que les horaires permettent (`lastAllowedDay`) ; sans horaires l’échéance ; null sans échéance ou sans jour permis dans l’année. Utilisé par `effectiveTask` (`dueDay`), `taskRings`, `upcomingReminders`. |
