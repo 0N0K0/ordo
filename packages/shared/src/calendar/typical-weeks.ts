@@ -1,5 +1,6 @@
 import { groupBy, joinedKey } from '../core/collections';
-import { addDays, daysBetween, isoWeek, isoWeekHasParity, isoYear, printedDay, WEEK_PARITIES, WEEK_PARITY_WORDS, weekdayOfDate } from '../dates/days';
+import { addDays, daysBetween, isoWeek, isoWeekHasParity, isoYear, printedDay, WEEK_PARITIES, WEEK_PARITY_WORDS, weekdayOfDate, yearOfDay } from '../dates/days';
+import { lastCountedOccurrence, type Recurrence } from '../dates/recurrence';
 import { weekStartOf } from '../dates/weeks';
 import { plannedSlots, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
 
@@ -19,7 +20,7 @@ export const NO_TYPICAL_WEEK = 'Aucun créneau ni éphéméride répété sur ce
 
 /** Weeks of a period that have the same slots, with the name that tells which they are. */
 export interface TypicalWeek {
-  /** « Toutes les semaines », « Semaines paires », « 1 semaine sur 3, à partir du 05/01 », « Sem. 2, 5, 8 ». */
+  /** « Sem. 5 », « Toutes les semaines », « Semaines paires », « 1 semaine sur 3, à partir du 05/01 », « Sem. 2, 5, 8 ». */
   name: string;
   /** Mondays of its weeks, in order. */
   weeks: string[];
@@ -28,13 +29,29 @@ export interface TypicalWeek {
 }
 
 /**
- * A schedule reduced to its rules: its cases that repeat, without their days deleted one by one, and without its
- * exceptions (days or periods changed, moved or paused); none when it has no case that repeats.
+ * Bare rule of a case: without its days deleted one by one nor its pauses. A rule limited to a number of occurrences
+ * ends on its last occurrence as it counts them (its days deleted and paused not counted, `lastCountedOccurrence`):
+ * the days it gives back are those it skipped, its end does not move.
+ * @param {Recurrence} rule Rule of the case.
+ * @param {string} start First day its rhythm and its count start from.
+ * @returns {Recurrence} Bare rule.
+ */
+function bareRule(rule: Recurrence, start: string): Recurrence {
+  const bare = { ...rule, exceptions: [], pauses: [] };
+  if (rule.count === null) return bare;
+  // No occurrence at all (every one deleted or paused): none either, a day before its first one.
+  return { ...bare, count: null, until: lastCountedOccurrence(rule, start) ?? addDays(start, -1) };
+}
+
+/**
+ * A schedule reduced to its rules: its cases that repeat, by their bare rule (`bareRule`: without days deleted one by
+ * one nor pauses), and without its exceptions (days or periods changed, moved or paused); none when it has no case
+ * that repeats.
  * @param {WorkScheduleRule} schedule Schedule.
  * @returns {WorkScheduleRule | null} Schedule of its rules, or none.
  */
 export function ruleOnlySchedule(schedule: WorkScheduleRule): WorkScheduleRule | null {
-  const cases = schedule.cases.flatMap((item) => (item.rule ? [{ ...item, rule: { ...item.rule, exceptions: [] } }] : []));
+  const cases = schedule.cases.flatMap((item) => (item.rule ? [{ ...item, rule: bareRule(item.rule, item.anchor ?? item.since ?? schedule.startDate) }] : []));
   return cases.length ? { ...schedule, cases, exceptions: [] } : null;
 }
 
@@ -63,15 +80,19 @@ function weekLabel(monday: string, mondays: readonly string[]): string {
 }
 
 /**
- * Name of the weeks of a typical week among those of the period, read from them: « Toutes les semaines »; every even
- * or odd week (ISO numbers) « Semaines paires » / « Semaines impaires »; one week out of n from its first one to the
- * end of the period « 1 semaine sur 3, à partir du 05/01 » (n = 1: « Toutes les semaines, à partir du 05/01 »);
+ * Name of the weeks of a typical week among those of the period, read from them. A single week: its number « Sem. 5 ».
+ * Several: « Toutes les semaines »; every even or odd week (ISO numbers) « Semaines paires » / « Semaines impaires »;
+ * one week out of n from its first one to the end of the period « 1 semaine sur 3, à partir du 05/01 » (n = 1:
+ * « Toutes les semaines, à partir du 05/01 »; « 05/01/2027 » when the period covers two calendar years or more);
  * otherwise their numbers « Sem. 2, 5, 8 ».
  * @param {readonly string[]} weeks Mondays of its weeks, in order.
  * @param {readonly string[]} mondays Mondays of every week of the period, in order.
+ * @param {{ from: string, to: string }} period First and last days of the period.
  * @returns {string} Name.
  */
-export function typicalWeekName(weeks: readonly string[], mondays: readonly string[]): string {
+export function typicalWeekName(weeks: readonly string[], mondays: readonly string[], period: { from: string; to: string }): string {
+  const listed = `Sem. ${weeks.map((monday) => weekLabel(monday, mondays)).join(', ')}`;
+  if (weeks.length < 2) return listed;
   if (weeks.length === mondays.length) return 'Toutes les semaines';
   /**
    * Whether some weeks are those of the typical week.
@@ -82,23 +103,21 @@ export function typicalWeekName(weeks: readonly string[], mondays: readonly stri
   for (const parity of WEEK_PARITIES) {
     if (same(mondays.filter((monday) => isoWeekHasParity(monday, parity)))) return `Semaines ${WEEK_PARITY_WORDS[parity]}s`;
   }
-  if (weeks.length > 1) {
-    const step = daysBetween(weeks[0], weeks[1]) / 7;
-    const regular = weeks.every((monday, index) => index === 0 || daysBetween(weeks[index - 1], monday) === step * 7);
-    // Up to the end of the period: the next one would be after it.
-    if (regular && addDays(weeks[weeks.length - 1], step * 7) > mondays[mondays.length - 1]) {
-      // « 05/01 »: the day and the month of its first Monday.
-      const since = printedDay(weeks[0]).slice(0, 5);
-      return step === 1 ? `Toutes les semaines, à partir du ${since}` : `1 semaine sur ${step}, à partir du ${since}`;
-    }
+  const step = daysBetween(weeks[0], weeks[1]) / 7;
+  const regular = weeks.every((monday, index) => index === 0 || daysBetween(weeks[index - 1], monday) === step * 7);
+  // Up to the end of the period: the next one would be after it.
+  if (regular && addDays(weeks[weeks.length - 1], step * 7) > mondays[mondays.length - 1]) {
+    // « 05/01 »: the day and the month of its first Monday; its year too over several calendar years.
+    const since = yearOfDay(period.from) === yearOfDay(period.to) ? printedDay(weeks[0]).slice(0, 5) : printedDay(weeks[0]);
+    return step === 1 ? `Toutes les semaines, à partir du ${since}` : `1 semaine sur ${step}, à partir du ${since}`;
   }
-  return `Sem. ${weeks.map((monday) => weekLabel(monday, mondays)).join(', ')}`;
+  return listed;
 }
 
 /**
  * Typical weeks of a period: its weeks (Monday to Sunday, whole, those it overlaps) with the same slots of the
- * schedules given, from their rules only (`ruleOnlySchedule`: neither the days changed, moved or deleted, nor the
- * cases that do not repeat), each named from its weeks (`typicalWeekName`), in the order of their first week. The
+ * schedules given, from their rules only (`ruleOnlySchedule`: neither the days changed, moved, deleted or paused,
+ * nor the cases that do not repeat), each named from its weeks (`typicalWeekName`), in the order of their first week. The
  * weeks without any slot are left out.
  * @param {readonly WorkScheduleRule[]} schedules Schedules taken into account.
  * @param {string} from First day of the period.
@@ -123,5 +142,5 @@ export function typicalWeeks(schedules: readonly WorkScheduleRule[], from: strin
     if (group) group.weeks.push(monday);
     else groups.set(key, { weeks: [monday], slots });
   }
-  return [...groups.values()].map((group) => ({ name: typicalWeekName(group.weeks, mondays), ...group }));
+  return [...groups.values()].map((group) => ({ name: typicalWeekName(group.weeks, mondays, { from, to }), ...group }));
 }

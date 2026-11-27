@@ -163,7 +163,7 @@ Ce que l'agenda et son PDF partagent pour dessiner les créneaux et éphémérid
 
 ## `typical-weeks.ts` — semaines types d'une période
 
-Ce que l'export des semaines types calcule (voir [Règles : export des semaines types](../../business-rules/activities/calendar.md#export-des-semaines-types)). Tests : `test/calendar/typical-weeks.test.ts`.
+Ce que l'export des semaines types calcule (voir [Règles : export des semaines types](../../business-rules/activities/calendar.md#export-des-semaines-types)). Tests : `test/calendar/typical-weeks.test.ts` (et `lastCountedOccurrence` dans `test/dates/recurrence.test.ts`).
 
 | Export | Rôle |
 | --- | --- |
@@ -171,9 +171,9 @@ Ce que l'export des semaines types calcule (voir [Règles : export des semaines 
 | `typicalWeeksRefusal(count)` | « 9 semaines différentes sur cette période : réduisez la période ou filtrez les créneaux et éphémérides (6 au plus). » : panneau (web) et refus de l'API. |
 | `NO_TYPICAL_WEEK` | « Aucun créneau ni éphéméride répété sur cette période. » : panneau (web) et refus de l'API. |
 | `TypicalWeek` | Semaine type : `name`, `weeks` (lundis de ses semaines, dans l'ordre), `slots` (créneaux de sa première semaine). |
-| `ruleOnlySchedule(schedule)` | Un horaire réduit à ses règles : ses cas qui se répètent, sans leurs jours supprimés un à un, et sans ses exceptions (jours ou périodes modifiés, déplacés, en pause) ; `null` sans cas qui se répète. |
+| `ruleOnlySchedule(schedule)` | Un horaire réduit à ses règles nues : ses cas qui se répètent, sans leurs jours supprimés un à un ni les pauses de leur règle, et sans ses exceptions (jours ou périodes modifiés, déplacés, en pause) ; un nombre d'occurrences devient la date de la dernière, comptée sans les jours supprimés ni en pause (`lastCountedOccurrence`), pour que sa fin ne bouge pas (interne `bareRule`) ; `null` sans cas qui se répète. |
 | `periodMondays(from, to)` | Lundis des semaines (lundi à dimanche) qu'une période touche, dans l'ordre. |
-| `typicalWeekName(weeks, mondays)` | Nom d'une semaine type parmi les semaines de la période : « Toutes les semaines » ; « Semaines paires » / « Semaines impaires » (numéros ISO, `isoWeekHasParity`) ; une semaine sur n depuis sa première jusqu'à la fin de la période, « 1 semaine sur 3, à partir du 05/01 » (n = 1 : « Toutes les semaines, à partir du 05/01 ») ; sinon leurs numéros ISO, « Sem. 2, 5, 8 », avec l'année ISO d'un numéro que la période a deux fois (« 2 (2027) »). |
+| `typicalWeekName(weeks, mondays, period)` | Nom d'une semaine type parmi les semaines de la période : une seule semaine, « Sem. 5 » ; de 2 ou plus : « Toutes les semaines » ; « Semaines paires » / « Semaines impaires » (numéros ISO, `isoWeekHasParity`) ; une semaine sur n depuis sa première jusqu'à la fin de la période, « 1 semaine sur 3, à partir du 05/01 » (n = 1 : « Toutes les semaines, à partir du 05/01 » ; « 05/01/2027 » quand la période `{ from, to }` couvre deux années civiles ou plus) ; sinon leurs numéros ISO, « Sem. 2, 5, 8 », avec l'année ISO d'un numéro que la période a deux fois (« 2 (2027) »). |
 | `typicalWeeks(schedules, from, to)` | Semaines types d'une période : ses semaines entières aux mêmes créneaux (même horaire, même jour de la semaine, mêmes heures) d'après les règles seules (`ruleOnlySchedule`, `plannedSlots`), chacune nommée (`typicalWeekName`), dans l'ordre de leur première semaine ; les semaines sans aucun créneau sont écartées. Utilisé par `TypicalWeeksPanel` (web). |
 
 ## `work-schedules.ts` — créneaux planifiés (horaires)

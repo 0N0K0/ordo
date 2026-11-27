@@ -450,6 +450,17 @@ export function occurrenceDates(rule: Recurrence, start: string, from: string, t
 }
 
 /**
+ * Last occurrence of a rule limited to a number of occurrences, as it counts them (its days excluded and paused not
+ * counted): the day its series ends, to keep the same occurrences once the rule changes (its count turned into an end).
+ * @param {Recurrence} rule Rule (with a count; without one, its last occurrence within a hundred years).
+ * @param {string} start First date (where the count starts).
+ * @returns {string | undefined} Last occurrence, none when it has none.
+ */
+export function lastCountedOccurrence(rule: Recurrence, start: string): string | undefined {
+  return occurrenceDates(rule, start, start, addDays(start, 36_600)).at(-1);
+}
+
+/**
  * Rule whose monthly and yearly values are those of a day (its day of the month, weekday, position, month, week).
  * @param {Recurrence} rule Rule.
  * @param {string} to Day.
@@ -639,7 +650,7 @@ export function shiftedRulePieces(rule: Recurrence, first: string | null, days: 
   const groups = [...groupBy(own, (weekday) => crossedWeeks(weekday, days)).values()];
   let moved = shiftedDates(rule, days);
   if (groups.length > 1 && rule.count !== null) {
-    const last = occurrenceDates(rule, anchor, anchor, addDays(anchor, 36_600)).at(-1);
+    const last = lastCountedOccurrence(rule, anchor);
     if (last) moved = { ...moved, count: null, until: addDays(last, days) };
   }
   return groups.map((group) => movedWeekdays(moved, anchor, group, days));

@@ -51,7 +51,7 @@ describe('typicalWeeks', () => {
   });
 
   it('counts the rules only: neither the days changed or paused, nor the days deleted, nor what does not repeat', () => {
-    const changed = schedule([scheduleCase({ weekdays: [1], exceptions: ['2026-11-09'] })], {
+    const changed = schedule([scheduleCase({ weekdays: [1], exceptions: ['2026-11-09'], pauses: [{ from: '2026-11-23', to: '2026-11-29' }] })], {
       exceptions: [
         { from: '2026-11-16', to: '2026-11-16', label: '', cases: [] },
         { from: '2026-11-24', to: '2026-11-24', label: '', cases: [scheduleCase({ frequency: 'DAILY' })] },
@@ -62,12 +62,41 @@ describe('typicalWeeks', () => {
     expect(ruleOnlySchedule(once)).toBeNull();
     expect(typicalWeeks([once], '2026-11-02', '2026-11-29')).toEqual([]);
   });
+
+  it('keeps the end of a rule limited to a number of occurrences where its days deleted and paused put it', () => {
+    // 3 Mondays counted without the 9th nor the 16th (paused): the 2nd, the 23rd and the 30th; the 9th and the 16th given back.
+    const counted = schedule([scheduleCase({ weekdays: [1], count: 3, exceptions: ['2026-11-09'], pauses: [{ from: '2026-11-16', to: '2026-11-16' }] })]);
+    expect(short(typicalWeeks([counted], '2026-11-02', '2026-12-13'))).toEqual([{ name: 'Sem. 45, 46, 47, 48, 49', weeks: ['2026-11-02', '2026-11-09', '2026-11-16', '2026-11-23', '2026-11-30'] }]);
+  });
+
+  it('counts the occurrences of a rule from the first day of its case', () => {
+    // From the 2nd (its case), the 9th deleted: the 2nd and the 16th, the 9th given back.
+    const since = schedule([scheduleCase({ weekdays: [1], count: 2, exceptions: ['2026-11-09'] }, { since: '2026-11-02' })], { startDate: '2026-10-05' });
+    expect(short(typicalWeeks([since], '2026-11-02', '2026-11-29'))).toEqual([{ name: 'Sem. 45, 46, 47', weeks: ['2026-11-02', '2026-11-09', '2026-11-16'] }]);
+  });
+
+  it('names a typical week of a single week by its number, never by its parity nor « Toutes les semaines »', () => {
+    const odd = schedule([scheduleCase({ weekdays: [2], weekParity: 'ODD' })], { id: 'odd' });
+    expect(short(typicalWeeks([everyMonday, odd], '2026-11-02', '2026-11-15'))).toEqual([
+      { name: 'Sem. 45', weeks: ['2026-11-02'] },
+      { name: 'Sem. 46', weeks: ['2026-11-09'] },
+    ]);
+    expect(short(typicalWeeks([everyMonday], '2026-11-02', '2026-11-08'))).toEqual([{ name: 'Sem. 45', weeks: ['2026-11-02'] }]);
+  });
 });
 
 describe('typicalWeekName', () => {
   it('adds its ISO year to a week number the period has twice', () => {
-    const mondays = periodMondays('2026-01-05', '2027-01-11');
-    expect(typicalWeekName(['2026-01-12', '2026-02-16', '2027-01-11'], mondays)).toBe('Sem. 3, 8, 2 (2027)');
+    const period = { from: '2026-01-05', to: '2027-01-11' };
+    expect(typicalWeekName(['2026-01-12', '2026-02-16', '2027-01-11'], periodMondays(period.from, period.to), period)).toBe('Sem. 3, 8, 2 (2027)');
+  });
+
+  it('adds the year to the first day of one week out of n when the period covers two calendar years or more', () => {
+    const weeks = ['2026-01-05', '2026-01-26', '2026-02-16'];
+    const over = { from: '2025-12-15', to: '2026-02-28' };
+    expect(typicalWeekName(weeks, periodMondays(over.from, over.to), over)).toBe('1 semaine sur 3, à partir du 05/01/2026');
+    const within = { from: '2026-01-05', to: '2026-02-28' };
+    expect(typicalWeekName(weeks, periodMondays(within.from, within.to), within)).toBe('1 semaine sur 3, à partir du 05/01');
   });
 });
 

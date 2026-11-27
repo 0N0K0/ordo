@@ -246,14 +246,14 @@ Le champ « Créneaux de l’agenda » (`SlotConditionBuilder`, le même pour le
 
 ### Export des semaines types
 
-Panneau « Semaines types » (section « Exporter » des paramètres de l’agenda) : « Une page par semaine type : les semaines de la période qui ont les mêmes créneaux et éphémérides, d’après leurs répétitions seules (sans les jours modifiés, déplacés ou supprimés). »
+Panneau « Semaines types » (section « Exporter » des paramètres de l’agenda) : « Une page par semaine type : les semaines de la période qui ont les mêmes créneaux et éphémérides, d’après leurs répétitions seules (sans les jours modifiés, déplacés, supprimés ou en pause). »
 
 - « Période » (obligatoire) : la période affichée par l’agenda d’abord ; ses semaines entières (lundi à dimanche) comptent.
 - « Créneaux et éphémérides » : une case par créneau ou éphéméride de l’espace puis des autres espaces abonnés (« · Espace »), sans les archivés ni ceux d’un type archivé ; décochés d’abord ceux que la vue masque ; « Aucun créneau. » sinon.
 - Sous eux, les semaines types, recalculées à chaque changement : « 3 semaines types » et leurs noms (« Toutes les semaines », « Semaines paires », « 1 semaine sur 3, à partir du 05/01 », « Sem. 2, 5, 8 »…) ; au-delà de 6, un avis orange « 9 semaines différentes sur cette période : réduisez la période ou filtrez les créneaux et éphémérides (6 au plus). » ; sans aucune, « Aucun créneau ni éphéméride répété sur cette période. ».
 - « Annuler » / « Générer » (désactivé avec l’avis orange) : télécharge « Semaines types — <période>.pdf », toast « Semaines types exportées. » ou « Export PDF impossible. », et ferme le panneau.
 
-Le document : une page par semaine type, A4 paysage, au gabarit commun, « <nom> · <période> » en en-tête ; une semaine du lundi au dimanche, jours nommés sans dates, avec seulement les créneaux et éphémérides choisis (ni anniversaires, ni évènements, ni routines, ni tâches), dessinés comme dans la « Vue en PDF » (bandeau, fond, fine ligne selon l’affichage de leur type, hachurés ceux d’un autre espace, en pointillés les éphémérides) ; légende en bas de la page. Seules les répétitions comptent : pas les occurrences modifiées, déplacées ou supprimées, ni ce qui ne se répète pas. Voir les règles dans [Règles de l’agenda](../../business-rules/activities/calendar.md#export-des-semaines-types).
+Le document : une page par semaine type, A4 paysage, au gabarit commun, « <nom> · <période> » en en-tête ; une semaine du lundi au dimanche, jours nommés sans dates, avec seulement les créneaux et éphémérides choisis (ni anniversaires, ni évènements, ni routines, ni tâches), dessinés comme dans la « Vue en PDF » (bandeau, fond, fine ligne selon l’affichage de leur type, hachurés ceux d’un autre espace, en pointillés les éphémérides) ; légende en bas de la page. Seules les répétitions comptent : pas les occurrences modifiées, déplacées, supprimées ou en pause, ni ce qui ne se répète pas ; une répétition limitée à un nombre de fois garde sa fin. Voir les règles dans [Règles de l’agenda](../../business-rules/activities/calendar.md#export-des-semaines-types).
 
 ### Export iCalendar
 

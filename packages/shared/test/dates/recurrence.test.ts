@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   crossedWeeks,
   cutSeries,
+  lastCountedOccurrence,
   maxSpanDays,
   movedWeekdays,
   occurrenceDates,
@@ -503,5 +504,13 @@ describe('seriesHolding', () => {
     const moved = shiftedSeries(tuesday, '2026-11-10', 1);
     expect(seriesHolding(moved, addDays('2027-09-14', 1))).toBeUndefined();
     expect(seriesHolding(moved, addDays('2027-10-12', 1))).toBeDefined();
+  });
+});
+
+describe('lastCountedOccurrence', () => {
+  it('ends a counted series on its last occurrence, its days deleted and paused not counted', () => {
+    const counted = rule({ weekdays: [1], count: 3, exceptions: ['2026-11-09'], pauses: [{ from: '2026-11-16', to: '2026-11-22' }] });
+    expect(lastCountedOccurrence(counted, '2026-11-02')).toBe('2026-11-30');
+    expect(lastCountedOccurrence(rule({ weekdays: [1], count: 1 }), '2026-11-02')).toBe('2026-11-02');
   });
 });
