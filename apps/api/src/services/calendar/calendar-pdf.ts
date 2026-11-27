@@ -56,7 +56,7 @@ const calendarPdfSchema = reportHeadingSchema
           legend: z.string().max(PRINTED_LABEL_MAX).nullable().default(null),
           /** Hatched (another workspace) or dotted (an éphéméride). */
           pattern: z.enum(SLOT_PATTERNS).nullable().default(null),
-          /** Opacity it is drawn with, as in the agenda (light backgrounds, faded when archived). */
+          /** Opacity it is drawn with, as in the agenda (light backgrounds, faded when archived, events too). */
           opacity: z.number().min(0).max(1).default(1),
           /** Lane of a thin line that day; column of a background among those at the same time, and their number. */
           lane: z.number().int().min(0).max(MAX_LANES).default(0),
@@ -232,6 +232,17 @@ function clippedText(doc: PdfDoc, text: string, box: { x: number; y: number; wid
 }
 
 /**
+ * Opacity of an item other than a créneau or an éphéméride (those carry it in their fill): its own (an archived one
+ * faded), or that of a struck through one; the fainter of both, not multiplied (as on screen, both set the same
+ * opacity).
+ * @param {CalendarPdfItem} item Item.
+ * @returns {number} Opacity (0 to 1).
+ */
+function itemOpacity(item: CalendarPdfItem): number {
+  return Math.min(item.kind === 'slot' ? 1 : item.opacity, item.struck ? 0.55 : 1);
+}
+
+/**
  * Paints the box of an item of the all-day row or of the time grid: a créneau or an éphéméride as the agenda draws it
  * (`fillSlot`), another item filled in its color or in its lighter look (`lightLook`).
  * @param {PdfDoc} doc PDF.
@@ -297,8 +308,11 @@ function drawTimeGrid(doc: PdfDoc, { days, items, today }: { days: readonly Grid
     const x = columnX(first) + 1;
     const width = (last - first + 1) * columnWidth - 2;
     const top = y + 2 + row * (barHeight + 2);
+    doc.save();
+    doc.opacity(itemOpacity(item));
     const text = paintItem(doc, item, { x, y: top, width, height: barHeight });
     clippedText(doc, item.label, { x: x + 4, y: top + 1.8, width: width - 6, height: barHeight - 2, size: 6.5, color: text, struck: item.struck });
+    doc.restore();
   }
   const hidden = placed.filter((entry) => entry.row >= maxRows).length;
   if (hidden) clippedText(doc, `+${hidden}`, { x: area.x + 2, y: y + 2, width: axis - 4, height: 9, size: 6.5, color: COLORS.muted });
@@ -381,7 +395,7 @@ function drawTimeGrid(doc: PdfDoc, { days, items, today }: { days: readonly Grid
         const height = Math.max(6, yOf(piece.end) - top - 1);
         const { item } = piece;
         doc.save();
-        if (item.struck) doc.opacity(0.55);
+        doc.opacity(itemOpacity(item));
         const text = paintItem(doc, item, { x, y: top, width: width - 1, height });
         const time = `${item.start.slice(11)}–${item.end.slice(11)}`;
         clippedText(doc, `${item.label}${height > 16 ? `\n${time}` : ''}`, {
@@ -456,7 +470,7 @@ function drawMonth(doc: PdfDoc, view: CalendarPdfView, area: Box, today: string)
       shown.forEach((item, index) => {
         const lineY = y + 12 + index * lineHeight;
         doc.save();
-        if (item.struck) doc.opacity(0.55);
+        doc.opacity(itemOpacity(item));
         const box = { x: x + 2, y: lineY, width: cellWidth - 4, height: lineHeight - 1 };
         if (item.allDay && item.kind === 'slot') fillSlot(doc, box, item);
         else if (item.allDay) doc.rect(box.x, box.y, box.width, box.height).fill(item.kind === 'event' ? item.color : tint(item.color, 0.2));

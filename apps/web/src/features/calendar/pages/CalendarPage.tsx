@@ -398,7 +398,7 @@ export function CalendarPage() {
           if (place === 'bar') {
             // Its bar on the day, in the all-day row.
             const look = slotBarLook({ color, foreign, ephemeris, archived });
-            result.push({ ...day, title: label, editable: false, extendedProps: { kind: 'slot', print: print(String(look.backgroundColor), 'planned', true) }, ...look });
+            result.push({ ...day, title: label, editable: false, extendedProps: { kind: 'slot', print: print(color ?? WORK_HOURS_COLOR, 'planned', true) }, ...look });
           } else if (month) result.push(place === 'line' ? { ...day, id: `${day.id}:${lane}`, ...line(classes.slotBorderBottom, lane) } : { ...day, ...background });
           else if (columned) {
             const ofDay = columns.get(slot.date) ?? [];
@@ -770,7 +770,7 @@ export function CalendarPage() {
         from: range.from,
         to: range.to,
         today: parisParts(new Date()).date,
-        items: pdfItems(items, classes.closed),
+        items: pdfItems(items, { closed: classes.closed, archived: classes.archived }),
       });
     },
     { success: 'Agenda exporté.', fallback: 'Export PDF impossible.' },

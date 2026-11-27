@@ -165,16 +165,18 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
 }
 
 /**
- * Look of the bar of a schedule on a day (the all-day row of the week and the day): in the color of its kind (working
- * hours without one), hatched for a schedule of another workspace, dotted and in italics for an éphéméride, faded when
- * archived (or of an archived kind) in its workspace.
+ * Look of the bar of a schedule on a day (the all-day row of the week and the day): its background in the color of its
+ * kind (working hours without one) made light (`--onoko-planned-opacity`), its text dark and opaque; hatched for a
+ * schedule of another workspace, dotted and in italics for an éphéméride, faded as an archived event when archived (or
+ * of an archived kind) in its workspace.
  * @param {{ color: string | null, foreign: boolean, ephemeris?: boolean, archived?: boolean }} source Schedule shown.
  * @returns {Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'>} Event props.
  */
 export function slotBarLook({ color, foreign, ephemeris = false, archived = false }: { color: string | null; foreign: boolean; ephemeris?: boolean; archived?: boolean }): Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'> {
+  const light = `color-mix(in srgb, ${color ?? WORK_HOURS_COLOR} calc(var(--onoko-planned-opacity) * 100%), transparent)`;
   return {
-    backgroundColor: color ?? WORK_HOURS_COLOR,
-    borderColor: color ?? WORK_HOURS_COLOR,
+    backgroundColor: light,
+    borderColor: light,
     textColor: 'var(--mantine-color-text)',
     classNames: [classes.slotBar, ...slotLookClasses({ foreign, ephemeris, archived })],
   };

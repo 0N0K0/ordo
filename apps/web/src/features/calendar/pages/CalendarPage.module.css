@@ -162,13 +162,23 @@
     opacity: var(--onoko-planned-typed-opacity) !important;
   }
 
-  /* Day of planned slots, at the top of the week and the day: a light bar, under the events. */
+  /* Day of planned slots, at the top of the week and the day: a light background (`slotBarLook`), its text dark and
+     opaque, under the events. */
   .slotBar {
-    /* Effets */
-    opacity: var(--onoko-planned-opacity);
-
     /* Interactions */
     cursor: default;
+  }
+
+  /* Patterns of a bar: as strong as on the whole bar made light (light mode), softer on the dark page so that its text
+     stays readable. */
+  .slotBar.subscribedSlot {
+    /* Arrière-Plan */
+    background-image: repeating-linear-gradient(135deg, light-dark(rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.3)) 0 4px, transparent 4px 8px) !important;
+  }
+
+  .slotBar.ephemeris {
+    /* Arrière-Plan */
+    background-image: radial-gradient(light-dark(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.33)) 1px, transparent 1.5px) !important;
   }
 
   /* Planned slots as a thin line on the left of their hours (week and day): the background event narrowed. */
@@ -209,8 +219,7 @@
 
   /* Archived schedule (or of an archived kind), shown on demand: faded as an archived event (`.archived`), over the
      lightness of its look (these looks set their opacity with !important). */
-  .workHours.archived,
-  .slotBar.archived {
+  .workHours.archived {
     /* Effets */
     opacity: calc(var(--onoko-planned-opacity) * var(--onoko-muted-opacity)) !important;
   }

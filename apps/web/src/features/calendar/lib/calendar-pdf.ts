@@ -50,6 +50,21 @@ const PRINT_OPACITY: Record<Exclude<SlotPrint['opacity'], 'full'>, { token: stri
 /** Opacity token of what is set back (archived). */
 const MUTED_OPACITY = { token: '--onoko-muted-opacity', fallback: 0.5 };
 
+/** Gray of an archived item on screen (`.archived`: `filter: grayscale(0.6)`). */
+const ARCHIVED_GRAYSCALE = 0.6;
+
+/**
+ * Color grayed as the CSS `grayscale()` filter does: mixed with its luminance.
+ * @param {string} hex Color (#rrggbb).
+ * @param {number} amount Share of gray (0 to 1).
+ * @returns {string} Grayed color (#rrggbb).
+ */
+function grayed(hex: string, amount: number): string {
+  const channels = [0, 1, 2].map((index) => parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16));
+  const luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  return `#${channels.map((value) => twoDigits(Math.round(value + (luminance - value) * amount).toString(16))).join('')}`;
+}
+
 /** Item of the calendar as the PDF draws it. */
 interface PdfItem {
   label: string;
@@ -155,12 +170,14 @@ function parisDateTime(value: EventInput['start']): string {
  * Items of the calendar as the PDF draws them: each item shown in its look (`CALENDAR_PDF_KINDS`: a background
  * narrowed to a lane is a thin line), dates in Paris, all-day ends included, colors resolved (filled looks: their
  * background, the others: their border); the créneaux, éphémérides and birthdays as they print (`SlotPrint`: color,
- * pattern, opacity, name in the legend), with the lane of their line or their column among the backgrounds.
+ * pattern, opacity, name in the legend), with the lane of their line or their column among the backgrounds; the other
+ * archived items (events, their travel, routines) faded and grayed as on screen.
  * @param {EventInput[]} items Items shown (filters applied).
- * @param {string} closedClass Class of the struck through items (cancelled events, done tasks).
+ * @param {{ closed: string, archived: string }} classNames Classes of the struck through items (cancelled events, done
+ * tasks) and of the archived ones.
  * @returns {PdfItem[]} Items.
  */
-export function pdfItems(items: readonly EventInput[], closedClass: string): PdfItem[] {
+export function pdfItems(items: readonly EventInput[], classNames: { closed: string; archived: string }): PdfItem[] {
   const opacities = printOpacities();
   return items.flatMap((item): PdfItem[] => {
     if (!item.start) return [];
@@ -169,8 +186,12 @@ export function pdfItems(items: readonly EventInput[], closedClass: string): Pdf
     const kind: CalendarPdfKind = item.display === 'background' ? (lined ? 'line' : 'background') : (PDF_KIND[String(props.kind)] ?? 'event');
     const filled = kind === 'event' || kind === 'slot' || kind === 'background' || kind === 'line';
     const { print } = props;
-    const color = hexColor(print?.color ?? (filled ? item.backgroundColor : item.borderColor), FALLBACK_COLOR[kind]);
-    const struck = (Array.isArray(item.classNames) ? item.classNames : []).includes(closedClass);
+    const classes = Array.isArray(item.classNames) ? item.classNames : [];
+    // Archived, outside the créneaux and éphémérides (their print says it): faded and grayed as on screen.
+    const archived = !print && classes.includes(classNames.archived);
+    const resolved = hexColor(print?.color ?? (filled ? item.backgroundColor : item.borderColor), FALLBACK_COLOR[kind]);
+    const color = archived ? grayed(resolved, ARCHIVED_GRAYSCALE) : resolved;
+    const struck = classes.includes(classNames.closed);
     const look = {
       label: item.title ?? '',
       kind,
@@ -178,7 +199,7 @@ export function pdfItems(items: readonly EventInput[], closedClass: string): Pdf
       struck,
       legend: print?.legend ?? null,
       pattern: print?.pattern ?? null,
-      opacity: print ? printOpacity(print, opacities) : 1,
+      opacity: print ? printOpacity(print, opacities) : archived ? opacities.muted : 1,
       lane: wholeNumber(props.slotLane, 0),
       column: wholeNumber(props.slotColumn, 0),
       columns: wholeNumber(props.slotColumns, 1),
