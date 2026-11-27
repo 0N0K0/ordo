@@ -310,6 +310,16 @@ describe('reminders of a task with « Horaires »', () => {
     { before: null, at: '09:00', days: 1 },
   ];
   /**
+   * Rings of the task by key: their instants.
+   * @param {{ minDate: string | null, deadline: string }} dates Its « Ouverture » and « Échéance ».
+   * @param {unknown} hours Its « Horaires ».
+   * @returns {Record<string, string>} Instants by key.
+   */
+  const rings = ({ minDate, deadline }: { minDate: string | null; deadline: string }, hours: unknown) =>
+    Object.fromEntries(
+      taskRings([{ id: 't', label: 'Tâche', closed: false, archived: false, effectiveMinDate: minDate, effectiveDeadline: deadline, hours, reminders }], NOW, 4).map((ring) => [ring.key, ring.at.toISOString()]),
+    );
+  /**
    * Keys of the rings of the task over the next days.
    * @param {unknown} hours Its « Horaires ».
    * @returns {string[]} Keys.
@@ -319,8 +329,20 @@ describe('reminders of a task with « Horaires »', () => {
       .map((ring) => ring.key)
       .sort();
 
-  it('« À HH:MM » only on the days its hours allow; « N jours avant » still from its « Échéance »', () => {
+  it('« À HH:MM » only on the days its hours allow; « N jours avant » from its « Échéance », moved back off an excluded day', () => {
     expect(keys(weekdays)).toEqual(['task:t:2026-11-26:at:08:00', 'task:t:2026-11-27:at:08:00', 'task:t:2026-11-30:at:08:00', 'task:t:2026-11-30:days:1:09:00']);
+    // 1 day before Monday 30 is Sunday 29, excluded: Friday 27 at 09:00, its key unchanged.
+    expect(rings({ minDate: '2026-11-26', deadline: '2026-11-30' }, weekdays)['task:t:2026-11-30:days:1:09:00']).toBe('2026-11-27T08:00:00.000Z');
+  });
+
+  it('due on an excluded day: counted from the last day allowed before it; without « Ouverture », « À HH:MM » that day', () => {
+    // Due on Saturday 28, doable Monday to Friday: its day is Friday 27; 1 day before it, Thursday 26.
+    expect(rings({ minDate: null, deadline: '2026-11-28' }, weekdays)).toEqual({
+      'task:t:2026-11-27:at:08:00': '2026-11-27T07:00:00.000Z',
+      'task:t:2026-11-28:days:1:09:00': '2026-11-26T08:00:00.000Z',
+    });
+    // With an « Ouverture »: each day allowed of it, nothing on the Saturday.
+    expect(Object.keys(rings({ minDate: '2026-11-26', deadline: '2026-11-28' }, weekdays)).sort()).toEqual(['task:t:2026-11-26:at:08:00', 'task:t:2026-11-27:at:08:00', 'task:t:2026-11-28:days:1:09:00']);
   });
 
   it('without hours: every day of its opening', () => {

@@ -127,10 +127,11 @@ export interface RemindedTask {
 }
 
 /**
- * Reminders of the open tasks (not closed nor archived): at their times of the day, every day from their « Ouverture »
- * to their « Échéance » (the « Échéance » day only without « Ouverture »; none without it) that their « Horaires »
- * allow (`itemWindowsOn`: a day without any window is left out), or once some days before their « Échéance », those
- * they go by. The ring tells the « Échéance ».
+ * Reminders of the open tasks (not closed nor archived), on the days their « Horaires » allow (`itemWindowsOn`: a day
+ * without any window is excluded; `taskReminders`): at their times of the day, every day allowed from their
+ * « Ouverture » to their « Échéance » (without « Ouverture »: the « Échéance », or the last day allowed before it; none
+ * without « Échéance »), or once some days before their « Échéance » (or the last day allowed before it), moved back
+ * off an excluded day; those they go by. The ring tells the « Échéance ».
  * @template {RemindedTask} T
  * @param {readonly T[]} tasks Tasks.
  * @param {Date} now Now.

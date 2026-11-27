@@ -63,7 +63,7 @@ export function ringReminders(occurrences: readonly RemindedOccurrence[], now: D
 
 /**
  * Rings the reminders of the open tasks that are due (`taskRings`: at their times of the day from their « Ouverture »
- * to their « Échéance », or some days before their « Échéance »).
+ * to their « Échéance », or some days before their « Échéance », on the days their « Horaires » allow).
  * @template {RemindedTask} T
  * @param {readonly T[]} tasks Tasks.
  * @param {Date} now Current time.
