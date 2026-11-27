@@ -48,7 +48,8 @@ import { taskCountdownItem } from '../lib/task-countdowns';
 import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
 import { tasksQueryKey } from '../../../lib/query-keys';
 import { inheritedDateHint } from '../lib/inherited-dates';
-import { taskExcludedDay } from '../lib/task-due';
+import { NO_TASK_DUE_DAY, TASK_DUE_SHIFT_REASON, taskExcludedDay } from '../lib/task-due';
+import { RealDueDate } from '../../../components/feedback/RealDueDate';
 import { TaskDueNotice } from './TaskDueNotice';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { TaskDoneButton } from './TaskDoneButton';
@@ -372,6 +373,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 }
                 readOnly={locked}
                 excluded={[undefined, taskExcludedDay(task)]}
+                shownBounds={[undefined, task.dueDay !== task.effectiveDeadline ? <RealDueDate day={task.dueDay ?? null} ruleDay={task.effectiveDeadline ?? null} reason={TASK_DUE_SHIFT_REASON} noneLabel={NO_TASK_DUE_DAY} /> : undefined]}
                 value={[task.minDate, task.deadline]}
                 hints={[inheritedDateHint(task, 'minDate'), inheritedDateHint(task, 'deadline')]}
                 inheritance={[inheritedBound('MIN_DATE'), inheritedBound('DEADLINE')]}
@@ -386,7 +388,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               </InheritedField>
             </PanelGroup>
             <PanelGroup title={PANEL_GROUPS.alarms}>
-              <TaskRemindersField value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
+              <TaskRemindersField value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} noDueDay={Boolean(task.effectiveDeadline) && !task.dueDay} disabled={locked} onChange={(reminders) => save({ reminders })} />
               <SavedCountdownsField target="TASK" id={task.id} value={task.savedCountdownIds} invalidate={[tasksQueryKey]} readOnly={locked} />
             </PanelGroup>
             <PanelGroup>

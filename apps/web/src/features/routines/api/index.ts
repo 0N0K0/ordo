@@ -120,9 +120,11 @@ const RoutinesDataDocument = graphql(`
       relatedIds
       currentDate
       currentDueDate
+      currentRuleDueDate
       firstDate
       nextDate
       nextDueDate
+      nextRuleDueDate
       doneDates
       lastDoneAt
       trackedSeconds
@@ -317,6 +319,7 @@ const RoutineOccurrencesDocument = graphql(`
       routineId
       date
       dueDate
+      ruleDueDate
       startDate
       shownDate
       movedFrom
@@ -464,9 +467,11 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     relatedIds: input.relatedIds ?? [],
     currentDate: null,
     currentDueDate: null,
+    currentRuleDueDate: null,
     firstDate: null,
     nextDate: null,
     nextDueDate: null,
+    nextRuleDueDate: null,
     doneDates: [],
     lastDoneAt: null,
     trackedSeconds: 0,

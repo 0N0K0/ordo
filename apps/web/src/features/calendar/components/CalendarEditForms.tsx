@@ -214,7 +214,8 @@ export function RoutineOccurrenceForm({
               id: occurrence.routine.id,
               date: day.current,
               scope,
-              to: values.date,
+              // Its day kept (its real due day shown): its due day by its rule, never a move to its real one.
+              to: values.date === (current?.dueDate ?? occurrence.dueDate) ? (current?.ruleDueDate ?? occurrence.ruleDueDate ?? values.date) : values.date,
               slot: occurrence.slot.index,
               fromTime: values.fromTime,
               dueTime: values.dueTime,

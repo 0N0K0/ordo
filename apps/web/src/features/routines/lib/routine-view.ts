@@ -24,15 +24,15 @@ export function opensWords(routine: Routine): string | null {
  * it follows (that of its case, else of its rule; inherited ones included, the routine being read as the screens read
  * it) and its first day as the API computes it; null without « Ouverture ».
  * @param {Routine} routine Routine.
- * @param {Pick<RoutineOccurrence, 'date' | 'dueDate' | 'startDate' | 'movedFrom'>} occurrence Occurrence: the day that identifies it, its due day, its first day, the day of its rule it was moved from.
+ * @param {Pick<RoutineOccurrence, 'date' | 'dueDate' | 'startDate' | 'movedFrom'> & { ruleDueDate?: string }} occurrence Occurrence: the day that identifies it, its real due day, its due day by its rule (what its « Ouverture » counts from), its first day, the day of its rule it was moved from.
  * @returns {string | null} Line.
  */
-export function occurrenceOpensWords(routine: Routine, occurrence: Pick<RoutineOccurrence, 'date' | 'dueDate' | 'startDate' | 'movedFrom'>): string | null {
+export function occurrenceOpensWords(routine: Routine, occurrence: Pick<RoutineOccurrence, 'date' | 'dueDate' | 'startDate' | 'movedFrom'> & { ruleDueDate?: string }): string | null {
   const cases = (routine.cases as RoutineCase[] | null) ?? [];
   const item = cases.length ? routineCaseOn(cases, routine.startDate, occurrence.movedFrom ?? occurrence.date) : null;
   const opens = readOpens(cases.length ? item?.opens : routine.opensOn);
   const frequency = cases.length ? item?.recurrence.frequency : ruleOf(routine)?.frequency;
-  return (opens && frequency && occurrenceOpensText(opens, frequency, occurrence.startDate, occurrence.dueDate)) || null;
+  return (opens && frequency && occurrenceOpensText(opens, frequency, occurrence.startDate, occurrence.ruleDueDate ?? occurrence.dueDate)) || null;
 }
 
 const ROUTINE_STATE_LOOKS: Record<(typeof ROUTINE_STATES)[number], { label: string; color: string }> = {

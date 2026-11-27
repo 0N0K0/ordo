@@ -136,7 +136,7 @@ const RoutineReminderOccurrenceRef = builder.objectRef<routines.RoutineReminderO
   description: 'Occurrence of a routine its reminders ring for (Paris time).',
   fields: (t) => ({
     date: t.field({ type: 'Date', description: 'Day that identifies the occurrence: its due day, or the day of its rule when moved and kept apart.', resolve: (occurrence) => parseDay(occurrence.date) }),
-    dueDate: t.field({ type: 'Date', description: 'Due day of the occurrence.', resolve: (occurrence) => parseDay(occurrence.dueDate) }),
+    dueDate: t.field({ type: 'Date', description: 'Real due day of the occurrence (the last day of its opening that its condition allows a moment on): the day of its reminders from the end.', resolve: (occurrence) => parseDay(occurrence.dueDate) }),
     day: t.field({ type: 'Date', description: 'Its first day (« Ouverture »).', resolve: (occurrence) => parseDay(occurrence.day) }),
     firstDay: t.field({
       type: 'Date',
@@ -144,7 +144,7 @@ const RoutineReminderOccurrenceRef = builder.objectRef<routines.RoutineReminderO
       description: 'First day of its opening its condition allows one of its times of the day not ticked on (the first day « Ma journée » shows it): the day its reminders counted from the opening ring on or count from (« À HH:MM », « N jours avant », « avant » the start or the end of the opening; the due day `date`: those from the end); null: none (those do not ring).',
       resolve: (occurrence) => parseOptionalDay(occurrence.firstDay),
     }),
-    slots: t.field({ type: [RoutineReminderSlotRef], description: 'Its times of the day not ticked, with their hours (the moments its reminders « N min avant » the due day count from: `routineSlotAnchors`).', resolve: (occurrence) => occurrence.slots }),
+    slots: t.field({ type: [RoutineReminderSlotRef], description: 'Its times of the day not ticked allowed on its real due day, with their hours that day (the moments its reminders « N min avant » the due day count from: `routineSlotAnchors`).', resolve: (occurrence) => occurrence.slots }),
     openingSlots: t.field({
       type: [RoutineReminderSlotRef],
       description: 'Its times of the day not ticked allowed on `firstDay`, with their hours that day (the moments its reminders « N min avant » the start or the end of the opening count from).',
@@ -154,14 +154,20 @@ const RoutineReminderOccurrenceRef = builder.objectRef<routines.RoutineReminderO
 });
 
 /**
- * Due day of an occurrence of a routine, from the day that identifies it.
+ * Due day of an occurrence of a routine, from the day that identifies it: its real one (`real`: the last day of it its
+ * condition allows a moment on), else that of its rule (or the day it was moved to).
  * @param {occurrences.RoutineTiming} routine Routine.
  * @param {string | null} date Occurrence (the day that identifies it).
  * @param {occurrences.ScheduleContext} context Schedules of the workspace.
+ * @param {boolean} [real] Its real due day. Optional. Default = true.
  * @returns {string | null} Due day.
  */
-const dueDayOf = (routine: occurrences.RoutineTiming, date: string | null, context: occurrences.ScheduleContext): string | null =>
-  date && routines.occurrenceDueDayOf(routine, date, context);
+const dueDayOf = (routine: occurrences.RoutineTiming, date: string | null, context: occurrences.ScheduleContext, real = true): string | null => {
+  if (!date) return null;
+  const rule = routines.occurrenceDueDayOf(routine, date, context);
+  // Computed once per routine and occurrence in a request.
+  return real ? occurrences.remember(routine, context, `due|${date}`, () => routines.occurrenceOn(routine, date, context)?.due ?? rule) : rule;
+};
 
 /** Checks loaded to know the times ticked today. */
 const TODAY_CHECKS = { checks: occurrences.LATEST_CHECKS } as const;
@@ -314,9 +320,16 @@ builder.prismaObject('Routine', {
     currentDueDate: t.field({
       type: 'Date',
       nullable: true,
-      description: 'Due day of the current occurrence (currentDate unless moved and kept apart).',
+      description: 'Real due day of the current occurrence: the last day of it that its condition allows a moment on (its due day, currentDate unless moved and kept apart, when that day does).',
       select: { ...TIMING, ...TODAY_CHECKS },
       resolve: async (routine, _args, ctx) => parseOptionalDay(dueDayOf(routine, routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).current, await slotsOf(ctx))),
+    }),
+    currentRuleDueDate: t.field({
+      type: 'Date',
+      nullable: true,
+      description: 'Due day of the current occurrence by its rule (currentDate unless moved and kept apart), before its condition moves it back.',
+      select: { ...TIMING, ...TODAY_CHECKS },
+      resolve: async (routine, _args, ctx) => parseOptionalDay(dueDayOf(routine, routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).current, await slotsOf(ctx), false)),
     }),
     firstDate: t.field({
       type: 'Date',
@@ -335,9 +348,16 @@ builder.prismaObject('Routine', {
     nextDueDate: t.field({
       type: 'Date',
       nullable: true,
-      description: 'Due day of the next occurrence (nextDate unless moved and kept apart).',
+      description: 'Real due day of the next occurrence (the last day of it that its condition allows a moment on; nextDate unless moved and kept apart).',
       select: { ...TIMING, ...TODAY_CHECKS },
       resolve: async (routine, _args, ctx) => parseOptionalDay(dueDayOf(routine, routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).next, await slotsOf(ctx))),
+    }),
+    nextRuleDueDate: t.field({
+      type: 'Date',
+      nullable: true,
+      description: 'Due day of the next occurrence by its rule (nextDate unless moved and kept apart), before its condition moves it back.',
+      select: { ...TIMING, ...TODAY_CHECKS },
+      resolve: async (routine, _args, ctx) => parseOptionalDay(dueDayOf(routine, routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).next, await slotsOf(ctx), false)),
     }),
     cases: t.expose('cases', { type: 'JSON', description: 'Cases (days and times of the day); empty: its repetition.' }),
     moves: t.field({
@@ -563,7 +583,10 @@ interface OccurrenceState {
   routineId: string;
   /** Day that identifies it: its due day, or the day of its rule when moved and kept apart. */
   date: string;
+  /** Real due day: the last day of it that its condition allows a moment on. */
   dueDate: string;
+  /** Due day by its rule (or the day it was moved to), before its condition moves it back. */
+  ruleDueDate: string;
   /** First day it can be done (its due day for a single day). */
   startDate: string;
   /** Day it shows on: its due day once past, today while it runs, its first day before. */
@@ -585,7 +608,8 @@ const RoutineOccurrenceRef = builder.objectRef<OccurrenceState>('RoutineOccurren
       description: 'Day that identifies it (its ticks, comments, checklist, links with events, the changes of it): its due day, or the day of its rule when moved onto a day that has its own and kept apart.',
       resolve: (occurrence) => parseDay(occurrence.date),
     }),
-    dueDate: t.field({ type: 'Date', description: 'Due day (its last day).', resolve: (occurrence) => parseDay(occurrence.dueDate) }),
+    dueDate: t.field({ type: 'Date', description: 'Real due day: the last day of it that its condition allows a moment on (its last day when that day does).', resolve: (occurrence) => parseDay(occurrence.dueDate) }),
+    ruleDueDate: t.field({ type: 'Date', description: 'Due day by its rule (or the day it was moved to), before its condition moves it back: the day an undo of a move goes back to.', resolve: (occurrence) => parseDay(occurrence.ruleDueDate) }),
     startDate: t.field({ type: 'Date', description: 'First day it can be done.', resolve: (occurrence) => parseDay(occurrence.startDate) }),
     shownDate: t.field({ type: 'Date', description: 'Day it shows on: its due day once past, today while it runs, its first day before.', resolve: (occurrence) => parseDay(occurrence.shownDate) }),
     movedFrom: t.field({ type: 'Date', nullable: true, description: 'Day of the rule it was moved from (an exception).', resolve: (occurrence) => parseOptionalDay(occurrence.movedFrom) }),
@@ -682,15 +706,16 @@ builder.queryFields((t) => ({
         const moves = occurrences.liveMoves(occurrences.occurrenceTiming(routine, context), context);
         // A group (sub-routines not archived) is never ticked: its ticks of before are not read.
         const checks = occurrences.hasSubRoutines(routine.id, context) ? [] : [...routine.checks, ...more.filter((check) => check.routineId === routine.id)];
-        return spans.map(({ start, end, date, cancelled = false }) => {
+        return spans.map(({ start, end, due = end, date, cancelled = false }) => {
           const ruleDay = movedFrom(moves, date);
           const ticks = new Map(checks.filter((check) => formatDay(check.date) === date).map((check) => [check.slot, check.doneAt]));
           return {
             routineId: routine.id,
             date,
-            dueDate: end,
+            dueDate: due,
+            ruleDueDate: end,
             startDate: start,
-            shownDate: routines.shownDay({ start, end }, today),
+            shownDate: routines.shownDay({ start, end: due }, today),
             movedFrom: ruleDay !== end ? ruleDay : null,
             cancelled,
             archived: routine.archivedAt !== null,

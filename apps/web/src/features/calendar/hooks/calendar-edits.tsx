@@ -22,8 +22,10 @@ export interface RoutineOccurrenceRef {
   routine: Routine;
   /** Day that identifies it (its ticks, comments, changes): its due day, or the day of its rule when moved and kept apart. */
   date: string;
-  /** Its due day (the day it shows on once past). */
+  /** Its real due day (the day it shows on once past). */
   dueDate: string;
+  /** Its due day by its rule (or the day it was moved to): what a change keeping its day sends. Optional. Default = `dueDate`. */
+  ruleDueDate?: string;
   /** Day it shows on (its due day once past, today while it runs, its first day before): a drag moves it from there. Optional. Default = its due day. */
   shownDate?: string;
   slot: RoutineSlotTimes;

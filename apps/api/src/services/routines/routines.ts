@@ -347,7 +347,7 @@ export function slotsOf(given: RoutineTiming, occurrence: string | null, schedul
 export interface RoutineReminderOccurrence {
   /** Day that identifies the occurrence: its due day, or the day of its rule when moved and kept apart. */
   date: string;
-  /** Its due day. */
+  /** Its real due day (the last day of it that its condition allows a moment on): the day of its reminders from the end. */
   dueDate: string;
   /** Its first day (« Ouverture »). */
   day: string;
@@ -360,8 +360,8 @@ export interface RoutineReminderOccurrence {
   /** Its times of the day not ticked allowed on `firstDay`, with their hours that day (those « avant » the opening ring for). */
   openingSlots: RemindedRoutineSlot[];
   /**
-   * Its times of the day not ticked, with their hours (« dès », « jusqu'à »): the shared `routineSlotAnchors` gives the
-   * moments their reminders « N min avant » count from.
+   * Its times of the day not ticked allowed on its real due day, with their hours that day (« dès », « jusqu'à »): the
+   * shared `routineSlotAnchors` gives the moments its reminders « N min avant » its due day count from.
    */
   slots: RemindedRoutineSlot[];
 }
@@ -405,16 +405,20 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
     const slots = slotsOf(routine, due, schedules);
     // A done occurrence (every required time ticked) rings no more.
     if (slots.every((slot, index) => ticked.has(index) || slot.optional)) return [];
-    const span = occurrenceOn(routine, due, schedules) ?? { start: due, end: due };
+    const span: RoutineSpan = occurrenceOn(routine, due, schedules) ?? { start: due, end: due };
     const open = slots.flatMap((slot, index) => (ticked.has(index) ? [] : [{ ...slot, index, done: false }]));
     const first = firstShownDay(routine, due, span, open, schedules);
+    // Its real due day, with the times of the day allowed that day (at their hours that day).
+    const dueDay = span.due ?? span.end;
     return [
       {
         date: due,
-        dueDate: span.end,
+        dueDate: dueDay,
         day: span.start,
         firstDay: first?.day ?? null,
-        slots: open.map(remindedSlot),
+        slots: slotsOnDay(routine, due, dueDay, open, schedules)
+          .filter((slot) => slot.windows.length)
+          .map(remindedSlot),
         openingSlots: first?.slots.map(remindedSlot) ?? [],
       },
     ];

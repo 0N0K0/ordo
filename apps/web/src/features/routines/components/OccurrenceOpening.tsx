@@ -7,7 +7,7 @@ interface OccurrenceOpeningProps {
   /** Routine, as the screens read it (its inherited « Ouverture » included); none: nothing added. */
   routine: Routine | undefined;
   /** Occurrence: the day that identifies it, its due day, its first day, the day of its rule it was moved from; none: nothing added. */
-  occurrence: Pick<RoutineOccurrence, 'date' | 'dueDate' | 'startDate' | 'movedFrom'> | undefined;
+  occurrence: (Pick<RoutineOccurrence, 'date' | 'dueDate' | 'startDate' | 'movedFrom'> & { ruleDueDate?: string }) | undefined;
   /** What shows its due day (a field, a line). */
   children: ReactNode;
 }

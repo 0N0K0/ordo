@@ -220,6 +220,16 @@ export const dueDayOf = (routine: Pick<Routine, 'currentDate' | 'currentDueDate'
   (date === routine.currentDate ? routine.currentDueDate : date === routine.nextDate ? routine.nextDueDate : null) ?? date;
 
 /**
+ * Due day by its rule of the current or next occurrence of a routine (before its condition moves it back; the day an
+ * undo of a move goes back to), from the day that identifies it: `currentRuleDueDate` / `nextRuleDueDate`, else that day.
+ * @param {Pick<Routine, 'currentDate' | 'currentRuleDueDate' | 'nextDate' | 'nextRuleDueDate'>} routine Routine.
+ * @param {string} date Day that identifies the occurrence.
+ * @returns {string} Due day by its rule.
+ */
+export const ruleDueDayOf = (routine: Pick<Routine, 'currentDate' | 'currentRuleDueDate' | 'nextDate' | 'nextRuleDueDate'>, date: string): string =>
+  (date === routine.currentDate ? routine.currentRuleDueDate : date === routine.nextDate ? routine.nextRuleDueDate : null) ?? date;
+
+/**
  * Manual order of the routines, as their list shows it: each under its parent routine, siblings by their position.
  * @param {readonly { id: string, parentId: string | null, position: number }[]} routines Routines.
  * @returns {Map<string, number>} Rank of each routine.
@@ -243,3 +253,9 @@ export function manualOrder(routines: readonly { id: string; parentId: string | 
   visit(null);
   return rank;
 }
+
+/** Why the real due day of an occurrence differs from that of its rule (the tooltip of `RealDueDate`). */
+export const ROUTINE_DUE_SHIFT_REASON = 'hors créneaux';
+
+/** Name of the warning of an occurrence without a real due day (none of its days allows a moment). */
+export const NO_ROUTINE_DUE_DAY = 'Aucun jour possible selon ses créneaux';

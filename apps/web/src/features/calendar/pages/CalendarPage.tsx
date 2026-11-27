@@ -18,7 +18,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { parisCalendarOptions } from '../lib/paris-calendar';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
-import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineGroupIds, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength, taskPlacement, type TaskSpanKind } from '@ordo/shared';
+import { addDays, calendarViewConfig, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineGroupIds, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength, taskPlacement, type TaskSpanKind } from '@ordo/shared';
 import { CalendarDotsIcon, CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -488,6 +488,7 @@ export function CalendarPage() {
                   routine,
                   date: occurrence.date,
                   dueDate: occurrence.dueDate,
+                  ruleDueDate: occurrence.ruleDueDate,
                   shownDate: day,
                   slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime },
                   cancelled: occurrence.cancelled,
@@ -608,9 +609,11 @@ export function CalendarPage() {
         }
         times = { fromTime: from === null ? null : shiftTime('00:00', from), dueTime: due === null ? null : shiftTime('00:00', due) };
       }
-      // Shown on another day than its due day (open over several days): its due day moves by as many days as it was dragged.
-      const to = addDays(occurrence.dueDate, daysBetween(occurrence.shownDate ?? occurrence.dueDate, startParts.date));
-      if (to === occurrence.dueDate && times.fromTime === fromTime && times.dueTime === dueTime) return;
+      // Dropped on another day than the one it is shown on: that day becomes its due day (as for a task's « Échéance »).
+      // Kept on its day: its due day by its rule (never its real one: that would move it).
+      const kept = occurrence.ruleDueDate ?? occurrence.dueDate;
+      const to = startParts.date === (occurrence.shownDate ?? occurrence.dueDate) ? kept : startParts.date;
+      if (to === kept && times.fromTime === fromTime && times.dueTime === dueTime) return;
       void edits.changeRoutine(occurrence, to, times, revert);
       return;
     }

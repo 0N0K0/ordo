@@ -226,6 +226,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   const multiDay = values.startDate !== values.endDate;
   const chosenLinks = new Set((values.routineLinks ?? []).map(routineLinkKey));
   const shownDays = new Map((routineDays ?? []).map((item) => [routineLinkKey(item), item.dueDate]));
+  // Its day by its rule (or the day it was moved to): another than the one that identifies it once moved.
+  const ruleDays = new Map((routineDays ?? []).map((item) => [routineLinkKey(item), item.ruleDueDate]));
   const routineOptions = [
     ...new Map([...unarchived(routineDays ?? []).filter((item) => !item.cancelled).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [routineLinkKey(link), link])).values(),
   ].flatMap((link) => {
@@ -233,7 +235,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     const key = routineLinkKey(link);
     if (!routine || (!chosenLinks.has(key) && (routine.archived || !sharePeople(routine.assigneeIds, values.contributorIds)))) return [];
     const shown = shownDays.get(key) ?? link.date;
-    const details = [...(multiDay ? [fmt.weekday(shown)] : []), ...(shown !== link.date ? [`déplacée du ${fmt.weekday(link.date)}`] : [])];
+    const details = [...(multiDay ? [fmt.weekday(shown)] : []), ...((ruleDays.get(key) ?? shown) !== link.date ? [`déplacée du ${fmt.weekday(link.date)}`] : [])];
     return [{ value: key, label: details.length ? `${routine.label} (${details.join(', ')})` : routine.label }];
   });
   const recurring = target.occurrenceDate !== null;

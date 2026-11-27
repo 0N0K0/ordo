@@ -268,6 +268,11 @@ export interface RoutineDaySlot extends RoutineSlot {
 export interface RoutineSpan {
   start: string;
   end: string;
+  /**
+   * Its real due day: the last day of it that its condition allows a time of the day on (`end` when that day does, or
+   * moved); what late, « Ma journée », the agenda and the reminders of its due day read. Optional. Default = `end`.
+   */
+  due?: string;
 }
 
 /** Occurrence of a routine with the day that identifies it (its ticks, comments…): its due day, or the day of its rule when kept apart. */
@@ -355,21 +360,21 @@ export function dayMoments(routine: RoutineTiming, due: string, day: string, sch
 }
 
 /**
- * Whether an occurrence has a time of the day on one of its days (a day without condition nor slot « Indisponible »
- * always has).
+ * Last day of an occurrence (from its due day back to its first day) with a time of the day its condition allows, out
+ * of the slots « Indisponible » (a day without condition nor slot « Indisponible » always has one): its real due day.
  * @param {RoutineTiming} routine Routine.
  * @param {RoutineSpan} span Occurrence.
  * @param {ScheduleContext} schedules Schedules.
- * @returns {boolean} Doable.
+ * @returns {string | null} Day; null: no day has one (not doable).
  */
-function doable(routine: RoutineTiming, span: RoutineSpan, schedules: ScheduleContext): boolean {
+function lastDoableDay(routine: RoutineTiming, span: RoutineSpan, schedules: ScheduleContext): string | null {
   const cases = storedCases(routine.cases);
   const limited = cases.length ? cases.some((item) => constrains(item.condition)) : constrains(storedCondition(routine));
-  for (let day = span.start; day <= span.end; day = addDays(day, 1)) {
-    if (!limited && !schedules.slotsOn({ unavailable: true }, day).length) return true;
-    if (dayMoments(routine, span.end, day, schedules).length) return true;
+  for (let day = span.end; day >= span.start; day = addDays(day, -1)) {
+    if (!limited && !schedules.slotsOn({ unavailable: true }, day).length) return day;
+    if (dayMoments(routine, span.end, day, schedules).length) return day;
   }
-  return false;
+  return null;
 }
 
 /**
@@ -404,9 +409,16 @@ export function ruleSpans(routine: RoutineTiming, from: string, to: string, sche
       if (open <= to && span.end >= first && !spans.has(span.end)) spans.set(span.end, { start: open < start ? start : open, end: span.end });
     }
   }
-  // One its condition leaves no moment to is not scheduled, unless already done (a time of the day ticked).
+  // One its condition leaves no moment to is not scheduled, unless already done (a time of the day ticked); each with
+  // its real due day (the last day of it with a moment allowed).
   const ticked = (span: RoutineSpan) => routine.id !== undefined && Boolean(schedules.checked?.has(joinedKey(routine.id, span.end)));
-  return [...spans.values()].filter((span) => pattern || doable(routine, span, schedules) || ticked(span)).sort((a, b) => a.end.localeCompare(b.end));
+  return [...spans.values()]
+    .flatMap((span) => {
+      if (pattern) return [span];
+      const last = lastDoableDay(routine, span, schedules);
+      return last || ticked(span) ? [{ ...span, due: last ?? span.end }] : [];
+    })
+    .sort((a, b) => a.end.localeCompare(b.end));
 }
 
 /**

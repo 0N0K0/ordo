@@ -9,7 +9,8 @@ import { routineTimer, type TimeEntry } from '../../time/api';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import { CELL_JUSTIFY } from '../../../components/data-table/cells/cell-field';
 import { useRoutineMutations, type Routine } from '../api';
-import { DAILY, moveTo, scheduleOf, currentRoutineState, windowOf, windowText } from '../lib/routine-format';
+import { DAILY, moveTo, NO_ROUTINE_DUE_DAY, ROUTINE_DUE_SHIFT_REASON, scheduleOf, currentRoutineState, windowOf, windowText } from '../lib/routine-format';
+import { RealDueDate } from '../../../components/feedback/RealDueDate';
 import classes from './Routines.module.css';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
@@ -29,7 +30,7 @@ function DueBadge({ routine }: { routine: Routine }) {
     const window = windowText({ fromTime, dueTime });
     return (
       <Badge variant="light" color="gray">
-        D’ici {fmt.weekday(routine.currentDueDate)}
+        D’ici <RealDueDate day={routine.currentDueDate} ruleDay={routine.currentRuleDueDate ?? routine.currentDueDate} reason={ROUTINE_DUE_SHIFT_REASON} noneLabel={NO_ROUTINE_DUE_DAY} />
         {window ? ` ${window}` : ''}
       </Badge>
     );
@@ -79,12 +80,12 @@ export function StateCell({ routine, today, doable }: { routine: Routine; today:
         {state === 'due' && <DueBadge routine={routine} />}
         {state === 'late' && (
           <Badge variant="light" color="orange">
-            Depuis {fmt.weekday(routine.currentDueDate!)}
+            Depuis <RealDueDate day={routine.currentDueDate ?? null} ruleDay={routine.currentRuleDueDate ?? routine.currentDueDate ?? null} reason={ROUTINE_DUE_SHIFT_REASON} noneLabel={NO_ROUTINE_DUE_DAY} />
           </Badge>
         )}
         {state === 'upcoming' && (
           <Text size="xs" c="dimmed" className={classes.nowrap}>
-            {routine.nextDueDate ? fmt.weekday(routine.nextDueDate) : '—'}
+            {routine.nextDueDate ? <RealDueDate day={routine.nextDueDate} ruleDay={routine.nextRuleDueDate ?? routine.nextDueDate} reason={ROUTINE_DUE_SHIFT_REASON} noneLabel={NO_ROUTINE_DUE_DAY} /> : '—'}
           </Text>
         )}
       </span>

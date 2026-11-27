@@ -50,6 +50,11 @@ export interface PeriodFieldProps extends RangeBinding<string | null> {
   weekday?: boolean;
   /** Days greyed in the calendar for each bound, still choosable (`excludedDays`: days its « Horaires » exclude). Optional. */
   excluded?: PerBound<((day: string) => boolean) | undefined>;
+  /**
+   * What the field shows for a bound in place of its day (the real « Échéance » of a task: `RealDueDate`); the
+   * calendar still opens on its day. Optional. Default = its day.
+   */
+  shownBounds?: PerBound<ReactNode | undefined>;
   /** Error of the field, before those of its bounds. Optional. */
   error?: ReactNode;
   disabled?: boolean;
@@ -99,6 +104,7 @@ export function PeriodField({
   hints,
   inheritance,
   excluded,
+  shownBounds,
   min,
   max,
   sameDay = false,
@@ -201,6 +207,8 @@ export function PeriodField({
    */
   const boundNode = (index: 0 | 1): ReactNode => {
     const day = saved.days[index];
+    const custom = shownBounds?.[index];
+    if (custom !== undefined && custom !== null && (day || hints?.[index])) return custom;
     if (day) {
       const words = boundText(day, withTimes && !sameDay ? saved.times[index] : null, weekday);
       return inheritance?.[index]?.origin?.state === 'INHERITED' ? <span className={inheritedClasses.inherited}>{words}</span> : words;

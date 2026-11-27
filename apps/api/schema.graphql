@@ -4019,9 +4019,14 @@ type Routine {
   currentDate: Date
 
   """
-  Due day of the current occurrence (currentDate unless moved and kept apart).
+  Real due day of the current occurrence: the last day of it that its condition allows a moment on (its due day, currentDate unless moved and kept apart, when that day does).
   """
   currentDueDate: Date
+
+  """
+  Due day of the current occurrence by its rule (currentDate unless moved and kept apart), before its condition moves it back.
+  """
+  currentRuleDueDate: Date
 
   """« Temps morts »: waits a timer is launched for from an occurrence."""
   deadTimes: [DeadTime!]!
@@ -4092,8 +4097,15 @@ type Routine {
   """First occurrence after today, by the day that identifies it."""
   nextDate: Date
 
-  """Due day of the next occurrence (nextDate unless moved and kept apart)."""
+  """
+  Real due day of the next occurrence (the last day of it that its condition allows a moment on; nextDate unless moved and kept apart).
+  """
   nextDueDate: Date
+
+  """
+  Due day of the next occurrence by its rule (nextDate unless moved and kept apart), before its condition moves it back.
+  """
+  nextRuleDueDate: Date
 
   """
   « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.
@@ -4416,12 +4428,19 @@ type RoutineOccurrence {
   """
   date: Date!
 
-  """Due day (its last day)."""
+  """
+  Real due day: the last day of it that its condition allows a moment on (its last day when that day does).
+  """
   dueDate: Date!
 
   """Day of the rule it was moved from (an exception)."""
   movedFrom: Date
   routineId: ID!
+
+  """
+  Due day by its rule (or the day it was moved to), before its condition moves it back: the day an undo of a move goes back to.
+  """
+  ruleDueDate: Date!
 
   """
   Day it shows on: its due day once past, today while it runs, its first day before.
@@ -4532,7 +4551,9 @@ type RoutineReminderOccurrence {
   """Its first day (« Ouverture »)."""
   day: Date!
 
-  """Due day of the occurrence."""
+  """
+  Real due day of the occurrence (the last day of its opening that its condition allows a moment on): the day of its reminders from the end.
+  """
   dueDate: Date!
 
   """
@@ -4546,7 +4567,7 @@ type RoutineReminderOccurrence {
   openingSlots: [RoutineReminderSlot!]!
 
   """
-  Its times of the day not ticked, with their hours (the moments its reminders « N min avant » the due day count from: `routineSlotAnchors`).
+  Its times of the day not ticked allowed on its real due day, with their hours that day (the moments its reminders « N min avant » the due day count from: `routineSlotAnchors`).
   """
   slots: [RoutineReminderSlot!]!
 }
