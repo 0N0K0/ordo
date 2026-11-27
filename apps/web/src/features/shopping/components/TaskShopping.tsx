@@ -14,6 +14,7 @@ import * as fmt from '../../../lib/format';
 import { shoppingListPath } from '../../../app/pages';
 import { unarchived } from '../../../lib/archive';
 import { ShoppingProgressBadge } from './ShoppingProgressBadge';
+import { taskShoppingLists } from '../lib/shopping-format';
 
 /**
  * Shopping lists of a task: their progress and total, a new list (from the missing products of base lists),
@@ -25,7 +26,7 @@ export function TaskShopping({ task }: { task: Task }) {
   const { data: lists } = useShoppingLists();
   const { updateList } = useShoppingMutations();
   // The archived lists are hidden.
-  const own = unarchived(lists ?? []).filter((list) => list.taskIds.includes(task.id));
+  const own = taskShoppingLists(lists ?? [], task.id);
   const free = unarchived(lists ?? []).filter((list) => !list.taskIds.includes(task.id) && !list.closed);
 
   return (

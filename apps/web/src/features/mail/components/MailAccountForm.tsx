@@ -10,6 +10,7 @@ import { GraphQLRequestError } from '../../../lib/graphql-client';
 import { useMailAccountMutations, useMailAccounts, type MailAccount } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 /** Usual settings of common providers. */
 const PRESETS: Record<string, { label: string; imap: [string, number, boolean]; smtp: [string, number, boolean]; saveSent: boolean }> = {
@@ -171,17 +172,17 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         {account && <SaveStatus saving={saving} />}
+        <LabelField label="Libellé dans Ordo" placeholder="Pro, Perso…" data-autofocus {...form.getInputProps('label')} />
+        <Select
+          label="Hébergeur"
+          placeholder="Remplir les serveurs…"
+          description="Facultatif : préremplit les serveurs."
+          data={Object.entries(PRESETS).map(([value, preset]) => ({ value, label: preset.label }))}
+          onChange={applyPreset}
+          value={null}
+          clearable={false}
+        />
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-          <TextInput label="Libellé dans Ordo" placeholder="Pro, Perso…" required data-autofocus {...form.getInputProps('label')} />
-          <Select
-            label="Hébergeur"
-            placeholder="Remplir les serveurs…"
-            description="Facultatif : préremplit les serveurs."
-            data={Object.entries(PRESETS).map(([value, preset]) => ({ value, label: preset.label }))}
-            onChange={applyPreset}
-            value={null}
-            clearable={false}
-          />
           <TextInput
             label="Adresse email"
             required

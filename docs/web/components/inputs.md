@@ -30,7 +30,7 @@ Sélection multiple qui coche plusieurs options d'un coup (remplace `MultiSelect
 - chaque puce montre l'avatar de l'option si elle a une couleur ou une image (`hasAvatar`, `ItemAvatar`) ;
 - `onCreate(label)` : création à la volée (« Créer « … » », voir `creatable.ts`), la nouvelle valeur ajoutée au brouillon ou enregistrée ; échec en toast.
 
-Props : celles de `MultiSelect` (`value` / `onChange` = la valeur enregistrée), plus `onCreate`. Styles : `BatchMultiSelect.module.css`. ~26 fichiers.
+Props : celles de `MultiSelect` (`value` / `onChange` = la valeur enregistrée), plus `onCreate` et `onPillClick(value)` : le libellé de chaque pastille devient un bouton (« Ouvrir « … » », souligné au survol et au focus) qui ouvre ce qu'il nomme, sans ouvrir la liste ; la croix retire toujours (« Sous-routines » d'une routine : son panneau). Styles : `BatchMultiSelect.module.css`. ~26 fichiers.
 
 ### `CreatableSelect`
 

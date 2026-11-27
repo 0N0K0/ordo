@@ -34,7 +34,7 @@ import { PANEL_GROUPS } from '../../../components/panels/panel-groups';
 import { TrackedTime } from '../../time/components/TrackedTime';
 import { onRoutine } from '../../time/api';
 import { RoutineDoneToggles } from './DoneToggle';
-import { addSubRoutineEntry } from '../lib/open-routine-form';
+import { addSubRoutineEntry, openRoutineForm } from '../lib/open-routine-form';
 import { AssigneesSelect, LabelSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
@@ -45,6 +45,7 @@ import { treeSelectProps } from '../../../components/tree/tree-select';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { Comments } from '../../comments/components/Comments';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
+import { useSheetLinks } from '../../sheets/api';
 import { useRoutineCategoryItems } from '../hooks/use-category-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -387,6 +388,8 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   const blocked = current ? blockedRoutineIds(routines, current.id) : [];
   const subRoutines = routine ? routines.filter((item) => item.parentId === routine.id) : [];
   const commentsDate = routine ? (occurrenceDate ?? panelOccurrence(routine)) : null;
+  // « Ressources » counted from the query its sheets section runs (the same one: loaded once).
+  const { data: sheetLinks } = useSheetLinks(routine ? { routineId: routine.id } : null);
   // What each folded group shows after its title; a group with a field in error stays unfolded.
   const { values } = form;
   /**
@@ -406,6 +409,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
       current && current.trackedSeconds > 0 && formatDuration(current.trackedSeconds),
     ],
     place: [values.location],
+    resources: values.links.length + values.libraryDocumentIds.length + values.projectResourceIds.length + (routine ? (sheetLinks?.length ?? 0) : 0),
     alarms: [...values.reminders.map((reminder) => reminderLabel(reminder, { target: 'routine' })), current && current.savedCountdownIds.length > 0 && countOf(current.savedCountdownIds.length, 'minuteur')],
   };
   // The fields of its « quand » and its place, with the inheritance of a sub-routine.
@@ -471,6 +475,11 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
                   searchable
                   clearable
                   value={subRoutines.map((item) => item.id)}
+                  // Each pill opens the panel of its sub-routine.
+                  onPillClick={(id) => {
+                    const item = routines.find((other) => other.id === id);
+                    if (item) openRoutineForm({ routine: item });
+                  }}
                   // Written in the « Routine parente » of the routines chosen or removed, saved at once.
                   onChange={(next) =>
                     setSubRoutines(
@@ -597,7 +606,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
               <RoutineReminders {...scheduleProps} />
               <SavedCountdownsField target="ROUTINE" id={current?.id ?? null} value={current?.savedCountdownIds ?? []} invalidate={[routinesKey]} readOnly={readOnly} />
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.resources} collapsible defaultExpanded={false} invalid={invalid('links', 'libraryDocumentIds', 'projectResourceIds')}>
+            <PanelGroup title={PANEL_GROUPS.resources} collapsible defaultExpanded={false} summary={summaries.resources} invalid={invalid('links', 'libraryDocumentIds', 'projectResourceIds')}>
               <LinksField form={form} onRemoved={() => commit(['links'])} />
               <DocumentsField
                 value={{ libraryDocumentIds: form.values.libraryDocumentIds, projectResourceIds: form.values.projectResourceIds }}

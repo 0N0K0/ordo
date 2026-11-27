@@ -24,6 +24,9 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
 import { TaskShopping } from '../../shopping/components/TaskShopping';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
+import { useSheetLinks } from '../../sheets/api';
+import { useShoppingLists } from '../../shopping/api';
+import { taskShoppingLists } from '../../shopping/lib/shopping-format';
 import { TrackedTime } from '../../time/components/TrackedTime';
 import { DetailLayout, PanelGroup } from '../../../components/panels/DetailLayout';
 import { PANEL_GROUPS } from '../../../components/panels/panel-groups';
@@ -181,6 +184,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const excluded = subtreeOf(context.tasks, task.id);
   const candidates = linkableTasks(context, task.projectId, task.id);
   const resolve = (ids: string[]) => ids.map((id) => context.taskById.get(id)).filter((item): item is Task => !!item);
+  // « Ressources » counted from the queries its sections run (the same ones: loaded once).
+  const { data: sheetLinks } = useSheetLinks({ taskId: task.id });
+  const { data: shoppingLists } = useShoppingLists();
   // What each folded group shows after its title.
   const milestone = context.milestonesFor(task.projectId, task.milestoneId).find((item) => item.id === task.milestoneId);
   const summaries = {
@@ -202,6 +208,12 @@ function TaskDetail({ task, context }: TaskDetailProps) {
       readSlotCondition(task.slotCondition) && 'Condition de créneaux',
       readTaskHours(task.hours).length > 0 && 'Horaires',
     ],
+    resources:
+      task.links.length +
+      task.libraryDocumentIds.length +
+      task.projectResourceIds.length +
+      taskShoppingLists(shoppingLists ?? [], task.id).length +
+      (sheetLinks?.length ?? 0),
     alarms: [...task.reminders.map((reminder) => reminderLabel(reminder, { day: '' })), task.savedCountdownIds.length > 0 && countOf(task.savedCountdownIds.length, 'minuteur')],
   };
 
@@ -423,7 +435,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <TaskLocation task={task} save={save} />
               </InheritedField>
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.resources} collapsible defaultExpanded={false}>
+            <PanelGroup title={PANEL_GROUPS.resources} collapsible defaultExpanded={false} summary={summaries.resources}>
               <TaskLinks task={task} locked={locked} save={saveNow} />
               <DocumentsField
                 value={{ libraryDocumentIds: task.libraryDocumentIds, projectResourceIds: task.projectResourceIds }}

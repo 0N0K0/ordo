@@ -10,6 +10,7 @@ import { useClientBilling, useClientPartyMutations, type ClientBilling, type Cli
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { CLIENT_KIND_LABELS } from '../lib/labels';
 import { useLiveValue, type LiveSource } from '../../../lib/live-value';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 interface DetailsValues extends Record<string, unknown> {
   kind: 'COMPANY' | 'INDIVIDUAL';
@@ -155,7 +156,7 @@ export function ClientServiceForm({ clientId, service, onDone, readOnly: readOnl
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="md">
           {service && !readOnly && <SaveStatus saving={saving} />}
-          <TextInput label="Libellé du service" required data-autofocus={service ? undefined : true} placeholder="Comptabilité, agence de Lyon…" {...form.getInputProps('label')} />
+          <LabelField label="Libellé du service" data-autofocus={service ? undefined : true} placeholder="Comptabilité, agence de Lyon…" {...form.getInputProps('label')} />
           <AddressFields legend="Adresse" {...fieldProps('address')} errors={nestedErrors(form.errors, 'address')} />
           <TextInput label="Email" {...form.getInputProps('email')} />
           <ContactListField kind="phones" {...fieldProps('phones')} errors={nestedErrors(form.errors, 'phones')} />

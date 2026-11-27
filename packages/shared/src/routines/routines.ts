@@ -1241,6 +1241,8 @@ export interface RoutineBulkChanges {
   /** Minutes. */
   estimate?: number | null;
   projectId?: string | null;
+  /** Parent routine of each (« Sous-routines » of a routine); null: top-level. */
+  parentId?: string | null;
   /** Priority and type (the lists of the tasks); null: none. */
   priorityId?: string | null;
   typeId?: string | null;

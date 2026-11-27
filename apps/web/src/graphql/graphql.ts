@@ -737,7 +737,7 @@ export type RingSettingsInput = {
   ringtone: string;
 };
 
-/** Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, priorityId and typeId). */
+/** Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, parentId, priorityId and typeId). */
 export type RoutineBulkChanges = {
   addAssigneeIds?: Array<string | number> | null | undefined;
   addCategoryIds?: Array<string | number> | null | undefined;
@@ -760,6 +760,8 @@ export type RoutineBulkChanges = {
   moments?: unknown;
   /** « Ouverture » of its rule; null: none. */
   opensOn?: unknown;
+  /** Parent routine of each (put under it as its sub-routines); null: top-level. */
+  parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence?: unknown;

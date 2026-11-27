@@ -4186,7 +4186,7 @@ type Routine {
 }
 
 """
-Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, priorityId and typeId).
+Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, parentId, priorityId and typeId).
 """
 input RoutineBulkChanges {
   addAssigneeIds: [ID!]
@@ -4223,6 +4223,11 @@ input RoutineBulkChanges {
 
   """« Ouverture » of its rule; null: none."""
   opensOn: JSON
+
+  """
+  Parent routine of each (put under it as its sub-routines); null: top-level.
+  """
+  parentId: ID
   priorityId: ID
   projectId: ID
   recurrence: JSON

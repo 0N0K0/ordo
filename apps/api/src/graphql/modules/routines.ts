@@ -509,7 +509,7 @@ const RoutineSlotTickInput = builder.inputType('RoutineSlotTick', {
 });
 
 const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
-  description: 'Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, priorityId and typeId).',
+  description: 'Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, parentId, priorityId and typeId).',
   fields: (t) => ({
     addCategoryIds: t.idList(),
     removeCategoryIds: t.idList(),
@@ -521,6 +521,7 @@ const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
     removeRelatedIds: t.idList(),
     estimate: t.int({ description: 'Minutes.' }),
     projectId: t.id(),
+    parentId: t.id({ description: 'Parent routine of each (put under it as its sub-routines); null: top-level.' }),
     priorityId: t.id(),
     typeId: t.id(),
     ...repetitionChangeFields(t),
@@ -862,6 +863,7 @@ builder.mutationFields((t) => ({
         removeRelatedIds: list(changes.removeRelatedIds),
         estimate: changes.estimate,
         projectId: changes.projectId === undefined ? undefined : idOrNull(changes.projectId),
+        parentId: changes.parentId === undefined ? undefined : idOrNull(changes.parentId),
         priorityId: changes.priorityId === undefined ? undefined : idOrNull(changes.priorityId),
         typeId: changes.typeId === undefined ? undefined : idOrNull(changes.typeId),
         fromTime: changes.fromTime,

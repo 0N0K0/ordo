@@ -213,6 +213,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
         <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
           <Stack gap="sm">
             {entry && !readOnly && <SaveStatus saving={saving} />}
+            <LabelField data-autofocus={entry ? undefined : true} {...form.getInputProps('label')} />
             <SegmentedControl
               data={[
                 { value: 'ACTUAL', label: 'Réel' },
@@ -239,7 +240,6 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
               placeholder={values.date ? 'Date d’exécution' : '—'}
               {...form.getInputProps('valueDate')}
             />
-            <LabelField data-autofocus={entry ? undefined : true} {...form.getInputProps('label')} />
             <Group gap="sm" align="flex-end" wrap="nowrap">
               <SegmentedControl
                 aria-label="Sens"

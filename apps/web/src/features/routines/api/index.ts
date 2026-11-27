@@ -681,6 +681,9 @@ function withBulkChanges(routine: Routine, changes: RoutineBulkChanges): Routine
     requiredIds: changedList(routine.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((id) => id !== routine.id),
     relatedIds: changedList(routine.relatedIds, changes.addRelatedIds, changes.removeRelatedIds).filter((id) => id !== routine.id),
     ...routineBulkValues(changes),
+    ...(changes.parentId !== undefined && { parentId: changes.parentId }),
+    // Made top-level: it inherits nothing any more.
+    ...(changes.parentId === null && { inheritedFields: [] }),
     ...(changes.fromTime !== undefined && { fromTime: changes.fromTime }),
     ...(changes.dueTime !== undefined && { dueTime: changes.dueTime }),
     ...(changes.startDate !== undefined && { startDate: changes.startDate }),

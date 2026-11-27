@@ -81,6 +81,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
         <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
           <Stack gap="sm">
             {item && !readOnly && <SaveStatus saving={saving} />}
+            <LabelField data-autofocus={item ? undefined : true} {...form.getInputProps('label')} />
             <SegmentedControl
               data={[
                 { value: 'ITEM', label: 'Produit ou service' },
@@ -89,7 +90,6 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
               {...form.getInputProps('kind')}
               onChange={(kind) => form.setValues({ kind: kind as CatalogItemInput['kind'], ...(kind === 'DISBURSEMENT' && { vatRate: 0, unit: 'FLAT' }) })}
             />
-            <LabelField data-autofocus={item ? undefined : true} {...form.getInputProps('label')} />
             <Textarea label="Description" description="Reprise dans la ligne (markdown)." autosize minRows={2} {...form.getInputProps('description')} />
             <SimpleGrid cols={{ base: 1, sm: disbursement ? 2 : 3 }} spacing="sm">
               <Select label="Unité" allowDeselect={false} data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))} {...form.getInputProps('unit')} />

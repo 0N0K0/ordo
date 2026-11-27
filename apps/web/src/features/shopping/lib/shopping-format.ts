@@ -427,3 +427,14 @@ export const UNIT_COLOR = DEFAULT_LABEL_COLOR;
  * @returns {string} Text.
  */
 export const sheetSourceText = (source: { label: string; quantity: number | null }) => (source.quantity !== null ? `${source.label} · ${fmt.quantity({ quantity: source.quantity })}` : source.label);
+
+/**
+ * Shopping lists of a task, the archived ones hidden (its « Achats », the count of its « Ressources »).
+ * @param {readonly T[]} lists Every list.
+ * @param {string} taskId Task id.
+ * @returns {T[]} Its lists.
+ * @template T
+ */
+export function taskShoppingLists<T extends { taskIds: readonly string[]; archived?: boolean | null }>(lists: readonly T[], taskId: string): T[] {
+  return unarchived(lists).filter((list) => list.taskIds.includes(taskId));
+}

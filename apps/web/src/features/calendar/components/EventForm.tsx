@@ -35,6 +35,7 @@ import { useRoutineOccurrences, useRoutinesData } from '../../routines/api';
 import { EventRepetition } from './EventRepetition';
 import { Comments } from '../../comments/components/Comments';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
+import { useSheetLinks } from '../../sheets/api';
 import { useCalendarCategoryItems } from '../hooks/use-settings-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -284,6 +285,9 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   // (the whole series), « Supprimer », then « Lancer » its saved timers; archived: restored or deleted only.
   const menu = useEventMenu(occurrence, { fields: values, target, readOnly, savedCountdownIds, onDuplicated, onDone });
 
+  // « Ressources » counted from the query its sheets section runs (the same one: loaded once).
+  const sheetOwner = occurrence && !readOnly ? { eventId: target.eventId } : null;
+  const { data: sheetLinks } = useSheetLinks(sheetOwner);
   // What each folded group shows after its title.
   const summaries = {
     ranking: [...summaryLabels(calendars, [values.calendarId ?? defaultCalendarId]), ...summaryLabels(categories ?? [], values.categoryIds)],
@@ -294,6 +298,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
       occurrence && occurrence.trackedSeconds > 0 && formatDuration(occurrence.trackedSeconds),
     ],
     place: [values.location],
+    resources: (values.links?.length ?? 0) + (values.libraryDocumentIds?.length ?? 0) + (values.projectResourceIds?.length ?? 0) + (sheetOwner ? (sheetLinks?.length ?? 0) : 0),
     alarms: [...readReminders(values.reminders).map((reminder) => reminderLabel(reminder, { target: 'event' })), savedCountdownIds.length > 0 && countOf(savedCountdownIds.length, 'minuteur')],
   };
   return (
@@ -553,7 +558,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                 />
               )}
             </PanelGroup>
-            <PanelGroup title={PANEL_GROUPS.resources} collapsible defaultExpanded={false} invalid={hasFieldError(form.errors, ['links', 'libraryDocumentIds', 'projectResourceIds'])}>
+            <PanelGroup title={PANEL_GROUPS.resources} collapsible defaultExpanded={false} summary={summaries.resources} invalid={hasFieldError(form.errors, ['links', 'libraryDocumentIds', 'projectResourceIds'])}>
               <LinksField form={form} onRemoved={() => commit(['links'])} />
               {series(
                 <DocumentsField

@@ -27,6 +27,7 @@ import { PAGES } from '../../../app/pages';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { relationNoun } from '../../../components/people/people-options';
 import { optionalNumberProps } from '../../../components/inputs/number-format';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
   perishable: boolean;
@@ -162,7 +163,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
         <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
           <Stack gap="md">
             {edited && !readOnly && <SaveStatus saving={saving} />}
-            <TextInput label="Label" required data-autofocus={edited ? undefined : true} {...form.getInputProps('label')} />
+            <LabelField label="Label" data-autofocus={edited ? undefined : true} {...form.getInputProps('label')} />
             {target.kind === 'item' && target.item && target.item.sheetSources.length > 0 && (
               <Text size="xs" c="dimmed">
                 Vient {plural(target.item.sheetSources.length, 'de la fiche', 'des fiches')}{' '}

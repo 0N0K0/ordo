@@ -18,7 +18,7 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 
 ## Comportements à confirmer
 
-- **Libellé fixe incomplet** : le libellé de `SettingsItemForm`, `ShoppingForm`, `MailAccountForm` et « Libellé du service » de `ClientPartyForms` est encore un `TextInput` (pas fixe au défilement, hors de la garde eslint, qui ne voit que le texte « Libellé ») ; celui de `WorkSchedulesManager` est dans une ligne avec « Type » (`sticky={false}`). Les résumés de « Ressources » (tâches, routines, évènements) manquent : listes de courses et fiches sont chargées dans leurs composants.
+- **Libellé fixe** : celui de `WorkSchedulesManager` est dans une ligne avec « Type » (`sticky={false}`), donc pas fixe au défilement. La garde eslint ne voit que le texte « Libellé » (pas « Nom » ni un libellé calculé). L'« Objet » d'un document comptable (`DocumentEditor`, `ImportedDocumentForm`) reste un `TextInput`, hors de la garde.
 
 - **SIREN / SIRET obligatoire :** mention obligatoire de tout document comptable pour un client société (pas pour un particulier), mais la validation (`finalizeDocument`) ne refuse pas un client société sans SIREN ni SIRET : le document est émis sans la mention. Voir [Règles de la facturation](business-rules/finances/accounting.md#clients--coordonnées-services-contacts). _à confirmer_
 

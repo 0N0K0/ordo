@@ -1,5 +1,5 @@
 import { listDiff } from '../../../components/data-table/selection/bulk-edit';
-import { ON_ERROR } from '../../../lib/notify';
+import { ON_ERROR, onMutationError } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../api';
 
 /**
@@ -27,16 +27,21 @@ export function useSetBlockedRoutines(routines: readonly Routine[]) {
 
 /**
  * Change of the « Sous-routines » of a routine, as « Bloque »: the routines added are put under it, those removed are
- * taken out of any parent; written in the « Routine parente » of those other routines (the API checks it as any
- * parent: no loop, an archived parent refused; occurrences lost asked first).
+ * taken out of any parent; written in the « Routine parente » of those other routines in one bulk change each way (the
+ * API checks it as any parent: no loop, an archived parent refused; the occurrences lost asked once for those added,
+ * once for those removed).
  * @returns {(parentId: string, children: readonly string[], next: readonly string[]) => void} Applier: the routine, its
  *   sub-routines shown, and those chosen.
  */
 export function useSetSubRoutines() {
-  const { patch } = useRoutineMutations();
+  const { bulkUpdate } = useRoutineMutations();
   return (parentId: string, children: readonly string[], next: readonly string[]) => {
     const { added, removed } = listDiff(children, next);
-    for (const id of added) patch.mutate({ id, input: { parentId } }, ON_ERROR);
-    for (const id of removed) patch.mutate({ id, input: { parentId: null } }, ON_ERROR);
+    // One request (one confirmation of the occurrences lost) for those added, then one for those removed, each on its
+    // own: one refused or failed, the other is still sent.
+    void (async () => {
+      if (added.length) await bulkUpdate.mutateAsync({ ids: [...added], changes: { parentId } }).catch(onMutationError);
+      if (removed.length) await bulkUpdate.mutateAsync({ ids: [...removed], changes: { parentId: null } }).catch(onMutationError);
+    })();
   };
 }

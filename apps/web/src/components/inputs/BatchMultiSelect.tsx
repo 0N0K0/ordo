@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-restricted-imports -- BatchMultiSelect wraps MultiSelect.
-import { MultiSelect, Pill, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
+import { MultiSelect, Pill, UnstyledButton, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
 import { MAX_STACKED, stackedCount } from '../data-table/cells/stacked';
 import { ItemAvatar } from '../items/ItemAvatar';
 import { hasAvatar } from '../items/item-look';
@@ -59,8 +59,9 @@ function selectedFirst(data: ComboboxData | undefined, selected: string[]): Comb
  * it closes; a pill removed with the list closed is given at once. Saving on each choice would redraw what holds it
  * (a table row) and close the list after every click. The options already selected come first (in the order of the
  * opening: rows do not jump while checking). The values chosen show one under the other in the field: 5 at most;
- * beyond, 4 and « X de plus », unfolded or folded again.
- * @param {MultiSelectProps} props Props of Mantine's MultiSelect (value and onChange: the committed value).
+ * beyond, 4 and « X de plus », unfolded or folded again. With `onPillClick`, the label of each pill is a button opening
+ * what it names (its panel), its cross still removing it.
+ * @param {MultiSelectProps} props Props of Mantine's MultiSelect (value and onChange: the committed value), `onCreate`, `onPillClick`.
  * @returns {JSX.Element} Multi-select.
  */
 export function BatchMultiSelect({
@@ -73,8 +74,9 @@ export function BatchMultiSelect({
   classNames,
   onCreate,
   filter,
+  onPillClick,
   ...props
-}: MultiSelectProps & { onCreate?: (label: string) => Promise<string | null | undefined> }) {
+}: MultiSelectProps & { onCreate?: (label: string) => Promise<string | null | undefined>; onPillClick?: (value: string) => void }) {
   const [search, setSearch] = useState('');
   const [uncontrolled, setUncontrolled] = useState<string[]>(defaultValue ?? []);
   const committed = value ?? uncontrolled;
@@ -125,7 +127,25 @@ export function BatchMultiSelect({
                   <ItemAvatar name={option?.label ?? ''} iconUrl={look.iconUrl} color={look.color} size={14} />
                 </span>
               )}
-              {option?.label ?? String(pill)}
+              {onPillClick ? (
+                <UnstyledButton
+                  className={classes.pillLink}
+                  aria-label={`Ouvrir « ${option?.label ?? String(pill)} »`}
+                  // Opens what it names, not the list of the field.
+                  onMouseDown={(event: React.MouseEvent) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onClick={(event: React.MouseEvent) => {
+                    event.stopPropagation();
+                    onPillClick(String(pill));
+                  }}
+                >
+                  {option?.label ?? String(pill)}
+                </UnstyledButton>
+              ) : (
+                (option?.label ?? String(pill))
+              )}
             </Pill>
             {folded && expanded && index === shownValues.length - 1 && toggleButton}
           </>

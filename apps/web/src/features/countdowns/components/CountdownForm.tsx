@@ -59,6 +59,7 @@ export function CountdownForm({ item, deadTimes = [], deadTime = deadTimes[0], o
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
+        <LabelField label="Nom" required={false} placeholder={COUNTDOWN_DEFAULT_NAME} data-autofocus={item ? undefined : true} {...form.getInputProps('label')} />
         {deadTimes.length > 1 && (
           <Select
             label="Temps mort"
@@ -82,7 +83,6 @@ export function CountdownForm({ item, deadTimes = [], deadTime = deadTimes[0], o
             }}
           />
         )}
-        <LabelField label="Nom" required={false} placeholder={COUNTDOWN_DEFAULT_NAME} data-autofocus={item ? undefined : true} {...form.getInputProps('label')} />
         <TextInput label="Durée" required description="10, 1:30, 1h30 ou 1,5 h" data-autofocus={item ? true : undefined} {...form.getInputProps('duration')} />
         <Group gap="xs" role="group" aria-label="Durées proposées">
           {COUNTDOWN_PRESETS.map((minutes) => (

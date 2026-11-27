@@ -186,7 +186,7 @@ Colonne principale :
 - « Relations », réductible, réduit à l’ouverture : « Tâche parente » ; « Sous-tâches » (« 2/5 », barre d’avancement, liste, « Ajouter une sous-tâche ») ; « Dépend de », « Bloque », « Relative à » (listes avec « Retirer » et « Ajouter une tâche »).
 - « Commentaires » : le fil de commentaires (voir [Commentaires](../cross-cutting/comments.md)).
 
-Colonne de droite, en groupes réductibles, tous réduits à l’ouverture sauf « Classement » (le lieu, groupe sans titre, ne se réduit pas) ; réduit, un groupe montre après son titre un résumé sur une ligne (2 valeurs puis « +N » ; « Relations » et « Parties prenantes » : le nombre seul ; coupé par « … », en entier dans une infobulle ; rien pour un groupe vide ; « Ressources » sans résumé) ; un groupe dont un champ est en erreur reste développé :
+Colonne de droite, en groupes réductibles, tous réduits à l’ouverture sauf « Classement » (le lieu, groupe sans titre, ne se réduit pas) ; réduit, un groupe montre après son titre un résumé sur une ligne (2 valeurs puis « +N » ; « Relations » et « Parties prenantes » : le nombre seul ; coupé par « … », en entier dans une infobulle ; rien pour un groupe vide ; « Ressources » : le nombre de liens, documents, listes d’achats et fiches) ; un groupe dont un champ est en erreur reste développé :
 
 - « Classement » : « Statut », « Priorité », « Type », « Étiquettes » ;
 - « Parties prenantes » : « Assignés », « Bénéficiaires » ;

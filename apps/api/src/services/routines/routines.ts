@@ -917,6 +917,22 @@ function findRoutine(id: string): Promise<Routine> {
 }
 
 /**
+ * Input of a routine as it will be saved once its parent changes: made top-level, what it inherited becomes its own
+ * (whatever the input holds for those fields); placed under a parent after the fact, its empty fields inherit, as at
+ * its creation. Unchanged otherwise.
+ * @param {Routine} found Routine as it is.
+ * @param {RoutineInput} given Input.
+ * @returns {Promise<{ input: RoutineInput, unparented: boolean }>} Input, and whether it is made top-level.
+ */
+async function reparentedInput(found: Routine, given: RoutineInput): Promise<{ input: RoutineInput; unparented: boolean }> {
+  const unparented = found.parentId !== null && !given.parentId;
+  if (unparented) return { input: { ...given, ...(await inheritedInputOf(found.id)), inheritedFields: [] }, unparented };
+  const adopted = found.parentId === null && given.parentId ? emptyRoutineFields(given as unknown as InheritingRoutine) : [];
+  if (!adopted.length) return { input: given, unparented };
+  return { input: { ...given, inheritedFields: ROUTINE_INHERITABLE_FIELDS.filter((field) => adopted.includes(field) || new Set(given.inheritedFields ?? []).has(field)) }, unparented };
+}
+
+/**
  * Updates a routine (its ticked occurrences stay). Moved to another project tree, it loses its links with the routines
  * left out of it (dependencies both ways, relations), as a task transferred; those moved along keep theirs.
  * @param {string} id Routine id.
@@ -927,15 +943,7 @@ function findRoutine(id: string): Promise<Routine> {
 export async function updateRoutine(id: string, given: RoutineInput, options: Omit<RoutineSaveOptions, 'copyOf'> = {}): Promise<number> {
   const found = await findRoutine(id);
   refuseArchived(found);
-  // Made top-level: what it inherited becomes its own, whatever the input holds for those fields.
-  const unparented = found.parentId !== null && !given.parentId;
-  // Placed under a parent after the fact: its empty fields inherit, as at its creation.
-  const adopted = found.parentId === null && given.parentId ? emptyRoutineFields(given as unknown as InheritingRoutine) : [];
-  const input = unparented
-    ? { ...given, ...(await inheritedInputOf(id)), inheritedFields: [] }
-    : adopted.length
-      ? { ...given, inheritedFields: ROUTINE_INHERITABLE_FIELDS.filter((field) => adopted.includes(field) || new Set(given.inheritedFields ?? []).has(field)) }
-      : given;
+  const { input, unparented } = await reparentedInput(found, given);
   if (!unparented) return savedRoutine(found, input, options);
   // Put back if the change is refused.
   const thaw = await freezeRoutineInheritance([id]);
@@ -1378,6 +1386,8 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         // Nor is it related to itself.
         relatedIds: changedList(current.relatedIds, changes.addRelatedIds, changes.removeRelatedIds).filter((relatedId) => relatedId !== id),
         ...routineBulkValues(changes),
+        // Put under another parent (or none): its inheritance follows, as for one routine (`updateRoutine`).
+        ...(changes.parentId !== undefined && { parentId: changes.parentId }),
         // A repetition of its own: it no longer follows its cases.
         ...(changes.recurrence !== undefined && { cases: [] }),
         // Times of its own: a single moment.
@@ -1399,7 +1409,12 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         ...(changes.slotCondition !== undefined && { slotCondition: changes.slotCondition as RoutineInput['slotCondition'] }),
         ...(changes.opensOn !== undefined && { opensOn: changes.opensOn as RoutineInput['opensOn'] }),
         ...clearedRoutineInput(changes.clearFields),
-        inheritedFields: changedRoutineInheritance(current.inheritedFields ?? [], { inherit: changes.inheritFields, clear: changes.clearFields, input: changes, hasParent: Boolean(current.parentId) }),
+        inheritedFields: changedRoutineInheritance(current.inheritedFields ?? [], {
+          inherit: changes.inheritFields,
+          clear: changes.clearFields,
+          input: changes,
+          hasParent: Boolean(changes.parentId !== undefined ? changes.parentId : current.parentId),
+        }),
       };
       return { id, input };
     }),
@@ -1409,11 +1424,13 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
   const nexts: Routine[] = [];
   const required = new Map<string, readonly string[]>();
   for (const { id, input } of inputs) {
+    // Checked as it will be saved: put under another parent or none, its inheritance changes first (`updateRoutine`).
+    const current = await findRoutine(id);
+    const ready = (await reparentedInput(current, input)).input;
     // Loops checked below, against the final state of the whole selection.
-    const data = await parseRoutine(input, id, { movedWith, loopsChecked: true });
+    const data = await parseRoutine(ready, id, { movedWith, loopsChecked: true });
     required.set(id, data.requiredIds);
     if (confirmLoss === undefined) continue;
-    const current = await findRoutine(id);
     nexts.push(timingOf(current, data));
   }
   // No loop once the whole selection is saved (each routine with the dependencies the others will have).

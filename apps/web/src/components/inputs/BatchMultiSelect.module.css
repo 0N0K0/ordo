@@ -20,6 +20,30 @@
     max-width: 100%;
   }
 
+  /* The label of a pill that opens what it names: a link inside the pill. */
+  .pillLink {
+    /* Typographie */
+    font-size: inherit;
+    color: inherit;
+
+    &:hover,
+    &:focus-visible {
+      /* Typographie */
+      text-decoration: underline;
+    }
+
+    /* Interaction */
+    cursor: pointer;
+
+    &:disabled {
+      /* Typographie */
+      text-decoration: none;
+
+      /* Interaction */
+      cursor: not-allowed;
+    }
+  }
+
   .swatch {
     /* Agencement */
     display: inline-block;

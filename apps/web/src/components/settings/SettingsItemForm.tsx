@@ -1,5 +1,5 @@
 import { ColorField } from '../inputs/ColorField';
-import { Fieldset, Select, Stack, TextInput } from '@mantine/core';
+import { Fieldset, Select, Stack } from '@mantine/core';
 import type { UseFormReturnType } from '@mantine/form';
 import type { ReactNode } from 'react';
 import { IconField } from '../inputs/IconField';
@@ -14,6 +14,7 @@ import { treeSelectProps } from '../tree/tree-select';
 import { useSettingsItemLook, type SettingsListKind } from './settings-api';
 import { FormActions } from '../dialogs/FormActions';
 import type { LossConfirmation } from '../../lib/archive';
+import { LabelField } from '../inputs/LabelField';
 
 /** Item of a settings list: a label, a color, an image, whether it is archived and, in a tree, a parent. */
 export interface SettingsItem {
@@ -204,7 +205,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="md">
           {item && !readOnly && <SaveStatus saving={saving} />}
-          <TextInput label={labelField} required placeholder={labelPlaceholder} data-autofocus {...form.getInputProps('label')} />
+          <LabelField label={labelField} placeholder={labelPlaceholder} data-autofocus {...form.getInputProps('label')} />
           {withColor && <ColorField required={colorRequired} description={colorRequired ? undefined : 'Vide : celle de son parent.'} {...commitProps('color')} />}
           <IconField {...formIconProps(form, 'icon', 'removeIcon')} currentUrl={item?.iconUrl ?? null} name={values.label} color={withColor ? values.color || parentColor : null} />
           {tree && withParent && (
