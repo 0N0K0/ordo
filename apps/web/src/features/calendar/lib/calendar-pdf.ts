@@ -230,3 +230,16 @@ export function pdfItems(items: readonly EventInput[], classNames: { closed: str
 export async function downloadCalendarPdf(view: { title: string; view: 'month' | 'week' | 'day'; from: string; to: string; today: string; items: PdfItem[] }): Promise<void> {
   await postExport('/api/exports/calendar.pdf', view, fileName(`Agenda — ${view.title}`, 'pdf'), 'Export PDF impossible.');
 }
+
+/**
+ * Downloads the PDF of the typical weeks of a period: a page per typical week, a week from Monday to Sunday without
+ * dates, with its créneaux and éphémérides.
+ * @param {object} weeks Period and typical weeks.
+ * @param {string} weeks.title Period, in the header of the pages and the name of the file.
+ * @param {{ name: string, monday: string, items: PdfItem[] }[]} weeks.weeks Each typical week: its name, the Monday
+ * of its first week and its items that week.
+ * @returns {Promise<void>}
+ */
+export async function downloadTypicalWeeksPdf(weeks: { title: string; weeks: { name: string; monday: string; items: PdfItem[] }[] }): Promise<void> {
+  await postExport('/api/exports/typical-weeks.pdf', weeks, fileName(`Semaines types — ${weeks.title}`, 'pdf'), 'Export PDF impossible.');
+}

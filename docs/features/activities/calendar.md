@@ -1,6 +1,6 @@
 # Agenda
 
-Ce que l’utilisateur peut faire dans l’agenda : la page `/calendar` (« Agenda »), les évènements et leurs occurrences, les calendriers et leurs abonnements, les catégories, les créneaux (horaires prévus), les éphémérides (vacances, jours fériés, anniversaires…) et leurs types, les exports PDF et iCalendar. Code : `apps/web/src/features/calendar/**` (voir [Code web de l’agenda](../../web/features/activities/calendar.md)) ; règles : [Règles de l’agenda](../../business-rules/activities/calendar.md).
+Ce que l’utilisateur peut faire dans l’agenda : la page `/calendar` (« Agenda »), les évènements et leurs occurrences, les calendriers et leurs abonnements, les catégories, les créneaux (horaires prévus), les éphémérides (vacances, jours fériés, anniversaires…) et leurs types, les exports PDF (vue affichée, semaines types) et iCalendar. Code : `apps/web/src/features/calendar/**` (voir [Code web de l’agenda](../../web/features/activities/calendar.md)) ; règles : [Règles de l’agenda](../../business-rules/activities/calendar.md).
 
 ## Page « Agenda » (`/calendar`)
 
@@ -108,6 +108,7 @@ Section « Affichage de la vue « X » » (les réglages de la vue affichée, «
 Section « Exporter » :
 
 - « Vue en PDF » (« La vue affichée, pour l’imprimer ») : télécharge la vue affichée, ses réglages et ses filtres appliqués (voir [Export PDF](#export-pdf)). Toast « Agenda exporté. » ou « Export PDF impossible. ».
+- « Semaines types » (« Les semaines différentes d’une période, d’après les créneaux et éphémérides ») : ouvre le panneau « Semaines types » (voir [Export des semaines types](#export-des-semaines-types)).
 - « Tout exporter (.ics) » : tous les calendriers de l’espace en un fichier iCalendar.
 
 ### Onglet « Paramètres »
@@ -242,6 +243,17 @@ Le champ « Créneaux de l’agenda » (`SlotConditionBuilder`, le même pour le
 ### Export PDF
 
 « Vue en PDF » : A4 paysage, au gabarit commun des exports (logo, période en haut de page, date ; « Page n / N » seulement quand il y a plusieurs pages) ; pas de titre dans la page (la période est dans l’en-tête) ; contient exactement ce qui est affiché, réglages et filtres de la vue appliqués : évènements des calendriers de l’espace et des calendriers abonnés, anniversaires (pleins dans leur couleur), tâches et routines (teinte claire et liseré de leur couleur), chronos, trajets aller et retour des évènements et des routines (teinte très claire, texte grisé), créneaux en cours de modification. Les créneaux et éphémérides sont dessinés comme dans l’agenda, selon l’affichage de leur type (ou de l’abonnement) : bandeau en haut (ligne journée entière), fond sur leurs heures (côte à côte quand ils sont simultanés) ou sur la journée, fine ligne à gauche de leurs heures (semaine, jour) ou en bas de la case (mois), dans la même teinte claire qu’à l’écran ; hachurés ceux d’un autre espace, en pointillés les éphémérides ; estompés les archivés, ou d’un type archivé (seulement avec « Afficher les archivés », comme à l’écran). Les autres éléments archivés (évènements, leurs trajets, routines) sont estompés et grisés comme à l’écran ; le texte des bandeaux est foncé et opaque, seul leur fond est clair, comme à l’écran. Légende en bas de la page : une entrée par type de créneaux ou d’éphémérides affiché (et « Anniversaires »), dans sa couleur, un carré quand il est en fond ou en bloc d’heures, sinon un trait (bandeau, fine ligne), avec ses hachures ou pointillés, puis son nom (« · Espace » après celui d’un autre espace). Mois : grille avec « +N autres » quand une case déborde. Semaine/jour : ligne journée entière (5 lignes max), heures de 8 h à 19 h au moins (élargies aux éléments et aux créneaux, pas à ceux d’une journée entière), éléments simultanés côte à côte. Annulés et faits barrés ; aujourd’hui surligné. Fichier « Agenda — <période>.pdf ».
+
+### Export des semaines types
+
+Panneau « Semaines types » (section « Exporter » des paramètres de l’agenda) : « Une page par semaine type : les semaines de la période qui ont les mêmes créneaux et éphémérides, d’après leurs répétitions seules (sans les jours modifiés, déplacés ou supprimés). »
+
+- « Période » (obligatoire) : la période affichée par l’agenda d’abord ; ses semaines entières (lundi à dimanche) comptent.
+- « Créneaux et éphémérides » : une case par créneau ou éphéméride de l’espace puis des autres espaces abonnés (« · Espace »), sans les archivés ni ceux d’un type archivé ; décochés d’abord ceux que la vue masque ; « Aucun créneau. » sinon.
+- Sous eux, les semaines types, recalculées à chaque changement : « 3 semaines types » et leurs noms (« Toutes les semaines », « Semaines paires », « 1 semaine sur 3, à partir du 05/01 », « Sem. 2, 5, 8 »…) ; au-delà de 6, un avis orange « 9 semaines différentes sur cette période : réduisez la période ou filtrez les créneaux et éphémérides (6 au plus). » ; sans aucune, « Aucun créneau ni éphéméride répété sur cette période. ».
+- « Annuler » / « Générer » (désactivé avec l’avis orange) : télécharge « Semaines types — <période>.pdf », toast « Semaines types exportées. » ou « Export PDF impossible. », et ferme le panneau.
+
+Le document : une page par semaine type, A4 paysage, au gabarit commun, « <nom> · <période> » en en-tête ; une semaine du lundi au dimanche, jours nommés sans dates, avec seulement les créneaux et éphémérides choisis (ni anniversaires, ni évènements, ni routines, ni tâches), dessinés comme dans la « Vue en PDF » (bandeau, fond, fine ligne selon l’affichage de leur type, hachurés ceux d’un autre espace, en pointillés les éphémérides) ; légende en bas de la page. Seules les répétitions comptent : pas les occurrences modifiées, déplacées ou supprimées, ni ce qui ne se répète pas. Voir les règles dans [Règles de l’agenda](../../business-rules/activities/calendar.md#export-des-semaines-types).
 
 ### Export iCalendar
 

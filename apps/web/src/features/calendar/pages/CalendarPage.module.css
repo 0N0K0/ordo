@@ -162,7 +162,7 @@
     opacity: var(--onoko-planned-typed-opacity) !important;
   }
 
-  /* Day of planned slots, at the top of the week and the day: a light background (`slotBarLook`), its text dark and
+  /* Day of planned slots, at the top of the week and the day: a light background (`slotLook`, bar), its text dark and
      opaque, under the events. */
   .slotBar {
     /* Interactions */

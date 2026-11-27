@@ -1290,6 +1290,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser slotPlacements (@ordo/shared) : les places des créneaux selon l’affichage de leur type, les mêmes pour l’agenda et son PDF.',
   },
   {
+    // How a slot looks, on screen and in the PDF, is chosen once for both.
+    selector: "Property[key.name='print'] > ObjectExpression, Property[key.name='print'] > TSSatisfiesExpression > ObjectExpression",
+    message: 'Utiliser slotLook (features/calendar/lib/calendar-events) : l’aspect d’un créneau à l’écran et dans le PDF, choisi au même endroit.',
+  },
+  {
     // The schedules a page shows leave out those archived, or of an archived kind, in their workspace: scheduleSources says it.
     selector: "CallExpression[callee.name='countedSchedules'] > ArrayExpression.arguments",
     message: 'Utiliser scheduleSources(…, includeArchived) (features/calendar/lib/calendar-events) : les créneaux affichés, sans les archivés ni ceux d’un type archivé sauf demande, et leur `archived`.',

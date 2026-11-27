@@ -140,18 +140,21 @@ export async function issuerName(): Promise<string> {
  * company (or the name of the company or of the workspace) and the title at the top, the date of the export, the
  * issuer and the page number at the bottom. The content goes between `top` and `bottom`; pages added keep these
  * margins.
- * @param {{ title: string, filename?: string, autoFirstPage?: boolean, singlePageNumber?: boolean }} options Title
- * (header and PDF properties), name of the file without its extension (default: the title), whether the first page is
- * added at once (default true), and whether a document of a single page shows « Page 1 / 1 » (default true).
+ * @param {{ title: string, pageTitles?: readonly string[], filename?: string, autoFirstPage?: boolean, singlePageNumber?: boolean }} options
+ * Title (header and PDF properties), titles in the header of each page instead (a page without one: the title), name
+ * of the file without its extension (default: the title), whether the first page is added at once (default true), and
+ * whether a document of a single page shows « Page 1 / 1 » (default true).
  * @returns {Promise<Report>} Document, content area and finisher.
  */
 export async function startReport({
   title,
+  pageTitles = [],
   filename = title,
   autoFirstPage = true,
   singlePageNumber = true,
 }: {
   title: string;
+  pageTitles?: readonly string[];
   filename?: string;
   autoFirstPage?: boolean;
   singlePageNumber?: boolean;
@@ -203,7 +206,7 @@ export async function startReport({
         .font('regular')
         .fontSize(8.5)
         .fillColor(COLORS.muted)
-        .text(title, titleLeft, headerTop + 8, { width: REPORT_MARGIN + width - titleLeft, align: 'right', lineBreak: false, ellipsis: true });
+        .text(pageTitles[index - range.start] ?? title, titleLeft, headerTop + 8, { width: REPORT_MARGIN + width - titleLeft, align: 'right', lineBreak: false, ellipsis: true });
       doc
         .moveTo(REPORT_MARGIN, headerTop + 28)
         .lineTo(REPORT_MARGIN + width, headerTop + 28)

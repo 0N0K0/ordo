@@ -1,6 +1,6 @@
 # Règles de l’agenda
 
-Règles appliquées par l’API et les schémas partagés pour les calendriers, abonnements, catégories, évènements et occurrences (portées, annulation, report), créneaux (horaires prévus) et éphémérides, types de créneaux et d’éphémérides, règles de créneaux des tâches et routines, et exports PDF / iCalendar. Sources : `apps/api/src/services/calendar/**`, `apps/api/src/graphql/modules/calendar.ts`, `apps/api/src/routes/exports.ts`, `packages/shared/src/calendar/**`. Fonctionnalités : [Agenda](../../features/activities/calendar.md).
+Règles appliquées par l’API et les schémas partagés pour les calendriers, abonnements, catégories, évènements et occurrences (portées, annulation, report), créneaux (horaires prévus) et éphémérides, types de créneaux et d’éphémérides, règles de créneaux des tâches et routines, et exports PDF (vue de l’agenda, semaines types) / iCalendar. Sources : `apps/api/src/services/calendar/**`, `apps/api/src/graphql/modules/calendar.ts`, `apps/api/src/routes/exports.ts`, `packages/shared/src/calendar/**`. Fonctionnalités : [Agenda](../../features/activities/calendar.md).
 
 Toutes les données sont propres à l’espace courant (colonne `workspaceId`, voir [Espaces et accès](../cross-cutting/workspaces-and-access.md)), sauf les lectures explicites d’autres espaces (abonnements).
 
@@ -298,6 +298,18 @@ Source : `apps/api/src/services/calendar/calendar-pdf.ts`, route `POST /api/expo
 - Les heures de la semaine et du jour vont de 8 h à 19 h au moins, élargies aux éléments, fonds et fines lignes des créneaux compris ; un fond ou une fine ligne d’une journée entière (de minuit à minuit) ne les élargit pas (il est coupé aux heures affichées).
 - `from` ≤ `to` (« La fin doit suivre le début. »), 45 jours d’écart au plus (« Période invalide. »).
 - A4 paysage, gabarit commun (`startReport` avec `singlePageNumber: false`, voir [Erreurs](../cross-cutting/errors.md) pour le format des refus).
+
+## Export des semaines types
+
+Sources : `packages/shared/src/calendar/typical-weeks.ts` (calcul), `apps/api/src/services/calendar/calendar-pdf.ts` (`typicalWeeksPdf`), route `POST /api/exports/typical-weeks.pdf` (5 Mo, « Export PDF impossible. »).
+
+- Ne montre que les créneaux et les éphémérides : ni anniversaires, ni calendriers, ni évènements, ni routines, ni tâches. Ceux pris en compte sont choisis un à un, ceux de l’espace et ceux des autres espaces auxquels il est abonné ; ni les archivés ni ceux d’un type archivé, dans leur espace.
+- Seules les règles comptent (`ruleOnlySchedule`) : les cas qui se répètent d’un créneau ou d’une éphéméride, sans leurs jours supprimés un à un ni les exceptions de l’horaire (jours ou périodes modifiés, déplacés, en pause) ; un cas sans répétition (une seule fois) ne compte pas. La période de l’horaire et celle de chaque cas comptent, comme les pauses de la règle.
+- Les semaines sont celles, entières (lundi à dimanche), que la période touche. Les semaines aux mêmes créneaux (même horaire, même jour de la semaine, mêmes heures) forment une semaine type ; une semaine sans aucun créneau n’en forme pas. Les semaines types suivent l’ordre de leur première semaine.
+- Nom d’une semaine type, déduit de ses semaines parmi celles de la période (`typicalWeekName`) : « Toutes les semaines » ; « Semaines paires » / « Semaines impaires » (numéros ISO : la semaine 53 est impaire, comme la semaine 1 qui la suit) ; une semaine sur n de sa première semaine jusqu’à la fin de la période, « 1 semaine sur 3, à partir du 05/01 » (le lundi de sa première semaine ; une semaine sur une : « Toutes les semaines, à partir du 05/01 ») ; sinon la liste de leurs numéros ISO, « Sem. 2, 5, 8 », un numéro que la période a deux fois suivi de son année ISO (« Sem. 52 (2026), 2 (2027) »).
+- 6 semaines types au plus (`TYPICAL_WEEKS_MAX`) : au-delà, « Générer » est désactivé et le panneau dit « 9 semaines différentes sur cette période : réduisez la période ou filtrez les créneaux et éphémérides (6 au plus). » (`typicalWeeksRefusal`), message aussi du refus de l’API ; sans aucune : « Aucun créneau ni éphéméride répété sur cette période. » (`NO_TYPICAL_WEEK`). Le nombre suit la période et les créneaux choisis à chaque changement.
+- Entrée : la période (`title`, « Du 1 sept. 2026 au 4 juil. 2027 ») et chaque semaine type : son nom, le lundi de sa première semaine (« Période invalide. » sinon) et ses éléments cette semaine-là, comme ceux du PDF de l’agenda (5 000 max chacune).
+- Une page par semaine type, A4 paysage, gabarit commun (`startReport` avec `pageTitles` et `singlePageNumber: false`) : en en-tête de la page, « <nom> · <période> » ; une semaine du lundi au dimanche, jours nommés sans dates, aucun jour surligné (`drawTimeGrid` avec `today: null`), les créneaux et éphémérides dessinés comme dans le PDF de l’agenda (placement de l’affichage de leur type ou de l’abonnement, hachures d’un autre espace, pointillés des éphémérides) ; légende en bas de la page (`calendarLegend`, `drawLegend`), avec ses hachures et pointillés. Fichier « Semaines types — <période>.pdf ».
 
 ## Rappels d’évènements
 

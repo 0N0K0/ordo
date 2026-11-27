@@ -157,9 +157,24 @@ Ce que l'agenda et son PDF partagent pour dessiner les créneaux et éphémérid
 | Export | Rôle |
 | --- | --- |
 | `SLOT_PATTERNS` / `SlotPattern` | Motifs des créneaux : `hatched` (hachures), `dotted` (pointillés). |
-| `slotPattern({ foreign, ephemeris? })` | Motif d'un horaire affiché : pointillés pour une éphéméride (d'un autre espace aussi), hachures pour un créneau d'un autre espace, aucun sinon. Utilisé par `slotLookClasses` et `CalendarPage` (web). |
-| `SlotPlace`, `SlotPlacement` / `slotPlacements(display, month, slots, lanes)` | Où l'agenda place les créneaux d'un horaire selon l'affichage de son type (`ScheduleDisplay`) : au mois, chaque jour en fond ou en fine ligne en bas (ou rien) ; en semaine et jour, un bandeau par jour (`dayBar`) et leurs heures (la journée pour un créneau d'une journée entière, `columned` : côte à côte avec les fonds simultanés) ou la journée en fond, ou une fine ligne à gauche de leurs heures (ou rien). Chaque fine ligne d'un jour prend la voie suivante (`lanes`, par jour, partagé par les horaires d'une vue). Utilisé par `CalendarPage` (web), donc par son PDF. |
-| `LegendGlyph`, `LegendItem`, `CalendarLegendEntry` / `calendarLegend(items)` | Légende des couleurs d'une vue : une entrée par nom (`legend`), dans l'ordre ; un carré si un fond ou un bloc d'heures la montre, sinon un trait ; la couleur du premier élément ainsi dessiné, le motif et l'opacité la plus forte de ces éléments. Utilisé par le PDF de l'agenda (API). |
+| `slotPattern({ foreign, ephemeris? })` | Motif d'un horaire affiché : pointillés pour une éphéméride (d'un autre espace aussi), hachures pour un créneau d'un autre espace, aucun sinon. Utilisé par `slotLook` et `slotLookClasses` (web). |
+| `SlotPlace`, `SlotPlacement` / `slotPlacements(display, month, slots, lanes)` | Où l'agenda place les créneaux d'un horaire selon l'affichage de son type (`ScheduleDisplay`) : au mois, chaque jour en fond ou en fine ligne en bas (ou rien) ; en semaine et jour, un bandeau par jour (`dayBar`) et leurs heures (la journée pour un créneau d'une journée entière, `columned` : côte à côte avec les fonds simultanés) ou la journée en fond, ou une fine ligne à gauche de leurs heures (ou rien). Chaque fine ligne d'un jour prend la voie suivante (`lanes`, par jour, partagé par les horaires d'une vue). Utilisé par `slotEvents` (web) : l'agenda, son PDF et les semaines types. |
+| `LegendGlyph`, `LegendItem`, `CalendarLegendEntry` / `calendarLegend(items)` | Légende des couleurs d'une vue : une entrée par nom (`legend`), dans l'ordre ; un carré si un fond ou un bloc d'heures la montre, sinon un trait ; la couleur du premier élément ainsi dessiné, le motif et l'opacité la plus forte de ces éléments. Utilisé par le PDF de l'agenda et celui des semaines types (API). |
+
+## `typical-weeks.ts` — semaines types d'une période
+
+Ce que l'export des semaines types calcule (voir [Règles : export des semaines types](../../business-rules/activities/calendar.md#export-des-semaines-types)). Tests : `test/calendar/typical-weeks.test.ts`.
+
+| Export | Rôle |
+| --- | --- |
+| `TYPICAL_WEEKS_MAX` | 6 : semaines types d'un document au plus (une page chacune). |
+| `typicalWeeksRefusal(count)` | « 9 semaines différentes sur cette période : réduisez la période ou filtrez les créneaux et éphémérides (6 au plus). » : panneau (web) et refus de l'API. |
+| `NO_TYPICAL_WEEK` | « Aucun créneau ni éphéméride répété sur cette période. » : panneau (web) et refus de l'API. |
+| `TypicalWeek` | Semaine type : `name`, `weeks` (lundis de ses semaines, dans l'ordre), `slots` (créneaux de sa première semaine). |
+| `ruleOnlySchedule(schedule)` | Un horaire réduit à ses règles : ses cas qui se répètent, sans leurs jours supprimés un à un, et sans ses exceptions (jours ou périodes modifiés, déplacés, en pause) ; `null` sans cas qui se répète. |
+| `periodMondays(from, to)` | Lundis des semaines (lundi à dimanche) qu'une période touche, dans l'ordre. |
+| `typicalWeekName(weeks, mondays)` | Nom d'une semaine type parmi les semaines de la période : « Toutes les semaines » ; « Semaines paires » / « Semaines impaires » (numéros ISO, `isoWeekHasParity`) ; une semaine sur n depuis sa première jusqu'à la fin de la période, « 1 semaine sur 3, à partir du 05/01 » (n = 1 : « Toutes les semaines, à partir du 05/01 ») ; sinon leurs numéros ISO, « Sem. 2, 5, 8 », avec l'année ISO d'un numéro que la période a deux fois (« 2 (2027) »). |
+| `typicalWeeks(schedules, from, to)` | Semaines types d'une période : ses semaines entières aux mêmes créneaux (même horaire, même jour de la semaine, mêmes heures) d'après les règles seules (`ruleOnlySchedule`, `plannedSlots`), chacune nommée (`typicalWeekName`), dans l'ordre de leur première semaine ; les semaines sans aucun créneau sont écartées. Utilisé par `TypicalWeeksPanel` (web). |
 
 ## `work-schedules.ts` — créneaux planifiés (horaires)
 

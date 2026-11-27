@@ -13,6 +13,11 @@ import {
   monthOfDay,
   timeToMinutes,
   WEEKDAY_SHORT_LABELS,
+  WEEKDAY_LABELS,
+  capitalize,
+  NO_TYPICAL_WEEK,
+  TYPICAL_WEEKS_MAX,
+  typicalWeeksRefusal,
   weekdayText,
   weekdayOfDate,
   twoDigits,
@@ -30,6 +35,32 @@ const localDateTime = z.string().regex(LOCAL_DATE_TIME_PATTERN);
 /** Most lanes of thin lines, or columns of backgrounds, on a day. */
 const MAX_LANES = 100;
 
+/** An item of a view of the calendar as the PDF draws it (the app sends it so). */
+const calendarPdfItemSchema = z.object({
+  label: z.string().max(PRINTED_LABEL_MAX),
+  kind: z.enum(CALENDAR_PDF_KINDS),
+  allDay: z.boolean(),
+  /** All day: first and last days (YYYY-MM-DD, included); timed: local date-times. */
+  start: z.union([daySchema(), localDateTime]),
+  end: z.union([daySchema(), localDateTime]),
+  color: colorSchema,
+  /** Cancelled or done: struck through. */
+  struck: z.boolean().default(false),
+  /** Name in the legend (the kind of a créneau or an éphéméride); none: not in the legend. */
+  legend: z.string().max(PRINTED_LABEL_MAX).nullable().default(null),
+  /** Hatched (another workspace) or dotted (an éphéméride). */
+  pattern: z.enum(SLOT_PATTERNS).nullable().default(null),
+  /** Opacity it is drawn with, as in the agenda (light backgrounds, faded when archived, events too). */
+  opacity: z.number().min(0).max(1).default(1),
+  /** Lane of a thin line that day; column of a background among those at the same time, and their number. */
+  lane: z.number().int().min(0).max(MAX_LANES).default(0),
+  column: z.number().int().min(0).max(MAX_LANES).default(0),
+  columns: z.number().int().min(1).max(MAX_LANES).default(1),
+});
+
+/** Most items of a view, or of a typical week. */
+const MAX_ITEMS = 5000;
+
 /** A view of the calendar, as displayed (filters applied), to print: its period (`title`, in the header of the page). */
 const calendarPdfSchema = reportHeadingSchema
   .pick({ title: true })
@@ -40,37 +71,13 @@ const calendarPdfSchema = reportHeadingSchema
     to: daySchema(),
     /** The user's day (highlighted). */
     today: daySchema(),
-    items: z
-      .array(
-        z.object({
-          label: z.string().max(PRINTED_LABEL_MAX),
-          kind: z.enum(CALENDAR_PDF_KINDS),
-          allDay: z.boolean(),
-          /** All day: first and last days (YYYY-MM-DD, included); timed: local date-times. */
-          start: z.union([daySchema(), localDateTime]),
-          end: z.union([daySchema(), localDateTime]),
-          color: colorSchema,
-          /** Cancelled or done: struck through. */
-          struck: z.boolean().default(false),
-          /** Name in the legend (the kind of a créneau or an éphéméride); none: not in the legend. */
-          legend: z.string().max(PRINTED_LABEL_MAX).nullable().default(null),
-          /** Hatched (another workspace) or dotted (an éphéméride). */
-          pattern: z.enum(SLOT_PATTERNS).nullable().default(null),
-          /** Opacity it is drawn with, as in the agenda (light backgrounds, faded when archived, events too). */
-          opacity: z.number().min(0).max(1).default(1),
-          /** Lane of a thin line that day; column of a background among those at the same time, and their number. */
-          lane: z.number().int().min(0).max(MAX_LANES).default(0),
-          column: z.number().int().min(0).max(MAX_LANES).default(0),
-          columns: z.number().int().min(1).max(MAX_LANES).default(1),
-        }),
-      )
-      .max(5000),
+    items: z.array(calendarPdfItemSchema).max(MAX_ITEMS),
   })
   .refine(...endAfter('from', 'to'))
   .refine((view) => daysBetween(view.from, view.to) <= 45, 'Période invalide.');
 type CalendarPdfInput = z.input<typeof calendarPdfSchema>;
 type CalendarPdfView = z.infer<typeof calendarPdfSchema>;
-type CalendarPdfItem = CalendarPdfView['items'][number];
+type CalendarPdfItem = z.infer<typeof calendarPdfItemSchema>;
 
 /** A box of the page. */
 interface Box {
@@ -566,6 +573,25 @@ function drawLegend(doc: PdfDoc, entries: readonly CalendarLegendEntry[], box: {
 }
 
 /**
+ * Draws a page of the calendar: its grid in the content of the page, then the legend of its créneaux and éphémérides
+ * under it (when some items have a name in it).
+ * @param {PdfDoc} doc PDF.
+ * @param {number} top Top of the content of the page.
+ * @param {readonly CalendarPdfItem[]} items Items of the page.
+ * @param {(area: Box) => void} drawGrid Draws the grid in its area.
+ * @returns {void}
+ */
+function drawCalendarPage(doc: PdfDoc, top: number, items: readonly CalendarPdfItem[], drawGrid: (area: Box) => void): void {
+  const width = doc.page.width - 2 * MARGIN;
+  const legend = calendarLegend(items);
+  const legendSpace = legend.length ? legendHeight(doc, legend, width) + LEGEND_GAP : 0;
+  const y = top + 6;
+  const area = { x: MARGIN, y, width, height: doc.page.height - doc.page.margins.bottom - y - legendSpace };
+  drawGrid(area);
+  if (legend.length) drawLegend(doc, legend, { x: MARGIN, y: area.y + area.height + LEGEND_GAP, width });
+}
+
+/**
  * PDF (A4 landscape) of a calendar view as displayed: month grid, or week / day hours with the all-day row; the
  * créneaux and éphémérides drawn as the agenda shows them (bars, backgrounds side by side, thin lines in lanes,
  * hatched or dotted, faded when archived), their legend at the bottom of the page; cancelled events and done tasks
@@ -578,17 +604,56 @@ export async function calendarPdf(input: CalendarPdfInput): Promise<ReportFile> 
   const view = parseInput(calendarPdfSchema, input);
   const { today } = view;
   const { doc, top, finish } = await startReport({ title: view.title, singlePageNumber: false });
+  drawCalendarPage(doc, top, view.items, (area) => {
+    if (view.view === 'month') drawMonth(doc, view, area, today);
+    else {
+      const days = Array.from({ length: daysBetween(view.from, view.to) + 1 }, (_, index) => addDays(view.from, index)).map((date) => ({ date, label: weekdayText(date) }));
+      drawTimeGrid(doc, { days, items: view.items, today }, area);
+    }
+  });
+  return finish();
+}
 
-  const width = doc.page.width - 2 * MARGIN;
-  const legend = calendarLegend(view.items);
-  const legendSpace = legend.length ? legendHeight(doc, legend, width) + LEGEND_GAP : 0;
-  const y = top + 6;
-  const area = { x: MARGIN, y, width, height: doc.page.height - doc.page.margins.bottom - y - legendSpace };
-  if (view.view === 'month') drawMonth(doc, view, area, today);
-  else {
-    const days = Array.from({ length: daysBetween(view.from, view.to) + 1 }, (_, index) => addDays(view.from, index)).map((date) => ({ date, label: weekdayText(date) }));
-    drawTimeGrid(doc, { days, items: view.items, today }, area);
+/**
+ * Typical weeks of a period, to print: the period (`title`), and each typical week with its name, the Monday of its
+ * first week and the créneaux and éphémérides of that week, drawn as the agenda's week shows them.
+ */
+const typicalWeeksPdfSchema = reportHeadingSchema.pick({ title: true }).extend({
+  weeks: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(PRINTED_LABEL_MAX),
+        monday: daySchema().refine((day) => weekdayOfDate(day) === 1, 'Période invalide.'),
+        items: z.array(calendarPdfItemSchema).max(MAX_ITEMS),
+      }),
+    )
+    .min(1, NO_TYPICAL_WEEK)
+    .superRefine((weeks, context) => {
+      if (weeks.length > TYPICAL_WEEKS_MAX) context.addIssue({ code: 'custom', message: typicalWeeksRefusal(weeks.length) });
+    }),
+});
+type TypicalWeeksPdfInput = z.input<typeof typicalWeeksPdfSchema>;
+
+/**
+ * PDF (A4 landscape) of the typical weeks of a period: a page per typical week, its name and the period in the
+ * header, a week from Monday to Sunday without dates (days named, no day highlighted), its créneaux and éphémérides
+ * drawn as in the PDF of the agenda (bars, backgrounds side by side, thin lines, hatched or dotted) with their legend
+ * at the bottom of the page; in the template shared by every export.
+ * @param {TypicalWeeksPdfInput} input Period and typical weeks.
+ * @returns {Promise<ReportFile>} PDF and its file name.
+ */
+export async function typicalWeeksPdf(input: TypicalWeeksPdfInput): Promise<ReportFile> {
+  const { title, weeks } = parseInput(typicalWeeksPdfSchema, input);
+  const { doc, top, finish } = await startReport({
+    title: `Semaines types — ${title}`,
+    pageTitles: weeks.map((week) => `${week.name} · ${title}`),
+    autoFirstPage: false,
+    singlePageNumber: false,
+  });
+  for (const week of weeks) {
+    doc.addPage();
+    const days = WEEKDAY_LABELS.map((label, index) => ({ date: addDays(week.monday, index), label: capitalize(label) }));
+    drawCalendarPage(doc, top, week.items, (area) => drawTimeGrid(doc, { days, items: week.items, today: null }, area));
   }
-  if (legend.length) drawLegend(doc, legend, { x: MARGIN, y: area.y + area.height + LEGEND_GAP, width });
   return finish();
 }

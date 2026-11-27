@@ -14,6 +14,8 @@ import {
   readScheduleDisplay,
   type ScheduleDisplay,
   slotPattern,
+  type SlotPlace,
+  slotPlacements,
   UNTYPED_EPHEMERIS_LABEL,
   type WorkScheduleRule,
 } from '@ordo/shared';
@@ -21,6 +23,7 @@ import { scheduleRules, type PersonBirthday, type ScheduleType, type useBirthday
 import { archivedIds, unarchived } from '../../../lib/archive';
 import classes from '../pages/CalendarPage.module.css';
 import { inWorkspace } from './layer-label';
+import { slotColumns } from './slot-columns';
 import type { SlotPrint } from './calendar-pdf';
 
 /** Schedule of another workspace subscribed to. */
@@ -164,22 +167,16 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
   return includeArchived ? sources : unarchived(sources);
 }
 
-/**
- * Look of the bar of a schedule on a day (the all-day row of the week and the day): its background in the color of its
- * kind (working hours without one) made light (`--onoko-planned-opacity`), its text dark and opaque; hatched for a
- * schedule of another workspace, dotted and in italics for an éphéméride, faded as an archived event when archived (or
- * of an archived kind) in its workspace.
- * @param {{ color: string | null, foreign: boolean, ephemeris?: boolean, archived?: boolean }} source Schedule shown.
- * @returns {Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'>} Event props.
- */
-export function slotBarLook({ color, foreign, ephemeris = false, archived = false }: { color: string | null; foreign: boolean; ephemeris?: boolean; archived?: boolean }): Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'> {
-  const light = `color-mix(in srgb, ${color ?? WORK_HOURS_COLOR} calc(var(--onoko-planned-opacity) * 100%), transparent)`;
-  return {
-    backgroundColor: light,
-    borderColor: light,
-    textColor: 'var(--mantine-color-text)',
-    classNames: [classes.slotBar, ...slotLookClasses({ foreign, ephemeris, archived })],
-  };
+/** A schedule shown, as its look reads it. */
+interface SlotSource {
+  color: string | null;
+  foreign: boolean;
+  /** An éphéméride: dotted. Optional. Default = false. */
+  ephemeris?: boolean;
+  /** Archived, or of an archived kind, in its workspace: faded. Optional. Default = false. */
+  archived?: boolean;
+  /** Name of its kind: its entry in the legend of the PDF. */
+  kind: string;
 }
 
 /**
@@ -189,9 +186,78 @@ export function slotBarLook({ color, foreign, ephemeris = false, archived = fals
  * @param {{ foreign: boolean, ephemeris?: boolean, archived?: boolean }} source Schedule shown.
  * @returns {string[]} Classes.
  */
-export function slotLookClasses({ foreign, ephemeris = false, archived = false }: { foreign: boolean; ephemeris?: boolean; archived?: boolean }): string[] {
+function slotLookClasses({ foreign, ephemeris = false, archived = false }: { foreign: boolean; ephemeris?: boolean; archived?: boolean }): string[] {
   const pattern = slotPattern({ foreign, ephemeris });
   return [...(pattern === 'hatched' ? [classes.subscribedSlot] : []), ...(pattern === 'dotted' ? [classes.ephemeris] : []), ...(ephemeris ? [classes.ephemerisBar] : []), ...(archived ? [classes.archived] : [])];
+}
+
+/**
+ * Where a slot of a schedule shows, as its look reads it: its bar in the all-day row, the background, a thin line on
+ * the left of its hours (or at the bottom of the day of the month), or the slot itself being changed.
+ */
+export type SlotLookPlace = SlotPlace | 'edit';
+
+/**
+ * Look of a slot of a schedule in a place, on screen and in the PDF from the same choice: its color (that of its kind,
+ * the working hours without one), the lightness of its look and its pattern. A bar: light (`--onoko-planned-opacity`)
+ * with its text dark and opaque; the background: light, lighter for a kind; a thin line: the full color, without
+ * pattern; being changed: the full color, dashed. Hatched for a schedule of another workspace, dotted (its label in
+ * italics) for an éphéméride, faded when archived (or of an archived kind) in its workspace (not while being changed).
+ * @param {SlotSource} source Schedule shown.
+ * @param {SlotLookPlace} place Place of the slot.
+ * @param {boolean} [month] The month view (a thin line at the bottom of the day). Optional. Default = false.
+ * @returns {{ event: Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'>, print: SlotPrint }} Props of the event, and how it prints.
+ */
+export function slotLook(
+  { color, foreign, ephemeris = false, archived = false, kind }: SlotSource,
+  place: SlotLookPlace,
+  month = false,
+): { event: Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'>; print: SlotPrint } {
+  const pattern = slotPattern({ foreign, ephemeris });
+  /**
+   * How the look prints.
+   * @param {string} printed Color drawn.
+   * @param {SlotPrint['opacity']} opacity Lightness of the look.
+   * @param {boolean} patterned Whether its pattern shows (not on a thin line).
+   * @param {boolean} [faded] Faded as archived. Optional. Default = archived.
+   * @returns {SlotPrint} Print.
+   */
+  const print = (printed: string, opacity: SlotPrint['opacity'], patterned: boolean, faded = archived): SlotPrint => ({
+    legend: kind,
+    color: printed,
+    pattern: patterned ? pattern : null,
+    opacity,
+    archived: faded,
+  });
+  switch (place) {
+    case 'bar': {
+      const light = `color-mix(in srgb, ${color ?? WORK_HOURS_COLOR} calc(var(--onoko-planned-opacity) * 100%), transparent)`;
+      return {
+        event: { backgroundColor: light, borderColor: light, textColor: 'var(--mantine-color-text)', classNames: [classes.slotBar, ...slotLookClasses({ foreign, ephemeris, archived })] },
+        print: print(color ?? WORK_HOURS_COLOR, 'planned', true),
+      };
+    }
+    case 'background':
+      return {
+        event: { ...(color ? { backgroundColor: color } : {}), classNames: [color ? classes.typedSlot : classes.workHours, ...slotLookClasses({ foreign, ephemeris, archived })] },
+        print: print(color ?? WORK_HOURS_COLOR, color ? 'typed' : 'planned', true),
+      };
+    case 'line':
+      return {
+        event: { backgroundColor: color ?? WORK_LINE_COLOR, classNames: [month ? classes.slotBorderBottom : classes.slotBorderLeft, ...(archived ? [classes.archived] : [])] },
+        print: print(color ?? WORK_LINE_COLOR, 'full', false),
+      };
+    case 'edit':
+      return {
+        event: {
+          backgroundColor: color ?? WORK_HOURS_COLOR,
+          borderColor: color ?? WORK_LINE_COLOR,
+          textColor: 'var(--mantine-color-text)',
+          classNames: [classes.editSlot, ...slotLookClasses({ foreign, ephemeris })],
+        },
+        print: print(color ?? WORK_HOURS_COLOR, 'full', true, false),
+      };
+  }
 }
 
 /** Slots of a source as the agenda shows them: the look of its kind and its slots of the period. */
@@ -206,6 +272,75 @@ export interface ShownSlots {
   foreign: boolean;
   display: ScheduleDisplay;
   slots: readonly PlannedSlot[];
+}
+
+/**
+ * Events of the slots of some schedules, as the agenda shows them, each placed as the display of its kind (or of the
+ * subscription to it) asks (`slotPlacements`) and in its look (`slotLook`): in the week and the day, a bar at the top
+ * (all-day row) and, in the time grid, their hours (the whole day for an all-day slot) or the whole day in the
+ * background, or a thin line on the left of their hours; in the month, the day in the background or a thin line at
+ * its bottom. Lines of several schedules on a day stand side by side (week, day) or one above the other (month), each
+ * schedule with a line that day in the next lane; hours in the background at the same time share the width of the day
+ * (`slotColumns`). Each carries how it prints (`print`: the PDF draws it the same, with its kind in the legend).
+ * @param {readonly ShownSlots[]} sources Schedules shown, in order, with their slots.
+ * @param {boolean} month The month view (else the week or the day).
+ * @returns {EventInput[]} Events.
+ */
+export function slotEvents(sources: readonly ShownSlots[], month: boolean): EventInput[] {
+  const result: EventInput[] = [];
+  const lanes = new Map<string, number>();
+  // Hours of slots in the background (week, day), by day: those at the same time share the width of the day.
+  const columns = new Map<string, { key: string; order: number; start: string; end: string; look: EventInput }[]>();
+  let order = 0;
+  for (const source of sources) {
+    const background = slotLook(source, 'background');
+    const backgroundEvent: EventInput = { display: 'background', ...background.event, extendedProps: { print: background.print } };
+    /**
+     * Thin line of planned slots: a background event narrowed, in the full color (faded when archived).
+     * @param {number} lane Lane of the line that day.
+     * @returns {EventInput} Event props.
+     */
+    const line = (lane: number): EventInput => {
+      const look = slotLook(source, 'line', month);
+      return { display: 'background', ...look.event, extendedProps: { slotLane: lane, print: look.print } };
+    };
+    for (const { place, slot, wholeDay, columned, lane } of slotPlacements(source.display, month, source.slots, lanes)) {
+      const day = { id: `work-day:${slot.scheduleId}:${slot.date}`, start: slot.date, end: addDays(slot.date, 1), allDay: true };
+      if (place === 'bar') {
+        // Its bar on the day, in the all-day row.
+        const look = slotLook(source, 'bar');
+        result.push({ ...day, title: source.label, editable: false, extendedProps: { kind: 'slot', print: look.print }, ...look.event });
+      } else if (month) result.push(place === 'line' ? { ...day, id: `${day.id}:${lane}`, ...line(lane) } : { ...day, ...backgroundEvent });
+      else if (columned) {
+        const ofDay = columns.get(slot.date) ?? [];
+        ofDay.push({ key: `${slot.scheduleId}:${slot.start}`, order: order++, start: slot.start, end: slot.end, look: backgroundEvent });
+        columns.set(slot.date, ofDay);
+      } else
+        result.push({
+          // The lane in the id: a line moved to another lane is drawn again (see eventDidMount). The whole day of
+          // slots in the background (once a day) apart.
+          id: place === 'background' && wholeDay && !slot.allDay ? `work-whole:${slot.scheduleId}:${slot.date}` : `work:${slot.scheduleId}:${slot.date}:${slot.start}:${lane}`,
+          ...(wholeDay ? { start: `${slot.date}T00:00:00`, end: `${addDays(slot.date, 1)}T00:00:00` } : { start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00` }),
+          ...(place === 'line' ? line(lane) : backgroundEvent),
+        });
+    }
+  }
+  // Slots in the background at the same time stand side by side, each part of a slot as wide as the slots there are
+  // then (alone, the whole day).
+  for (const [date, slots] of columns) {
+    for (const part of slotColumns(slots)) {
+      result.push({
+        // Its column in the id: a part placed elsewhere is drawn again (see eventDidMount).
+        id: `work:${part.key}:${date}:${part.start}:${part.column}/${part.columns}`,
+        start: `${date}T${part.start}:00`,
+        end: `${date}T${part.end}:00`,
+        ...part.look,
+        classNames: [...((part.look.classNames as string[] | undefined) ?? []), classes.slotColumn],
+        extendedProps: { ...(part.look.extendedProps as Record<string, unknown> | undefined), slotColumn: part.column, slotColumns: part.columns },
+      });
+    }
+  }
+  return result;
 }
 
 /**
@@ -233,6 +368,7 @@ export function birthdayEvents(birthdays: readonly PersonBirthday[], look: Birth
       editable: false,
       backgroundColor: color,
       borderColor: color,
+      // eslint-disable-next-line no-restricted-syntax -- the print of a birthday: no schedule, no look of its own.
       extendedProps: { kind: 'birthday', birthday, print: { legend: BIRTHDAY_SLOT_KIND_LABEL, color, pattern: null, opacity: 'full', archived: false } satisfies SlotPrint },
     }));
   });
