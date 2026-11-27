@@ -81,9 +81,9 @@ function weekLabel(monday: string, mondays: readonly string[]): string {
 }
 
 /**
- * Weeks named by their numbers: « Semaine 5 », « Semaines 2, 5, 8 », 3 consecutive weeks or more of the same ISO
- * year as a range (« Semaines 36 à 53, 1 à 4 »: week 53 followed by week 1); the ISO year of a number the period has
- * twice.
+ * Weeks named by their numbers: « Semaine 5 », « Semaines 2, 5, 8 », 3 consecutive weeks or more as a range, across
+ * the change of ISO year too (« Semaines 36 à 4 », « Semaines 53 à 2 »: week 53 followed by week 1); the ISO year
+ * of a number the period has twice.
  * @param {readonly string[]} weeks Mondays of the weeks, in order.
  * @param {readonly string[]} mondays Mondays of the period.
  * @returns {string} Name.
@@ -92,7 +92,7 @@ function listedWeeks(weeks: readonly string[], mondays: readonly string[]): stri
   const runs: string[][] = [];
   for (const monday of weeks) {
     const run = runs[runs.length - 1];
-    if (run && daysBetween(run[run.length - 1], monday) === 7 && isoYear(run[run.length - 1]) === isoYear(monday)) run.push(monday);
+    if (run && daysBetween(run[run.length - 1], monday) === 7) run.push(monday);
     else runs.push([monday]);
   }
   const parts = runs.flatMap((run) => (run.length >= 3 ? [`${weekLabel(run[0], mondays)} à ${weekLabel(run[run.length - 1], mondays)}`] : run.map((monday) => weekLabel(monday, mondays))));
@@ -114,7 +114,8 @@ interface WeeksName {
  * pattern's (two weeks set apart are no rhythm; 3 for a parity, around a week 53), 3 weeks at least for one out of n, and when it holds at least three
  * quarters of the weeks of the pattern that have slots: over the period, or else from its first week, up to its last
  * one, or between both (« Semaines paires, jusqu’au 01/11 », « Toutes les semaines, à partir du 02/11 », « …, du
- * 02/11 au 13/12 »; one out of n always says its first week: « 1 semaine sur 3, à partir du 05/01 »).
+ * 02/11 au 13/12 »; one out of n always says the first week of its rhythm in the name that has slots, of another typical week too: « 1 semaine sur 3,
+ * à partir du 05/01 »).
  * The name goes on past the weeks of the typical week only over other weeks of the pattern that have slots, or where
  * the pattern has no week: a rule starting or stopping during the period says when. A bound leaves out none of the
  * weeks of the pattern that have slots, or 2 at least (another rule there): a week set apart does not move it. None
@@ -186,8 +187,9 @@ function weeksNames(weeks: readonly string[], mondays: readonly string[], filled
     for (const [from, to, allowed] of windows) {
       if (!allowed || weeks.length * 4 < others.filter((monday) => from <= monday && monday <= to).length * 3) continue;
       const shown = mondays.filter((monday) => from <= monday && monday <= to && has(monday));
-      // No bound where the pattern has no other week; one out of n says its first week (on its rhythm).
-      const since = rhythm ? first : mondays.some((monday) => monday < from && has(monday)) ? shown[0] : null;
+      // No bound where the pattern has no other week; one out of n says the first week of its rhythm in the name that
+      // has slots.
+      const since = rhythm ? (shown.find((monday) => others.includes(monday)) ?? first) : mondays.some((monday) => monday < from && has(monday)) ? shown[0] : null;
       const until = mondays.some((monday) => monday > to && has(monday)) ? shown[shown.length - 1] : null;
       names.push({ name: bounded(base, since, until), weeks: new Set(shown), rhythm });
     }

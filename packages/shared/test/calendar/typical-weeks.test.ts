@@ -122,10 +122,15 @@ describe('typicalWeekNames', () => {
 
   it('names one week out of n from 3 weeks only, never two weeks apart', () => {
     expect(typicalWeekNames([[week(40), week(43), week(46), week(49), week(52)], mondays.filter((monday) => ![40, 43, 46, 49, 52].includes(isoWeek(monday)))], mondays, period)).toEqual([
-      '1 semaine sur 3, à partir du 28/09',
+      '1 semaine sur 3, à partir du 07/09',
       'Semaines 36 à 39, 41, 42, 44, 45, 47, 48, 50, 51',
     ]);
     expect(typicalWeekNames([[week(37), week(52)], mondays.filter((monday) => monday !== week(37) && monday !== week(52))], mondays, period)).toEqual(['Semaines 37, 52', 'Toutes les semaines']);
+  });
+
+  it('dates a rhythm from its first week with slots, of another typical week too', () => {
+    // Every 3 weeks from week 43; week 40 apart, week 37 without slots.
+    expect(typicalWeekNames([[week(43), week(46), week(49), week(52)], [week(40)]], mondays, period)).toEqual(['1 semaine sur 3, à partir du 28/09', 'Semaine 40']);
   });
 
   it('names a rhythm with an exception, and never a rhythm or a parity two weeks set apart', () => {
@@ -148,11 +153,18 @@ describe('typicalWeekNames', () => {
     expect(typicalWeekNames([even.filter((monday) => !set.includes(monday)), ...set.map((monday) => [monday])], mondays, period)[0]).toBe('Semaines 38, 40, 44, 48, 50, 52');
   });
 
-  it('writes 3 consecutive weeks or more of an ISO year as a range, week 53 followed by week 1', () => {
+  it('writes 3 consecutive weeks or more as a range, across the change of ISO year (week 53 followed by week 1)', () => {
     const turn = { from: '2026-12-07', to: '2027-02-28' };
     const all = periodMondays(turn.from, turn.to);
     const few = all.filter((monday) => [50, 51, 52, 53, 1, 2, 3, 7].includes(isoWeek(monday)));
-    expect(typicalWeekNames([few, all.filter((monday) => !few.includes(monday))], all, turn)[0]).toBe('Semaines 50 à 53, 1 à 3, 7');
+    expect(typicalWeekNames([few, all.filter((monday) => !few.includes(monday))], all, turn)[0]).toBe('Semaines 50 à 3, 7');
+    // Week 52 twice in the period: its year at the ends of the range.
+    const long = { from: '2025-12-22', to: '2027-01-17' };
+    const longWeeks = periodMondays(long.from, long.to);
+    const turnOf2026 = longWeeks.filter((monday) => monday >= '2026-12-21');
+    expect(typicalWeekNames([turnOf2026, longWeeks.filter((monday) => !turnOf2026.includes(monday))], longWeeks, long)[0]).toBe('Semaines 52 (2026) à 2 (2027)');
+    const three = all.filter((monday) => [53, 1, 2].includes(isoWeek(monday)));
+    expect(typicalWeekNames([three, all.filter((monday) => !three.includes(monday))], all, turn)[0]).toBe('Semaines 53 à 2');
   });
 
   it('adds its ISO year to a week number the period has twice', () => {
