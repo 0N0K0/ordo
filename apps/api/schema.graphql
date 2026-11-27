@@ -3692,11 +3692,11 @@ type Query {
   routineChecks(from: Date!, to: Date!): [RoutineCheck!]!
 
   """
-  Occurrences of the routines in a period (both days included, 100 days at most), with their times of the day ticked (and when): the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged). With doneInPeriod, also those outside the period with a time of the day done (ticked at) within it, in Paris.
+  Occurrences of the routines in a period (both days included, 100 days at most), with their times of the day ticked (and when): the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged). With doneInPeriod, also those outside the period with a time of the day done (ticked at) within it, in Paris; with doneInPeriod on a single day, their times of the day are kept to the hours their condition allows that day (those without any, not ticked, with no window: neither listed nor counted that day).
   """
   routineOccurrences(
     """
-    Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the times of the day of a day: « Ma journée », the badge of the menu).
+    Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the times of the day of a day: « Ma journée », the badge of the menu); on a single day, the times of the day of each occurrence are those that day allows.
     """
     doneInPeriod: Boolean
     from: Date!
@@ -4579,7 +4579,7 @@ type RoutineSlot {
   optional: Boolean!
 
   """
-  Windows it can be done in that day, [{ fromTime, dueTime }] (several where slots cut it).
+  Windows it can be done in that day, [{ fromTime, dueTime }] (several where slots cut it; none: its condition allows none that day, in the occurrences of a single day with doneInPeriod).
   """
   windows: JSON!
 }

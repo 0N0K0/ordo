@@ -260,6 +260,8 @@ export function remember<T>(routine: object, schedules: ScheduleContext, key: st
 /** Time of the day of an occurrence, with the windows it can be done in (one, or several where slots cut it). */
 export interface RoutineDaySlot extends RoutineSlot {
   windows: TimeWindow[];
+  /** Rank of the moment of its rule (or of its case) it comes from. */
+  moment: number;
 }
 
 /** Occurrence of a routine: from its first day to its due (last) day. */
@@ -307,6 +309,38 @@ export function storedMoves(value: unknown): RoutineMove[] {
 }
 
 /**
+ * Every moment of the rule (or of the case) of an occurrence of a routine, in order, with the windows of a day it can
+ * be done in: kept to the hours its condition on calendar schedules allows that day, out of the slots « Indisponible »
+ * (several windows where slots cut it; none: not that day).
+ * @param {RoutineTiming} routine Routine.
+ * @param {string} due Due day of the occurrence (its case).
+ * @param {string} day Day.
+ * @param {ScheduleContext} schedules Schedules.
+ * @returns {{ moment: RoutineSlot, windows: TimeWindow[] }[]} Moments and their windows that day.
+ */
+export function momentWindows(routine: RoutineTiming, due: string, day: string, schedules: ScheduleContext): { moment: RoutineSlot; windows: TimeWindow[] }[] {
+  const cases = storedCases(routine.cases);
+  const item = cases.length ? routineCaseOn(cases, formatDay(routine.startDate), due) : null;
+  const base = cases.length ? (item?.slots ?? []) : storedMoments(routine);
+  const condition = cases.length ? (item?.condition ?? null) : storedCondition(routine);
+  const allowed = conditionWindows(condition, (query) => schedules.slotsOn(query, day));
+  return base.map((moment) => ({ moment, windows: windowsAllowed(moment, allowed) }));
+}
+
+/**
+ * Time of the day kept to some windows: its hours from the start of the first one to the end of the last one.
+ * @param {T} slot Time of the day.
+ * @param {TimeWindow[]} windows Windows it can be done in (at least one).
+ * @returns {T & { windows: TimeWindow[] }} Time of the day with its windows.
+ */
+export const withinWindows = <T extends Pick<RoutineSlot, 'fromTime' | 'dueTime'>>(slot: T, windows: TimeWindow[]): T & { windows: TimeWindow[] } => ({
+  ...slot,
+  fromTime: windows[0].fromTime,
+  dueTime: windows.at(-1)!.dueTime,
+  windows,
+});
+
+/**
  * Times of the day of an occurrence of a routine on one of its days: those of its rule (or of its case), kept to the
  * hours its condition on calendar schedules allows that day, out of the slots « Indisponible » (several windows where
  * slots cut them).
@@ -317,15 +351,7 @@ export function storedMoves(value: unknown): RoutineMove[] {
  * @returns {RoutineDaySlot[]} Times (none: not doable that day).
  */
 export function dayMoments(routine: RoutineTiming, due: string, day: string, schedules: ScheduleContext): RoutineDaySlot[] {
-  const cases = storedCases(routine.cases);
-  const item = cases.length ? routineCaseOn(cases, formatDay(routine.startDate), due) : null;
-  const base = cases.length ? (item?.slots ?? []) : storedMoments(routine);
-  const condition = cases.length ? (item?.condition ?? null) : storedCondition(routine);
-  const allowed = conditionWindows(condition, (query) => schedules.slotsOn(query, day));
-  return base.flatMap((moment) => {
-    const windows = windowsAllowed(moment, allowed);
-    return windows.length ? [{ ...moment, fromTime: windows[0].fromTime, dueTime: windows.at(-1)!.dueTime, windows }] : [];
-  });
+  return momentWindows(routine, due, day, schedules).flatMap(({ moment, windows }, index) => (windows.length ? [{ ...withinWindows(moment, windows), moment: index }] : []));
 }
 
 /**

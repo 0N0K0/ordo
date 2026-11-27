@@ -159,8 +159,9 @@ function routineWindows(slot: RoutineSlot): TimeWindow[] | null {
  * (`myDayRows`):
  * - tasks: those `taskDayReasons` gives a reason that day (their times of that day loaded on a past day, for « en
  *   cours »), placed by their windows (`itemWindowsOn`: their hours, their condition, the slots « Indisponible »);
- * - routines: each time of the day of an occurrence open that day (done: on the day it was done; on a past day, not
- *   done: « non faite »), cancelled on its due day, and today the late ones (their current occurrence past due)
+ * - routines: each time of the day of an occurrence open that day, within the hours its condition allows that day (none
+ *   that day: not in the day) (done: on the day it was done; on a past day, not done: « non faite »), cancelled on its
+ *   due day, and today the late ones (their current occurrence past due)
  *   (`routineDayEntries`); a parent routine (a group) as the head of its sub-routines of the day, its progress read from
  *   those that count that day (`routineGroupStatesOn`: open that day not done yet, or done that day), present only when
  *   one does; archived ones left out;

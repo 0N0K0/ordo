@@ -110,7 +110,19 @@ export interface RoutineTickSlot {
   fromTime?: string | null;
   /** Its « jusqu’à » (HH:MM). Optional. Default = null. */
   dueTime?: string | null;
+  /**
+   * Windows it can be done in that day ([{ fromTime, dueTime }]); empty: its condition allows none that day (neither
+   * listed nor counted that day, still to do for its occurrence to be done). Optional. Default = allowed.
+   */
+  windows?: unknown;
 }
+
+/**
+ * Whether a time of the day can be done on the day its occurrence is read for (`windows` not empty).
+ * @param {RoutineTickSlot} slot Time of the day.
+ * @returns {boolean} Allowed that day.
+ */
+const allowedThatDay = (slot: RoutineTickSlot): boolean => !Array.isArray(slot.windows) || slot.windows.length > 0;
 
 /** An occurrence of a routine with its times of the day and their ticks. */
 export interface RoutineTickOccurrence extends RoutineDayOccurrence {
@@ -122,16 +134,13 @@ export interface RoutineTickOccurrence extends RoutineDayOccurrence {
   archived?: boolean;
 }
 
-/** The single required time of the day of an occurrence without any. */
-const LONE_SLOT: RoutineTickSlot = { index: 0, optional: false, doneAt: null };
-
 /**
- * Required times of the day of an occurrence (a single one not ticked when it has no time of the day at all).
+ * Required times of the day of an occurrence (none: nothing to do).
  * @param {readonly RoutineTickSlot[]} slots Times of the day of the occurrence.
  * @returns {RoutineTickSlot[]} Required times of the day.
  */
 function requiredSlots(slots: readonly RoutineTickSlot[]): RoutineTickSlot[] {
-  return (slots.length ? slots : [LONE_SLOT]).filter((slot) => !slot.optional);
+  return slots.filter((slot) => !slot.optional);
 }
 
 /**
@@ -158,13 +167,13 @@ export function routineDoneDay({ startDate, slots }: Pick<RoutineTickOccurrence,
  * Whether an occurrence of a sub-routine counts for its group on a day: not done yet, on each day it is open, from its
  * first day (« Ouverture ») to its due day, both included; once done, on the day it was done only (`routineDoneDay`;
  * neither the days of its window before, nor those after); never when it is cancelled, nor without any required time
- * of the day (nothing to do). A late one (past due) never counts.
+ * of the day its condition allows that day (nothing to do then; `windows` empty). A late one (past due) never counts.
  * @param {Pick<RoutineTickOccurrence, 'startDate' | 'dueDate' | 'cancelled' | 'slots'>} occurrence Occurrence, with its ticks.
  * @param {string} day Day (YYYY-MM-DD).
  * @returns {boolean} It counts that day.
  */
 export function routineCountsOn(occurrence: Pick<RoutineTickOccurrence, 'startDate' | 'dueDate' | 'cancelled' | 'slots'>, day: string): boolean {
-  if (occurrence.cancelled || day < occurrence.startDate || day > occurrence.dueDate || !requiredSlots(occurrence.slots).length) return false;
+  if (occurrence.cancelled || day < occurrence.startDate || day > occurrence.dueDate || !requiredSlots(occurrence.slots).some(allowedThatDay)) return false;
   const doneDay = routineDoneDay(occurrence);
   return doneDay === null || doneDay === day;
 }
@@ -325,8 +334,8 @@ export interface RoutineDayOptions<R> {
 
 /**
  * Times of the day of the routines a day shows (« Ma journée », the badge of the menu), each once: every time of the
- * day of an occurrence open that day (`routineSlotShownOn`: done, on the day it was done), a cancelled occurrence on
- * its due day; today, the required times of the day not done of the current occurrence of a late routine (past due),
+ * day of an occurrence open that day (`routineSlotShownOn`: done, on the day it was done; not done, only when its
+ * condition allows it that day: `windows` not empty), a cancelled occurrence on its due day; today, the required times of the day not done of the current occurrence of a late routine (past due),
  * kept to the hours `allowedToday` allows (none: not listed). Neither an archived routine (nor an archived
  * occurrence), nor a group (`routineGroupIds`: seen through its sub-routines).
  * @param {readonly R[]} routines Routines of the workspace.
@@ -362,7 +371,7 @@ export function routineDayEntries<R extends RoutineDayRoutine, O extends Routine
     if (!listed(routine) || occurrence.archived) continue;
     for (const slot of occurrence.slots) {
       // Cancelled: on its due day; else on each day it is open, once done on the day it was done.
-      const on = occurrence.cancelled ? occurrence.dueDate === day : routineSlotShownOn(occurrence, slot.doneAt ?? null, day);
+      const on = occurrence.cancelled ? occurrence.dueDate === day : routineSlotShownOn(occurrence, slot.doneAt ?? null, day) && (Boolean(slot.doneAt) || allowedThatDay(slot));
       if (on) add({ routine, occurrence, slot, late: false, windows: null });
     }
   }

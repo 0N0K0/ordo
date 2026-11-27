@@ -116,6 +116,7 @@ import {
   liveMoves,
   loadScheduleContext,
   LOOK_DAYS,
+  momentWindows,
   NEAR_DAYS,
   NO_SCHEDULES,
   occurrenceSpansBetween,
@@ -136,6 +137,7 @@ import {
   ticksOf,
   hasSubRoutines,
   LATEST_CHECKS,
+  withinWindows,
 } from './routine-occurrences';
 import { changedRoutineInheritance, clearedRoutineInput, effectiveRoutineOf, freezeRoutineInheritance, loadRoutineInheritance, syncInheritedRoutineProjects, withOwnMoves, type StoredInheritingRoutine } from './routine-inheritance';
 
@@ -393,6 +395,44 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
 }
 
 /**
+ * Where an occurrence of a routine comes from: the day of its rule, its due day, and its exception moving it to a day
+ * (none: not moved).
+ * @param {readonly RoutineMove[]} moves Exceptions that apply (`liveMoves`).
+ * @param {string} occurrence Day that identifies the occurrence.
+ * @returns {{ date: string, due: string, move: RoutineMove | undefined }} Origin.
+ */
+function occurrenceOrigin(moves: readonly RoutineMove[], occurrence: string): { date: string; due: string; move: RoutineMove | undefined } {
+  const date = movedFrom(moves, occurrence);
+  return { date, due: occurrenceDueDay(moves, occurrence), move: moves.find((item) => item.from === date && item.to !== null && moveKey(item) === occurrence) };
+}
+
+/**
+ * Times of the day of an occurrence of a routine as one of the days it is open shows them (the list of a day: « Ma
+ * journée », the badge of the menu): those of the occurrence (`slotsOf`, their ranks kept), each kept to the hours its
+ * condition on calendar schedules allows that day, out of the slots « Indisponible » (several windows where slots cut
+ * it); one without any window that day, not ticked, has none (`windows` empty: neither listed nor counted that day, but
+ * still to do for the occurrence to be done); a ticked one stays as it is (it shows on the day it was done). An
+ * occurrence moved keeps its own (it lasts its new day only).
+ * @param {RoutineTiming} given Routine.
+ * @param {string} occurrence Day that identifies the occurrence.
+ * @param {string} day Day shown.
+ * @param {readonly S[]} slots Its times of the day (`slotsOf`), with their ticks.
+ * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
+ * @returns {S[]} Times of the day that day.
+ */
+export function slotsOnDay<S extends RoutineDaySlot & { done: boolean }>(given: RoutineTiming, occurrence: string, day: string, slots: readonly S[], schedules: ScheduleContext = NO_SCHEDULES): S[] {
+  const routine = occurrenceTiming(given, schedules);
+  const { date, due, move } = occurrenceOrigin(liveMoves(routine, schedules), occurrence);
+  if (move || date !== due) return [...slots];
+  const windows = momentWindows(routine, due, day, schedules);
+  return slots.map((slot) => {
+    if (slot.done) return slot;
+    const allowed = windows[slot.moment]?.windows ?? [];
+    return allowed.length ? withinWindows(slot, allowed) : { ...slot, windows: [] };
+  });
+}
+
+/**
  * Times of the day of a routine on an occurrence, computed.
  * @param {RoutineTiming} routine Routine.
  * @param {string} occurrence Due day of the occurrence.
@@ -400,10 +440,7 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
  * @returns {RoutineDaySlot[]} Times.
  */
 function slotsOn(routine: RoutineTiming, occurrence: string, schedules: ScheduleContext): RoutineDaySlot[] {
-  const moves = liveMoves(routine, schedules);
-  const date = movedFrom(moves, occurrence);
-  const due = occurrenceDueDay(moves, occurrence);
-  const move = moves.find((item) => item.from === date && item.to !== null && moveKey(item) === occurrence);
+  const { date, due, move } = occurrenceOrigin(liveMoves(routine, schedules), occurrence);
   const base = date === due ? ruleSlotsOn(routine, date, schedules) : dayMoments(routine, date, due, schedules);
   return withMovedTimes(base, move?.times ?? null).map((slot, index) =>
     slot.fromTime === base[index]?.fromTime && slot.dueTime === base[index]?.dueTime ? slot : { ...slot, windows: [{ fromTime: slot.fromTime, dueTime: slot.dueTime }] },

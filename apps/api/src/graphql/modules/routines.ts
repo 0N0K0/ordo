@@ -60,6 +60,8 @@ interface SlotState {
   doneAt: Date | null;
   /** Windows it can be done in that day (several where slots cut it). */
   windows: { fromTime: string | null; dueTime: string | null }[];
+  /** Rank of the moment of its rule (or of its case) it comes from. */
+  moment: number;
 }
 
 /**
@@ -72,6 +74,22 @@ interface SlotState {
  */
 const tickedSlots = (routine: occurrences.RoutineTiming, date: string | null, ticks: Map<number, Date | null>, context: occurrences.ScheduleContext): SlotState[] =>
   routines.slotsOf(routine, date, context).map((slot, index) => ({ index, ...slot, done: ticks.has(index), doneAt: ticks.get(index) ?? null }));
+
+/**
+ * Times of the day of an occurrence of a routine, each with its tick, as a day shows them (`slotsOnDay`: kept to the
+ * hours its condition allows that day, those without any with no window unless ticked); without a day, as the occurrence has
+ * them.
+ * @param {occurrences.RoutineTiming} routine Routine.
+ * @param {string} date Day that identifies the occurrence.
+ * @param {Map<number, Date | null>} ticks When each time of the day ticked was done, by its index.
+ * @param {occurrences.ScheduleContext} context Schedules of the workspace.
+ * @param {string | null} day Day shown; null: none.
+ * @returns {SlotState[]} Times of the day.
+ */
+const dayTickedSlots = (routine: occurrences.RoutineTiming, date: string, ticks: Map<number, Date | null>, context: occurrences.ScheduleContext, day: string | null): SlotState[] => {
+  const slots = tickedSlots(routine, date, ticks, context);
+  return day ? routines.slotsOnDay(routine, date, day, slots, context) : slots;
+};
 
 /**
  * Times of the day of the current occurrence of a routine (its next one before it starts), with those ticked.
@@ -102,7 +120,7 @@ const RoutineSlotRef = builder.objectRef<SlotState>('RoutineSlot').implement({
     optional: t.exposeBoolean('optional'),
     done: t.exposeBoolean('done'),
     doneAt: t.expose('doneAt', { type: 'DateTime', nullable: true, description: 'When it was done (its tick); null: not ticked.' }),
-    windows: t.field({ type: 'JSON', description: 'Windows it can be done in that day, [{ fromTime, dueTime }] (several where slots cut it).', resolve: (slot) => slot.windows }),
+    windows: t.field({ type: 'JSON', description: 'Windows it can be done in that day, [{ fromTime, dueTime }] (several where slots cut it; none: its condition allows none that day, in the occurrences of a single day with doneInPeriod).', resolve: (slot) => slot.windows }),
   }),
 });
 
@@ -611,11 +629,11 @@ builder.queryFields((t) => ({
   }),
   routineOccurrences: t.field({
     type: [RoutineOccurrenceRef],
-    description: `Occurrences of the routines in a period (both days included, ${OCCURRENCE_DAYS} days at most), with their times of the day ticked (and when): the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged). With doneInPeriod, also those outside the period with a time of the day done (ticked at) within it, in Paris.`,
+    description: `Occurrences of the routines in a period (both days included, ${OCCURRENCE_DAYS} days at most), with their times of the day ticked (and when): the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged). With doneInPeriod, also those outside the period with a time of the day done (ticked at) within it, in Paris; with doneInPeriod on a single day, their times of the day are kept to the hours their condition allows that day (those without any, not ticked, with no window: neither listed nor counted that day).`,
     args: {
       from: t.arg({ type: 'Date', required: true }),
       to: t.arg({ type: 'Date', required: true }),
-      doneInPeriod: t.arg.boolean({ description: 'Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the times of the day of a day: « Ma journée », the badge of the menu).' }),
+      doneInPeriod: t.arg.boolean({ description: 'Also the occurrences outside the period with a time of the day done (ticked at) on one of its days, in Paris (the times of the day of a day: « Ma journée », the badge of the menu); on a single day, the times of the day of each occurrence are those that day allows.' }),
     },
     resolve: async (_root, { from, to, doneInPeriod }, ctx) => {
       if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);
@@ -627,6 +645,8 @@ builder.queryFields((t) => ({
       });
       const context = await slotsOf(ctx);
       const today = parisToday();
+      // The list of a day: the times of the day that day allows.
+      const listDay = doneInPeriod && from === to ? from : null;
       // Done within the period (Paris days): the occurrences of those ticks, wherever they are.
       const doneIn = doneInPeriod
         ? await prisma.routineCheck.findMany({ where: { doneAt: { gte: parisInstant(from), lt: parisInstant(addDays(to, 1)) } }, select: { routineId: true, date: true } })
@@ -663,7 +683,7 @@ builder.queryFields((t) => ({
             movedFrom: ruleDay !== end ? ruleDay : null,
             cancelled,
             archived: routine.archivedAt !== null,
-            slots: tickedSlots(routine, date, ticks, context),
+            slots: dayTickedSlots(routine, date, ticks, context, listDay),
           };
         });
       });
