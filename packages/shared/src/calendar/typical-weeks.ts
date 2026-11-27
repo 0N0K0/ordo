@@ -83,7 +83,8 @@ function weekLabel(monday: string, mondays: readonly string[]): string {
  * Name of the weeks of a typical week among those of the period, read from them. A single week: its number « Sem. 5 ».
  * Several: « Toutes les semaines »; every even or odd week (ISO numbers) « Semaines paires » / « Semaines impaires »;
  * one week out of n from its first one to the end of the period « 1 semaine sur 3, à partir du 05/01 » (n = 1:
- * « Toutes les semaines, à partir du 05/01 »; « 05/01/2027 » when the period covers two calendar years or more);
+ * « Toutes les semaines, à partir du 05/01 »; « 05/01/2027 » when the period covers two calendar years or more, or
+ * when that day is not in the year of the start of the period);
  * otherwise their numbers « Sem. 2, 5, 8 ».
  * @param {readonly string[]} weeks Mondays of its weeks, in order.
  * @param {readonly string[]} mondays Mondays of every week of the period, in order.
@@ -107,8 +108,10 @@ export function typicalWeekName(weeks: readonly string[], mondays: readonly stri
   const regular = weeks.every((monday, index) => index === 0 || daysBetween(weeks[index - 1], monday) === step * 7);
   // Up to the end of the period: the next one would be after it.
   if (regular && addDays(weeks[weeks.length - 1], step * 7) > mondays[mondays.length - 1]) {
-    // « 05/01 »: the day and the month of its first Monday; its year too over several calendar years.
-    const since = yearOfDay(period.from) === yearOfDay(period.to) ? printedDay(weeks[0]).slice(0, 5) : printedDay(weeks[0]);
+    // « 05/01 »: the day and the month of its first Monday; its year too over several calendar years, or when that
+    // Monday is in another year than the start of the period.
+    const year = yearOfDay(period.from);
+    const since = year === yearOfDay(period.to) && year === yearOfDay(weeks[0]) ? printedDay(weeks[0]).slice(0, 5) : printedDay(weeks[0]);
     return step === 1 ? `Toutes les semaines, à partir du ${since}` : `1 semaine sur ${step}, à partir du ${since}`;
   }
   return listed;

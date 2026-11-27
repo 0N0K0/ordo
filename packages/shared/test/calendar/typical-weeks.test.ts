@@ -97,6 +97,9 @@ describe('typicalWeekName', () => {
     expect(typicalWeekName(weeks, periodMondays(over.from, over.to), over)).toBe('1 semaine sur 3, à partir du 05/01/2026');
     const within = { from: '2026-01-05', to: '2026-02-28' };
     expect(typicalWeekName(weeks, periodMondays(within.from, within.to), within)).toBe('1 semaine sur 3, à partir du 05/01');
+    // The first Monday of the weeks of the period, in the year before it.
+    const before = { from: '2026-01-01', to: '2026-03-31' };
+    expect(typicalWeekName(['2025-12-29', '2026-01-19', '2026-02-09', '2026-03-02', '2026-03-23'], periodMondays(before.from, before.to), before)).toBe('1 semaine sur 3, à partir du 29/12/2025');
   });
 });
 
