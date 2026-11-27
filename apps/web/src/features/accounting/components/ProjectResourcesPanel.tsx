@@ -18,6 +18,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import * as fmt from '../../../lib/format';
 import { projectLinkSchema } from '@ordo/shared';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 /**
  * Icon of a link, from its site.
@@ -66,7 +67,7 @@ function ResourceForm({ projectId, resource, onDone }: { projectId: string; reso
     >
       <Stack gap="md">
         {resource && <SaveStatus saving={saving} />}
-        <TextInput label="Libellé" required data-autofocus={resource ? undefined : true} placeholder="Maquettes Figma, dépôt GitHub…" {...form.getInputProps('label')} />
+        <LabelField data-autofocus={resource ? undefined : true} placeholder="Maquettes Figma, dépôt GitHub…" {...form.getInputProps('label')} />
         {isLink && <TextInput label="Adresse" required placeholder="https://…" {...form.getInputProps('url')} />}
         <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />
         {!resource && <FormActions onCancel={onDone} submitLabel="Ajouter" loading={addLink.isPending} />}

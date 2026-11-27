@@ -25,7 +25,7 @@ The global rule « reuse before writing, never write the same thing twice » (`~
 ## Other rules
 
 - Folder layout: web `features/<feature>/{api,pages,components,hooks,lib}`, web `components/<domain>`, `packages/shared/src/<domain>`, `apps/api/src/services/<domain>`.
-- One shared component per UI role; forms in the side panel (`openFormPanel`), modals only for confirmations.
+- One shared component per UI role; forms in the side panel (`openFormPanel`), modals only for confirmations, except a sub-form of a field opened from the panel (repetition, exceptions, hours).
 - Migrations are append-only and must run on PostgreSQL 9.6.
 - JSDoc on every function. Icons: `@phosphor-icons/react`.
 - The documents library (`features/library`, `services/library`) will be rewritten: leave it alone.

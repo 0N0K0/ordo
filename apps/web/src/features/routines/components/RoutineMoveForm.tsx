@@ -88,7 +88,8 @@ export function RoutineMoveForm({ routineId, date: firstDate, onDone }: { routin
       .join(', ');
     // Shown on its due day (two the same day: the one moved there says from where).
     const shown = item?.dueDate ?? (routine ? dueDayOf(routine, day) : day);
-    const from = shown !== day ? ` · déplacée du ${fmt.dayShort(day)}` : '';
+    // Moved there: its day by its rule (or the day it was moved to) is not the one that identifies it.
+    const from = (item?.ruleDueDate ?? shown) !== day ? ` · déplacée du ${fmt.dayShort(day)}` : '';
     return { value: day, label: `${fmt.capitalize(fmt.dayLong(shown))}${shown === today ? ' (aujourd’hui)' : shown < today ? ' (en retard)' : ''}${hours ? ` · ${hours}` : ''}${from}` };
   });
 

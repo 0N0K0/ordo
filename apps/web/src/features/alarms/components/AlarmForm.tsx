@@ -1,4 +1,4 @@
-import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
+import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea } from '@mantine/core';
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
 import { z } from 'zod';
@@ -15,6 +15,7 @@ import { RepetitionField } from '../../../components/recurrence/RepetitionField'
 import { useAlarmMutations, useAlarms, type Alarm, type AlarmInput } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { optionalNumberProps } from '../../../components/inputs/number-format';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 const TYPES: { value: AlarmType; label: string }[] = [
   { value: 'REMINDER', label: 'Rappel' },
@@ -142,7 +143,7 @@ export function AlarmForm({ context, alarm, defaults, onDone }: AlarmFormProps) 
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         {alarm && <SaveStatus saving={saving} />}
-        <TextInput label="Libellé" required data-autofocus={alarm ? undefined : true} placeholder="Appeler le client, faire une pause…" {...form.getInputProps('label')} />
+        <LabelField data-autofocus={alarm ? undefined : true} placeholder="Appeler le client, faire une pause…" {...form.getInputProps('label')} />
         <Stack gap={4}>
           <SegmentedControl fullWidth data={TYPES} value={type} onChange={(value) => form.setFieldValue('type', value as AlarmType)} aria-label="Type d’alarme" />
           <Text size="xs" c="dimmed">

@@ -1,4 +1,5 @@
 import { taggedKey } from '../core/tagged-key';
+import { taskDueDay } from '../tasks/task-hours';
 import { eventRings, routineRingOf, routineRings, taskRings, type PlannedRing, type RemindedOccurrence, type RemindedRoutine, type RemindedTask } from './reminder-rings';
 
 /**
@@ -11,6 +12,16 @@ function taskRingPlace(ring: PlannedRing & { task: RemindedTask }): RingPlace {
   const [day = '', kind] = ring.key.slice(taggedKey('task', ring.task.id).length + 1).split(':');
   if (kind === 'days') return { item: ring.key, occurrence: ring.key, rank: 0 };
   return { item: ring.task.id, occurrence: day, rank: Date.parse(day) || 0 };
+}
+
+/**
+ * Due day of a task shown with its reminders to come: its real « Échéance » (`taskDueDay`).
+ * @param {RemindedTask} task Task.
+ * @returns {UpcomingDue | null} Due day; null: none.
+ */
+function dueOf(task: RemindedTask): UpcomingDue | null {
+  const day = task.dueDay !== undefined ? task.dueDay : taskDueDay(task.effectiveDeadline, task.hours);
+  return day ? { day, time: null } : null;
 }
 
 /**
@@ -111,7 +122,7 @@ export function upcomingReminders<O extends UpcomingOccurrence, T extends Remind
     ...ring,
     kind: 'task',
     item: task,
-    due: task.effectiveDeadline ? { day: task.effectiveDeadline, time: null } : null,
+    due: dueOf(task),
   }));
 
   const routines: UpcomingReminder<O, T, R>[] = nextOccurrenceRings(

@@ -18,6 +18,8 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 
 ## Comportements à confirmer
 
+- **Libellé fixe incomplet** : le libellé de `SettingsItemForm`, `ShoppingForm`, `MailAccountForm` et « Libellé du service » de `ClientPartyForms` est encore un `TextInput` (pas fixe au défilement, hors de la garde eslint, qui ne voit que le texte « Libellé ») ; celui de `WorkSchedulesManager` est dans une ligne avec « Type » (`sticky={false}`). Les résumés de « Ressources » (tâches, routines, évènements) manquent : listes de courses et fiches sont chargées dans leurs composants.
+
 - **SIREN / SIRET obligatoire :** mention obligatoire de tout document comptable pour un client société (pas pour un particulier), mais la validation (`finalizeDocument`) ne refuse pas un client société sans SIREN ni SIRET : le document est émis sans la mention. Voir [Règles de la facturation](business-rules/finances/accounting.md#clients--coordonnées-services-contacts). _à confirmer_
 
 - **Sens d’une catégorie de trésorerie :** le changement de sens n’est refusé que si des mouvements utilisent la catégorie ; les lignes de répartition ne sont pas vérifiées. Voir [Règles de la trésorerie](business-rules/finances/treasury.md). _il ne faudrait pas obliger à retirer toutes les lignes de la répartition pour pouvoir changer de sens_

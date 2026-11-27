@@ -12,7 +12,7 @@ Voir aussi : [Règles : calendrier](../../business-rules/activities/calendar.md)
 | `EVENT_SCOPES` / `EventScope`                               | Portée d'une modification d'un événement répété : `THIS` (cette occurrence), `FOLLOWING` (celle-ci et les suivantes), `ALL` (toute la série). |
 | `calendarCategoryFormSchema` / `CalendarCategoryFormValues` | Catégorie d'agenda : `label` (requis, 250), `color` (requise), `parentId` (catégories en arbre).                                              |
 | `calendarFormSchema` / `CalendarFormValues`                 | Agenda de l'espace (chaque événement appartient à un agenda) : `label` (requis, 250), `color`.                                                |
-| `CALENDAR_PDF_KINDS` / `CalendarPdfKind`                    | Aspects des éléments d'une vue de l'agenda imprimée en PDF, la même liste pour l'application qui les envoie et l'API qui les dessine : `event`, `task`, `time`, `travel`, `slot`, `background` (voir [Règles : export PDF](../../business-rules/activities/calendar.md#export-pdf)). |
+| `CALENDAR_PDF_KINDS` / `CalendarPdfKind`                    | Aspects des éléments d'une vue de l'agenda imprimée en PDF, la même liste pour l'application qui les envoie et l'API qui les dessine : `event`, `task`, `time`, `travel`, `slot`, `background`, `line` (fine ligne d'un créneau ou d'une éphéméride) (voir [Règles : export PDF](../../business-rules/activities/calendar.md#export-pdf)). |
 | `occurrenceKey(id, date?)`                                  | Clé d'une occurrence d'un élément répété (événement, routine) un jour : « id\|date » (date vide si aucune). Identique API / web.              |
 | `readOccurrenceKey(key)`                                    | Inverse : `{ id, date \| null }`.                                                                                                             |
 | `ShownEventOccurrence` / `occurrencesShowing(occurrences, day)` | Occurrence d'un évènement telle qu'affichée (`occurrenceDate`, le jour qui l'identifie, `null` pour un évènement unique ; `startDate`, `endDate`) ; celles affichées un jour (premier et dernier jours compris). Dans l'API (`goneRoutineLinks`, `moveRoutineLinks`). |
@@ -149,6 +149,32 @@ Réglages de la page, par utilisateur et par espace (règles dans [Ma journée](
 | `BIRTHDAY_SLOT_KIND`, `BIRTHDAY_SLOT_KIND_LABEL` | `'birthday'` : le type de tous les anniversaires de l'espace (« Anniversaires », ceux ajoutés ensuite compris ; jamais un type de créneaux). |
 | `BirthdayPerson`, `personBirthdayId(person, id)` | `contributor:<id>` ou `relation:<id>` : l'id d'un anniversaire (requête `birthdays`). |
 | `birthdaySlotId(birthdayId)` / `birthdaySlotPerson(scheduleId)` | `birthday:contributor:<id>` / `birthday:relation:<id>` : l'anniversaire d'une personne cité parmi les créneaux d'une condition (stable, dérivé de la personne) ; sa personne, `null` pour un créneau. |
+
+## `slot-display.ts` — placement et légende des créneaux dans l'agenda
+
+Ce que l'agenda et son PDF partagent pour dessiner les créneaux et éphémérides (voir [Règles : export PDF](../../business-rules/activities/calendar.md#export-pdf)).
+
+| Export | Rôle |
+| --- | --- |
+| `SLOT_PATTERNS` / `SlotPattern` | Motifs des créneaux : `hatched` (hachures), `dotted` (pointillés). |
+| `slotPattern({ foreign, ephemeris? })` | Motif d'un horaire affiché : pointillés pour une éphéméride (d'un autre espace aussi), hachures pour un créneau d'un autre espace, aucun sinon. Utilisé par `slotLook` et `slotLookClasses` (web). |
+| `SlotPlace`, `SlotPlacement` / `slotPlacements(display, month, slots, lanes)` | Où l'agenda place les créneaux d'un horaire selon l'affichage de son type (`ScheduleDisplay`) : au mois, chaque jour en fond ou en fine ligne en bas (ou rien) ; en semaine et jour, un bandeau par jour (`dayBar`) et leurs heures (la journée pour un créneau d'une journée entière, `columned` : côte à côte avec les fonds simultanés) ou la journée en fond, ou une fine ligne à gauche de leurs heures (ou rien). Chaque fine ligne d'un jour prend la voie suivante (`lanes`, par jour, partagé par les horaires d'une vue). Utilisé par `slotEvents` (web) : l'agenda, son PDF et les semaines types. |
+| `LegendGlyph`, `LegendItem`, `CalendarLegendEntry` / `calendarLegend(items)` | Légende des couleurs d'une vue : une entrée par nom (`legend`), dans l'ordre ; un carré si un fond ou un bloc d'heures la montre, sinon un trait ; la couleur du premier élément ainsi dessiné, le motif et l'opacité la plus forte de ces éléments. Utilisé par le PDF de l'agenda et celui des semaines types (API). |
+
+## `typical-weeks.ts` — semaines types d'une période
+
+Ce que l'export des semaines types calcule (voir [Règles : export des semaines types](../../business-rules/activities/calendar.md#export-des-semaines-types)). Tests : `test/calendar/typical-weeks.test.ts` (et `lastCountedOccurrence` dans `test/dates/recurrence.test.ts`).
+
+| Export | Rôle |
+| --- | --- |
+| `TYPICAL_WEEKS_MAX` | 6 : semaines types d'un document au plus (une page chacune). |
+| `typicalWeeksRefusal(count)` | « 9 semaines différentes sur cette période : réduisez la période ou filtrez les créneaux et éphémérides (6 au plus). » : panneau (web) et refus de l'API. |
+| `NO_TYPICAL_WEEK` | « Aucun créneau ni éphéméride répété sur cette période. » : panneau (web) et refus de l'API. |
+| `TypicalWeek` | Semaine type : `name`, `weeks` (lundis de ses semaines, dans l'ordre), `slots` (créneaux de sa première semaine). |
+| `ruleOnlySchedule(schedule)` | Un horaire réduit à ses règles nues : ses cas qui se répètent, sans leurs jours supprimés un à un ni les pauses de leur règle, et sans ses exceptions (jours ou périodes modifiés, déplacés, en pause) ; un nombre d'occurrences devient la date de la dernière, comptée sans les jours supprimés ni en pause (`lastCountedOccurrence`), pour que sa fin ne bouge pas (interne `bareRule`) ; `null` sans cas qui se répète. |
+| `periodMondays(from, to)` | Lundis des semaines (lundi à dimanche) qu'une période touche, dans l'ordre. |
+| `typicalWeekName(weeks, mondays, period)` | Nom d'une semaine type parmi les semaines de la période : une seule semaine, « Sem. 5 » ; de 2 ou plus : « Toutes les semaines » ; « Semaines paires » / « Semaines impaires » (numéros ISO, `isoWeekHasParity`) ; une semaine sur n depuis sa première jusqu'à la fin de la période, « 1 semaine sur 3, à partir du 05/01 » (n = 1 : « Toutes les semaines, à partir du 05/01 » ; « 05/01/2027 » quand la période `{ from, to }` couvre deux années civiles ou plus, ou quand ce lundi n'est pas dans l'année civile de `from` (« 29/12/2025 » depuis le 01/01/2026)) ; sinon leurs numéros ISO, « Sem. 2, 5, 8 », avec l'année ISO d'un numéro que la période a deux fois (« 2 (2027) »). |
+| `typicalWeeks(schedules, from, to)` | Semaines types d'une période : ses semaines entières aux mêmes créneaux (même horaire, même jour de la semaine, mêmes heures) d'après les règles seules (`ruleOnlySchedule`, `plannedSlots`), chacune nommée (`typicalWeekName`), dans l'ordre de leur première semaine ; les semaines sans aucun créneau sont écartées. Utilisé par `TypicalWeeksPanel` (web). |
 
 ## `work-schedules.ts` — créneaux planifiés (horaires)
 

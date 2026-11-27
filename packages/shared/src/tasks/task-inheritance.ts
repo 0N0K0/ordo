@@ -1,3 +1,4 @@
+import { taskDueDay } from './task-hours';
 import { emptyInheritedFields, inheritedFieldsGiven, inheritsField, resolveInheritance, inheritState, type FieldOrigin, type InheritSource, type InheritedColumns } from '../core/inheritance';
 
 /**
@@ -57,6 +58,8 @@ export interface TaskInheritanceContext {
 /** Task as it goes: its effective values, and the state and source of each inherited field. */
 export interface EffectiveTask extends InheritingTask {
   origins: FieldOrigin<TaskInheritableField>[];
+  /** Its real « Échéance » (`taskDueDay`: its « Échéance » moved back to the last day its « Horaires » allow; null: none). */
+  dueDay: string | null;
 }
 
 /** Columns of each inherited field of a task, its dates aside (`effectiveTaskDate`). */
@@ -174,7 +177,7 @@ export function effectiveTask(task: InheritingTask, context: TaskInheritanceCont
     const origin: FieldOrigin<TaskInheritableField> = { field, state: inheritState(task, field, !own, context.tasks), source: dated.source, sourceId: dated.sourceId };
     return { dated, origin };
   });
-  return { ...effective, minDate: dates[0].dated.value, deadline: dates[1].dated.value, origins: [...origins, ...dates.map((date) => date.origin)] };
+  return { ...effective, minDate: dates[0].dated.value, deadline: dates[1].dated.value, dueDay: taskDueDay(dates[1].dated.value, effective.hours), origins: [...origins, ...dates.map((date) => date.origin)] };
 }
 
 /**

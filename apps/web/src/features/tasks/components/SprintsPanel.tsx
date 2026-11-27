@@ -10,7 +10,7 @@ import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { Badge, Fieldset, Paper, Stack, TextInput } from '@mantine/core';
+import { Badge, Fieldset, Paper, Stack } from '@mantine/core';
 import { addDays, daysBetween, sprintFormSchema, type SprintFormValues, sumOf } from '@ordo/shared';
 import { PlusIcon, TimerIcon } from '@phosphor-icons/react';
 
@@ -31,6 +31,7 @@ import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { formRange } from '../../../components/inputs/date-range';
 import { PeriodField } from '../../../components/inputs/PeriodField';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 interface SprintFormProps {
   projectId: string;
@@ -82,7 +83,7 @@ function SprintForm({ projectId, sprint, defaults, onDone }: SprintFormProps) {
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="md">
           {sprint && !readOnly && <SaveStatus saving={saving} />}
-          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+          <LabelField data-autofocus {...form.getInputProps('label')} />
           <PeriodField label="Période" required {...formRange(form, 'startDate', 'endDate')} />
           <MarkdownEditor
             label="Objectif"

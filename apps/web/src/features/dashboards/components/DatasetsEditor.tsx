@@ -25,6 +25,7 @@ import { SOURCE_LABELS } from '../lib/chart-data';
 import { SourceFilters } from './source-filters';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 const COMPARISON_LABELS: Record<ChartComparison['kind'], string> = { ratio: 'Pourcentage (A / B)', difference: 'Différence (A − B)' };
 
@@ -163,7 +164,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                 </Group>
                 <Accordion.Panel>
                   <Stack gap="sm">
-                    <TextInput label="Libellé" required value={dataset.label} onChange={(event) => setDataset(index, { label: event.currentTarget.value }, true)} onBlur={() => change({})} />
+                    <LabelField sticky={false} value={dataset.label} onChange={(event) => setDataset(index, { label: event.currentTarget.value }, true)} onBlur={() => change({})} />
                     <SegmentedControl
                       fullWidth
                       data={(Object.keys(SOURCE_LABELS) as ChartSource[])

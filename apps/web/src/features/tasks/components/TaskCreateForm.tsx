@@ -1,4 +1,4 @@
-import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { Select, SimpleGrid, Stack } from '@mantine/core';
 import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
 import { TaskHoursField } from './TaskHoursField';
 import { readSlotCondition, readTaskHours, TASK_INHERITABLE_FIELDS, taskFormSchema, type TaskFormValues, type TaskInheritableField } from '@ordo/shared';
@@ -24,6 +24,7 @@ import { TaskRemindersField } from '../../../components/inputs/ItemReminders';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf, locationOf } from '../../geo/lib/location';
 import { LinksField } from '../../../components/inputs/LinksField';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 /** Keys of the form showing each inherited field of a new sub-task. */
 const FORM_COLUMNS: Record<TaskInheritableField, readonly (keyof TaskFormValues & string)[]> = {
@@ -157,7 +158,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+        <LabelField data-autofocus {...form.getInputProps('label')} />
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <InheritedField {...inherited('PROJECT')}>
             <ProjectSelect

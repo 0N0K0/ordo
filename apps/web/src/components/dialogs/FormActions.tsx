@@ -2,6 +2,7 @@ import { Group, type MantineSize } from '@mantine/core';
 import { ArrowsLeftRightIcon, CheckIcon, DownloadSimpleIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { ActionButton } from '../actions/ActionButton';
+import { DialogFooter } from './DialogFooter';
 
 interface FormActionsProps {
   /** Label of the submit button; null: none (a dialog that is only closed). Optional. Default = « Enregistrer ». */
@@ -45,8 +46,8 @@ function defaultSubmitIcon(label: ReactNode): ReactNode {
 
 /**
  * Buttons of every form and dialog, bottom-right: « Annuler », then the action (submitting the form); the deletion and
- * the other actions on the item sit on the left (`danger`). The destructive dialogs have theirs, the other way round
- * (DestructiveActions).
+ * the other actions on the item sit on the left (`danger`). In a modal, in its footer, always visible (`DialogFooter`).
+ * The destructive dialogs have theirs, the other way round (DestructiveActions).
  * @param {FormActionsProps} props Component props.
  * @returns {JSX.Element} Buttons.
  */
@@ -85,11 +86,14 @@ export function FormActions({
       )}
     </Group>
   );
-  if (!danger) return buttons;
-  return (
+  const row = danger ? (
     <Group justify="space-between" gap="sm">
       <Group gap={4}>{danger}</Group>
       {buttons}
     </Group>
+  ) : (
+    buttons
   );
+  // An edit in place keeps its buttons by it; the others, in a modal, go to its footer.
+  return size === 'xs' ? row : <DialogFooter>{row}</DialogFooter>;
 }

@@ -1,0 +1,18 @@
+@layer app {
+  /* Stuck to the bottom of the modal while its content scrolls, over the content that passes under it. */
+  .footer {
+    /* Position */
+    position: sticky;
+    inset-block-end: 0;
+    z-index: 1000;
+
+    /* Espacement: its top padding taken from the space above it, so the content keeps its usual distance. */
+    margin-block-start: calc(-1 * var(--mantine-spacing-sm));
+    margin-block-end: calc(-1 * var(--mb-padding, var(--mantine-spacing-md)));
+    padding-block: var(--mantine-spacing-sm)
+      var(--mb-padding, var(--mantine-spacing-md));
+
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-body);
+  }
+}

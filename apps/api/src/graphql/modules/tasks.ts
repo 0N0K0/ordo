@@ -296,8 +296,14 @@ builder.prismaObject('Task', {
     effectiveDeadline: t.field({
       type: 'Date',
       nullable: true,
-      description: '« Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else its parent’s, else its milestone’s, else the end of its first sprint.',
+      description: '« Échéance » the task goes by (stored or inherited; its real one: `dueDay`): its own, else its parent’s, else its milestone’s, else the end of its first sprint.',
       resolve: async (task, _args, ctx) => parseOptionalDay((await goesBy(ctx, task.id)).deadline),
+    }),
+    dueDay: t.field({
+      type: 'Date',
+      nullable: true,
+      description: 'Real « Échéance »: the one it goes by (`effectiveDeadline`), moved back to the last day its « Horaires » allow (`taskDueDay`); null without « Échéance », or when no day within a year before it is allowed. What overdue, « Ma journée », the agenda, reminders, sorts and filters read; the stored one stays (GitHub, inheritance).',
+      resolve: async (task, _args, ctx) => parseOptionalDay((await goesBy(ctx, task.id)).dueDay),
     }),
     minDateSource: t.field({
       type: InheritSourceEnum,

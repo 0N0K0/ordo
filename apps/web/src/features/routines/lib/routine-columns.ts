@@ -55,14 +55,14 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const blockers = (routine: Routine) => blockedRoutineIds(routines, routine.id);
   /**
    * State of a routine today, for its filters and sorts: a parent routine by today's progress of its sub-routines
-   * (« fait » once all that count today are, « à faire » while some are not, « à venir » when none counts today), never late.
+   * (« fait » once all that count today are, « à faire » while some are not, « à venir » when none counts today, its sub-routines with optional moments only aside), never late.
    * @param {Routine} routine Routine.
    * @returns {RoutineState} State.
    */
   const state = (routine: Routine): RoutineState => {
     if (!routine.hasSubRoutines) return currentRoutineState(routine, env.today, env.doable(routine));
     const group = env.groupStates?.get(routine.id);
-    return group ? (group.complete ? 'done' : 'due') : 'upcoming';
+    return group?.counted ? (group.complete ? 'done' : 'due') : 'upcoming';
   };
   const minutes = (value: number | null) => (value ? formatDuration(value * 60) : '');
   /**

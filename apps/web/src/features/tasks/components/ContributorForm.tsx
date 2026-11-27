@@ -15,6 +15,7 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ContributorLinkField } from './ContributorLinkField';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 interface ContributorFormProps {
   contributor?: Contributor;
@@ -79,9 +80,8 @@ export function ContributorForm({ contributor, defaultProjectIds = [], onDone }:
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="md">
           {contributor && !readOnly && <SaveStatus saving={saving} />}
-          <TextInput
+          <LabelField
             label="Nom"
-            required
             data-autofocus
             {...form.getInputProps('name')}
             onChange={(event) => {

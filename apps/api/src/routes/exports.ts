@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { calendarIcs } from '../services/calendar/calendar-ics';
-import { calendarPdf } from '../services/calendar/calendar-pdf';
+import { calendarPdf, typicalWeeksPdf } from '../services/calendar/calendar-pdf';
 import { chartsPdf } from '../services/dashboards/charts-pdf';
 import { tablePdf } from '../services/core/table-pdf';
 import { downloadRoute, queryText, sessionRequired } from './http';
@@ -35,4 +35,12 @@ exportsRouter.post(
   sessionRequired,
   express.json({ limit: '5mb' }),
   downloadRoute(async (req) => ({ ...(await calendarPdf(req.body)), type: 'application/pdf' }), 'Export PDF impossible.'),
+);
+
+// PDF of the typical weeks of a period (their créneaux and éphémérides sent by the app), downloaded.
+exportsRouter.post(
+  '/typical-weeks.pdf',
+  sessionRequired,
+  express.json({ limit: '5mb' }),
+  downloadRoute(async (req) => ({ ...(await typicalWeeksPdf(req.body)), type: 'application/pdf' }), 'Export PDF impossible.'),
 );

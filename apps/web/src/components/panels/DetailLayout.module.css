@@ -10,13 +10,22 @@
     gap: var(--mantine-spacing-lg);
   }
 
+  /* Under the title line, closer to it than the columns are. */
   .header {
     /* Agencement */
     display: flex;
     flex-direction: column;
 
     /* Espacement */
+    margin-block-start: calc(
+      var(--mantine-spacing-xs) - var(--mantine-spacing-lg)
+    );
     gap: var(--mantine-spacing-xs);
+
+    &:empty {
+      /* Agencement */
+      display: none;
+    }
   }
 
   /* A line of the header: what it holds lined up at the bottom, wrapped on a narrow panel. */
@@ -87,6 +96,25 @@
 
     /* Bordures */
     border-block-start: 1px solid var(--mantine-color-default-border);
+  }
+
+  /* The title of a collapsible group: its fold button takes the line. */
+  .foldTitle {
+    /* Agencement */
+    flex: 1;
+
+    /* Dimension */
+    min-width: 0;
+  }
+
+  /* The fields of a collapsible group, spaced as those of a group. */
+  .groupFields {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-sm);
   }
 
   /* The fieldset that makes a part read only: no box of its own. */

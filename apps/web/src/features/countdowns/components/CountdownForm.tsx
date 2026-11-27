@@ -8,6 +8,7 @@ import { formCallbacks, useAppForm } from '../../../lib/form';
 import { useWorkspaces } from '../../workspaces/api';
 import { useCountdownMutations, useSavedCountdowns } from '../api';
 import { COUNTDOWN_DEFAULT_NAME, countdownItemInput, countdownStartedMessage, timerLabel, type CountdownItem } from '../lib/countdowns';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 export interface CountdownFormProps {
   /** Item whose dead time it is launched for (none: a timer of its own). Optional. */
@@ -81,7 +82,7 @@ export function CountdownForm({ item, deadTimes = [], deadTime = deadTimes[0], o
             }}
           />
         )}
-        <TextInput label="Nom" placeholder={COUNTDOWN_DEFAULT_NAME} data-autofocus={item ? undefined : true} {...form.getInputProps('label')} />
+        <LabelField label="Nom" required={false} placeholder={COUNTDOWN_DEFAULT_NAME} data-autofocus={item ? undefined : true} {...form.getInputProps('label')} />
         <TextInput label="Durée" required description="10, 1:30, 1h30 ou 1,5 h" data-autofocus={item ? true : undefined} {...form.getInputProps('duration')} />
         <Group gap="xs" role="group" aria-label="Durées proposées">
           {COUNTDOWN_PRESETS.map((minutes) => (

@@ -48,51 +48,46 @@ export interface RoutineLinkRow {
 }
 
 /**
- * Day an occurrence of a routine linked to an event shows on: its due day (the day it was moved to when moved onto a
- * day that has its own and kept apart), from the day that identifies it (the day stored in the link), by the
- * exceptions that apply (`liveMoves`: one left by a change of its rule moves nothing), on the « quand » it goes by
- * (its parents' when it inherits it).
+ * Day an occurrence of a routine linked to an event shows on: its real due day (the last day of its opening that its
+ * condition allows a moment on, the occurrence shows on it in the agenda), else its due day (the day it was moved to
+ * when moved onto a day that has its own and kept apart), from the day that identifies it (the day stored in the
+ * link), by the exceptions that apply (`liveMoves`: one left by a change of its rule moves nothing), on the « quand »
+ * it goes by (its parents' when it inherits it).
  * @param {string} date Day that identifies the occurrence.
  * @param {MovesChain | undefined} routine Routine with its « quand » (and that of its parents).
- * @param {ScheduleContext} memo Context its exceptions that apply are remembered in, by routine (`linkDayMemo`).
+ * @param {ScheduleContext} schedules Schedules of the workspace (`loadScheduleContext`), its exceptions that apply remembered in it by routine.
  * @returns {string} Day it shows on.
  */
-function shownDay(date: string, routine: MovesChain | undefined, memo: ScheduleContext): string {
+function shownDay(date: string, routine: MovesChain | undefined, schedules: ScheduleContext): string {
   if (!routine) return date;
   const byId = new Map<string, MovesChain>();
   for (let level: MovesChain | null | undefined = routine; level; level = level.parent) byId.set(level.id, level);
   // Only the columns of its « quand » are read up the chain.
   const timing = effectiveRoutineTiming(routine, byId as unknown as ReadonlyMap<string, InheritingRoutine>);
-  return occurrenceDueDay(liveMoves(timing, memo), date);
+  const due = occurrenceDueDay(liveMoves(timing, schedules), date);
+  // A cancelled one too: it shows struck through on its real due day.
+  return occurrenceSpansBetween(timing, due, due, schedules, true).find((span) => span.date === date)?.due ?? due;
 }
-
-/**
- * Context the days links show on are computed in: no calendar schedule (only the days of the rules count), the
- * exceptions that apply remembered by routine, for the links read together.
- * @returns {ScheduleContext} Context.
- */
-const linkDayMemo = (): ScheduleContext => ({ slotsOn: () => [], memo: new Map() });
 
 /**
  * Days links of events with routines show on (`shownDay`), for links read together (each routine computed once).
+ * @param {ScheduleContext} schedules Schedules of the workspace (`loadScheduleContext`, loaded once for them).
  * @returns {(link: RoutineLinkRow) => string} Day of a link.
  */
-export function linkShownDays(): (link: RoutineLinkRow) => string {
-  const memo = linkDayMemo();
-  return (link) => shownDay(formatDay(link.date), link.routine, memo);
+export function linkShownDays(schedules: ScheduleContext): (link: RoutineLinkRow) => string {
+  return (link) => shownDay(formatDay(link.date), link.routine, schedules);
 }
 
 /**
- * Days links given to an event show on, the routines read once.
+ * Days links given to an event show on, the routines and the schedules read once.
  * @param {readonly { routineId: string, date: string }[]} links Links (the day that identifies each occurrence).
  * @returns {Promise<(link: { routineId: string, date: string }) => string>} Day each one shows on.
  */
 export async function loadLinkShownDays(links: readonly { routineId: string; date: string }[]): Promise<(link: { routineId: string; date: string }) => string> {
   const ids = [...new Set(links.map((link) => link.routineId))];
-  const routines = ids.length ? await prisma.routine.findMany({ where: { id: { in: ids } }, select: MOVES_CHAIN }) : [];
+  const [routines, schedules] = ids.length ? await Promise.all([prisma.routine.findMany({ where: { id: { in: ids } }, select: MOVES_CHAIN }), loadScheduleContext()]) : [[], null];
   const byId = new Map<string, MovesChain>(routines.map((routine) => [routine.id, routine]));
-  const memo = linkDayMemo();
-  return (link) => shownDay(link.date, byId.get(link.routineId), memo);
+  return (link) => (schedules ? shownDay(link.date, byId.get(link.routineId), schedules) : link.date);
 }
 
 /**
@@ -111,9 +106,10 @@ export async function resolveRoutineLinks(links: readonly { routineId: string; d
     const routine = routines.get(link.routineId);
     const day = link.shownDate!;
     if (!routine) return [];
+    // The occurrences shown on that day: due there (their real due day; the occurrence covers it).
     return occurrenceSpansBetween(routine, day, day, schedules, true)
-      .filter((span) => span.end === day)
-      .map((span) => ({ routineId: routine.id, date: span.date, shownDate: span.end, cancelled: span.cancelled }));
+      .filter((span) => (span.due ?? span.end) === day)
+      .map((span) => ({ routineId: routine.id, date: span.date, shownDate: span.due ?? span.end, cancelled: span.cancelled }));
   });
   return links.flatMap((link) => {
     if (!link.shownDate) return [{ routineId: link.routineId, date: link.date }];

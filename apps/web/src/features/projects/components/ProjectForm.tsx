@@ -1,6 +1,6 @@
 import { unarchived } from '../../../lib/archive';
 import { ColorField } from '../../../components/inputs/ColorField';
-import { Fieldset, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { Fieldset, Select, SimpleGrid, Stack, Textarea } from '@mantine/core';
 import { projectFormSchema, type ProjectFormValues, subtreeOf } from '@ordo/shared';
 import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
@@ -17,6 +17,7 @@ import { useActiveWorkspace } from '../../workspaces/api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { formRange } from '../../../components/inputs/date-range';
 import { PeriodField } from '../../../components/inputs/PeriodField';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 interface ProjectFormProps {
   /** Project to edit; creates a new one when absent. */
@@ -139,7 +140,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="md">
           {project && !readOnly && <SaveStatus saving={saving} />}
-          <TextInput label="Libellé" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('label')} />
+          <LabelField data-autofocus={onDone ? true : undefined} {...form.getInputProps('label')} />
           <SimpleGrid cols={{ base: 1, xs: perso ? 1 : 2 }} spacing="md">
             <Select label="Projet parent" placeholder="Aucun (projet racine)" {...treeSelectProps(parentOptions)} searchable clearable {...form.getInputProps('parentId')} />
             {!perso && (

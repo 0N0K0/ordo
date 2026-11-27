@@ -18,8 +18,8 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { parisCalendarOptions } from '../lib/paris-calendar';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
-import { addDays, calendarViewConfig, daysBetween, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineGroupIds, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength, taskPlacement, type TaskSpanKind } from '@ordo/shared';
-import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
+import { addDays, calendarViewConfig, type CalendarDisplay, type CalendarViewConfig, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineGroupIds, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength, taskPlacement, type TaskSpanKind } from '@ordo/shared';
+import { CalendarDotsIcon, CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -48,12 +48,11 @@ import {
 } from '../api';
 import { askScope } from '../lib/ask-scope';
 import { useCalendarEdits, type RoutineOccurrenceRef } from '../hooks/calendar-edits';
-import { slotColumns } from '../lib/slot-columns';
 import { EPHEMERIDES_TITLE, schedulesTitle, unavailableWarning } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { newEventDefaults, scopedInput } from '../lib/event-input';
-import { birthdayEvents, isArchivedOccurrence, occurrenceSpan, scheduleSources, type ShownSlots, slotBarLook, slotLookClasses } from '../lib/calendar-events';
+import { birthdayEvents, isArchivedOccurrence, occurrenceSpan, scheduleSources, type ShownSlots, slotEvents, slotLook } from '../lib/calendar-events';
 import { usePersonOpener } from '../hooks/use-person-opener';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
@@ -81,6 +80,7 @@ import { ViewTabs, type ViewWords } from '../../../components/data-table/views/V
 import { useCalendarViews } from '../hooks/use-calendar-views';
 import { useCalendarFilters } from '../hooks/use-calendar-filters';
 import { CalendarFilters } from '../components/CalendarFilters';
+import { TypicalWeeksPanel } from '../components/TypicalWeeksPanel';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -339,109 +339,18 @@ export function CalendarPage() {
         );
       }
     }
-    // Planned slots, in the color of their kind (working hours without one), shown as the kind (or the subscription
-    // to it) asks: in the week and the day, a bar at the top (all-day row) and, in the time grid, their hours (the
-    // whole day for an all-day slot) or the whole day in the background, or a thin line on the left of their hours;
-    // in the month, the day in the background or a thin line at its bottom. Paused days simply have none. Slots of
-    // other workspaces subscribed to are hatched.
+    // Planned slots, placed and drawn as the display of their kind (or of the subscription to it) asks (`slotEvents`):
+    // paused days simply have none; each carries how it prints (the PDF draws it the same).
     if (range && (config.schedules || editingSlots)) {
-      const month = view === 'dayGridMonth';
-      // Lines of several schedules on a day stand side by side (week, day) or one above the other (month): each
-      // schedule with a line that day takes the next lane.
-      const lanes = new Map<string, number>();
-      // Hours of slots in the background (week, day), by day: those at the same time share the width of the day.
-      const columns = new Map<string, { key: string; order: number; start: string; end: string; look: EventInput }[]>();
-      let order = 0;
-      /**
-       * Shows the slots of a source as its display asks (see above).
-       * @param {ShownSlots} source Look of its kind and its slots.
-       * @returns {void}
-       */
-      const showSlots = ({ color, label, foreign, display, ephemeris, archived, slots }: ShownSlots) => {
-        // Hatched from another workspace, dotted an éphéméride, faded when archived.
-        const hatched = slotLookClasses({ foreign, ephemeris, archived });
-        const background = {
-          display: 'background',
-          ...(color ? { backgroundColor: color } : {}),
-          classNames: [color ? classes.typedSlot : classes.workHours, ...hatched],
-        };
-        /**
-         * Thin line of planned slots: a background event narrowed, in the full color (faded when archived).
-         * @param {string} className Line on the left or at the bottom.
-         * @param {number} lane Lane of the line that day.
-         * @returns {EventInput} Event props.
-         */
-        const line = (className: string, lane: number) => ({
-          display: 'background',
-          backgroundColor: color ?? 'var(--mantine-color-green-6)',
-          classNames: [className, ...(archived ? [classes.archived] : [])],
-          extendedProps: { slotLane: lane },
-        });
-        const days = new Set<string>();
-        let lane = 0;
-        for (const slot of slots) {
-          const wholeDay = {
-            start: `${slot.date}T00:00:00`,
-            end: `${addDays(slot.date, 1)}T00:00:00`,
-          };
-          if (!days.has(slot.date)) {
-            days.add(slot.date);
-            if ((month && display.monthDisplay === 'BORDER') || (!month && display.dayDisplay === 'SLOT_BORDER')) {
-              lane = lanes.get(slot.date) ?? 0;
-              lanes.set(slot.date, lane + 1);
-            }
-            const day = {
-              id: `work-day:${slot.scheduleId}:${slot.date}`,
-              start: slot.date,
-              end: addDays(slot.date, 1),
-              allDay: true,
-            };
-            if (month) {
-              if (display.monthDisplay === 'BACKGROUND') result.push({ ...day, ...background });
-              else if (display.monthDisplay === 'BORDER')
-                result.push({
-                  ...day,
-                  id: `${day.id}:${lane}`,
-                  ...line(classes.slotBorderBottom, lane),
-                });
-            } else {
-              // Its bar on the day, in the all-day row.
-              if (display.dayBar) result.push({ ...day, title: label, editable: false, extendedProps: { kind: 'slot' }, ...slotBarLook({ color, foreign, ephemeris, archived }) });
-              if (display.dayDisplay === 'DAY_BACKGROUND')
-                result.push({
-                  id: `work-whole:${slot.scheduleId}:${slot.date}`,
-                  ...wholeDay,
-                  ...background,
-                });
-            }
-          }
-          if (month || (display.dayDisplay !== 'SLOT_BACKGROUND' && display.dayDisplay !== 'SLOT_BORDER')) continue;
-          const hours = slot.allDay
-            ? wholeDay
-            : {
-                start: `${slot.date}T${slot.start}:00`,
-                end: `${slot.date}T${slot.end}:00`,
-              };
-          if (display.dayDisplay === 'SLOT_BACKGROUND' && !slot.allDay) {
-            const day = columns.get(slot.date) ?? [];
-            day.push({ key: `${slot.scheduleId}:${slot.start}`, order: order++, start: slot.start, end: slot.end, look: background });
-            columns.set(slot.date, day);
-            continue;
-          }
-          result.push({
-            // The lane in the id: a line moved to another lane is drawn again (see eventDidMount).
-            id: `work:${slot.scheduleId}:${slot.date}:${slot.start}:${lane}`,
-            ...hours,
-            ...(display.dayDisplay === 'SLOT_BORDER' ? line(classes.slotBorderLeft, lane) : background),
-          });
-        }
-      };
+      const shown: ShownSlots[] = [];
       // Those archived, or of an archived kind, in their workspace too: in the background with « Afficher les archivés »,
       // and those of the workspace of an archived kind (not archived themselves) changed like the others.
-      for (const { schedule, rule, archived, color, label, foreign, display, ephemeris } of schedules ? scheduleSources(schedules, foreignSchedules ?? [], scheduleTypes ?? [], defaultKind, true) : []) {
+      for (const source of schedules ? scheduleSources(schedules, foreignSchedules ?? [], scheduleTypes ?? [], defaultKind, true) : []) {
+        const { schedule, rule, archived, label, foreign } = source;
         // An archived schedule (read only) stays in the background.
         if (!foreign && editingSlots && !('archived' in schedule && schedule.archived)) {
           // Being changed: each slot an event (an éphéméride dotted), moved to another day or hour, stretched, or opened.
+          const look = slotLook(source, 'edit');
           for (const slot of plannedSlots([rule], range.from, range.to)) {
             const time: ScheduleSlotTime = { date: slot.date, start: slot.start, end: slot.end, allDay: slot.allDay };
             result.push({
@@ -450,34 +359,17 @@ export function CalendarPage() {
               allDay: slot.allDay,
               start: slot.allDay ? slot.date : `${slot.date}T${slot.start}:00`,
               end: slot.allDay ? addDays(slot.date, 1) : `${slot.date}T${slot.end}:00`,
-              backgroundColor: color ?? 'var(--mantine-color-green-light)',
-              borderColor: color ?? 'var(--mantine-color-green-6)',
-              textColor: 'var(--mantine-color-text)',
-              classNames: [classes.editSlot, ...slotLookClasses({ foreign: false, ephemeris })],
+              ...look.event,
               durationEditable: !slot.allDay,
-              extendedProps: { kind: 'editSlot', schedule: rule, label, slot: time },
+              extendedProps: { kind: 'editSlot', schedule: rule, label, slot: time, print: look.print },
             });
           }
           continue;
         }
         if (!config.schedules || (archived && !showArchived) || config.hiddenScheduleIds.includes(rule.id) || !kept.schedule(schedule.id)) continue;
-        showSlots({ color, label, foreign, display, ephemeris, archived, slots: plannedSlots([rule], range.from, range.to) });
+        shown.push({ ...source, slots: plannedSlots([rule], range.from, range.to) });
       }
-      // Slots in the background at the same time stand side by side, each part of a slot as wide as the slots there
-      // are then (alone, the whole day).
-      for (const [date, slots] of columns) {
-        for (const part of slotColumns(slots)) {
-          result.push({
-            // Its column in the id: a part placed elsewhere is drawn again (see eventDidMount).
-            id: `work:${part.key}:${date}:${part.start}:${part.column}/${part.columns}`,
-            start: `${date}T${part.start}:00`,
-            end: `${date}T${part.end}:00`,
-            ...part.look,
-            classNames: [...((part.look.classNames as string[] | undefined) ?? []), classes.slotColumn],
-            extendedProps: { slotColumn: part.column, slotColumns: part.columns },
-          });
-        }
-      }
+      result.push(...slotEvents(shown, view === 'dayGridMonth'));
     }
     // Birthdays of the people: read-only all-day events opening the person, hidden with the créneaux and éphémérides.
     if (range && birthdays && config.schedules) result.push(...birthdayEvents(birthdays, birthdayLook, range.from, range.to));
@@ -596,6 +488,7 @@ export function CalendarPage() {
                   routine,
                   date: occurrence.date,
                   dueDate: occurrence.dueDate,
+                  ruleDueDate: occurrence.ruleDueDate,
                   shownDate: day,
                   slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime },
                   cancelled: occurrence.cancelled,
@@ -716,9 +609,11 @@ export function CalendarPage() {
         }
         times = { fromTime: from === null ? null : shiftTime('00:00', from), dueTime: due === null ? null : shiftTime('00:00', due) };
       }
-      // Shown on another day than its due day (open over several days): its due day moves by as many days as it was dragged.
-      const to = addDays(occurrence.dueDate, daysBetween(occurrence.shownDate ?? occurrence.dueDate, startParts.date));
-      if (to === occurrence.dueDate && times.fromTime === fromTime && times.dueTime === dueTime) return;
+      // Dropped on another day than the one it is shown on: that day becomes its due day (as for a task's « Échéance »).
+      // Kept on its day: its due day by its rule (never its real one: that would move it).
+      const kept = occurrence.ruleDueDate ?? occurrence.dueDate;
+      const to = startParts.date === (occurrence.shownDate ?? occurrence.dueDate) ? kept : startParts.date;
+      if (to === kept && times.fromTime === fromTime && times.dueTime === dueTime) return;
       void edits.changeRoutine(occurrence, to, times, revert);
       return;
     }
@@ -782,12 +677,11 @@ export function CalendarPage() {
       if (!range) return;
       await downloadCalendarPdf({
         title,
-        subtitle: 'Agenda',
         view: view === 'dayGridMonth' ? 'month' : view === 'timeGridWeek' ? 'week' : 'day',
         from: range.from,
         to: range.to,
         today: parisParts(new Date()).date,
-        items: pdfItems(items, classes.closed),
+        items: pdfItems(items, { closed: classes.closed, archived: classes.archived }),
       });
     },
     { success: 'Agenda exporté.', fallback: 'Export PDF impossible.' },
@@ -872,6 +766,15 @@ export function CalendarPage() {
                 <Group gap="sm" wrap="wrap">
                   <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} hint="La vue affichée, pour l’imprimer" loading={exporting} disabled={!range} onClick={() => void exportPdf()}>
                     Vue en PDF
+                  </ActionButton>
+                  <ActionButton
+                    priority="secondary"
+                    icon={<CalendarDotsIcon aria-hidden />}
+                    hint="Les semaines différentes d’une période, d’après les créneaux et éphémérides"
+                    disabled={!range}
+                    onClick={() => range && openFormPanel('Semaines types', (close) => <TypicalWeeksPanel period={range} hidden={config.hiddenScheduleIds} onClose={close} />)}
+                  >
+                    Semaines types
                   </ActionButton>
                   <CalendarsIcsButton />
                 </Group>

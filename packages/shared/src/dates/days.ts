@@ -226,3 +226,19 @@ export const isoWeekHasParity = (date: string, parity: WeekParity): boolean => i
 export function weekdayOfDate(date: string): number {
   return isoWeekday(parseDay(date));
 }
+
+/** Days looked back for a day some rule allows (a year). */
+const ALLOWED_DAY_LOOKBACK = 366;
+
+/**
+ * Last day on or before a day that some rule allows (the « Horaires » of a task); the day itself without a rule; null
+ * when none allows a day within a year before it.
+ * @param {((day: string) => boolean) | undefined} allows Whether a day is allowed.
+ * @param {string} day Day.
+ * @returns {string | null} Day.
+ */
+export function lastAllowedDay(allows: ((day: string) => boolean) | undefined, day: string): string | null {
+  if (!allows) return day;
+  for (let back = 0; back <= ALLOWED_DAY_LOOKBACK; back += 1) if (allows(addDays(day, -back))) return addDays(day, -back);
+  return null;
+}

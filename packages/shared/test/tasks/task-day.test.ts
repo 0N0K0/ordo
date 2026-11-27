@@ -8,33 +8,33 @@ const TODAY = '2026-11-25';
  * @param {Partial<DayTask>} fields Fields changed.
  * @returns {DayTask} Task.
  */
-const task = (fields: Partial<DayTask> = {}): DayTask => ({ startDate: null, endDate: null, effectiveMinDate: null, effectiveDeadline: null, statusCategory: null, closedAt: null, ...fields });
+const task = (fields: Partial<DayTask> = {}): DayTask => ({ startDate: null, endDate: null, effectiveMinDate: null, dueDay: null, statusCategory: null, closedAt: null, ...fields });
 
 describe('isTaskOverdue', () => {
   it('the « Échéance » it goes by strictly before today, and not closed', () => {
-    expect(isTaskOverdue({ effectiveDeadline: '2026-11-24' }, TODAY)).toBe(true);
-    expect(isTaskOverdue({ effectiveDeadline: TODAY }, TODAY)).toBe(false);
-    expect(isTaskOverdue({ effectiveDeadline: '2026-11-24', closed: true }, TODAY)).toBe(false);
-    expect(isTaskOverdue({ effectiveDeadline: null }, TODAY)).toBe(false);
+    expect(isTaskOverdue({ dueDay: '2026-11-24' }, TODAY)).toBe(true);
+    expect(isTaskOverdue({ dueDay: TODAY }, TODAY)).toBe(false);
+    expect(isTaskOverdue({ dueDay: '2026-11-24', closed: true }, TODAY)).toBe(false);
+    expect(isTaskOverdue({ dueDay: null }, TODAY)).toBe(false);
   });
 });
 
 describe('taskPlacement', () => {
   it('a start without end in the past goes on up to today; late shows today', () => {
-    expect(taskPlacement({ startDate: '2026-11-20', endDate: null, effectiveDeadline: null }, TODAY).span).toEqual({ start: '2026-11-20', end: TODAY, kind: 'open' });
-    expect(taskPlacement({ startDate: null, endDate: null, effectiveDeadline: '2026-11-20' }, TODAY)).toEqual({ span: null, deadline: TODAY, overdue: true });
+    expect(taskPlacement({ startDate: '2026-11-20', endDate: null, dueDay: null }, TODAY).span).toEqual({ start: '2026-11-20', end: TODAY, kind: 'open' });
+    expect(taskPlacement({ startDate: null, endDate: null, dueDay: '2026-11-20' }, TODAY)).toEqual({ span: null, deadline: TODAY, overdue: true });
   });
 });
 
 describe('taskDayReasons: why a task shows on a day of « Ma journée »', () => {
   it('late on today only', () => {
-    expect(taskDayReasons(task({ effectiveDeadline: '2026-11-20' }), TODAY, TODAY)).toEqual(['late']);
-    expect(taskDayReasons(task({ effectiveDeadline: '2026-11-20' }), '2026-11-26', TODAY)).toEqual([]);
-    expect(taskDayReasons(task({ effectiveDeadline: '2026-11-20' }), '2026-11-20', TODAY)).toEqual(['due']);
+    expect(taskDayReasons(task({ dueDay: '2026-11-20' }), TODAY, TODAY)).toEqual(['late']);
+    expect(taskDayReasons(task({ dueDay: '2026-11-20' }), '2026-11-26', TODAY)).toEqual([]);
+    expect(taskDayReasons(task({ dueDay: '2026-11-20' }), '2026-11-20', TODAY)).toEqual(['due']);
   });
 
   it('due the day of the « Échéance » it goes by; open over « Ouverture » – « Échéance »', () => {
-    const open = task({ effectiveMinDate: '2026-11-24', effectiveDeadline: '2026-11-27' });
+    const open = task({ effectiveMinDate: '2026-11-24', dueDay: '2026-11-27' });
     expect(taskDayReasons(open, '2026-11-23', TODAY)).toEqual([]);
     expect(taskDayReasons(open, TODAY, TODAY)).toEqual(['open']);
     expect(taskDayReasons(open, '2026-11-27', TODAY)).toEqual(['due', 'open']);
@@ -67,7 +67,7 @@ describe('taskDayReasons: why a task shows on a day of « Ma journée »', () =>
   });
 
   it('a closed task only the day it was closed, in Paris, whatever its dates', () => {
-    const closed = task({ effectiveDeadline: TODAY, statusCategory: 'IN_PROGRESS', closedAt: '2026-11-24T23:30:00Z' });
+    const closed = task({ dueDay: TODAY, statusCategory: 'IN_PROGRESS', closedAt: '2026-11-24T23:30:00Z' });
     // 00:30 in Paris on the 25th.
     expect(taskDayReasons(closed, TODAY, TODAY)).toEqual(['done']);
     expect(taskDayReasons(closed, '2026-11-24', TODAY)).toEqual([]);

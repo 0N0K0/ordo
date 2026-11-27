@@ -22,6 +22,7 @@ import {
   relativeSprintIds,
   sprintFilterValues,
   isTaskOverdue,
+  printedDay,
 } from '@ordo/shared';
 import { BADGE_COLUMN, DURATION_COLUMN, LATE_GROUP_LABELS, WARNING_YES_ICONS, type ColumnChoice, type ColumnFilter, type DataColumn, type YesNoIcons, type YesNoLabels } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
@@ -284,8 +285,9 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : id === 'startDate' ? row.event.startDate : row.event.endDate) };
       case 'deadline':
       case 'minDate': {
-        // The one it goes by (`effectiveTask`): its own, else its parent's, milestone's, project's or sprint's.
-        const field = id === 'deadline' ? 'effectiveDeadline' : 'effectiveMinDate';
+        // The one it goes by (`effectiveTask`): its own, else its parent's, milestone's, project's or sprint's; the
+        // « Échéance » by its real day (`dueDay`: moved back to the last day its « Horaires » allow).
+        const field = id === 'deadline' ? 'dueDay' : 'effectiveMinDate';
         return { kind: 'date', value: (row) => (row.kind === 'task' && row.task[field] ? row.task[field] : null) };
       }
       case 'createdAt':
@@ -363,6 +365,16 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       sortValue: (row) => (row.kind === 'task' ? row.task.number : null),
       text: (row) => (row.kind === 'task' ? taskNumber(row.task) : ''),
       filter: { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.number : null) },
+    },
+    // Its real « Échéance » (`dueDay`), apart from the one it goes by (the column « Échéance »): exported when shown.
+    {
+      id: 'dueDay',
+      label: 'Échéance réelle',
+      size: 130,
+      hiddenByDefault: true,
+      sortValue: (row) => (row.kind === 'task' ? row.task.dueDay : null),
+      text: (row) => (row.kind === 'task' && row.task.dueDay ? printedDay(row.task.dueDay) : ''),
+      filter: { kind: 'date', value: (row) => (row.kind === 'task' ? row.task.dueDay : null) },
     },
     {
       id: 'description',

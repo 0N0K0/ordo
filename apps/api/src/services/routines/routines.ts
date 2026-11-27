@@ -116,6 +116,7 @@ import {
   liveMoves,
   loadScheduleContext,
   LOOK_DAYS,
+  momentWindows,
   NEAR_DAYS,
   NO_SCHEDULES,
   occurrenceSpansBetween,
@@ -136,6 +137,7 @@ import {
   ticksOf,
   hasSubRoutines,
   LATEST_CHECKS,
+  withinWindows,
 } from './routine-occurrences';
 import { changedRoutineInheritance, clearedRoutineInput, effectiveRoutineOf, freezeRoutineInheritance, loadRoutineInheritance, syncInheritedRoutineProjects, withOwnMoves, type StoredInheritingRoutine } from './routine-inheritance';
 
@@ -345,21 +347,37 @@ export function slotsOf(given: RoutineTiming, occurrence: string | null, schedul
 export interface RoutineReminderOccurrence {
   /** Day that identifies the occurrence: its due day, or the day of its rule when moved and kept apart. */
   date: string;
-  /** Its due day. */
+  /** Its real due day (the last day of it that its condition allows a moment on): the day of its reminders from the end. */
   dueDate: string;
-  /** Its first day (« Ouverture »): the day of its reminders « À HH:MM ». */
+  /** Its first day (« Ouverture »). */
   day: string;
   /**
-   * Its times of the day not ticked, with their hours (« dès », « jusqu'à »): the shared `routineSlotAnchors` gives the
-   * moments their reminders « N min avant » count from.
+   * First day of its opening its condition allows one of its times of the day not ticked on (`firstShownDay`): the day
+   * its reminders counted from the opening ring on or count from (« À HH:MM », « N jours avant », « avant » the start or
+   * the end of the opening); null: none (those do not ring).
+   */
+  firstDay: string | null;
+  /** Its times of the day not ticked allowed on `firstDay`, with their hours that day (those « avant » the opening ring for). */
+  openingSlots: RemindedRoutineSlot[];
+  /**
+   * Its times of the day not ticked allowed on its real due day, with their hours that day (« dès », « jusqu'à »): the
+   * shared `routineSlotAnchors` gives the moments its reminders « N min avant » its due day count from.
    */
   slots: RemindedRoutineSlot[];
 }
 
 /**
+ * Time of the day of an occurrence as its reminders read it: its rank and its hours.
+ * @param {{ index: number, fromTime: string | null, dueTime: string | null }} slot Time of the day.
+ * @returns {RemindedRoutineSlot} Time of the day.
+ */
+const remindedSlot = ({ index, fromTime, dueTime }: { index: number; fromTime: string | null; dueTime: string | null }): RemindedRoutineSlot => ({ slot: index, fromTime, dueTime });
+
+/**
  * Occurrences the reminders of a routine ring for: its current one while not done and its next one (a reminder up to 24
- * hours before may ring before it opens), each with its first day (« Ouverture ») and its times of the day not ticked,
- * with their hours (a time without any hour too: from 00:00 to midnight).
+ * hours before may ring before it opens), each with its first day (« Ouverture »), the first day of its opening it
+ * shows on (`firstShownDay`), and its times of the day not ticked, with their hours (a time without any hour too: from
+ * 00:00 to midnight).
  * With reminders « N jours avant » (`ahead` days at most), also the later occurrences that open within those days.
  * An archived routine has none (no occurrence), nor a routine that has sub-routines not archived (a group: its
  * sub-routines ring theirs, at the times they inherit from it).
@@ -387,9 +405,86 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
     const slots = slotsOf(routine, due, schedules);
     // A done occurrence (every required time ticked) rings no more.
     if (slots.every((slot, index) => ticked.has(index) || slot.optional)) return [];
-    const span = occurrenceOn(routine, due, schedules);
-    return [{ date: due, dueDate: span?.end ?? due, day: span?.start ?? due, slots: slots.flatMap((slot, index) => (ticked.has(index) ? [] : [{ slot: index, fromTime: slot.fromTime, dueTime: slot.dueTime }])) }];
+    const span: RoutineSpan = occurrenceOn(routine, due, schedules) ?? { start: due, end: due };
+    const open = slots.flatMap((slot, index) => (ticked.has(index) ? [] : [{ ...slot, index, done: false }]));
+    const first = firstShownDay(routine, due, span, open, schedules);
+    // Its real due day, with the times of the day allowed that day (at their hours that day).
+    const dueDay = span.due ?? span.end;
+    return [
+      {
+        date: due,
+        dueDate: dueDay,
+        day: span.start,
+        firstDay: first?.day ?? null,
+        slots: slotsOnDay(routine, due, dueDay, open, schedules)
+          .filter((slot) => slot.windows.length)
+          .map(remindedSlot),
+        openingSlots: first?.slots.map(remindedSlot) ?? [],
+      },
+    ];
   });
+}
+
+/**
+ * Where an occurrence of a routine comes from: the day of its rule, its due day, and its exception moving it to a day
+ * (none: not moved).
+ * @param {readonly RoutineMove[]} moves Exceptions that apply (`liveMoves`).
+ * @param {string} occurrence Day that identifies the occurrence.
+ * @returns {{ date: string, due: string, move: RoutineMove | undefined }} Origin.
+ */
+function occurrenceOrigin(moves: readonly RoutineMove[], occurrence: string): { date: string; due: string; move: RoutineMove | undefined } {
+  const date = movedFrom(moves, occurrence);
+  return { date, due: occurrenceDueDay(moves, occurrence), move: moves.find((item) => item.from === date && item.to !== null && moveKey(item) === occurrence) };
+}
+
+/**
+ * Times of the day of an occurrence of a routine as one of the days it is open shows them (the list of a day: « Ma
+ * journée », the badge of the menu): those of the occurrence (`slotsOf`, their ranks kept), each kept to the hours its
+ * condition on calendar schedules allows that day, out of the slots « Indisponible » (several windows where slots cut
+ * it); one without any window that day, not ticked, has none (`windows` empty: neither listed nor counted that day, but
+ * still to do for the occurrence to be done); a ticked one stays as it is (it shows on the day it was done). An
+ * occurrence moved keeps its own (it lasts its new day only).
+ * @param {RoutineTiming} given Routine.
+ * @param {string} occurrence Day that identifies the occurrence.
+ * @param {string} day Day shown.
+ * @param {readonly S[]} slots Its times of the day (`slotsOf`), with their ticks.
+ * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
+ * @returns {S[]} Times of the day that day.
+ */
+export function slotsOnDay<S extends RoutineDaySlot & { done: boolean }>(given: RoutineTiming, occurrence: string, day: string, slots: readonly S[], schedules: ScheduleContext = NO_SCHEDULES): S[] {
+  const routine = occurrenceTiming(given, schedules);
+  const { date, due, move } = occurrenceOrigin(liveMoves(routine, schedules), occurrence);
+  if (move || date !== due) return [...slots];
+  const windows = momentWindows(routine, due, day, schedules);
+  return slots.map((slot) => {
+    if (slot.done) return slot;
+    const allowed = windows[slot.moment]?.windows ?? [];
+    return allowed.length ? withinWindows(slot, allowed) : { ...slot, windows: [] };
+  });
+}
+
+/**
+ * First day of the opening of an occurrence of a routine some of its times of the day can be done on (`slotsOnDay`):
+ * the first day « Ma journée » shows it, with those times that day (their hours that day).
+ * @param {RoutineTiming} routine Routine.
+ * @param {string} occurrence Day that identifies the occurrence.
+ * @param {RoutineSpan} span Occurrence: its first day to its due day.
+ * @param {readonly S[]} slots Its times of the day (`slotsOf`), with their ranks.
+ * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
+ * @returns {{ day: string, slots: S[] } | null} Day and times allowed that day; null: none.
+ */
+function firstShownDay<S extends RoutineDaySlot & { done: boolean; index: number }>(
+  routine: RoutineTiming,
+  occurrence: string,
+  span: RoutineSpan,
+  slots: readonly S[],
+  schedules: ScheduleContext = NO_SCHEDULES,
+): { day: string; slots: S[] } | null {
+  for (let day = span.start; day <= span.end; day = addDays(day, 1)) {
+    const allowed = slotsOnDay(routine, occurrence, day, slots, schedules).filter((slot) => slot.windows.length);
+    if (allowed.length) return { day, slots: allowed };
+  }
+  return null;
 }
 
 /**
@@ -400,10 +495,7 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
  * @returns {RoutineDaySlot[]} Times.
  */
 function slotsOn(routine: RoutineTiming, occurrence: string, schedules: ScheduleContext): RoutineDaySlot[] {
-  const moves = liveMoves(routine, schedules);
-  const date = movedFrom(moves, occurrence);
-  const due = occurrenceDueDay(moves, occurrence);
-  const move = moves.find((item) => item.from === date && item.to !== null && moveKey(item) === occurrence);
+  const { date, due, move } = occurrenceOrigin(liveMoves(routine, schedules), occurrence);
   const base = date === due ? ruleSlotsOn(routine, date, schedules) : dayMoments(routine, date, due, schedules);
   return withMovedTimes(base, move?.times ?? null).map((slot, index) =>
     slot.fromTime === base[index]?.fromTime && slot.dueTime === base[index]?.dueTime ? slot : { ...slot, windows: [{ fromTime: slot.fromTime, dueTime: slot.dueTime }] },

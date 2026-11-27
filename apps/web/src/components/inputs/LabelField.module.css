@@ -1,0 +1,16 @@
+@layer app {
+  /* Stays at the top of the scrolled panel, over the fields that pass under it. */
+  .sticky {
+    /* Position */
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 3;
+
+    /* Espacement */
+    margin-block: calc(-1 * var(--mantine-spacing-xs));
+    padding-block: var(--mantine-spacing-xs);
+
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-body);
+  }
+}

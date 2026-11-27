@@ -9,7 +9,7 @@ import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { Fieldset, Group, Paper, SegmentedControl, Stack, TextInput } from '@mantine/core';
+import { Fieldset, Group, Paper, SegmentedControl, Stack } from '@mantine/core';
 import { SortableArea } from '../../../components/dnd/sortable';
 import { useSortableItem } from '../../../components/dnd/use-sortable-item';
 import { DateField } from '../../../components/inputs/DateField';
@@ -33,6 +33,7 @@ import { useTaskContext } from '../hooks/use-task-context';
 import * as fmt from '../../../lib/format';
 
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 interface MilestoneFormProps {
   projectId: string;
@@ -81,7 +82,7 @@ function MilestoneForm({ projectId, milestone, onDone }: MilestoneFormProps) {
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="md">
           {milestone && !readOnly && <SaveStatus saving={saving} />}
-          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+          <LabelField data-autofocus {...form.getInputProps('label')} />
           <DateField label="Échéance" clearable placeholder="—" {...form.getInputProps('dueDate')} />
           <MarkdownEditor
             label="Description"

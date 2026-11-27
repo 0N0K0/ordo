@@ -39,6 +39,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { taggedKey } from '../../../lib/tagged-key';
+import { LabelField } from '../../../components/inputs/LabelField';
 
 /** Prefixes of the key of a document settled in a choice: made in Ordo, or imported. */
 const DOCUMENT_KEY = 'doc:';
@@ -238,7 +239,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
               placeholder={values.date ? 'Date d’exécution' : '—'}
               {...form.getInputProps('valueDate')}
             />
-            <TextInput label="Libellé" required data-autofocus={entry ? undefined : true} {...form.getInputProps('label')} />
+            <LabelField data-autofocus={entry ? undefined : true} {...form.getInputProps('label')} />
             <Group gap="sm" align="flex-end" wrap="nowrap">
               <SegmentedControl
                 aria-label="Sens"

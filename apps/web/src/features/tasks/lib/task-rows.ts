@@ -72,7 +72,8 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'endDate':
       return task.endDate;
     case 'deadline':
-      return task.effectiveDeadline;
+      // Its real « Échéance » (`dueDay`), as the lists sort and group it.
+      return task.dueDay;
     case 'parent':
       return task.parentId ? (context.taskById.get(task.parentId)?.number ?? null) : null;
     case 'milestone': {

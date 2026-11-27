@@ -56,6 +56,9 @@ const ElsewhereRemindersDocument = graphql(`
       archived
       effectiveMinDate
       effectiveDeadline
+      effective {
+        hours
+      }
       reminders {
         ...ReminderFields
       }
@@ -74,7 +77,13 @@ const ElsewhereRemindersDocument = graphql(`
         date
         dueDate
         day
+        firstDay
         slots {
+          slot
+          fromTime
+          dueTime
+        }
+        openingSlots {
           slot
           fromTime
           dueTime
@@ -234,7 +243,14 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
         ringReminders(upcoming, now, calendarLinks, space);
         ringEphemerisReminders(reminded.workSchedules, now, calendarLinks, space);
         ringBirthdayReminders(reminded.birthdays, now, () => calendarLinks, space);
-        ringTaskReminders(reminded.tasks, now, taskLinks, space);
+        // Their « Horaires » as they go (inherited ones too): these tasks are not task rows (`taskRow`).
+        ringTaskReminders(
+          // eslint-disable-next-line no-restricted-syntax -- the minimal tasks of another workspace, not task rows.
+          reminded.tasks.map((task) => ({ ...task, hours: task.effective.hours })),
+          now,
+          taskLinks,
+          space,
+        );
         ringRoutineReminders(reminded.routines, now, [link(routinesRingPage(label))], undefined, undefined, space);
         for (const { alarm, key } of dueAlarms(alarms, running, projects, now, trackingSteps, markFired)) ringAlarm(alarm, key, alarmLinks(alarm), space);
       }, TICK_MS),

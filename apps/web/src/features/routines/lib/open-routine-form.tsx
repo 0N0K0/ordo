@@ -1,4 +1,7 @@
+import { TreeViewIcon } from '@phosphor-icons/react';
+import type { RowAction } from '../../../components/actions/ActionsMenu';
 import { closePanel, openFormPanel } from '../../../components/panels/panels';
+import type { Routine } from '../api';
 import { RoutineForm, type RoutineFormProps } from '../components/RoutineForm';
 
 /**
@@ -33,3 +36,11 @@ export function openRoutineForm(props: Omit<RoutineFormProps, 'onDone'> = {}): v
 export function closeRoutinePanels(ids: readonly string[]): void {
   for (const id of ids) closePanel(routinePanelId(id));
 }
+
+/**
+ * « Ajouter une sous-routine » of a routine's menus (its row, a list of a day, its panel): the creation form of a
+ * sub-routine of it.
+ * @param {Routine} routine Parent routine.
+ * @returns {RowAction} Menu entry.
+ */
+export const addSubRoutineEntry = (routine: Routine): RowAction => ({ label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) });
