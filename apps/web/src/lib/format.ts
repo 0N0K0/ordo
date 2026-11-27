@@ -20,6 +20,7 @@ import {
   LOCALE,
   longDayText,
   moneyFormat,
+  monthPeriodText,
   monthText,
   weekdayText,
   type DateValue,
@@ -51,6 +52,9 @@ export const time = dateStyle({ hour: '2-digit', minute: '2-digit', hourCycle: '
 
 /** « novembre 2026 » (a month YYYY-MM is accepted). */
 export const month = monthText;
+
+/** « septembre 2026 », « de septembre à décembre 2026 », « de septembre 2026 à juin 2027 »: a period in months, in a sentence. */
+export const monthPeriod = monthPeriodText;
 
 /** « nov. 2026 »: a month on a chart axis. */
 export const monthShort = dateStyle({ month: 'short', year: 'numeric' });

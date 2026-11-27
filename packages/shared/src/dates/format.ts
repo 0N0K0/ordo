@@ -1,5 +1,5 @@
 import { LOCALE } from '../core/numbers';
-import { CALENDAR_DAY, PARIS_ZONE } from './days';
+import { CALENDAR_DAY, monthOfDay, PARIS_ZONE, yearOfDay } from './days';
 import { dayOfMonthText } from './months';
 
 /**
@@ -36,6 +36,23 @@ export const weekdayText = dateStyle({ weekday: 'short', day: 'numeric', month: 
 
 /** « novembre 2026 » (a month YYYY-MM is accepted). */
 export const monthText = dateStyle({ month: 'long', year: 'numeric' });
+
+/** « septembre »: a month alone, in a period of months. */
+const monthName = dateStyle({ month: 'long' });
+
+/**
+ * A period in months, in a sentence: « septembre 2026 » (a single month), « de septembre à décembre 2026 » (the same
+ * year), « de septembre 2026 à juin 2027 »; « d’ » before a month starting with a vowel (« d’avril à juin 2027 »).
+ * @param {string} from First day (YYYY-MM-DD).
+ * @param {string} to Last day (YYYY-MM-DD).
+ * @returns {string} Text.
+ */
+export function monthPeriodText(from: string, to: string): string {
+  const [first, last] = [monthOfDay(from), monthOfDay(to)];
+  if (first === last) return monthText(first);
+  const start = yearOfDay(from) === yearOfDay(to) ? monthName(first) : monthText(first);
+  return `${/^[aeiou]/.test(start) ? 'd’' : 'de '}${start} à ${monthText(last)}`;
+}
 
 const longDay = dateStyle({ day: 'numeric', month: 'long', year: 'numeric' });
 

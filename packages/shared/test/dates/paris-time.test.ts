@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, dayIn, formatDay, parisParts, parseDay, printedDay, timeIn } from '../../src/dates/days';
-import { dayText, longDayText, monthText, weekdayText } from '../../src/dates/format';
+import { dayText, longDayText, monthText, weekdayText, monthPeriodText } from '../../src/dates/format';
 import { parisInstant } from '../../src/dates/reminders';
 import { zonedInstant } from '../../src/dates/recurrence';
 
@@ -110,5 +110,15 @@ describe('calendar days have no zone', () => {
   it('the first day of a month in a sentence: « 1er »', () => {
     expect(longDayText('2026-06-01')).toBe('1er juin 2026');
     expect(longDayText('2026-06-11')).toBe('11 juin 2026');
+  });
+});
+
+describe('monthPeriodText', () => {
+  it('words a period by its months: one month, months of a year, months of two years', () => {
+    expect(monthPeriodText('2026-09-01', '2026-09-30')).toBe('septembre 2026');
+    expect(monthPeriodText('2026-09-07', '2026-12-20')).toBe('de septembre à décembre 2026');
+    expect(monthPeriodText('2026-09-01', '2027-06-30')).toBe('de septembre 2026 à juin 2027');
+    expect(monthPeriodText('2027-04-01', '2027-06-30')).toBe('d’avril à juin 2027');
+    expect(monthPeriodText('2026-10-01', '2027-01-31')).toBe('d’octobre 2026 à janvier 2027');
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { periodMondays, ruleOnlySchedule, typicalWeekName, typicalWeeks, typicalWeeksRefusal } from '../../src/calendar/typical-weeks';
+import { periodMondays, ruleOnlySchedule, typicalWeekNames, typicalWeeks, typicalWeeksRefusal } from '../../src/calendar/typical-weeks';
+import { isoWeek } from '../../src/dates/days';
 import { schedule, scheduleCase } from './schedules';
 
 /** Every Monday, 09:00–12:00, from 2026-11-02. */
@@ -36,11 +37,11 @@ describe('typicalWeeks', () => {
     ]);
   });
 
-  it('names one week out of n up to the end of the period, else lists the week numbers', () => {
+  it('names one week out of n up to the end of the period, and every week the others but those', () => {
     const everyMondayOf2026 = schedule([scheduleCase({ weekdays: [1] })], { id: 'every', startDate: '2025-12-01' });
     const third = schedule([scheduleCase({ weekdays: [3], interval: 3 })], { id: 'third', startDate: '2026-01-05' });
     expect(short(typicalWeeks([everyMondayOf2026, third], '2026-01-01', '2026-02-28'))).toEqual([
-      { name: 'Sem. 1, 3, 4, 6, 7, 9', weeks: ['2025-12-29', '2026-01-12', '2026-01-19', '2026-02-02', '2026-02-09', '2026-02-23'] },
+      { name: 'Toutes les semaines', weeks: ['2025-12-29', '2026-01-12', '2026-01-19', '2026-02-02', '2026-02-09', '2026-02-23'] },
       { name: '1 semaine sur 3, à partir du 05/01', weeks: ['2026-01-05', '2026-01-26', '2026-02-16'] },
     ]);
   });
@@ -66,40 +67,74 @@ describe('typicalWeeks', () => {
   it('keeps the end of a rule limited to a number of occurrences where its days deleted and paused put it', () => {
     // 3 Mondays counted without the 9th nor the 16th (paused): the 2nd, the 23rd and the 30th; the 9th and the 16th given back.
     const counted = schedule([scheduleCase({ weekdays: [1], count: 3, exceptions: ['2026-11-09'], pauses: [{ from: '2026-11-16', to: '2026-11-16' }] })]);
-    expect(short(typicalWeeks([counted], '2026-11-02', '2026-12-13'))).toEqual([{ name: 'Sem. 45, 46, 47, 48, 49', weeks: ['2026-11-02', '2026-11-09', '2026-11-16', '2026-11-23', '2026-11-30'] }]);
+    expect(short(typicalWeeks([counted], '2026-11-02', '2026-12-13'))).toEqual([{ name: 'Toutes les semaines', weeks: ['2026-11-02', '2026-11-09', '2026-11-16', '2026-11-23', '2026-11-30'] }]);
   });
 
   it('counts the occurrences of a rule from the first day of its case', () => {
     // From the 2nd (its case), the 9th deleted: the 2nd and the 16th, the 9th given back.
     const since = schedule([scheduleCase({ weekdays: [1], count: 2, exceptions: ['2026-11-09'] }, { since: '2026-11-02' })], { startDate: '2026-10-05' });
-    expect(short(typicalWeeks([since], '2026-11-02', '2026-11-29'))).toEqual([{ name: 'Sem. 45, 46, 47', weeks: ['2026-11-02', '2026-11-09', '2026-11-16'] }]);
+    expect(short(typicalWeeks([since], '2026-11-02', '2026-11-29'))).toEqual([{ name: 'Toutes les semaines', weeks: ['2026-11-02', '2026-11-09', '2026-11-16'] }]);
   });
 
   it('names a typical week of a single week by its number, never by its parity nor « Toutes les semaines »', () => {
     const odd = schedule([scheduleCase({ weekdays: [2], weekParity: 'ODD' })], { id: 'odd' });
     expect(short(typicalWeeks([everyMonday, odd], '2026-11-02', '2026-11-15'))).toEqual([
-      { name: 'Sem. 45', weeks: ['2026-11-02'] },
-      { name: 'Sem. 46', weeks: ['2026-11-09'] },
+      { name: 'Semaine 45', weeks: ['2026-11-02'] },
+      { name: 'Semaine 46', weeks: ['2026-11-09'] },
     ]);
-    expect(short(typicalWeeks([everyMonday], '2026-11-02', '2026-11-08'))).toEqual([{ name: 'Sem. 45', weeks: ['2026-11-02'] }]);
+    expect(short(typicalWeeks([everyMonday], '2026-11-02', '2026-11-08'))).toEqual([{ name: 'Semaine 45', weeks: ['2026-11-02'] }]);
   });
 });
 
-describe('typicalWeekName', () => {
-  it('adds its ISO year to a week number the period has twice', () => {
-    const period = { from: '2026-01-05', to: '2027-01-11' };
-    expect(typicalWeekName(['2026-01-12', '2026-02-16', '2027-01-11'], periodMondays(period.from, period.to), period)).toBe('Sem. 3, 8, 2 (2027)');
+describe('typicalWeekNames', () => {
+  // Weeks 36 to 52 of 2026.
+  const period = { from: '2026-08-31', to: '2026-12-27' };
+  const mondays = periodMondays(period.from, period.to);
+  const week = (number: number) => mondays[number - 36];
+  const even = mondays.filter((monday) => isoWeek(monday) % 2 === 0);
+  const odd = mondays.filter((monday) => isoWeek(monday) % 2 === 1);
+
+  it('gives the name of a pattern to the case holding its weeks but a few, the weeks of the others by their numbers', () => {
+    const evenBut = even.filter((monday) => monday !== week(36) && monday !== week(46));
+    expect(typicalWeekNames([evenBut, odd, [week(36)], [week(46)]], mondays, period)).toEqual(['Semaines paires', 'Semaines impaires', 'Semaine 36', 'Semaine 46']);
+    expect(typicalWeekNames([evenBut, odd, [week(36), week(46)]], mondays, period)).toEqual(['Semaines paires', 'Semaines impaires', 'Semaines 36, 46']);
+    const allBut = mondays.filter((monday) => monday !== week(36) && monday !== week(46));
+    expect(typicalWeekNames([allBut, [week(36), week(46)]], mondays, period)).toEqual(['Toutes les semaines', 'Semaines 36, 46']);
   });
 
-  it('adds the year to the first day of one week out of n when the period covers two calendar years or more', () => {
+  it('gives a pattern to one case only: a change during the period, or two weeks apart, keep their numbers', () => {
+    const until = (last: number) => mondays.filter((monday) => isoWeek(monday) <= last);
+    const after = (first: number) => mondays.filter((monday) => isoWeek(monday) >= first);
+    expect(typicalWeekNames([until(50), after(51)], mondays, period)).toEqual(['Toutes les semaines', 'Semaines 51, 52']);
+    expect(typicalWeekNames([until(44), after(45)], mondays, period)).toEqual(['Toutes les semaines', 'Semaines 45, 46, 47, 48, 49, 50, 51, 52']);
+    const evenUntil44 = even.filter((monday) => isoWeek(monday) <= 44);
+    const evenAfter44 = even.filter((monday) => isoWeek(monday) > 44);
+    expect(typicalWeekNames([evenUntil44, evenAfter44, odd], mondays, period)).toEqual(['Semaines paires', 'Semaines 46, 48, 50, 52', 'Semaines impaires']);
+  });
+
+  it('names one week out of n from 3 weeks only, never two weeks apart', () => {
+    expect(typicalWeekNames([[week(40), week(43), week(46), week(49), week(52)], mondays.filter((monday) => ![40, 43, 46, 49, 52].includes(isoWeek(monday)))], mondays, period)).toEqual([
+      '1 semaine sur 3, à partir du 28/09',
+      'Toutes les semaines',
+    ]);
+    expect(typicalWeekNames([[week(37), week(52)], mondays.filter((monday) => monday !== week(37) && monday !== week(52))], mondays, period)).toEqual(['Semaines 37, 52', 'Toutes les semaines']);
+  });
+
+  it('adds its ISO year to a week number the period has twice', () => {
+    const long = { from: '2026-01-05', to: '2027-01-11' };
+    const all = periodMondays(long.from, long.to);
+    const few = ['2026-01-12', '2026-02-16', '2027-01-11'];
+    expect(typicalWeekNames([few, all.filter((monday) => !few.includes(monday))], all, long)[0]).toBe('Semaines 3, 8, 2 (2027)');
+  });
+
+  it('adds the year to the first day of one week out of n over two calendar years, or when it is in the year before', () => {
     const weeks = ['2026-01-05', '2026-01-26', '2026-02-16'];
     const over = { from: '2025-12-15', to: '2026-02-28' };
-    expect(typicalWeekName(weeks, periodMondays(over.from, over.to), over)).toBe('1 semaine sur 3, à partir du 05/01/2026');
+    expect(typicalWeekNames([weeks], periodMondays(over.from, over.to), over)).toEqual(['1 semaine sur 3, à partir du 05/01/2026']);
     const within = { from: '2026-01-05', to: '2026-02-28' };
-    expect(typicalWeekName(weeks, periodMondays(within.from, within.to), within)).toBe('1 semaine sur 3, à partir du 05/01');
-    // The first Monday of the weeks of the period, in the year before it.
+    expect(typicalWeekNames([weeks], periodMondays(within.from, within.to), within)).toEqual(['1 semaine sur 3, à partir du 05/01']);
     const before = { from: '2026-01-01', to: '2026-03-31' };
-    expect(typicalWeekName(['2025-12-29', '2026-01-19', '2026-02-09', '2026-03-02', '2026-03-23'], periodMondays(before.from, before.to), before)).toBe('1 semaine sur 3, à partir du 29/12/2025');
+    expect(typicalWeekNames([['2025-12-29', '2026-01-19', '2026-02-09', '2026-03-02', '2026-03-23']], periodMondays(before.from, before.to), before)).toEqual(['1 semaine sur 3, à partir du 29/12/2025']);
   });
 });
 

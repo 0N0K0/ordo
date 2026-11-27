@@ -41,12 +41,14 @@ export function TypicalWeeksPanel({ period, hidden: initiallyHidden, onClose }: 
   const sources = useMemo(() => scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind, false), [schedules, foreign, types, defaultKind]);
   const chosen = useMemo(() => sources.filter((source) => !hidden.has(source.schedule.id)), [sources, hidden]);
   const weeks = useMemo(() => typicalWeeks(chosen.map((source) => source.rule), from, to), [chosen, from, to]);
+  // « de septembre à décembre 2026 »: the period of the document.
+  const months = fmt.monthPeriod(from, to);
   const refusal = weeks.length > TYPICAL_WEEKS_MAX ? typicalWeeksRefusal(weeks.length) : weeks.length ? null : NO_TYPICAL_WEEK;
   // Each typical week drawn as the week of the agenda shows its slots, then as the PDF prints them.
   const { run: generate, loading } = useAsyncAction(
     () =>
       downloadTypicalWeeksPdf({
-        title: `Du ${fmt.day(from)} au ${fmt.day(to)}`,
+        title: months,
         weeks: weeks.map((week) => ({
           name: week.name,
           monday: week.weeks[0],
@@ -68,17 +70,16 @@ export function TypicalWeeksPanel({ period, hidden: initiallyHidden, onClose }: 
       {loaded ? (
         <>
           <HiddenChecklist label="Créneaux et éphémérides" empty="Aucun créneau." choices={scheduleChoices(sources)} hidden={hidden} onChange={(next) => setHidden(new Set(next))} />
-          {refusal ? (
-            <NoticeAlert kind="warning">{refusal}</NoticeAlert>
-          ) : (
-            <NoticeAlert kind="info" title={countOf(weeks.length, 'semaine type', 'semaines types')}>
+          {/* The typical weeks found, by their names, even beyond what a document shows: where they come from. */}
+          <NoticeAlert kind={refusal ? 'warning' : 'info'} title={refusal ?? `${countOf(weeks.length, 'semaine type', 'semaines types')}, ${months}`}>
+            {weeks.length > 0 && (
               <List size="sm">
                 {weeks.map((week) => (
                   <List.Item key={week.weeks[0]}>{week.name}</List.Item>
                 ))}
               </List>
-            </NoticeAlert>
-          )}
+            )}
+          </NoticeAlert>
         </>
       ) : (
         <ListSkeleton items={4} />

@@ -218,6 +218,7 @@ Formats partagés par le web et les PDF de l'API, en `fr-FR`. Un jour ou un mois
 | `dateStyle(options)` | Fabrique un formateur qui distingue jour de calendrier et instant (un mois `YYYY-MM` est lu au 1er).                 |
 | `weekdayText`        | « ven. 13 nov. » : jour à planifier, quand le jour de semaine compte (agenda, routines, accueil, PDF du calendrier). |
 | `monthText`          | « novembre 2026 ».                                                                                                   |
+| `monthPeriodText(from, to)` | Période en mois dans une phrase : « septembre 2026 » (un seul mois), « de septembre à décembre 2026 » (la même année), « de septembre 2026 à juin 2027 » ; « d’ » devant un mois commençant par une voyelle (« d’avril à juin 2027 »). Le web l'a en `fmt.monthPeriod` (semaines types). |
 | `longDayText(value)` | « 13 novembre 2026 », « 1er juin 2026 » : jour dans une phrase, sans jour de semaine.                   |
 
 ## `recurrence.ts` — règle de répétition

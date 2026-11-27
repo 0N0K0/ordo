@@ -139,6 +139,7 @@ Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme
 | `dateTimeShort`                | « ven. 13 nov., 14:05 »                 | Instant à venir (alarme, envoi)                                   |
 | `time`                         | « 14:05 »                               | Heure (24 h)                                                      |
 | `month`                        | « novembre 2026 »                       | Mois (YYYY-MM accepté)                                            |
+| `monthPeriod`                  | « de septembre à décembre 2026 »        | Période en mois dans une phrase (`monthPeriodText`)               |
 | `monthShort`                   | « nov. 2026 »                           | Mois sur un axe                                                   |
 | `exportDay`                    | « 13/11/2026 »                          | Export seulement                                                  |
 | `exportDateTime`               | « 13/11/2026 14:05 »                    | Export seulement                                                  |
