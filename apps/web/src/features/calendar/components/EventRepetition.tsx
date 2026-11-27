@@ -1,7 +1,12 @@
 import { Stack, Switch } from '@mantine/core';
+import { useEffect, useRef } from 'react';
 import { daysBetween, spanEnd, type Recurrence, DURATION_UNITS } from '@ordo/shared';
 import { RuleEditor } from '../../../components/recurrence/RepetitionEditor';
 import { PeriodField } from '../../../components/inputs/PeriodField';
+import { ExceptionsSummary } from '../../../components/recurrence/ExceptionsSummary';
+import { RuleExceptions } from '../../../components/recurrence/RuleExceptions';
+import { openRepetitionModal } from '../../../components/recurrence/open-repetition-modal';
+import { skippedLines } from '../../../components/recurrence/exceptions';
 
 /** When an event takes place, and how it repeats. */
 interface EventTiming {
@@ -14,8 +19,9 @@ interface EventTiming {
 }
 
 /**
- * Days, hours and repetition of an event, right in its panel (no modal): the rule (its end), the whole
- * day, the start and the end, and the length of each occurrence of an all-day event. Each change is given at once
+ * Days, hours and repetition of an event, right in its panel (no modal): the whole day, the start and the end, then
+ * the rule (its end) and the length of each occurrence of an all-day event, then its exceptions (`ExceptionsSummary`,
+ * changed in their modal and saved on « Appliquer »). Each change is given at once
  * (`onChange`); `onCommit` follows a choice at once (a frequency, a weekday, the period…) and a number once it is left
  * (the interval, the count…): the event panel saves then. With `ruleLocked` (one occurrence of a series edited alone),
  * only its days and hours: the rule is the one of the series.
@@ -43,6 +49,11 @@ export function EventRepetition({
    * @returns {void}
    */
   const set = (changes: Partial<EventTiming>) => onChange({ ...value, ...changes });
+  // The timing as it is now, read when the exceptions modal applies (saves may have come back meanwhile).
+  const latest = useRef(value);
+  useEffect(() => {
+    latest.current = value;
+  });
   /**
    * Changes the days or hours from a choice: given, then committed.
    * @param {Partial<EventTiming>} changes Changes.
@@ -90,18 +101,38 @@ export function EventRepetition({
     </Stack>
   );
   if (ruleLocked) return days;
+  const rule = value.recurrence;
   return (
-    <RuleEditor
-      rule={value.recurrence}
-      onChange={(rule) => {
-        // A length of the rule sets the end of the event (its first occurrence).
-        const duration = rule?.duration;
-        set({ recurrence: rule, ...(duration && value.allDay ? { endDate: spanEnd(duration, value.startDate) } : {}) });
-      }}
-      onCommit={onCommit}
-      start={ruleStart}
-      durations={value.allDay && value.recurrence ? DURATION_UNITS : undefined}
-      footer={days}
-    />
+    <Stack gap="sm">
+      {days}
+      <RuleEditor
+        rule={rule}
+        onChange={(next) => {
+          // A length of the rule sets the end of the event (its first occurrence).
+          const duration = next?.duration;
+          set({ recurrence: next, ...(duration && value.allDay ? { endDate: spanEnd(duration, value.startDate) } : {}) });
+        }}
+        onCommit={onCommit}
+        start={ruleStart}
+        durations={value.allDay && rule ? DURATION_UNITS : undefined}
+      />
+      {rule && (
+        <ExceptionsSummary
+          lines={skippedLines([rule])}
+          showEmpty
+          onEdit={() =>
+            openRepetitionModal<Recurrence>({
+              title: 'Exceptions de la répétition',
+              value: rule,
+              editor: (draft, setDraft) => <RuleExceptions rule={draft} onChange={setDraft} start={ruleStart} />,
+              onApply: (next) => {
+                onChange({ ...latest.current, recurrence: next });
+                onCommit?.();
+              },
+            })
+          }
+        />
+      )}
+    </Stack>
   );
 }

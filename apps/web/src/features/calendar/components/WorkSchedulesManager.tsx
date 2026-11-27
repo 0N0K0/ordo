@@ -162,7 +162,8 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
               onChange={(unavailable) => form.setFieldValue('unavailable', unavailable)}
             />
             <ScheduleRepetition
-              error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.cases ?? form.errors.exceptions) as string | undefined}
+              periodError={(form.errors.startDate ?? form.errors.endDate) as string | undefined}
+              error={(form.errors.cases ?? form.errors.exceptions) as string | undefined}
               value={{ startDate: values.startDate, endDate: values.endDate, cases: values.cases, exceptions: values.exceptions }}
               onChange={(repetition) => form.setValues({ ...repetition })}
             />
@@ -384,10 +385,11 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
                         multiline
                         w={360}
                         // Each exception, then its cases one under the other.
+                        // eslint-disable-next-line no-restricted-syntax -- a tooltip of a table cell, with the cases of each exception.
                         label={exceptions.map((exception, index) => (
                           <Stack key={index} gap={0}>
                             <Text size="xs">
-                              {exception.label || 'Exception'} {exceptionPeriod(exception)} :{exception.cases.length ? '' : ' pause'}
+                              {exception.label || 'Exception'} {exceptionPeriod(exception)} :{exception.cases.length ? '' : ' rien'}
                             </Text>
                             {exception.cases.map((item, caseIndex) => (
                               <Text key={caseIndex} size="xs" pl="sm">

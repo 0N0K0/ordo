@@ -12,6 +12,9 @@ import { timeTasks } from '../../time/lib/time-tasks';
 import { describeAlarmTiming, legacyFields, type AlarmTiming } from '../lib/alarm-labels';
 import { RuleEditor } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
+import { LabeledField } from '../../../components/inputs/LabeledField';
+import { RuleExceptions } from '../../../components/recurrence/RuleExceptions';
+import { skippedLines } from '../../../components/recurrence/exceptions';
 import { useAlarmMutations, useAlarms, type Alarm, type AlarmInput } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { optionalNumberProps } from '../../../components/inputs/number-format';
@@ -162,21 +165,29 @@ export function AlarmForm({ context, alarm, defaults, onDone }: AlarmFormProps) 
             onChange={(timing) => form.setValues({ ...timing })}
             valid={(draft) => Boolean(draft.startDate && draft.time)}
             describe={(timing) => (timing.startDate ? [describeAlarmTiming(timing)] : [])}
+            exceptions={(timing) => skippedLines([timing.recurrence])}
             editor={(draft, setDraft) => (
-              <RuleEditor
-                rule={draft.recurrence}
-                onChange={(recurrence) => setDraft({ ...draft, recurrence })}
-                start={draft.startDate ?? parisToday()}
-                footer={
-                  <DateTimeField
-                    label={draft.recurrence ? 'À partir du' : 'Date et heure'}
-                    required
-                    day={draft.startDate}
-                    time={draft.time}
-                    onChange={(startDate, time) => startDate && setDraft({ ...draft, startDate, time })}
-                  />
-                }
-              />
+              <Stack gap="md">
+                <RuleEditor
+                  rule={draft.recurrence}
+                  onChange={(recurrence) => setDraft({ ...draft, recurrence })}
+                  start={draft.startDate ?? parisToday()}
+                  footer={
+                    <DateTimeField
+                      label={draft.recurrence ? 'À partir du' : 'Date et heure'}
+                      required
+                      day={draft.startDate}
+                      time={draft.time}
+                      onChange={(startDate, time) => startDate && setDraft({ ...draft, startDate, time })}
+                    />
+                  }
+                />
+                {draft.recurrence && (
+                  <LabeledField label="Exceptions">
+                    <RuleExceptions rule={draft.recurrence} onChange={(recurrence) => setDraft({ ...draft, recurrence })} start={draft.startDate ?? parisToday()} />
+                  </LabeledField>
+                )}
+              </Stack>
             )}
           />
         )}

@@ -3,19 +3,17 @@ import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { Box, Text, UnstyledButton } from '@mantine/core';
 import { StackedLines } from '../../../components/data-table/cells/StackedValues';
 import { mapById, readSlotCondition, type RoutineCase, routineSchema } from '@ordo/shared';
-import { describeSlotCondition } from '../../calendar/lib/slot-condition-text';
 import { useState, type ReactNode } from 'react';
 
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
 import { unarchivedOffered } from '../../../lib/archive';
-import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 
 import { useRoutinesData, type Routine, type RoutineCategory } from '../api';
 import { routineCellLabel, routinesLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { listDiff } from '../../../components/data-table/selection/bulk-edit';
-import { describeRoutineCase, linkableRoutine, routinePath, ruleOf, waitingFor } from '../lib/routine-format';
+import { linkableRoutine, routinePath, routineRepetitionLines, ruleOf, waitingFor } from '../lib/routine-format';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { RoutineRepetitionModal } from './RoutineSchedule';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -213,13 +211,10 @@ export function ProjectCell({ routine, readOnly = false, context }: CellProps & 
  */
 export function RepetitionText({ routine }: { routine: Routine }) {
   const { names } = useSlotChoices();
-  const cases = routine.cases as RoutineCase[];
-  const rule = ruleOf(routine);
-  const lines = cases.length
-    ? cases.map((item) => describeRoutineCase(item, routine.startDate))
-    : rule
-      ? [[describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), names)].filter(Boolean).join(' · ')]
-      : [];
+  const lines = routineRepetitionLines(
+    { startDate: routine.startDate, cases: routine.cases as RoutineCase[], recurrence: ruleOf(routine), slotCondition: readSlotCondition(routine.slotCondition) },
+    names,
+  );
   return (
     <Box px={6} style={{ minWidth: 0 }}>
       <StackedLines lines={lines} size="xs" c="dimmed" />

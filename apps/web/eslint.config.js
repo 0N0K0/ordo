@@ -308,6 +308,11 @@ const RESTRICTED_SYNTAX = [
   ...PARIS_TIME_RULES,
   ...RECURRENCE_RULES,
   {
+    // Exceptions of a repetition listed by hand in JSX: the summary and the list are the same everywhere.
+    selector: "JSXExpressionContainer > CallExpression[callee.property.name='map']:matches([callee.object.name=/^(exceptions|moves)$/], [callee.object.property.name=/^(exceptions|moves)$/])",
+    message: 'Utiliser ExceptionsSummary (synthèse sous la répétition) ou ExceptionsList (modale) de components/recurrence : les exceptions s’affichent partout de la même façon.',
+  },
+  {
     // A bound of a picker from the browser's clock: its day and time are read in the zone of the browser.
     selector: "JSXAttribute[name.name=/^(minDate|maxDate)$/] > JSXExpressionContainer > :matches(NewExpression[callee.name='Date'], CallExpression[callee.object.name='Date'][callee.property.name='now'])",
     message: 'Borne d’un sélecteur : parisToday() (lib/dates) pour un jour, minInstant de DateTimeField (components/inputs) pour un moment, lus à l’heure de Paris.',

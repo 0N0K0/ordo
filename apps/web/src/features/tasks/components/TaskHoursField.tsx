@@ -9,6 +9,16 @@ import { parisToday } from '../../../lib/dates';
 import { ScheduleCases } from '../../calendar/components/ScheduleRepetition';
 import { newScheduleCase } from '../../calendar/lib/schedule-text';
 import { taskHoursLines } from '../lib/task-hours-text';
+import { ExceptionsList } from '../../../components/recurrence/ExceptionsList';
+import { casesSkippedEntries, skippedLines, type ExceptionLine } from '../../../components/recurrence/exceptions';
+import { LabeledField } from '../../../components/inputs/LabeledField';
+
+/**
+ * « Rien » exceptions of the « Horaires » of a task in words (days of their rules left out).
+ * @param {ScheduleCase[]} hours Hours.
+ * @returns {ExceptionLine[]} Lines.
+ */
+const hoursExceptionLines = (hours: ScheduleCase[]): ExceptionLine[] => skippedLines(hours.map((item) => item.rule));
 
 /** « À partir du » asked of each case whose rhythm counts from a day (its error shown under it). */
 const HOURS_CASE_START = { needed: hoursCaseNeedsStart, message: HOURS_START_REQUIRED };
@@ -22,7 +32,8 @@ const validHours = (draft: ScheduleCase[]) => taskHoursSchema.safeParse(draft).s
 
 /**
  * Settings of the « Horaires » of a task in the repetition modal: the cases of a créneau (days, hours), its first
- * error (the messages of a créneau), « Retirer les horaires »; none: « Ajouter des horaires ».
+ * error (the messages of a créneau), its « rien » exceptions (each restored), « Retirer les horaires »; none:
+ * « Ajouter des horaires ».
  * @param {{ draft: ScheduleCase[], setDraft: (hours: ScheduleCase[]) => void, start: string }} props Hours edited, their change, the day new cases start from.
  * @returns {JSX.Element} Settings.
  */
@@ -37,11 +48,17 @@ function TaskHoursEditor({ draft, setDraft, start }: { draft: ScheduleCase[]; se
       </Stack>
     );
   // A missing « À partir du » shows under its field.
+  const exceptions = casesSkippedEntries(draft, setDraft);
   const issue = taskHoursSchema.safeParse(draft).error?.issues.find((item) => item.message !== HOURS_START_REQUIRED)?.message;
   return (
     <Stack gap="sm">
       <ScheduleCases cases={draft} onChange={setDraft} start={start} caseStart={HOURS_CASE_START} />
       {issue && <Input.Error>{issue}</Input.Error>}
+      {exceptions.length > 0 && (
+        <LabeledField label="Exceptions">
+          <ExceptionsList entries={exceptions} />
+        </LabeledField>
+      )}
       <Group>
         <ActionButton priority="tertiary" danger icon={<TrashIcon aria-hidden />} onClick={() => setDraft([])}>
           Retirer les horaires
@@ -70,6 +87,7 @@ export function TaskHoursField({ value, onChange, readOnly = false }: { value: S
       editable={!readOnly}
       valid={validHours}
       describe={(hours) => taskHoursLines(hours, start)}
+      exceptions={hoursExceptionLines}
       editor={(draft, setDraft) => <TaskHoursEditor draft={draft} setDraft={setDraft} start={start} />}
     />
   );

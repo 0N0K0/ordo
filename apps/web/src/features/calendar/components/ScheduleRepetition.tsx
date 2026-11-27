@@ -1,5 +1,5 @@
 import { AddItemButton } from '../../../components/actions/AddItemButton';
-import { Checkbox, Divider, Group, Paper, Stack, Text, TextInput, Switch } from '@mantine/core';
+import { Checkbox, Divider, Group, Stack, Text, TextInput, Switch } from '@mantine/core';
 import { TimePicker } from '@mantine/dates';
 import { type ScheduleCase, type ScheduleException, type ScheduleTimes, DURATION_UNITS } from '@ordo/shared';
 
@@ -12,6 +12,8 @@ import { defaultScheduleTimes, describeScheduleCase, describeScheduleTimes, exce
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { rangeProps } from '../../../components/inputs/date-range';
 import { PeriodField } from '../../../components/inputs/PeriodField';
+import { ExceptionsList, type ExceptionEntry } from '../../../components/recurrence/ExceptionsList';
+import { casesSkippedEntries, skippedLines, SKIPPED_KIND, type ExceptionLine } from '../../../components/recurrence/exceptions';
 
 /** Period, cases and exceptions of a schedule: everything about how it repeats. */
 interface ScheduleRepetitionValue {
@@ -106,8 +108,30 @@ export function ScheduleCases({ cases, onChange, start, caseStart }: { cases: Sc
 }
 
 /**
- * Every repetition setting of a schedule: its period, its cases (rule, length, hours) and its exceptions (a period
- * with its own cases, or a pause), in the common modal.
+ * Kind of an exception period of a schedule in words: « autres horaires », or « rien » without cases of its own; its
+ * reason after it.
+ * @param {ScheduleException} exception Exception period.
+ * @returns {string} Text.
+ */
+const periodExceptionText = (exception: ScheduleException) =>
+  `${fmt.capitalize(exceptionPeriod(exception))} : ${exception.cases.length ? 'autres horaires' : SKIPPED_KIND}${exception.label ? ` (${exception.label})` : ''}`;
+
+/**
+ * Exceptions of a schedule in words: its exception periods, and the « rien » days of the rules of its cases and of
+ * theirs.
+ * @param {Pick<ScheduleRepetitionValue, 'cases' | 'exceptions'>} value Cases and exceptions.
+ * @returns {ExceptionLine[]} Lines.
+ */
+const scheduleExceptionLines = (value: Pick<ScheduleRepetitionValue, 'cases' | 'exceptions'>): ExceptionLine[] => [
+  ...value.exceptions.map((exception, index) => ({ key: `period-${index}`, day: exception.from, text: periodExceptionText(exception) })),
+  ...skippedLines(value.cases.map((item) => item.rule)),
+  ...value.exceptions.flatMap((exception, index) => skippedLines(exception.cases.map((item) => item.rule), `period-${index}`)),
+];
+
+/**
+ * Every repetition setting of a schedule, in the common modal: its cases (rule, length, hours), then its exceptions
+ * (`ExceptionsList`, folded): the periods with cases of their own or without any (« rien »), and the « rien » days of
+ * the rules, each restored.
  * @param {{ draft: ScheduleRepetitionValue, setDraft: (value: ScheduleRepetitionValue) => void }} props Draft and its change.
  * @returns {JSX.Element} Settings.
  */
@@ -124,85 +148,88 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
       ...draft,
       exceptions: draft.exceptions.map((other, position) => (position === index ? { ...other, ...changes } : other)),
     });
+  const entries: ExceptionEntry[] = [
+    ...draft.exceptions.map((exception, index) => {
+      const none = exception.cases.length === 0;
+      return {
+        key: `period-${index}`,
+        day: exception.from,
+        text: periodExceptionText(exception),
+        onRestore: () => setDraft({ ...draft, exceptions: draft.exceptions.filter((_, position) => position !== index) }),
+        body: (
+          <>
+            <Group gap={6} wrap="nowrap" align="flex-end">
+              <PeriodField label="Période" size="xs" w={280} required value={[exception.from, exception.to]} onChange={([from, to]) => from && to && setException(index, { from, to })} />
+              <TextInput
+                label="Motif"
+                size="xs"
+                placeholder="Congés, formation…"
+                style={{ flex: 1 }}
+                value={exception.label}
+                onChange={(event) => setException(index, { label: event.currentTarget.value })}
+              />
+            </Group>
+            <Checkbox
+              size="xs"
+              label="Rien (aucun créneau pendant cette période)"
+              checked={none}
+              onChange={(event) => setException(index, { cases: event.currentTarget.checked ? [] : [newScheduleCase(exception.from)] })}
+            />
+            {!none && <ScheduleCases cases={exception.cases} start={exception.from} onChange={(cases) => setException(index, { cases })} />}
+          </>
+        ),
+      };
+    }),
+    ...casesSkippedEntries(draft.cases, (cases) => setDraft({ ...draft, cases })),
+    ...draft.exceptions.flatMap((exception, index) => casesSkippedEntries(exception.cases, (cases) => setException(index, { cases }), `period-${index}`)),
+  ];
   return (
     <Stack gap="md">
-      <PeriodField
-        label="Période"
-        required="start"
-        placeholder="À choisir"
-        value={[draft.startDate || null, draft.endDate]}
-        onChange={([startDate, endDate]) => startDate && setDraft({ ...draft, startDate, endDate })}
-      />
-      <Divider label="Cas" labelPosition="left" />
       <ScheduleCases cases={draft.cases} onChange={(cases) => setDraft({ ...draft, cases })} start={start} />
       <Divider label="Exceptions (congés, horaires particuliers…)" labelPosition="left" />
       <Text size="xs" c="dimmed">
-        Pendant une exception, ses propres cas remplacent ceux du créneau ; sans cas, c’est une pause.
+        Pendant une période d’exception, ses propres cas remplacent ceux du créneau ; sans cas, il n’y a rien.
       </Text>
-      {draft.exceptions.map((exception, index) => {
-        const pause = exception.cases.length === 0;
-        return (
-          <Paper key={index} withBorder radius="md" p="sm" bg="var(--mantine-color-default-hover)">
-            <Stack gap="xs">
-              <Group gap={6} wrap="nowrap" align="flex-end">
-                <PeriodField label="Période" size="xs" w={280} required value={[exception.from, exception.to]} onChange={([from, to]) => from && to && setException(index, { from, to })} />
-                <TextInput
-                  label="Motif"
-                  size="xs"
-                  placeholder="Congés, formation…"
-                  style={{ flex: 1 }}
-                  value={exception.label}
-                  onChange={(event) => setException(index, { label: event.currentTarget.value })}
-                />
-                <RemoveButton
-                  label="Retirer"
-                  mb={4}
-                  aria-label={`Retirer l’exception ${index + 1}`}
-                  onClick={() => setDraft({ ...draft, exceptions: draft.exceptions.filter((_, position) => position !== index) })}
-                />
-              </Group>
-              <Checkbox
-                size="xs"
-                label="Pause (aucun créneau pendant cette période)"
-                checked={pause}
-                onChange={(event) => setException(index, { cases: event.currentTarget.checked ? [] : [newScheduleCase(exception.from)] })}
-              />
-              {!pause && <ScheduleCases cases={exception.cases} start={exception.from} onChange={(cases) => setException(index, { cases })} />}
-            </Stack>
-          </Paper>
-        );
-      })}
-      <AddItemButton onClick={() => setDraft({ ...draft, exceptions: [...draft.exceptions, { from: parisToday(), to: parisToday(), label: 'Congés', cases: [] }] })}>
-        Ajouter une exception
-      </AddItemButton>
+      <ExceptionsList
+        entries={entries}
+        footer={
+          <AddItemButton onClick={() => setDraft({ ...draft, exceptions: [...draft.exceptions, { from: parisToday(), to: parisToday(), label: 'Congés', cases: [] }] })}>
+            Ajouter une exception
+          </AddItemButton>
+        }
+      />
     </Stack>
   );
 }
 
 /**
- * Period, cases and exceptions of a schedule in its form: their summary, and every setting in the common repetition
- * modal.
- * @param {{ value: ScheduleRepetitionValue, onChange: (value: ScheduleRepetitionValue) => void, error?: ReactNode }} props Value, its change, error.
- * @returns {JSX.Element} Field.
+ * Period, cases and exceptions of a schedule in its form: the period right in the form, the summary of its cases and,
+ * apart, of its exceptions (`ExceptionsSummary`); cases and exceptions changed in the common repetition modal.
+ * @param {{ value: ScheduleRepetitionValue, onChange: (value: ScheduleRepetitionValue) => void, periodError?: ReactNode, error?: ReactNode }} props Value, its change, error of the period, error of the cases and exceptions. Optional errors.
+ * @returns {JSX.Element} Fields.
  */
-export function ScheduleRepetition({ value, onChange, error }: { value: ScheduleRepetitionValue; onChange: (value: ScheduleRepetitionValue) => void; error?: ReactNode }) {
+export function ScheduleRepetition({ value, onChange, periodError, error }: { value: ScheduleRepetitionValue; onChange: (value: ScheduleRepetitionValue) => void; periodError?: ReactNode; error?: ReactNode }) {
   return (
-    <RepetitionField<ScheduleRepetitionValue>
-      label="Période et horaires"
-      required
-      error={error}
-      value={value}
-      onChange={onChange}
-      valid={(draft) => Boolean(draft.startDate) && draft.cases.length > 0}
-      describe={(item) => {
-        const start = item.startDate || parisToday();
-        return [
-          item.startDate ? `${item.endDate ? `Du ${fmt.day(item.startDate)} au ${fmt.day(item.endDate)}` : `À partir du ${fmt.day(item.startDate)}`}` : 'Dates à choisir',
-          ...item.cases.map((other) => describeScheduleCase(other, start)),
-          ...item.exceptions.map((exception) => `${fmt.capitalize(exceptionPeriod(exception))} : ${exception.label || 'exception'}${exception.cases.length ? '' : ' (pause)'}`),
-        ];
-      }}
-      editor={(draft, setDraft) => <ScheduleRepetitionEditor draft={draft} setDraft={setDraft} />}
-    />
+    <Stack gap="sm">
+      <PeriodField
+        label="Période"
+        required="start"
+        placeholder="À choisir"
+        error={periodError}
+        value={[value.startDate || null, value.endDate]}
+        onChange={([startDate, endDate]) => startDate && onChange({ ...value, startDate, endDate })}
+      />
+      <RepetitionField<ScheduleRepetitionValue>
+        label="Horaires"
+        required
+        error={error}
+        value={value}
+        onChange={onChange}
+        valid={(draft) => draft.cases.length > 0}
+        describe={(item) => item.cases.map((other) => describeScheduleCase(other, item.startDate || parisToday()))}
+        exceptions={scheduleExceptionLines}
+        editor={(draft, setDraft) => <ScheduleRepetitionEditor draft={draft} setDraft={setDraft} />}
+      />
+    </Stack>
   );
 }

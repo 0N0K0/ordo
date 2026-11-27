@@ -3,6 +3,10 @@ import * as fmt from '../../lib/format';
 import { describeRecurrence } from './describe-recurrence';
 import { RuleEditor } from './RepetitionEditor';
 import { RepetitionField } from './RepetitionField';
+import { RuleExceptions } from './RuleExceptions';
+import { skippedLines } from './exceptions';
+import { LabeledField } from '../inputs/LabeledField';
+import { Stack } from '@mantine/core';
 
 interface RuleFieldProps {
   value: Recurrence | null;
@@ -22,7 +26,8 @@ interface RuleFieldProps {
 }
 
 /**
- * Repetition made of a single rule, without times (treasury, invoicing): the common repetition field and editor.
+ * Repetition made of a single rule, without times (treasury, invoicing): the common repetition field and editor, its
+ * « rien » exceptions summed up under it and changed in its modal (`RuleExceptions`).
  * @param {RuleFieldProps} props Component props.
  * @returns {JSX.Element} Field.
  */
@@ -37,7 +42,17 @@ export function RuleField({ value, onChange, start, label, description, error, r
       onChange={onChange}
       valid={(draft) => !required || draft !== null}
       describe={(rule) => (rule ? [fmt.capitalize(describeRecurrence(rule, start, weekly))] : [])}
-      editor={(draft, setDraft) => <RuleEditor rule={draft} onChange={setDraft} start={start} weekly={weekly} allowNone={!required} />}
+      exceptions={(rule) => skippedLines([rule])}
+      editor={(draft, setDraft) => (
+        <Stack gap="md">
+          <RuleEditor rule={draft} onChange={setDraft} start={start} weekly={weekly} allowNone={!required} />
+          {draft && (
+            <LabeledField label="Exceptions">
+              <RuleExceptions rule={draft} onChange={setDraft} start={start} />
+            </LabeledField>
+          )}
+        </Stack>
+      )}
     />
   );
 }

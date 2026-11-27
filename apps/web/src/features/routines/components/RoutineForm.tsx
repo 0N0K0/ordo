@@ -523,7 +523,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
               />
             </PanelGroup>
             <PanelGroup>
-              <RoutineRepetition {...scheduleProps} inherited={{ from: parentName, state: inheritance.group(ROUTINE_REPETITION_FIELDS, ROUTINE_FIELD_LABELS), readOnly }} />
+              <RoutineRepetition {...scheduleProps} routine={current} inherited={{ from: parentName, state: inheritance.group(ROUTINE_REPETITION_FIELDS, ROUTINE_FIELD_LABELS), readOnly }} />
             </PanelGroup>
           </>
         }

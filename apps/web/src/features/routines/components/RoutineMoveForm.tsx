@@ -3,27 +3,20 @@ import { PICKER_FORMATS } from '../../../lib/format';
 import { Group, Select, Stack, Text } from '@mantine/core';
 import { DateField } from '../../../components/inputs/DateField';
 import { addDays, type RoutineMoveTimes } from '@ordo/shared';
-import { ArrowRightIcon, CalendarXIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, ClockIcon, XIcon } from '@phosphor-icons/react';
+import { CalendarXIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, ClockIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { SubSection } from '../../../components/page/SubSection';
-import { ON_ERROR } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { parisToday } from '../../../lib/dates';
 import { useRoutineMutations, useRoutineOccurrences, useRoutinesData, type RoutineOccurrence } from '../api';
-import { dueDayOf, movableOccurrence, moveTo, movesOf, windowText } from '../lib/routine-format';
+import { dueDayOf, movableOccurrence, moveTo, windowText } from '../lib/routine-format';
 import { useRoutineMove } from '../hooks/use-routine-move';
 import * as fmt from '../../../lib/format';
-import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { ExceptionsList } from '../../../components/recurrence/ExceptionsList';
+import { useRoutineMoveEntries } from '../hooks/use-routine-exceptions';
 import { SlotTimesFields } from './SlotTimesFields';
 import { OccurrenceOpening } from './OccurrenceOpening';
 import { ActionButton } from '../../../components/actions/ActionButton';
-
-/**
- * Short date of a calendar date: "jeu. 13 nov.".
- * @param {string} date YYYY-MM-DD.
- * @returns {string} Text.
- */
-const shortText = (date: string) => fmt.weekday(date);
 
 /** Days of occurrences offered before and after today, or the occurrence given when out of them (the query covers 100 days at most). */
 const PAST_DAYS = 30;
@@ -72,10 +65,10 @@ export function RoutineMoveForm({ routineId, date: firstDate, onDone }: { routin
   const [to, setTo] = useState<string | null>(null);
   const [edited, setEdited] = useState<Times | null>(null);
   const move = useRoutineMove();
-  const { removeMove, moveOccurrence, deleteOccurrence } = useRoutineMutations();
+  const { moveOccurrence, deleteOccurrence } = useRoutineMutations();
+  const moveEntries = useRoutineMoveEntries(routine);
   if (!routine) return <Text size="sm">Cette routine n’existe plus.</Text>;
   const moved = moveTo(routine, date);
-  const moves = movesOf(routine);
   const target = to ?? (due ? addDays(due, 1) : null);
   const original = timesOf(occurrence);
   const times = edited ?? original;
@@ -159,30 +152,9 @@ export function RoutineMoveForm({ routineId, date: firstDate, onDone }: { routin
             Plus d’occurrence à venir à changer.
           </Text>
         )}
-        {moves.length > 0 && (
+        {moveEntries.length > 0 && (
           <SubSection title="Exceptions">
-            {moves.map((item) => (
-              <Group key={item.from} gap="xs" wrap="nowrap">
-                <Text size="sm">{shortText(item.from)}</Text>
-                <ArrowRightIcon aria-hidden />
-                <Text size="sm" style={{ flex: 1 }}>
-                  {item.to === null
-                    ? 'annulée'
-                    : item.to === item.from
-                      ? 'autres horaires'
-                      : item.merged
-                        ? `fusionnée avec celle du ${shortText(item.to)}`
-                        : `${shortText(item.to)} (${item.to > item.from ? 'reportée' : 'avancée'}${item.times ? ', autres horaires' : ''}${item.apart ? ', à part de celle du jour' : ''})`}
-                </Text>
-                <RemoveButton
-                  label="Remettre à son jour"
-                  size="sm"
-                  aria-label={`Remettre l’occurrence du ${fmt.dayLong(item.from)} à son jour`}
-                  loading={removeMove.isPending && removeMove.variables?.from === item.from}
-                  onClick={() => removeMove.mutate({ id: routine.id, from: item.from }, ON_ERROR)}
-                />
-              </Group>
-            ))}
+            <ExceptionsList entries={moveEntries} />
           </SubSection>
         )}
         <Group justify="flex-end" gap="sm">

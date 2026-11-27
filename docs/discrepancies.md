@@ -16,6 +16,11 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 - **Ressources** : mails et dossiers de recherche (`features/mail`), tableaux de bord (`features/dashboards`) ; la bibliothèque (`features/library`) sera refaite.
 - **Activités, en dehors des trois panneaux** : alarmes (`AlarmForm`), minuteurs (`CountdownForm`), temps passés (`features/time`), créneaux et éphémérides (`features/calendar`, panneaux d'un créneau et d'une occurrence), personnes (contributeurs, membres, proches), projets (`ProjectForm`), espaces (`features/workspaces`).
 
+## Exceptions des répétitions
+
+- **Évènements :** la synthèse et la fenêtre des exceptions d’un évènement ne montrent que ses jours « rien » : ses occurrences annulées ou modifiées seules (`CalendarEventException`) ne sont pas lues par le panneau (l’API ne les donne pas avec l’évènement) ni rétablies depuis la fenêtre (une annulée se rétablit par son menu ; une modifiée n’a pas d’écriture qui retire son exception). Voir [Agenda](features/activities/calendar.md).
+- **Cas (créneaux, horaires des tâches, routines à plusieurs cas) :** une exception « rien » se rétablit mais ne s’ajoute pas depuis la fenêtre (il faudrait choisir le cas qui la porte). Voir [Règles : dates](business-rules/cross-cutting/dates.md).
+
 ## Comportements à confirmer
 
 - **Libellé fixe** : celui de `WorkSchedulesManager` est dans une ligne avec « Type » (`sticky={false}`), donc pas fixe au défilement. La garde eslint ne voit que le texte « Libellé » (pas « Nom » ni un libellé calculé). L'« Objet » d'un document comptable (`DocumentEditor`, `ImportedDocumentForm`) reste un `TextInput`, hors de la garde.

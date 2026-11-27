@@ -4,6 +4,8 @@ import { useState, type ReactNode } from 'react';
 import { FormActions } from '../dialogs/FormActions';
 import { InModalContext } from '../dialogs/in-modal';
 import { ActionButton } from '../actions/ActionButton';
+import { ExceptionsSummary } from './ExceptionsSummary';
+import type { ExceptionLine } from './exceptions';
 
 interface RepetitionFieldProps<V> {
   value: V;
@@ -25,6 +27,8 @@ interface RepetitionFieldProps<V> {
   editable?: boolean;
   /** Shown without any line. Optional. Default = « Ne se répète pas ». */
   emptyText?: string;
+  /** Its exceptions in words, summed up under it (`ExceptionsSummary`), changed in the same modal. Optional. */
+  exceptions?: (value: V) => ExceptionLine[];
 }
 
 /**
@@ -35,10 +39,18 @@ interface RepetitionFieldProps<V> {
  * @param {RepetitionFieldProps<V>} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function RepetitionField<V>({ value, onChange, describe, editor, valid, label = 'Répétition', description, error, required, editable = true, emptyText = 'Ne se répète pas' }: RepetitionFieldProps<V>) {
+export function RepetitionField<V>({ value, onChange, describe, editor, valid, label = 'Répétition', description, error, required, editable = true, emptyText = 'Ne se répète pas', exceptions }: RepetitionFieldProps<V>) {
   const [opened, setOpened] = useState(false);
   const [draft, setDraft] = useState<V>(value);
   const lines = describe(value);
+  /**
+   * Opens the modal on a draft of the value.
+   * @returns {void}
+   */
+  const open = () => {
+    setDraft(value);
+    setOpened(true);
+  };
   return (
     <Input.Wrapper label={label} description={description} error={error} required={required}>
       <Group justify="space-between" gap="sm" wrap="nowrap" align="flex-start" mt={4}>
@@ -61,15 +73,17 @@ export function RepetitionField<V>({ value, onChange, describe, editor, valid, l
             size="xs"
             icon={<PencilSimpleIcon aria-hidden />}
             style={{ flex: 'none' }}
-            onClick={() => {
-              setDraft(value);
-              setOpened(true);
-            }}
+            onClick={open}
           >
             Modifier
           </ActionButton>
         )}
       </Group>
+      {exceptions && (
+        <Stack mt="sm">
+          <ExceptionsSummary lines={exceptions(value)} onEdit={editable ? open : undefined} />
+        </Stack>
+      )}
       <RepetitionModal opened={opened} onClose={() => setOpened(false)} title={label} draft={draft} setDraft={setDraft} editor={editor} valid={valid} onApply={onChange} />
     </Input.Wrapper>
   );
@@ -102,20 +116,44 @@ export function RepetitionModal<V>({ opened, onClose, title, draft, setDraft, ed
   return (
     <Modal opened={opened} onClose={onClose} title={title} size="xl">
       <InModalContext.Provider value>
-        <Stack gap="md">
-          {header}
-          {editor(draft, setDraft)}
-          <FormActions
-            onCancel={onClose}
-            submitLabel="Appliquer"
-            disabled={valid ? !valid(draft) : false}
-            onSubmit={() => {
-              onApply(draft);
-              onClose();
-            }}
-          />
-        </Stack>
+        <DraftSettings draft={draft} setDraft={setDraft} editor={editor} valid={valid} onApply={onApply} onClose={onClose} header={header} />
       </InModalContext.Provider>
     </Modal>
   );
+}
+
+/**
+ * Settings of a repetition modal on a draft: what it applies to, the settings, « Appliquer » (refused by `valid`) and
+ * « Annuler » in its footer, always visible.
+ * @template V
+ * @param {Pick<RepetitionModalProps<V>, 'draft' | 'setDraft' | 'editor' | 'valid' | 'onApply' | 'onClose' | 'header'>} props Component props.
+ * @returns {JSX.Element} Settings.
+ */
+function DraftSettings<V>({ draft, setDraft, editor, valid, onApply, onClose, header }: Pick<RepetitionModalProps<V>, 'draft' | 'setDraft' | 'editor' | 'valid' | 'onApply' | 'onClose' | 'header'>) {
+  return (
+    <Stack gap="md">
+      {header}
+      {editor(draft, setDraft)}
+      <FormActions
+        onCancel={onClose}
+        submitLabel="Appliquer"
+        disabled={valid ? !valid(draft) : false}
+        onSubmit={() => {
+          onApply(draft);
+          onClose();
+        }}
+      />
+    </Stack>
+  );
+}
+
+/**
+ * Settings of a repetition modal opened by `openRepetitionModal`: its own draft, from the value given.
+ * @template V
+ * @param {{ value: V, editor: RepetitionModalProps<V>['editor'], valid?: RepetitionModalProps<V>['valid'], onApply: (value: V) => void, onClose: () => void }} props Value, settings, validity, applying, closing.
+ * @returns {JSX.Element} Settings.
+ */
+export function OpenedDraft<V>({ value, editor, valid, onApply, onClose }: { value: V; editor: RepetitionModalProps<V>['editor']; valid?: RepetitionModalProps<V>['valid']; onApply: (value: V) => void; onClose: () => void }) {
+  const [draft, setDraft] = useState<V>(value);
+  return <DraftSettings draft={draft} setDraft={setDraft} editor={editor} valid={valid} onApply={onApply} onClose={onClose} />;
 }

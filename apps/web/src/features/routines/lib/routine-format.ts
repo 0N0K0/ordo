@@ -9,12 +9,16 @@ import {
   recurrenceSchema,
   type RoutineCase,
   type RoutineMove,
+  type RoutineSlot,
+  type SlotCondition,
   routineSchedule,
   routineState,
   windowText,
   type RoutineState,
 } from '@ordo/shared';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
+import { describeSlotCondition } from '../../calendar/lib/slot-condition-text';
+import { exceptionText, skippedLines, type ExceptionLine } from '../../../components/recurrence/exceptions';
 
 import { treeOptions, type TreeOption } from '../../../components/tree/tree-select';
 import type { Routine } from '../api';
@@ -161,14 +165,36 @@ export const scheduleOf = (routine: Routine) => routineSchedule({ ...routine, ..
 export { windowText };
 
 /**
+ * Moments as text: "avant 08:00, 12:00–14:00 (facultatif)".
+ * @param {readonly RoutineSlot[]} moments Moments.
+ * @returns {string} Text.
+ */
+export const describeMoments = (moments: readonly RoutineSlot[]): string => moments.map((moment) => `${windowText(moment) || 'dans la journée'}${moment.optional ? ' (facultatif)' : ''}`).join(', ');
+
+/**
  * Repetition and times of a routine case in words: "Tous les jours · avant 08:00, 12:00–14:00, dès 20:00 (facultatif)".
  * @param {RoutineCase} item Case.
  * @param {string} start First date of the routine.
  * @returns {string} Description.
  */
 export function describeRoutineCase(item: RoutineCase, start: string): string {
-  const times = item.slots.map((slot) => `${windowText(slot) || 'dans la journée'}${slot.optional ? ' (facultatif)' : ''}`).join(', ');
-  return `${describeRecurrence(item.recurrence, item.from && item.from > start ? item.from : start)} · ${times}${item.from && item.from > start ? ` · dès le ${fmt.day(item.from)}` : ''}`;
+  return `${describeRecurrence(item.recurrence, item.from && item.from > start ? item.from : start)} · ${describeMoments(item.slots)}${item.from && item.from > start ? ` · dès le ${fmt.day(item.from)}` : ''}`;
+}
+
+/**
+ * Repetition of a routine in words, a line each: its cases one under the other, or its rule (with its moments when
+ * given) and its condition on calendar schedules; nothing without a rule.
+ * @param {{ startDate: string, cases: readonly RoutineCase[], recurrence: Recurrence | null, slotCondition: SlotCondition | null, moments?: readonly RoutineSlot[] }} value Repetition. Optional `moments`.
+ * @param {Map<string, string>} names Names of the calendar schedules.
+ * @returns {string[]} Lines.
+ */
+export function routineRepetitionLines(
+  value: { startDate: string; cases: readonly RoutineCase[]; recurrence: Recurrence | null; slotCondition: SlotCondition | null; moments?: readonly RoutineSlot[] },
+  names: Map<string, string>,
+): string[] {
+  if (value.cases.length) return value.cases.map((item) => describeRoutineCase(item, value.startDate));
+  if (!value.recurrence) return [];
+  return [[describeRecurrence(value.recurrence, value.startDate), value.moments && describeMoments(value.moments), describeSlotCondition(value.slotCondition, names)].filter(Boolean).join(' · ')];
 }
 
 /**
@@ -180,6 +206,38 @@ export function describeRoutineCase(item: RoutineCase, start: string): string {
 export const movesOf = (routine: Pick<Routine, 'moves' | 'effective'>): RoutineMove[] =>
   // eslint-disable-next-line no-restricted-syntax -- the exceptions it goes by: not a field of the row (its own ones are given back by an undo).
   ((routine.effective.moves ?? routine.moves) as RoutineMove[] | null) ?? [];
+
+/**
+ * What an exception of a routine makes of its occurrence: « annulée », « autres horaires », « fusionnée avec celle du
+ * ven. 13 nov. », « reportée au ven. 13 nov., autres horaires, à part de celle du jour ».
+ * @param {RoutineMove} move Exception.
+ * @returns {string} Text.
+ */
+export function routineMoveKind(move: RoutineMove): string {
+  if (move.to === null) return 'annulée';
+  if (move.to === move.from) return 'autres horaires';
+  if (move.merged) return `fusionnée avec celle du ${fmt.weekday(move.to)}`;
+  return `${move.to > move.from ? 'reportée' : 'avancée'} au ${fmt.weekday(move.to)}${move.times ? ', autres horaires' : ''}${move.apart ? ', à part de celle du jour' : ''}`;
+}
+
+/**
+ * One move of a routine as an exception line: « 13 novembre 2026 : annulée ».
+ * @param {RoutineMove} move Exception.
+ * @returns {ExceptionLine} Line.
+ */
+export const routineMoveLine = (move: RoutineMove): ExceptionLine => ({ key: `move-${move.from}`, day: move.from, text: exceptionText(move.from, routineMoveKind(move)) });
+
+/**
+ * Exceptions of a routine in words: its occurrences cancelled, moved or with other times (those it goes by), and the
+ * « rien » days of its rule or of the rules of its cases.
+ * @param {Pick<Routine, 'moves' | 'effective'> | undefined} routine Routine (none: a new one, without moves).
+ * @param {readonly (Recurrence | null)[]} rules Its rule, or the rules of its cases, as edited.
+ * @returns {ExceptionLine[]} Lines.
+ */
+export const routineExceptionLines = (routine: Pick<Routine, 'moves' | 'effective'> | undefined, rules: readonly (Recurrence | null)[]): ExceptionLine[] => [
+  ...(routine ? movesOf(routine) : []).map(routineMoveLine),
+  ...skippedLines(rules),
+];
 
 /**
  * Occurrence of a routine open in its panel when none is chosen (its comments are those of it): the

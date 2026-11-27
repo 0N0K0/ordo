@@ -21,7 +21,10 @@ import {
 } from '@ordo/shared';
 import { useState, type ReactNode } from 'react';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
-import { RepetitionModal } from '../../../components/recurrence/RepetitionField';
+import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
+import { ExceptionsList } from '../../../components/recurrence/ExceptionsList';
+import { ruleDayAdding, skippedLines, withoutSkipped } from '../../../components/recurrence/exceptions';
+import { useRoutineMoveEntries } from '../hooks/use-routine-exceptions';
 import { parisToday } from '../../../lib/dates';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf } from '../../geo/lib/location';
@@ -30,7 +33,7 @@ import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
 import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
 import { describeSlotCondition } from '../../calendar/lib/slot-condition-text';
-import { DAILY, ruleOf, windowText } from '../lib/routine-format';
+import { DAILY, describeMoments, routineExceptionLines, routineRepetitionLines, ruleOf } from '../lib/routine-format';
 import type { Routine } from '../api';
 import { RoutineRemindersField } from '../../../components/inputs/ItemReminders';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -132,13 +135,6 @@ function MomentsEditor({
 }
 
 /**
- * Moments as text: "avant 08:00, 12:00–14:00 (facultatif)".
- * @param {readonly RoutineSlot[]} moments Moments.
- * @returns {string} Text.
- */
-const describeMoments = (moments: readonly RoutineSlot[]) => moments.map((moment) => `${windowText(moment) || 'dans la journée'}${moment.optional ? ' (facultatif)' : ''}`).join(', ');
-
-/**
  * Moments and condition of the rule or cases of a routine, for the common repetition editor: committed (a panel saved
  * field by field) once chosen, an hour or a number once left, a condition at once.
  * @param {Map<string, string>} names Names of the calendar schedules.
@@ -235,14 +231,27 @@ function RoutineRepetitionEditor({
   names,
   withStart = true,
   onCommit,
+  routine,
 }: {
   draft: RoutineRepetitionValue;
   setDraft: (value: RoutineRepetitionValue) => void;
   names: Map<string, string>;
   withStart?: boolean;
   onCommit?: () => void;
+  routine?: Routine;
 }) {
   const start = draft.startDate || parisToday();
+  const moveEntries = useRoutineMoveEntries(routine);
+  const rules = draft.mode === 'CASES' ? draft.cases.map((item) => item.recurrence) : [draft.recurrence];
+  const skipped = skippedLines(rules).map(({ rule, ...line }) => ({
+    ...line,
+    onRestore: () =>
+      setDraft(
+        draft.mode === 'CASES'
+          ? { ...draft, cases: draft.cases.map((item, index) => (index === rule ? { ...item, recurrence: withoutSkipped(item.recurrence, line.day) } : item)) }
+          : { ...draft, recurrence: withoutSkipped(draft.recurrence, line.day) },
+      ),
+  }));
   return (
     <Stack gap="md">
       {withStart && <DateField label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: date })} />}
@@ -274,6 +283,12 @@ function RoutineRepetitionEditor({
         times={routineTimes(names)}
         onCommit={onCommit}
       />
+      <LabeledField label="Exceptions">
+        <ExceptionsList
+          entries={[...moveEntries, ...skipped]}
+          add={draft.mode === 'CASES' ? undefined : ruleDayAdding(draft.recurrence, start, (recurrence) => setDraft({ ...draft, recurrence }))}
+        />
+      </LabeledField>
     </Stack>
   );
 }
@@ -307,8 +322,23 @@ function routineRepetitionValue(routine: Routine): RoutineRepetitionValue {
 const validRepetition = (draft: RoutineRepetitionValue) => Boolean(draft.startDate) && (draft.mode !== 'CASES' || draft.cases.length > 0);
 
 /**
+ * Repetition as saved from the one edited: the cases in cases, else the rule with its moments, condition and
+ * « Ouverture ».
+ * @param {RoutineRepetitionValue} value Repetition edited.
+ * @returns {RoutineRepetition} Repetition.
+ */
+const appliedRepetition = (value: RoutineRepetitionValue): RoutineRepetition => ({
+  startDate: value.startDate,
+  recurrence: value.recurrence,
+  cases: value.mode === 'CASES' ? value.cases : [],
+  slotCondition: value.mode === 'CASES' ? null : value.slotCondition,
+  moments: value.mode === 'CASES' ? [] : value.moments,
+  opensOn: value.mode === 'CASES' ? null : value.opensOn,
+});
+
+/**
  * Every repetition setting of a routine in the common modal, out of its form (a table cell): applied to it, or to every
- * routine selected.
+ * routine selected (then without its moves, restored at once on one routine only).
  * @param {{ routine: Routine, opened: boolean, onClose: () => void, onApply: (repetition: RoutineRepetition) => void, header?: ReactNode }} props Routine edited, opened, closing, saving, what it applies to.
  * @returns {JSX.Element} Modal.
  */
@@ -336,17 +366,8 @@ export function RoutineRepetitionModal({
       draft={draft}
       setDraft={setDraft}
       valid={validRepetition}
-      editor={(value, change) => <RoutineRepetitionEditor draft={value} setDraft={change} names={names} />}
-      onApply={(value) =>
-        onApply({
-          startDate: value.startDate,
-          recurrence: value.recurrence,
-          cases: value.mode === 'CASES' ? value.cases : [],
-          slotCondition: value.mode === 'CASES' ? null : value.slotCondition,
-          moments: value.mode === 'CASES' ? [] : value.moments,
-          opensOn: value.mode === 'CASES' ? null : value.opensOn,
-        })
-      }
+      editor={(value, change) => <RoutineRepetitionEditor draft={value} setDraft={change} names={names} routine={header ? undefined : routine} />}
+      onApply={(value) => onApply(appliedRepetition(value))}
     />
   );
 }
@@ -362,6 +383,8 @@ interface RoutineFieldsProps {
   onCommit?: (fields: (keyof RoutineScheduleValues & string)[]) => void;
   /** A sub-routine: what the field shows of its inheritance, and its parent's name. Optional. */
   inherited?: { from: string; state: InheritedFieldState; readOnly?: boolean };
+  /** Routine shown (its exceptions that are moves); none: a new one. Optional. */
+  routine?: Routine;
 }
 
 /**
@@ -372,35 +395,33 @@ interface RoutineFieldsProps {
 const inheritedProps = (inherited: RoutineFieldsProps['inherited']) => ({ ...(inherited?.state ?? { origin: null }), from: inherited?.from ?? '', readOnly: inherited?.readOnly });
 
 /**
- * « Répétition et moments » of a routine, right in its panel (no modal; its first day apart): one rule or cases, each
- * with its moments, condition and « Ouverture ». Each change is given at once (`onChange`); `onCommit` saves them
- * once a value is chosen (a frequency, a weekday, a case, a condition…), an hour or a number once left. Greyed while
- * inherited.
+ * « Répétition et moments » of a routine in its panel (its first day apart): its summary (one rule or cases, each with
+ * its moments and condition) and its exceptions (`ExceptionsSummary`), every setting in the common repetition modal,
+ * saved on « Appliquer ». Greyed while inherited.
  * @param {RoutineFieldsProps} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function RoutineRepetition({ values, errors, onChange, onCommit, inherited }: RoutineFieldsProps) {
+export function RoutineRepetition({ values, errors, onChange, onCommit, inherited, routine }: RoutineFieldsProps) {
   const { names } = useSlotChoices();
-  const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
+  const value: RoutineRepetitionValue = { ...values, mode: values.cases.length ? 'CASES' : 'RULE' };
   return (
     <InheritedField {...inheritedProps(inherited)}>
-      <LabeledField label="Répétition et moments" required error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.opensOn) as ReactNode}>
-        <RoutineRepetitionEditor
-          draft={{ ...values, mode }}
-          setDraft={(value) =>
-            onChange({
-              recurrence: value.recurrence,
-              cases: value.cases,
-              slotCondition: value.slotCondition,
-              moments: value.moments,
-              opensOn: value.opensOn,
-            })
-          }
-          names={names}
-          withStart={false}
-          onCommit={onCommit && (() => onCommit([...ROUTINE_REPETITION_KEYS]))}
-        />
-      </LabeledField>
+      <RepetitionField<RoutineRepetitionValue>
+        label="Répétition et moments"
+        required
+        error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.opensOn) as ReactNode}
+        editable={!inherited?.readOnly}
+        value={value}
+        valid={validRepetition}
+        onChange={(next) => {
+          const { recurrence, cases, slotCondition, moments, opensOn } = appliedRepetition(next);
+          onChange({ recurrence, cases, slotCondition, moments, opensOn });
+          onCommit?.([...ROUTINE_REPETITION_KEYS]);
+        }}
+        describe={(item) => routineRepetitionLines(item, names)}
+        exceptions={(item) => routineExceptionLines(routine, item.mode === 'CASES' ? item.cases.map((other) => other.recurrence) : [item.recurrence])}
+        editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} withStart={false} routine={routine} />}
+      />
     </InheritedField>
   );
 }

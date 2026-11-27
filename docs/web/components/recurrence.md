@@ -1,20 +1,25 @@
 # Répétitions : règles, cas, durées
 
-L'éditeur commun des répétitions (évènements, créneaux, routines, alarmes, trésorerie, facturation) : une règle, ou plusieurs cas avec leur période ; durée de chaque occurrence ; résumé en mots. Les exceptions ne s'y modifient pas : elles naissent des menus des occurrences (« Supprimer cette occurrence », déplacer, modifier). Source : `apps/web/src/components/recurrence/`. Le modèle (`Recurrence`, `RepetitionCase`, `Duration`, `ruleValues`, libellés des jours et mois) vient de `@ordo/shared` : voir [Partagé : dates](../../shared/cross-cutting/dates.md) et [Règles : dates](../../business-rules/cross-cutting/dates.md).
+L'éditeur commun des répétitions (évènements, créneaux, routines, alarmes, trésorerie, facturation) : une règle, ou plusieurs cas avec leur période ; durée de chaque occurrence ; résumé en mots ; synthèse et liste des exceptions. Les exceptions naissent des menus des occurrences (« Cette occurrence », « Annuler cette occurrence », déplacer, modifier) ; sous la répétition, leur synthèse (`ExceptionsSummary`) ouvre leur modale (`ExceptionsList`), où chacune se rétablit et où une exception « rien » s'ajoute un jour de la règle. Source : `apps/web/src/components/recurrence/`. Le modèle (`Recurrence`, `RepetitionCase`, `Duration`, `ruleValues`, libellés des jours et mois) vient de `@ordo/shared` : voir [Partagé : dates](../../shared/cross-cutting/dates.md) et [Règles : dates](../../business-rules/cross-cutting/dates.md).
 
 ## Champ et modale
 
 ### `RepetitionField`
 
-Répétition de ce qu'affiche un panneau : son résumé (une ligne par élément décrit ; rien : `emptyText`, « Ne se répète pas » par défaut) et un bouton « Modifier » (`secondary`, `xs`) qui ouvre tous les réglages dans une modale, sur un brouillon appliqué par « Appliquer » et abandonné par « Annuler ». Le même champ pour les créneaux, horaires des tâches (`TaskHoursField`, « N’importe quand » sans horaires), alarmes, trésorerie et facturation (évènements et routines règlent la leur directement dans leur panneau). Props : `value`, `onChange`, `describe(value)` (lignes), `editor(draft, setDraft)`, `valid(draft)`, `label` (défaut « Répétition »), `description`, `error`, `required`, `editable` (défaut vrai), `emptyText`.
+Répétition de ce qu'affiche un panneau : son résumé (une ligne par élément décrit ; rien : `emptyText`, « Ne se répète pas » par défaut) et un bouton « Modifier » (`secondary`, `xs`) qui ouvre tous les réglages dans une modale, sur un brouillon appliqué par « Appliquer » et abandonné par « Annuler ». Le même champ pour les créneaux, horaires des tâches (`TaskHoursField`, « N’importe quand » sans horaires), alarmes, trésorerie et facturation (évènements et routines règlent la leur directement dans leur panneau). Props : `value`, `onChange`, `describe(value)` (lignes), `editor(draft, setDraft)`, `valid(draft)`, `label` (défaut « Répétition »), `description`, `error`, `required`, `editable` (défaut vrai), `emptyText`, `exceptions(value)` (ses exceptions en mots, `ExceptionLine[]` : leur synthèse `ExceptionsSummary` sous le résumé, dont « Modifier les exceptions » ouvre la même modale ; rien sans exception).
 
 ### `RepetitionModal`
 
-Modale (`Modal` taille `xl`) des réglages de répétition sur un brouillon : `header` facultatif, l'éditeur, `FormActions` « Appliquer » (désactivé si `valid` refuse) / « Annuler ». Props : `opened`, `onClose`, `title`, `draft`, `setDraft`, `editor`, `valid`, `onApply`, `header`. Utilisée par `RepetitionField` et par une cellule de tableau des routines.
+Modale (`Modal` taille `xl`) des réglages de répétition sur un brouillon : `header` facultatif, l'éditeur, `FormActions` « Appliquer » (désactivé si `valid` refuse) / « Annuler ». Props : `opened`, `onClose`, `title`, `draft`, `setDraft`, `editor`, `valid`, `onApply`, `header`. Utilisée par `RepetitionField` et par une cellule de tableau des routines. Son contenu (interne `DraftSettings`) est aussi celui d'`openRepetitionModal`.
+
+### `OpenedDraft` et `openRepetitionModal` (`open-repetition-modal.tsx`)
+
+- `openRepetitionModal({ title, value, editor, valid?, onApply })` : ouvre une modale de répétition (`openModal`, taille `xl`, sous-formulaire d'un champ) sur un brouillon de `value`, « Appliquer » / « Annuler » dans son pied toujours visible (`DialogFooter`). Utilisé par les exceptions d'un évènement (`EventRepetition`, contenu `RuleExceptions`).
+- `OpenedDraft({ value, editor, valid?, onApply, onClose })` (`RepetitionField.tsx`) : son contenu, avec son propre brouillon.
 
 ### `RuleField`
 
-Répétition d'une seule règle, sans horaires (trésorerie, facturation) : `RepetitionField` + `RuleEditor`, résumé `describeRecurrence` capitalisé. `required` : une règle est obligatoire (« Ne se répète pas » non proposé, « Appliquer » refusé sans règle). Props : `value`, `onChange`, `start`, `label`, `description`, `error`, `required`, `weekly`.
+Répétition d'une seule règle, sans horaires (trésorerie, facturation) : `RepetitionField` + `RuleEditor`, résumé `describeRecurrence` capitalisé, synthèse des exceptions « rien » dessous et, dans la modale, « Exceptions » (`RuleExceptions`). `required` : une règle est obligatoire (« Ne se répète pas » non proposé, « Appliquer » refusé sans règle). Props : `value`, `onChange`, `start`, `label`, `description`, `error`, `required`, `weekly`.
 
 ## Éditeurs
 
@@ -66,9 +71,44 @@ Jour du mois choisi, le même champ partout (répétition `RecurrenceEditor`, du
 
 Durée de chaque occurrence à partir de son premier jour : « Chaque fois » : « Pendant des jours », « Pendant des semaines (jusqu'au dimanche) », « Pendant des mois (jusqu'à la fin du mois) », « Jusqu'à un jour (du mois, d'un mois) », « Jusqu'à une semaine de l'année », « Jusqu'à la fin d'un mois » ; avec le nombre (1 à 366), le jour (`MonthDayField` : 1 à 31, ou « Le dernier jour du mois » ; décochée : le 1er) et le mois (« du même mois » par défaut), la semaine (1 à 53) ou le mois. Props : `value`, `onChange`, `units` (unités proposées), `withinPortal`, `onCommit` (après un choix, ou un nombre quitté).
 
+### `FoldCard`
+
+Carte d'une liste de réglages qui se plient (cas d'une répétition, exceptions) : titre (toute la ligne cliquable quand elle se plie, `FoldHeading`, coupé sur une ligne plié), actions à droite, réglages dessous (`Collapse`). Props : `title`, `collapsible`, `opened`, `onToggle`, `before` (poignée), `actions`, `cardRef`, `style`, `raised` (déplacée), `children`. Utilisée par `CaseCard` et `ExceptionsList`.
+
 ### `CaseCard`
 
-Un cas d'une répétition : « Cas 2 · son résumé », pliable quand il y en a plusieurs (`FoldHeading`), déplaçable par sa poignée (`DragHandle`, `useSortableItem`, pointeur ou clavier : le premier cas qui convient à un jour l'emporte), retirable (« Retirer le cas N »). Props : `index`, `summary`, `collapsible`, `opened`, `onToggle`, `onRemove`, `sortId`, `sortable`, `children`.
+Un cas d'une répétition (`FoldCard`) : « Cas 2 · son résumé », pliable quand il y en a plusieurs, déplaçable par sa poignée (`DragHandle`, `useSortableItem`, pointeur ou clavier : le premier cas qui convient à un jour l'emporte), retirable (« Retirer le cas N »). Props : `index`, `summary`, `collapsible`, `opened`, `onToggle`, `onRemove`, `sortId`, `sortable`, `children`.
+
+## Exceptions
+
+### `ExceptionsSummary`
+
+Synthèse des exceptions d'une répétition, sous elle, la même partout (évènements, créneaux et éphémérides, routines, horaires des tâches, alarmes, trésorerie, facturation) : « Exceptions », une ligne chacune triée par jour (« 3 novembre 2026 : rien ») ; plus de 5 : les 4 premières et « + X exceptions » (`FoldHeading` `inline`, `aria-expanded`) qui développe les autres sur place (« Moins d’exceptions » les replie) ; bouton « Modifier les exceptions » (`secondary`, `xs`) qui ouvre leur modale (dans `RepetitionField`, la même que « Modifier »). Titre « Exceptions » (`LabeledField`). Rien sans exception, sauf `showEmpty` (« Aucune exception »). Props : `lines`, `onEdit` (aucun : lecture seule), `showEmpty`.
+
+### `useFoldedExceptions` (`use-folded-exceptions.tsx`)
+
+`useFoldedExceptions(lines)` : exceptions pliées de la même façon dans la synthèse et la liste : `sorted` (par jour), `shown` (5, ou les 4 premières), `more` (« + X exceptions » / « Moins d’exceptions », `FoldHeading` `inline`). Constante interne `SHOWN_EXCEPTIONS` (5).
+
+### `ExceptionsList`
+
+Exceptions à modifier dans une modale, la même partout : une carte chacune (`FoldCard`), triées par jour, 5 ou les 4 premières et « + X exceptions » (`useFoldedExceptions`), toutes réduites à l'ouverture, celles ajoutées ensuite développées ; les plis repartent de zéro après un retrait ; celles qui ont des réglages (une période d'exception d'un créneau) se développent ; chacune se retire par « Rétablir « son texte » » (`IconAction`, flèche de retour : son occurrence revient comme sa règle la donne). `add` : champ « Ajouter une exception « rien » » (`DateField`, seuls les jours de la règle se choisissent). Props : `entries` (`ExceptionEntry` : une `ExceptionLine` avec `body`, `onRestore`, `restoring`), `add` (`ExceptionsAdd` : `isDay`, `onAdd`, `minDate`), `footer`, `emptyText` (défaut « Aucune exception. »).
+
+### `RuleExceptions`
+
+Exceptions « rien » d'une seule règle dans une modale de répétition (évènement, alarme, trésorerie, facturation) : `ExceptionsList`, chacune rétablie, « Ajouter une exception « rien » » un jour de la règle (`ruleDayAdding`). Props : `rule`, `onChange`, `start`.
+
+Garde eslint : une liste d'exceptions écrite à la main dans du JSX (`….exceptions.map(…)`, `….moves.map(…)`) est refusée.
+
+### `exceptions.ts`
+
+- `SKIPPED_KIND` : « rien ».
+- `ExceptionLine` (interface) : `key`, `day` (pour trier), `text`.
+- `exceptionText(day, kind)` : « 3 novembre 2026 : rien », « 4 novembre 2026 : reportée au ven. 6 nov. ».
+- `byExceptionDay(lines)` : triées par jour.
+- `skippedLines(rules, prefix?)` : exceptions « rien » de règles (une règle, ou celles des cas), avec l'indice de leur règle.
+- `withSkipped(rule, day)` / `withoutSkipped(rule, day)` : règle avec / sans l'exception « rien » de ce jour.
+- `ruleDayAdding(rule, start, onChange)` : ajout d'une exception « rien » à une règle seule (`ExceptionsAdd` : ses jours seulement, `occurrenceDates`, depuis son premier jour). Utilisé par `RuleExceptions` et les routines.
+- `casesSkippedEntries(cases, onChange, prefix?)` : exceptions « rien » des règles de cas, chacune rétablie dans les cas rendus (créneau, période d'exception, horaires d'une tâche).
 
 ## Résumés (`describe-recurrence.ts`)
 

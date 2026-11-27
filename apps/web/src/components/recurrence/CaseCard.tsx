@@ -1,9 +1,8 @@
 import { DragHandle } from '../dnd/DragHandle';
 import { useSortableItem } from '../dnd/use-sortable-item';
-import { Collapse, Group, Paper, Stack, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { RemoveButton } from '../actions/RemoveButton';
-import { FoldHeading } from '../actions/FoldHeading';
+import { FoldCard } from './FoldCard';
 
 interface CaseCardProps {
   /** Number of the case, from 1. */
@@ -31,30 +30,19 @@ interface CaseCardProps {
  */
 export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemove, sortId, sortable, children }: CaseCardProps) {
   const { ref, style, dragging, handle } = useSortableItem(sortId, !sortable);
-  const shown = !collapsible || opened;
-  const heading = (
-    <Text size="xs" c="dimmed" truncate={!shown}>
-      Cas {index} · {summary}
-    </Text>
-  );
   return (
-    <Paper ref={ref} withBorder radius="sm" p="sm" shadow={dragging ? 'md' : undefined} style={style}>
-      <Stack gap={shown ? 'xs' : 0}>
-        <Group justify="space-between" wrap="nowrap" gap={4}>
-          {sortable && <DragHandle item={`Cas ${index}`} {...handle} size="sm" />}
-          {collapsible ? (
-            <FoldHeading expanded={shown} onToggle={onToggle} style={{ flex: 1 }}>
-              {heading}
-            </FoldHeading>
-          ) : (
-            heading
-          )}
-          {onRemove && <RemoveButton label="Retirer" size="sm" aria-label={`Retirer le cas ${index}`} onClick={onRemove} />}
-        </Group>
-        <Collapse expanded={shown}>
-          <Stack gap="xs">{children}</Stack>
-        </Collapse>
-      </Stack>
-    </Paper>
+    <FoldCard
+      title={`Cas ${index} · ${summary}`}
+      collapsible={collapsible}
+      opened={opened}
+      onToggle={onToggle}
+      cardRef={ref}
+      style={style}
+      raised={dragging}
+      before={sortable && <DragHandle item={`Cas ${index}`} {...handle} size="sm" />}
+      actions={onRemove && <RemoveButton label="Retirer" size="sm" aria-label={`Retirer le cas ${index}`} onClick={onRemove} />}
+    >
+      {children}
+    </FoldCard>
   );
 }
