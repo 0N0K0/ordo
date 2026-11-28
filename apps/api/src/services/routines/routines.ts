@@ -83,7 +83,7 @@ import {
 } from '@ordo/shared';
 import { deleteTreeItems, subtreeIds, topmostIds, treeListService } from '../core/trees';
 import { releaseSubjectTime } from '../tasks/time-entries';
-import { prisma, unscopedPrisma } from '../../db';
+import { inTransaction, prisma, unscopedPrisma } from '../../db';
 import { currentWorkspaceId, runInWorkspace } from '../../workspace-context';
 import { assertBeneficiaries } from '../core/beneficiaries';
 import { BY_POSITION, moveBefore, nextPositionIn } from '../core/ordering';
@@ -1958,6 +1958,23 @@ export async function removeRoutineMove(id: string, from: string, comments: read
     await saveMoves(found, { before: moves, moves: next, dead }, key);
   }
   await restoreComments('ROUTINE', id, target, comments);
+}
+
+/**
+ * Restores exceptions of a routine (`removeRoutineMove`, one after the other) and saves a change of it, all or
+ * nothing (`inTransaction`): a refusal (a loss not confirmed, a move that cannot be restored) or a failure restores
+ * none of them and saves nothing.
+ * @param {string} id Routine id.
+ * @param {readonly string[]} froms Days of the rule of the exceptions restored (none: the change only).
+ * @param {() => Promise<T>} save The change (`updateRoutine`, `patchRoutine`).
+ * @returns {Promise<T>} What the change gives.
+ */
+export function withRestoredMoves<T>(id: string, froms: readonly string[], save: () => Promise<T>): Promise<T> {
+  if (!froms.length) return save();
+  return inTransaction(async () => {
+    for (const from of froms) await removeRoutineMove(id, from);
+    return save();
+  });
 }
 
 /** Which occurrences a change applies to: this one (an exception), it and the following ones, or all. */

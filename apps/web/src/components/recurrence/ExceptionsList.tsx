@@ -1,6 +1,7 @@
 import { Stack, Text } from '@mantine/core';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ExceptionsFocusContext } from './exceptions-focus';
 import { IconAction } from '../actions/IconAction';
 import { DateField } from '../inputs/DateField';
 import type { ExceptionLine } from './exceptions';
@@ -22,6 +23,8 @@ export interface ExceptionsAdd {
   isDay: (day: string) => boolean;
   onAdd: (day: string) => void;
   minDate?: string;
+  /** Help under the field. Optional. Default = « Un jour de la règle dont l’occurrence n’a pas lieu. ». */
+  description?: string;
 }
 
 interface ExceptionsListProps {
@@ -38,7 +41,7 @@ interface ExceptionsListProps {
  * Exceptions of a repetition to change, the same in every modal: one card each, sorted by day, 5 of them or 4 and
  * « + X exceptions » (`useFoldedExceptions`), all folded at first, those added since unfolded (`FoldCard`; those with
  * settings unfold), each removable (« Rétablir » : its occurrence comes back); a « rien » exception added on a day of
- * the rule.
+ * the rule. In a modal opened by « Modifier les exceptions » (`ExceptionsFocusContext`), it scrolls into view.
  * @param {ExceptionsListProps} props Component props.
  * @returns {JSX.Element} List.
  */
@@ -47,6 +50,14 @@ export function ExceptionsList({ entries, add, footer, emptyText = 'Aucune excep
   const [toggled, setToggled] = useState<ReadonlyMap<string, boolean>>(new Map());
   const [initial] = useState(() => new Set(entries.map((entry) => entry.key)));
   const { shown, more } = useFoldedExceptions(entries);
+  // Opened by « Modifier les exceptions »: the list scrolls into view once the modal shows it.
+  const focused = useContext(ExceptionsFocusContext);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!focused) return;
+    const timer = window.setTimeout(() => root.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
+    return () => window.clearTimeout(timer);
+  }, [focused]);
   /**
    * Whether an exception is unfolded.
    * @param {string} key Its key.
@@ -60,7 +71,7 @@ export function ExceptionsList({ entries, add, footer, emptyText = 'Aucune excep
    */
   const toggle = (key: string) => setToggled((current) => new Map(current).set(key, !isOpen(key)));
   return (
-    <Stack gap="xs">
+    <Stack gap="xs" ref={root}>
       {!entries.length && (
         <Text size="sm" c="dimmed">
           {emptyText}
@@ -98,7 +109,7 @@ export function ExceptionsList({ entries, add, footer, emptyText = 'Aucune excep
       {add && (
         <DateField
           label="Ajouter une exception « rien »"
-          description="Un jour de la règle dont l’occurrence n’a pas lieu."
+          description={add.description ?? 'Un jour de la règle dont l’occurrence n’a pas lieu.'}
           placeholder="Choisir un jour"
           size="xs"
           w={280}

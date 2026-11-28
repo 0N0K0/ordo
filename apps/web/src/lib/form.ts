@@ -134,7 +134,7 @@ export interface FieldSave<Values> {
   form: UseFormReturnType<Values>;
   saving: boolean;
   /** Checks and saves fields now (no-op on a new item or read only); false when one is invalid (not saved). */
-  commit: (fields: readonly (keyof Values & string)[]) => boolean;
+  commit: (fields: readonly (keyof Values & string)[], always?: boolean) => boolean;
   /** Settles once the saves asked so far are done, failed ones included (before an action on the item as saved: a preview, a validation). */
   settled: () => Promise<void>;
   /**
@@ -228,18 +228,20 @@ export function useFieldSave<Values extends Record<string, unknown>>(base: UseFo
   const savedNow = (): Values => (savedValues.current ??= base.getInitialValues());
 
   /**
-   * Saves fields once checked, when they changed.
+   * Saves fields once checked, when they changed (or always: a save that carries more than the fields, the moves of a
+   * routine restored with its repetition).
    * @param {readonly string[]} fields Fields.
+   * @param {boolean} [always] Saved even unchanged. Optional. Default = when they changed.
    * @returns {boolean} False when one is invalid (not saved, its error under it).
    */
-  const commit = (fields: readonly string[]): boolean => {
+  const commit = (fields: readonly string[], always = false): boolean => {
     const values = base.getValues();
     const previous = savedNow();
     const errors = { ...fieldErrors(schema, values, fields), ...check?.(values, fields as readonly (keyof Values & string)[]) };
     base.setErrors((current) => ({ ...Object.fromEntries(Object.entries(current).filter(([path]) => !fields.includes(fieldOf(path)))), ...errors }));
     if (Object.keys(errors).length) return false;
     const toSave = toSaved(values);
-    const changes = Object.fromEntries(fields.filter((field) => !sameValue(toSave[field], previous[field])).map((field) => [field, toSave[field]])) as Partial<Values>;
+    const changes = Object.fromEntries(fields.filter((field) => always || !sameValue(toSave[field], previous[field])).map((field) => [field, toSave[field]])) as Partial<Values>;
     const changed = Object.keys(changes);
     if (!changed.length || !save) return true;
     const next = { ...previous, ...changes } as Values;

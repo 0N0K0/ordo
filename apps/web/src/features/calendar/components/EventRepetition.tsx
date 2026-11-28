@@ -7,6 +7,10 @@ import { ExceptionsSummary } from '../../../components/recurrence/ExceptionsSumm
 import { RuleExceptions } from '../../../components/recurrence/RuleExceptions';
 import { openRepetitionModal } from '../../../components/recurrence/open-repetition-modal';
 import { skippedLines } from '../../../components/recurrence/exceptions';
+import { toastCallbacks } from '../../../lib/notify';
+import * as fmt from '../../../lib/format';
+import { useCalendarEventMutations, useEventExceptions } from '../api';
+import { eventExceptionLines } from '../lib/event-exceptions';
 
 /** When an event takes place, and how it repeats. */
 interface EventTiming {
@@ -19,13 +23,32 @@ interface EventTiming {
 }
 
 /**
+ * Exceptions of a recurring event in its modal: its « rien » days, and its occurrences deleted, cancelled or changed
+ * alone (`useEventExceptions`), each restored by « Rétablir » at once (the occurrence goes back to its series; the
+ * routine links it can no longer have confirmed first).
+ * @param {{ eventId: string | null, rule: Recurrence, onChange: (rule: Recurrence) => void, start: string }} props Event (none: a new one), rule edited, its change, first day of the series.
+ * @returns {JSX.Element} List.
+ */
+function EventExceptions({ eventId, rule, onChange, start }: { eventId: string | null; rule: Recurrence; onChange: (rule: Recurrence) => void; start: string }) {
+  const { data: exceptions } = useEventExceptions(eventId);
+  const { restoreException } = useCalendarEventMutations();
+  const others = eventExceptionLines(exceptions ?? []).map((line) => ({
+    ...line,
+    restoring: restoreException.isPending && restoreException.variables?.occurrenceDate === line.day,
+    onRestore: () => eventId && restoreException.mutate({ id: eventId, occurrenceDate: line.day }, toastCallbacks(`Occurrence du ${fmt.dayLong(line.day)} rétablie.`)),
+  }));
+  return <RuleExceptions rule={rule} onChange={onChange} start={start} others={others} />;
+}
+
+/**
  * Days, hours and repetition of an event, right in its panel (no modal): the whole day, the start and the end, then
- * the rule (its end) and the length of each occurrence of an all-day event, then its exceptions (`ExceptionsSummary`,
- * changed in their modal and saved on « Appliquer »). Each change is given at once
+ * the rule (its end) and the length of each occurrence of an all-day event, then its exceptions (`ExceptionsSummary`:
+ * its « rien » days, changed in their modal and saved on « Appliquer », and its occurrences deleted, cancelled or
+ * changed alone, restored there at once). Each change is given at once
  * (`onChange`); `onCommit` follows a choice at once (a frequency, a weekday, the period…) and a number once it is left
  * (the interval, the count…): the event panel saves then. With `ruleLocked` (one occurrence of a series edited alone),
  * only its days and hours: the rule is the one of the series.
- * @param {{ value: EventTiming, onChange: (value: EventTiming) => void, onCommit?: () => void, ruleStart: string, error?: string, ruleLocked?: boolean }} props Timing, its change, its commit, first day of the series, error, rule not editable. Optional.
+ * @param {{ value: EventTiming, onChange: (value: EventTiming) => void, onCommit?: () => void, ruleStart: string, error?: string, ruleLocked?: boolean, eventId?: string | null }} props Timing, its change, its commit, first day of the series, error, rule not editable, event saved (its exceptions). Optional.
  * @returns {JSX.Element} Fields.
  */
 export function EventRepetition({
@@ -35,6 +58,7 @@ export function EventRepetition({
   ruleStart,
   error,
   ruleLocked = false,
+  eventId = null,
 }: {
   value: EventTiming;
   onChange: (value: EventTiming) => void;
@@ -42,7 +66,9 @@ export function EventRepetition({
   ruleStart: string;
   error?: string;
   ruleLocked?: boolean;
+  eventId?: string | null;
 }) {
+  const { data: exceptions } = useEventExceptions(ruleLocked || !value.recurrence ? null : eventId);
   /**
    * Changes the days, keeping the end after the start (and the length of an occurrence of the rule).
    * @param {Partial<EventTiming>} changes Changes.
@@ -118,13 +144,13 @@ export function EventRepetition({
       />
       {rule && (
         <ExceptionsSummary
-          lines={skippedLines([rule])}
+          lines={[...skippedLines([rule]), ...eventExceptionLines(exceptions ?? [])]}
           showEmpty
           onEdit={() =>
             openRepetitionModal<Recurrence>({
               title: 'Exceptions de la répétition',
               value: rule,
-              editor: (draft, setDraft) => <RuleExceptions rule={draft} onChange={setDraft} start={ruleStart} />,
+              editor: (draft, setDraft) => <EventExceptions eventId={eventId} rule={draft} onChange={setDraft} start={ruleStart} />,
               onApply: (next) => {
                 onChange({ ...latest.current, recurrence: next });
                 onCommit?.();

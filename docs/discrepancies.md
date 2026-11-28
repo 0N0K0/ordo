@@ -16,11 +16,6 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 - **Ressources** : mails et dossiers de recherche (`features/mail`), tableaux de bord (`features/dashboards`) ; la bibliothèque (`features/library`) sera refaite.
 - **Activités, en dehors des trois panneaux** : alarmes (`AlarmForm`), minuteurs (`CountdownForm`), temps passés (`features/time`), créneaux et éphémérides (`features/calendar`, panneaux d'un créneau et d'une occurrence), personnes (contributeurs, membres, proches), projets (`ProjectForm`), espaces (`features/workspaces`).
 
-## Exceptions des répétitions
-
-- **Évènements :** la synthèse et la fenêtre des exceptions d’un évènement ne montrent que ses jours « rien » : ses occurrences annulées ou modifiées seules (`CalendarEventException`) ne sont pas lues par le panneau (l’API ne les donne pas avec l’évènement) ni rétablies depuis la fenêtre (une annulée se rétablit par son menu ; une modifiée n’a pas d’écriture qui retire son exception). Voir [Agenda](features/activities/calendar.md).
-- **Cas (créneaux, horaires des tâches, routines à plusieurs cas) :** une exception « rien » se rétablit mais ne s’ajoute pas depuis la fenêtre (il faudrait choisir le cas qui la porte). Voir [Règles : dates](business-rules/cross-cutting/dates.md).
-
 ## Début des cas
 
 - **Occurrence qui dure plusieurs jours :** un ancien cas (créneau, éphéméride, cas de routine) avec une période dont la dernière occurrence la dépassait s’arrêtait à la fin de la période ; lu avec la fin dans sa règle, elle va jusqu’à son dernier jour. Pour une routine, cette dernière occurrence a donc un autre jour dû : ses coches, commentaires et exceptions, rangés par l’ancien jour dû (la fin de la période), ne la retrouvent plus (rare : un ancien cas avec une période et des occurrences de plusieurs jours). De même, une occurrence commencée avant la période d’un ancien cas et qui y entrait se montre maintenant depuis son premier jour, avant la période. Le « Début » d’un cas de la plus ancienne forme (`pattern`) est un jour technique (un lundi, un 1er du mois ou de l’année, souvent avant la période) : avant le début de la période, ni le résumé ni le champ « Début » (vide, « Dès le début ») ne le montrent, mais il reste enregistré tant que le champ n’est pas changé. Voir [Dates](business-rules/cross-cutting/dates.md#répétition-par-cas).

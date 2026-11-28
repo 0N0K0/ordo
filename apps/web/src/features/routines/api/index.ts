@@ -204,16 +204,16 @@ const CreateRoutineDocument = graphql(`
 `);
 
 const UpdateRoutineDocument = graphql(`
-  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {
-    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {
+  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean, $restoredMoves: [Date!]) {
+    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss, restoredMoves: $restoredMoves) {
       removedLinks
     }
   }
 `);
 
 const PatchRoutineDocument = graphql(`
-  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {
-    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {
+  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean, $restoredMoves: [Date!]) {
+    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss, restoredMoves: $restoredMoves) {
       removedLinks
     }
   }
@@ -617,6 +617,8 @@ export interface RoutinePatchValues {
   inherit?: RoutineInheritableField[];
   /** Fields emptied on purpose (« Vider »; never its first time nor its repetition). */
   clear?: RoutineInheritableField[];
+  /** Days of the rule of exceptions restored with the change, all or nothing (sent apart from the patch). */
+  restoredMoves?: string[];
 }
 
 export type { RoutineBulkChanges };
@@ -715,7 +717,13 @@ export function useRoutineMutations() {
       }),
     ),
     // A change of project attaches the assignees to it: the contributors (task data) are refreshed too.
-    update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => withLossConfirmation(async (confirmLoss) => (await execute(UpdateRoutineDocument, { ...variables, confirmLoss })).updateRoutine), undefined, [tasksQueryKey]),
+    // Exceptions restored with it (`restoredMoves`): all or nothing, with the save.
+    update: useRoutineMutation(
+      async (variables: { id: string; input: RoutineInput; restoredMoves?: string[] }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(UpdateRoutineDocument, { ...variables, confirmLoss })).updateRoutine),
+      undefined,
+      [tasksQueryKey],
+    ),
     /** Copies the sub-routines of a routine under its copy (theirs too). */
     copySubRoutines: useRoutineMutation(async (variables: { fromId: string; toId: string }) => (await execute(CopySubRoutinesDocument, variables)).copySubRoutines),
     /**
@@ -742,12 +750,14 @@ export function useRoutineMutations() {
       [tasksQueryKey, timeQueryKey],
     ),
     patch: useRoutineMutation(
-      async (variables: { id: string; input: RoutinePatchValues }) => withLossConfirmation(async (confirmLoss) => (await execute(PatchRoutineDocument, { ...variables, confirmLoss })).patchRoutine),
+      // Exceptions restored with it (`restoredMoves`, sent apart): all or nothing, with the change.
+      async ({ id, input: { restoredMoves, ...input } }: { id: string; input: RoutinePatchValues }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(PatchRoutineDocument, { id, input, confirmLoss, restoredMoves })).patchRoutine),
       (data, { id, input }) =>
         patchRoutine(data, id, (routine) => ({
           // Its values given are its own at once; inherited again or emptied, the refresh tells their values.
           ...ownedFields(routine, routineFieldsGiven(input)),
-          ...(Object.fromEntries(Object.entries(input).filter(([key]) => key !== 'inherit' && key !== 'clear')) as Partial<Routine>),
+          ...(Object.fromEntries(Object.entries(input).filter(([key]) => key !== 'inherit' && key !== 'clear' && key !== 'restoredMoves')) as Partial<Routine>),
           reminders: input.reminders ? readReminderOutputs(input.reminders) : routine.reminders,
         })),
       [tasksQueryKey],

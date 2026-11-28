@@ -475,6 +475,10 @@ const repetitionChangeFields = (t: InputFields) => ({
   slotCondition: t.field({ type: 'JSON', description: 'On or out of calendar schedules, following its rule; null: any time.' }),
 });
 
+/** Description of the exceptions restored with a save of a routine. */
+const RESTORED_MOVES_DESCRIPTION =
+  'Days of the rule of exceptions (moves, cancels) restored with the save (`removeRoutineMove`), all or nothing: a refusal or a failure restores none and saves nothing.';
+
 const RoutinePatch = builder.inputType('RoutinePatch', {
   description: 'Changes of a routine (omitted fields unchanged).',
   fields: (t) => ({
@@ -796,16 +800,24 @@ builder.mutationFields((t) => ({
       input: t.arg({ type: RoutineInputType, required: true }),
       restoring: t.arg.boolean({ description: 'Undo: archived values and hourless « avant » reminders given back are accepted, links out of the tree it moves back to are dropped; every other check is made.' }),
       confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
+      restoredMoves: t.arg({ type: ['Date'], description: RESTORED_MOVES_DESCRIPTION }),
     },
-    resolve: (_root, { id, input, restoring, confirmLoss }) =>
+    resolve: (_root, { id, input, restoring, confirmLoss, restoredMoves }) =>
       // An undo puts back what was there: nothing asked.
-      removedLinks(routines.updateRoutine(id, routineInput(input), { restoring: restoring ?? false, confirmLoss: restoring ? undefined : (confirmLoss ?? false) })),
+      removedLinks(
+        routines.withRestoredMoves(id, restoredMoves ?? [], () => routines.updateRoutine(id, routineInput(input), { restoring: restoring ?? false, confirmLoss: restoring ? undefined : (confirmLoss ?? false) })),
+      ),
   }),
   patchRoutine: t.field({
     type: RemovedLinksResult,
     description: 'Changes some fields of a routine (inline edits); moved to another project tree, it loses its links out of it (told back).',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutinePatch, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
-    resolve: async (_root, { id, input, confirmLoss }) => {
+    args: {
+      id: t.arg.id({ required: true }),
+      input: t.arg({ type: RoutinePatch, required: true }),
+      confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
+      restoredMoves: t.arg({ type: ['Date'], description: RESTORED_MOVES_DESCRIPTION }),
+    },
+    resolve: async (_root, { id, input, confirmLoss, restoredMoves }) => {
       const changes: Partial<RoutineInput> = {};
       if (input.label !== undefined && input.label !== null) changes.label = input.label;
       if (input.categoryIds) changes.categoryIds = input.categoryIds;
@@ -837,7 +849,7 @@ builder.mutationFields((t) => ({
       if (input.cases !== undefined && input.cases !== null) changes.cases = input.cases as RoutineInput['cases'];
       if (input.moments !== undefined && input.moments !== null) changes.moments = input.moments as RoutineInput['moments'];
       if (input.slotCondition !== undefined) changes.slotCondition = (input.slotCondition ?? null) as RoutineInput['slotCondition'];
-      return removedLinks(routines.patchRoutine(id, changes, { confirmLoss: confirmLoss ?? false, inherit: input.inherit, clear: input.clear }));
+      return removedLinks(routines.withRestoredMoves(id, restoredMoves ?? [], () => routines.patchRoutine(id, changes, { confirmLoss: confirmLoss ?? false, inherit: input.inherit, clear: input.clear })));
     },
   }),
   moveRoutine: t.boolean({

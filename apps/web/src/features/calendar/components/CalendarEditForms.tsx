@@ -1,5 +1,5 @@
-import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, XIcon } from '@phosphor-icons/react';
-import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
+import { ArrowSquareOutIcon, XIcon } from '@phosphor-icons/react';
+import { OccurrenceButton } from '../../../components/actions/OccurrenceButton';
 import { Fieldset, Group, Stack, Text, Switch } from '@mantine/core';
 import { withMovedRuleChoice } from '../../../components/recurrence/ask-moved-rule';
 import { changedScheduleSlot, routineSlotSchema, scheduleSlotTimeSchema, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
@@ -129,7 +129,7 @@ export function SlotEditForm({
         </Group>
       ) : (
         <Group gap={4}>
-          <DeleteButton onClick={() => onDelete(saved.current.schedule, saved.current.slot)} />
+          <OccurrenceButton action="delete" onClick={() => onDelete(saved.current.schedule, saved.current.slot)} />
           {menu}
         </Group>
       )}
@@ -158,18 +158,20 @@ interface OccurrenceValues extends Record<string, unknown> {
 /**
  * Panel of an occurrence of a routine from the calendar: its day and the times of one of its times of the day, each
  * saved as soon as it changes for the occurrences chosen when the panel opened (`scope`: this one, an
- * exception; it and the following ones; all; null: none chosen, read only); or cancelling it; or opening the routine.
+ * exception; it and the following ones; all; null: none chosen, read only); « Annuler » (struck through, kept) or
+ * « Supprimer » it (this one, or it and the following ones); or opening the routine.
  * Its time of the day is ticked there too (`RoutineTickButton`: « Faite le », its time changed, unticked), from its
  * first day. The occurrence of the cache is followed (moved or changed elsewhere). A cancelled occurrence is only given back
  * (« Rétablir »); one of an archived routine is read only, also when the routine is archived elsewhere while the panel
  * is open.
- * @param {{ occurrence: RoutineOccurrenceRef, movedFrom: string | null, scope: CalendarEventScope | null, onDelete: () => void, onRestore: () => void, onClose: () => void }} props Component props.
+ * @param {{ occurrence: RoutineOccurrenceRef, movedFrom: string | null, scope: CalendarEventScope | null, onCancel: () => void, onDelete: () => void, onRestore: () => void, onClose: () => void }} props Component props.
  * @returns {JSX.Element} Panel.
  */
 export function RoutineOccurrenceForm({
   occurrence,
   movedFrom,
   scope,
+  onCancel,
   onDelete,
   onRestore,
   onClose,
@@ -178,6 +180,7 @@ export function RoutineOccurrenceForm({
   /** Day of the rule it was moved from, if any (finds it in the cache once moved). */
   movedFrom: string | null;
   scope: CalendarEventScope | null;
+  onCancel: () => void;
   onDelete: () => void;
   onRestore: () => void;
   onClose: () => void;
@@ -254,11 +257,7 @@ export function RoutineOccurrenceForm({
             <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onClose}>
               Fermer
             </ActionButton>
-            {!archived && (
-              <ActionButton icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRestore}>
-                Rétablir
-              </ActionButton>
-            )}
+            {!archived && <OccurrenceButton action="restore" onClick={onRestore} />}
           </Group>
         </Group>
       </Stack>
@@ -313,7 +312,8 @@ export function RoutineOccurrenceForm({
         </Group>
       ) : (
         <Group gap={4}>
-          <DeleteButton onClick={onDelete} />
+          <OccurrenceButton action="cancel" onClick={onCancel} />
+          <OccurrenceButton action="delete" onClick={onDelete} />
           {openRoutine}
         </Group>
       )}

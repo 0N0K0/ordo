@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { formatDuration, readDeadTimes, readReminders, type DeadTime, type Reminder } from '@ordo/shared';
 import { countOf, removedLinksNote } from '../../../lib/text';
 import { summaryLabels } from '../../../components/actions/fold-summary';
@@ -307,8 +308,13 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
    * @returns {RoutineInput} Input.
    */
   const inputOf = (values: RoutineFormValues) => formInput(values, inheritanceOf(values).inheritedFields(values));
+  // Moves restored in the repetition modal: sent with the save of the repetition that follows, all or nothing.
+  const restoredMoves = useRef<string[]>([]);
   const { form, saving, commit, fieldProps } = useFieldSave(base, {
-    save: routine ? (_changes, values) => update.mutateAsync({ id: routine.id, input: inputOf(values) }) : null,
+    // Only the save of the repetition takes them (another field saved before it does not).
+    save: routine
+      ? (changes, values) => update.mutateAsync({ id: routine.id, input: inputOf(values), restoredMoves: ROUTINE_REPETITION_KEYS.some((key) => key in changes) ? restoredMoves.current.splice(0) : [] })
+      : null,
     schema: routineSchema,
     saved: current && routineFormValues(current),
     onBlur: ON_BLUR,
@@ -523,7 +529,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
               />
             </PanelGroup>
             <PanelGroup>
-              <RoutineRepetition {...scheduleProps} routine={current} inherited={{ from: parentName, state: inheritance.group(ROUTINE_REPETITION_FIELDS, ROUTINE_FIELD_LABELS), readOnly }} />
+              <RoutineRepetition {...scheduleProps} routine={current} onRestoreMoves={(froms) => (restoredMoves.current = [...froms])} inherited={{ from: parentName, state: inheritance.group(ROUTINE_REPETITION_FIELDS, ROUTINE_FIELD_LABELS), readOnly }} />
             </PanelGroup>
           </>
         }

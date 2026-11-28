@@ -5,6 +5,7 @@ import { FormActions } from '../dialogs/FormActions';
 import { InModalContext } from '../dialogs/in-modal';
 import { ActionButton } from '../actions/ActionButton';
 import { ExceptionsSummary } from './ExceptionsSummary';
+import { ExceptionsFocusContext } from './exceptions-focus';
 import type { ExceptionLine } from './exceptions';
 
 interface RepetitionFieldProps<V> {
@@ -41,14 +42,18 @@ interface RepetitionFieldProps<V> {
  */
 export function RepetitionField<V>({ value, onChange, describe, editor, valid, label = 'Répétition', description, error, required, editable = true, emptyText = 'Ne se répète pas', exceptions }: RepetitionFieldProps<V>) {
   const [opened, setOpened] = useState(false);
+  // Opened by « Modifier les exceptions »: scrolled to them.
+  const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState<V>(value);
   const lines = describe(value);
   /**
-   * Opens the modal on a draft of the value.
+   * Opens the modal on a draft of the value: at its top, or scrolled to its exceptions.
+   * @param {boolean} [exceptionsFirst] Scrolled to its exceptions. Optional. Default = at its top.
    * @returns {void}
    */
-  const open = () => {
+  const open = (exceptionsFirst = false) => {
     setDraft(value);
+    setFocused(exceptionsFirst);
     setOpened(true);
   };
   return (
@@ -73,7 +78,7 @@ export function RepetitionField<V>({ value, onChange, describe, editor, valid, l
             size="xs"
             icon={<PencilSimpleIcon aria-hidden />}
             style={{ flex: 'none' }}
-            onClick={open}
+            onClick={() => open()}
           >
             Modifier
           </ActionButton>
@@ -81,10 +86,10 @@ export function RepetitionField<V>({ value, onChange, describe, editor, valid, l
       </Group>
       {exceptions && (
         <Stack mt="sm">
-          <ExceptionsSummary lines={exceptions(value)} onEdit={editable ? open : undefined} />
+          <ExceptionsSummary lines={exceptions(value)} onEdit={editable ? () => open(true) : undefined} />
         </Stack>
       )}
-      <RepetitionModal opened={opened} onClose={() => setOpened(false)} title={label} draft={draft} setDraft={setDraft} editor={editor} valid={valid} onApply={onChange} />
+      <RepetitionModal opened={opened} onClose={() => setOpened(false)} title={label} draft={draft} setDraft={setDraft} editor={editor} valid={valid} onApply={onChange} exceptionsFirst={focused} />
     </Input.Wrapper>
   );
 }
@@ -103,6 +108,8 @@ interface RepetitionModalProps<V> {
   onApply: (value: V) => void;
   /** Above the settings (what it applies to…). Optional. */
   header?: ReactNode;
+  /** Scrolled to its exceptions once shown (« Modifier les exceptions »). Optional. Default = at its top. */
+  exceptionsFirst?: boolean;
 }
 
 /**
@@ -112,11 +119,13 @@ interface RepetitionModalProps<V> {
  * @param {RepetitionModalProps<V>} props Component props.
  * @returns {JSX.Element} Modal.
  */
-export function RepetitionModal<V>({ opened, onClose, title, draft, setDraft, editor, valid, onApply, header }: RepetitionModalProps<V>) {
+export function RepetitionModal<V>({ opened, onClose, title, draft, setDraft, editor, valid, onApply, header, exceptionsFirst = false }: RepetitionModalProps<V>) {
   return (
     <Modal opened={opened} onClose={onClose} title={title} size="xl">
       <InModalContext.Provider value>
-        <DraftSettings draft={draft} setDraft={setDraft} editor={editor} valid={valid} onApply={onApply} onClose={onClose} header={header} />
+        <ExceptionsFocusContext.Provider value={exceptionsFirst}>
+          <DraftSettings draft={draft} setDraft={setDraft} editor={editor} valid={valid} onApply={onApply} onClose={onClose} header={header} />
+        </ExceptionsFocusContext.Provider>
       </InModalContext.Provider>
     </Modal>
   );

@@ -145,6 +145,16 @@ Rangée d'actions sans titre (sous une liste, au-dessus d'une liste vide), toujo
 
 `FoldHeading` : en-tête d'une section, d'un groupe ou d'une liste qui se plie, toute la ligne cliquable, partout (groupes de tableau compris) : chevron, `icon`, titre, compte (`CountBadge` gris `xs`, la taille des compteurs de groupe), `aside` à droite. Props : `expanded`, `onToggle`, `children`, `count`, `icon`, `aside`, `inline` (petit bouton dans une cellule, « détails (3) »), `about`, `radius` (défaut `sm`), `summary` (après le titre, « Alarmes · 15 min avant, à 08:00 +2 », sur une ligne coupée par « … », en entier dans une infobulle au survol et au focus clavier, et pour les lecteurs d'écran par un texte caché ; `fold-summary.ts`) ; les autres props vont au bouton. Le clic ne remonte pas. Styles : `FoldHeading.module.css`. Imposé par eslint pour tout bouton `aria-expanded` sans `aria-haspopup` et tout en-tête au-dessus d'un `Collapse`.
 
+## `occurrence-entries.tsx`, `OccurrenceButton.tsx`
+
+Actions d'une occurrence d'une répétition, les mêmes mots partout (évènements, routines, créneaux, éphémérides) : « Annuler » (elle reste affichée, barrée, avec ses commentaires ; agenda-croix), « Rétablir » (flèche de retour), « Supprimer » (rien ce jour-là, ou celle-ci et les suivantes ; corbeille, rouge).
+
+- `OccurrenceAction` (type) : `cancel`, `restore`, `delete` ; `OCCURRENCE_ACTIONS` : leurs mots et icônes.
+- `occurrenceEntry(action, onClick, disabled?)` : entrée du menu « … » (`RowMenuEntry`). Utilisé par `useEventMenu`.
+- `OccurrenceButton({ action, onClick, loading? })` : bouton d'un panneau sans menu (« Supprimer » en rouge ; « Annuler » se rétablit). Utilisé par `RoutineOccurrenceForm`, `SlotEditForm`, `RoutineMoveForm`.
+
+Garde eslint : « Annuler l’évènement », « Annuler cette occurrence », « Annuler l’occurrence » (texte d'un bouton) écrits à la main sont refusés.
+
 ## `move-entries.tsx`
 
 `moveEntries(index, count, move)` : entrées « Monter » / « Descendre » d'un élément d'une liste ordonnée, désactivées aux extrémités. Utilisé dans la facturation, les espaces et les tableaux de bord.

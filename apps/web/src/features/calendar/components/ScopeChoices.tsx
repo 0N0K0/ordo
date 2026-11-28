@@ -1,13 +1,11 @@
-import { ArrowCounterClockwiseIcon, CheckIcon, ProhibitIcon, TrashIcon } from '@phosphor-icons/react';
+import { CheckIcon } from '@phosphor-icons/react';
+import { OCCURRENCE_ACTIONS } from '../../../components/actions/occurrence-entries';
 import type { CalendarEventScope } from '../api';
 import { ChoiceList } from '../../../components/dialogs/ChoiceList';
 
 export interface ScopeQuestion {
-  /**
-   * What the answer does; `cancelOrDelete`: this occurrence is cancelled (it stays, struck through), it and the
-   * following ones are deleted (a routine).
-   */
-  action: 'update' | 'delete' | 'cancel' | 'restore' | 'cancelOrDelete';
+  /** What the answer does. */
+  action: 'update' | 'delete' | 'cancel' | 'restore';
   /** Whether the occurrence alone can be changed (not when the repetition changed). */
   allowThis?: boolean;
   /** Whether it and the following ones can be changed. Optional. Default = true. */
@@ -26,21 +24,9 @@ export interface ScopeQuestion {
  * @returns {JSX.Element} Choices.
  */
 export function ScopeChoices({ action, allowThis = true, allowFollowing = true, allowAll = true, note, onAnswer }: ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }) {
-  if (action === 'cancelOrDelete') {
-    return (
-      <ChoiceList
-        question={`Annuler cette occurrence (elle reste dans l’agenda, barrée, et pourra être rétablie), ou supprimer celle-ci et les suivantes (définitif) ?${note ? ` ${note}` : ''}`}
-        choices={[
-          ...(allowThis ? [{ value: 'THIS' as const, label: 'Annuler cette occurrence', icon: <ProhibitIcon aria-hidden /> }] : []),
-          ...(allowFollowing ? [{ value: 'FOLLOWING' as const, label: 'Supprimer celle-ci et les suivantes', icon: <TrashIcon aria-hidden />, danger: true }] : []),
-        ]}
-        onAnswer={onAnswer}
-      />
-    );
-  }
   const remove = action === 'delete';
   // Each answer applies the change: filled, red for a deletion.
-  const icon = remove ? <TrashIcon aria-hidden /> : action === 'cancel' ? <ProhibitIcon aria-hidden /> : action === 'restore' ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckIcon aria-hidden />;
+  const icon = remove ? OCCURRENCE_ACTIONS.delete.icon : action === 'cancel' ? OCCURRENCE_ACTIONS.cancel.icon : action === 'restore' ? OCCURRENCE_ACTIONS.restore.icon : <CheckIcon aria-hidden />;
   const question = remove
     ? 'Quelles occurrences supprimer ? La suppression est définitive.'
     : action === 'cancel'

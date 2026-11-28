@@ -13,7 +13,7 @@ import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { rangeProps } from '../../../components/inputs/date-range';
 import { PeriodField } from '../../../components/inputs/PeriodField';
 import { ExceptionsList, type ExceptionEntry } from '../../../components/recurrence/ExceptionsList';
-import { casesSkippedEntries, skippedLines, SKIPPED_KIND, type ExceptionLine } from '../../../components/recurrence/exceptions';
+import { casesDayAdding, casesSkippedEntries, skippedLines, SKIPPED_KIND, type ExceptionLine } from '../../../components/recurrence/exceptions';
 
 /** Period, cases and exceptions of a schedule: everything about how it repeats. */
 interface ScheduleRepetitionValue {
@@ -204,6 +204,7 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
       </Text>
       <ExceptionsList
         entries={entries}
+        add={casesDayAdding(draft.cases, start, (cases) => setDraft({ ...draft, cases }))}
         footer={
           <AddItemButton onClick={() => setDraft({ ...draft, exceptions: [...draft.exceptions, { from: parisToday(), to: parisToday(), label: 'Congés', cases: [] }] })}>
             Ajouter une exception

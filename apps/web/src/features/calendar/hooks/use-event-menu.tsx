@@ -1,5 +1,6 @@
 import type { CalendarEventInput } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon } from '@phosphor-icons/react';
+import { occurrenceEntry } from '../../../components/actions/occurrence-entries';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
@@ -23,7 +24,7 @@ export interface EventMenuTarget {
   eventId: string;
   /** Occurrence in its series (null: a single event). */
   occurrenceDate: string | null;
-  /** Occurrences « Annuler l’évènement » / « Rétablir » apply to. */
+  /** Occurrences « Annuler » / « Rétablir » apply to. */
   scope: CalendarEventScope;
 }
 
@@ -47,7 +48,7 @@ export interface EventMenuOptions {
 }
 
 /**
- * « … » menu of an occurrence of an event, the same in its panel and in a list: « Dupliquer », « Annuler l’évènement »
+ * « … » menu of an occurrence of an event, the same in its panel and in a list: « Dupliquer », « Annuler »
  * / « Rétablir », « Reporter », « Archiver » / « Restaurer » (the whole series), « Supprimer » (asking which occurrences
  * for a recurring one, telling the times and comments deleted with it), then « Lancer » its saved timers for this
  * occurrence; read only: archived or restored, and deleted, only. No occurrence: no entry.
@@ -142,13 +143,13 @@ export function useEventMenu(occurrence: EventOccurrence | undefined, options: E
     ...(readOnly
       ? []
       : occurrence.calledOff
-        ? [{ label: 'Rétablir', icon: <ArrowCounterClockwiseIcon aria-hidden />, disabled: setCalledOff.isPending, onClick: () => handleCalledOff(false) }]
+        ? [occurrenceEntry('restore', () => handleCalledOff(false), setCalledOff.isPending)]
         : [
-            { label: 'Annuler l’évènement', icon: <CalendarXIcon aria-hidden />, disabled: setCalledOff.isPending, onClick: () => handleCalledOff(true) },
+            occurrenceEntry('cancel', () => handleCalledOff(true), setCalledOff.isPending),
             { label: 'Reporter', icon: <ArrowArcRightIcon aria-hidden />, onClick: openPostpone },
           ]),
     !calendarArchived && archiveEntry({ archived: occurrence.archived, type: 'Évènement', label: occurrence.label }, setArchived, target.eventId, onDone),
-    { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, disabled: remove.isPending, onClick: () => void handleDelete() },
+    occurrenceEntry('delete', () => void handleDelete(), remove.isPending),
     // « Lancer » its saved timers, for this occurrence.
     ...(readOnly ? [] : countdownEntries({ savedCountdownIds }, eventCountdownItem({ eventId: target.eventId, label: fields.label || occurrence.label }, target.occurrenceDate))),
   ];

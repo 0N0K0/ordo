@@ -53,7 +53,7 @@ import { checkLinkedDocuments, LINKED_DOCUMENTS_SELECT, linkedDocumentIds } from
 import { loadProjectRootOf } from '../projects/project-tree';
 import { releaseSubjectTime, type GoneOccurrences } from '../tasks/time-entries';
 import { toJson } from '../core/json';
-import { confirmLostOccurrences, deleteGoneOccurrenceRows, remapOccurrenceRows } from '../core/occurrence-rows';
+import { assertLossConfirmed, confirmLostOccurrences, deleteGoneOccurrenceRows, remapOccurrenceRows } from '../core/occurrence-rows';
 import { placeLegacyComments } from '../core/comments';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
@@ -124,6 +124,28 @@ export interface EventOccurrence {
   trackedSeconds: number;
   /** Changed on its own: its fields as its series has them on its date (what « Toutes les occurrences » edits); else null. */
   series: EventSeriesFields | null;
+}
+
+/** An occurrence of a series deleted, cancelled or changed alone (`CalendarEventException`), as its exceptions list it. */
+export interface EventException {
+  /** Day of its rule: the day that identifies it (its comments, times, checklist). */
+  date: string;
+  /** Deleted alone: nothing that day. */
+  cancelled: boolean;
+  /** Cancelled, kept struck through. */
+  calledOff: boolean;
+  /** Postponed: the first day of its postponement; else null. */
+  postponedTo: string | null;
+  /** Days and hours it shows on (those of its series when not moved). */
+  allDay: boolean;
+  startDate: string;
+  startTime: string | null;
+  endDate: string;
+  endTime: string | null;
+  /** Other hours (or days length, or whole day) than its series on its day. */
+  otherHours: boolean;
+  /** Another label, description, place, links or travel than its series on its day. */
+  changed: boolean;
 }
 
 /** Fields an occurrence changed on its own may have apart from its series. */
@@ -1221,6 +1243,91 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     ),
     series: change ? seriesFieldsOf(toOccurrence(event, date, undefined)) : null,
   };
+}
+
+/** Fields of an occurrence whose change makes it « modified » apart from its days and hours. */
+const CHANGED_FIELDS = ['label', 'description', 'location', 'travelBefore', 'travelAfter'] as const;
+
+/**
+ * Occurrences of a recurring event deleted, cancelled or changed alone, sorted by day: those on a day of its rule
+ * (one its rule no longer has is left, as in its exports).
+ * @param {EventWithRelations} event Event.
+ * @returns {EventException[]} Exceptions.
+ */
+function eventExceptions(event: EventWithRelations): EventException[] {
+  const rule = storedRecurrence(event.recurrence);
+  const start = formatDay(event.startDate);
+  return rule
+    ? event.exceptions
+        .map((change) => ({ change, date: formatDay(change.date) }))
+        .filter(({ date }) => occursOn(rule, start, date))
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map(({ change, date }): EventException => {
+          const own = toOccurrence(event, date, change);
+          const series = toOccurrence(event, date, undefined);
+          const postponement = own.postponedTo[0];
+          return {
+            date,
+            cancelled: change.cancelled,
+            calledOff: change.calledOff,
+            postponedTo: postponement ? postponement.startDate : null,
+            allDay: own.allDay,
+            startDate: own.startDate,
+            startTime: own.startTime,
+            endDate: own.endDate,
+            endTime: own.endTime,
+            otherHours: own.allDay !== series.allDay || own.startTime !== series.startTime || own.endTime !== series.endTime || daysBetween(own.startDate, own.endDate) !== daysBetween(series.startDate, series.endDate),
+            changed: CHANGED_FIELDS.some((field) => own[field] !== series[field]) || JSON.stringify(own.links) !== JSON.stringify(series.links),
+          };
+        })
+    : [];
+}
+
+/**
+ * Occurrences of an event deleted, cancelled or changed alone, sorted by day (`eventExceptions`); none for a one-off
+ * event.
+ * @param {string} id Event.
+ * @returns {Promise<EventException[]>} Exceptions.
+ */
+export async function calendarEventExceptions(id: string): Promise<EventException[]> {
+  return eventExceptions(await findEventWithRelations(id));
+}
+
+/**
+ * Removes an exception of a recurring event (an occurrence deleted, cancelled or changed alone): the occurrence goes
+ * back to its series, on its day and hours there, with the fields of its series. Its comments, times and checklist
+ * stay (they are on the day that identifies it); its routine links follow it back (each moved by as many days as it
+ * is, to the occurrence of its routine shown on the new day, `shiftedRoutineLink`, `resolveRoutineLinks`); those that
+ * then fall on no day of it, or find no occurrence of their routine, go once confirmed (`confirmLoss`:
+ * CONFIRMATION_REQUIRED with `lost.links`).
+ * @param {string} id Event.
+ * @param {string} occurrenceDate Day of the rule of the occurrence.
+ * @param {boolean} [confirmLoss] Loss confirmed (true), to confirm (false). Optional. Default = false.
+ * @returns {Promise<void>}
+ */
+export async function restoreEventException(id: string, occurrenceDate: string, confirmLoss = false): Promise<void> {
+  const loaded = await findEventWithRelations(id);
+  await assertEventWritable(loaded);
+  const occurrence = occurrenceOf(loaded, occurrenceDate);
+  const change = occurrence && loaded.exceptions.find((item) => formatDay(item.date) === occurrence.date);
+  if (!occurrence || !change) throw notFound('Exception');
+  // Its days as shown now and once back in its series: its routine links move by as many days.
+  const back = toOccurrence(loaded, occurrence.date, undefined);
+  const { held, occurrences } = await shownRoutineLinks(loaded);
+  const own = change.cancelled ? [] : held.filter((link) => linkedEventOccurrence(occurrences, link.day) === occurrence.date);
+  const shift = change.cancelled ? 0 : daysBetween(shownOccurrence(loaded, occurrence.date).startDate, back.startDate);
+  const moved = own.map((link) => shiftedRoutineLink({ routineId: link.routineId, date: formatDay(link.date) }, link.day, shift));
+  const within = moved.filter((link) => link.shownDate >= back.startDate && link.shownDate <= back.endDate);
+  const resolved = shift === 0 ? within.map(({ routineId, date }) => ({ routineId, date })) : await resolveRoutineLinks(within);
+  // Each once by `routineId|date`: two going to the same occurrence of a routine make one, the other is lost.
+  const links = [...new Map(resolved.map((link) => [occurrenceKey(link.routineId, link.date), link])).values()];
+  assertLossConfirmed([{ times: 0, comments: 0, checklists: 0, links: own.length - links.length }], confirmLoss);
+  await prisma.$transaction(async (tx) => {
+    await tx.calendarEventException.delete({ where: { id: change.id } });
+    if (!own.length) return;
+    await tx.calendarEventRoutine.deleteMany({ where: { id: { in: own.map((link) => link.id) } } });
+    await tx.calendarEventRoutine.createMany({ data: links.map((link) => ({ eventId: id, routineId: link.routineId, date: parseDay(link.date) })), skipDuplicates: true });
+  });
 }
 
 /**

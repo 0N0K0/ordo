@@ -230,7 +230,7 @@ function RoutineGroupRow({ row, item, today, day }: RowContext & { row: Row<MyDa
 }
 
 /**
- * Row of an occurrence of an event: no state button (« Annuler l’évènement » / « Reporter » in its menu), its name (its
+ * Row of an occurrence of an event: no state button (« Annuler » / « Reporter » in its menu), its name (its
  * panel), its chrono and its menu; cancelled, struck through; over several days, its first or last day told.
  * @param {RowContext & { row: Row<MyDayEntry>, item: MyDayEvent }} props Component props.
  * @returns {JSX.Element} Row.

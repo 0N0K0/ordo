@@ -1,5 +1,5 @@
 import { Group, Input, Stack, Text } from '@mantine/core';
-import { HOURS_START_REQUIRED, hoursCaseNeedsStart, taskHoursSchema, type ScheduleCase } from '@ordo/shared';
+import { HOURS_START_REQUIRED, hoursCaseNeedsStart, OWN_CASES_START, taskHoursSchema, type ScheduleCase } from '@ordo/shared';
 import { TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
@@ -10,7 +10,7 @@ import { ScheduleCases } from '../../calendar/components/ScheduleRepetition';
 import { newScheduleCase } from '../../calendar/lib/schedule-text';
 import { taskHoursLines } from '../lib/task-hours-text';
 import { ExceptionsList } from '../../../components/recurrence/ExceptionsList';
-import { casesSkippedEntries, skippedLines, type ExceptionLine } from '../../../components/recurrence/exceptions';
+import { casesDayAdding, casesSkippedEntries, skippedLines, type ExceptionLine } from '../../../components/recurrence/exceptions';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 
 /**
@@ -54,11 +54,9 @@ function TaskHoursEditor({ draft, setDraft, start }: { draft: ScheduleCase[]; se
     <Stack gap="sm">
       <ScheduleCases cases={draft} onChange={setDraft} start={start} caseStart={HOURS_CASE_START} />
       {issue && <Input.Error>{issue}</Input.Error>}
-      {exceptions.length > 0 && (
-        <LabeledField label="Exceptions">
-          <ExceptionsList entries={exceptions} />
-        </LabeledField>
-      )}
+      <LabeledField label="Exceptions">
+        <ExceptionsList entries={exceptions} add={casesDayAdding(draft, OWN_CASES_START, setDraft, start)} />
+      </LabeledField>
       <Group>
         <ActionButton priority="tertiary" danger icon={<TrashIcon aria-hidden />} onClick={() => setDraft([])}>
           Retirer les horaires

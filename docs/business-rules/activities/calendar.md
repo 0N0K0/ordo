@@ -110,6 +110,11 @@ Annulation / rétablissement (`setEventCalledOff`) — l’évènement reste aff
 - `THIS` : drapeau de l’exception existante seule (une occurrence rétablie d’une série annulée reste annulée avec elle), sinon une exception est créée avec tous les champs actuels de l’occurrence ;
 - `FOLLOWING` : la série est coupée (comme une modification `FOLLOWING`, sans décalage) et le nouvel évènement porte l’état ; rien d’autre ne change : les liens de routines suivent leurs occurrences tels quels (aucun n’est renvoyé : une occurrence déplacée seule garde les siens).
 
+Exceptions d'un évènement récurrent (`calendarEventExceptions`, `restoreCalendarEventException`) :
+
+- Ses exceptions sont ses occurrences supprimées (« rien »), annulées ou reportées, ou modifiées seules (`CalendarEventException`), celles d'un jour de sa règle, triées par jour : pour chacune, le jour qui l'identifie, `cancelled`, `calledOff`, `postponedTo` (le premier jour de son report), ses jours et heures, `otherHours` (autres heures, autre longueur ou journée entière que sa série ce jour-là) et `changed` (autre libellé, description, lieu, liens ou trajets).
+- `restoreCalendarEventException(id, occurrenceDate, confirmLoss?)` retire l'exception : l'occurrence revient à sa série (ses jours, heures et champs ce jour-là). Ses commentaires, temps et liste à cocher restent (ils sont sur le jour qui l'identifie) ; ses liens de routines la suivent, décalés d'autant de jours qu'elle (`shiftedRoutineLink`, `resolveRoutineLinks` : l'occurrence de la routine affichée le nouveau jour) ; ceux qui tombent alors hors de ses jours ou sans occurrence de leur routine partent, une fois confirmé (sans `confirmLoss: true`, rien n'est changé : `CONFIRMATION_REQUIRED`, `lost.links`). Évènement archivé ou de calendrier archivé : refusé ; occurrence sans exception : « Exception » introuvable. Une occurrence reportée rétablie revient ; son report reste, avec ce qu'il a emporté.
+
 Report (`postponeCalendarEvent`) :
 
 - crée un évènement unique (répétition supprimée) avec les champs donnés, lié par `postponedFromId` et `postponedFromDate` (l’occurrence d’origine) ;

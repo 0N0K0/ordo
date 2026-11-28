@@ -1,6 +1,6 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import { changedScheduleSlot, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
-import { notifyFailure, notifySuccess, notifyWithUndo, ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
+import { notifyError, notifyFailure, notifyWithUndo, ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
 import { ruleScheduleInput, useWorkScheduleMutations, type CalendarEventScope } from '../api';
@@ -9,6 +9,8 @@ import { withMovedRuleChoice } from '../../../components/recurrence/ask-moved-ru
 import { fetchLostOnDelete } from '../../time/api';
 import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { RoutineOccurrenceForm, SlotEditForm } from '../components/CalendarEditForms';
+import { INHERITED_SKIP_REFUSAL, skippedRepetition } from '../../routines/lib/skipped-repetition';
+import { confirmCancelOccurrence } from '../../routines/lib/confirm-cancel';
 
 /** Time of the day of a routine occurrence shown in the calendar. */
 interface RoutineSlotTimes {
@@ -43,7 +45,7 @@ export interface RoutineOccurrenceRef {
  */
 export function useCalendarEdits() {
   const { update } = useWorkScheduleMutations();
-  const { changeOccurrence, deleteOccurrence, removeMove } = useRoutineMutations();
+  const { changeOccurrence, deleteOccurrence, removeMove, patch } = useRoutineMutations();
 
   /**
    * Moves, stretches or deletes (no change) a slot of a schedule (a créneau or an éphéméride: its own words); an
@@ -105,35 +107,43 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Cancels an occurrence of a routine (it stays shown struck through, with its comments), or deletes it and
-   * the following ones, telling the comments deleted with them; « Annuler » gives a single occurrence back.
+   * Cancels an occurrence of a routine, once confirmed: it stays shown struck through, with its comments; « Annuler »
+   * of the toast gives it back as it was (its day, kept apart, its times).
+   * @param {RoutineOccurrenceRef} occurrence Occurrence.
+   * @param {string | null} movedFrom Day of the rule it was moved from, if any.
+   * @returns {void}
+   */
+  const cancelRoutine = (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
+    const { routine, date, dueDate } = occurrence;
+    confirmCancelOccurrence(dueDate, () =>
+      deleteOccurrence.mutateAsync({ id: routine.id, date, scope: 'THIS' }).then(({ comments }) => {
+        notifyWithUndo(`Occurrence du ${fmt.dayLong(dueDate)} annulée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments, undo: true }, ON_ERROR));
+      }),
+    );
+  };
+
+  /**
+   * Deletes an occurrence of a routine, asking which ones: this one (a « rien » exception on the day of its rule, on
+   * every case that has that day: its comments, checklist and links go, once confirmed), or it and the following ones
+   * (the repetition stops before it, telling what is deleted with them).
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
    * @returns {Promise<void>}
    */
-  const removeRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
+  const deleteRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
     const { routine, date, dueDate } = occurrence;
-    const [THIS, FOLLOWING] = await Promise.all((['THIS', 'FOLLOWING'] as const).map((scope) => fetchLostOnDelete({ routineOccurrence: { id: routine.id, date, scope } })));
-    // This one is cancelled (it stays, struck through), it and the following ones really disappear.
-    const scope = await askScope({
-      action: 'cancelOrDelete',
-      title: 'Annuler ou supprimer une occurrence de routine',
-      allowFollowing: true,
-      allowAll: false,
-      note: scopeLostNote({ THIS, FOLLOWING }),
-    });
+    const FOLLOWING = await fetchLostOnDelete({ routineOccurrence: { id: routine.id, date, scope: 'FOLLOWING' } });
+    const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowAll: false, note: scopeLostNote({ FOLLOWING }) });
     if (!scope) return;
+    if (scope === 'THIS') {
+      const input = skippedRepetition(routine, movedFrom ?? date);
+      if (!input) return notifyError(INHERITED_SKIP_REFUSAL);
+      patch.mutate({ id: routine.id, input }, toastCallbacks(`Occurrence du ${fmt.dayLong(dueDate)} supprimée.`));
+      return;
+    }
     deleteOccurrence.mutate(
       { id: routine.id, date, scope },
-      {
-        onError: onMutationError,
-        onSuccess: ({ archived, comments }) => {
-          if (archived) notifySuccess(`Plus aucune occurrence : « ${routine.label} » est archivée.`);
-          // « Annuler » gives the occurrence back as it was before (its day, kept apart, its times), with its comments.
-          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(dueDate)} annulée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments, undo: true }, ON_ERROR));
-          else notifySuccess(`« ${routine.label} » s’arrête avant le ${fmt.dayLong(dueDate)}.`);
-        },
-      },
+      toastCallbacks(({ archived }: { archived: boolean }) => (archived ? `Plus aucune occurrence : « ${routine.label} » est archivée.` : `« ${routine.label} » s’arrête avant le ${fmt.dayLong(dueDate)}.`)),
     );
   };
 
@@ -184,9 +194,13 @@ export function useCalendarEdits() {
         movedFrom={movedFrom}
         scope={scope}
         onClose={close}
+        onCancel={() => {
+          close();
+          cancelRoutine(occurrence, movedFrom);
+        }}
         onDelete={() => {
           close();
-          void removeRoutine(occurrence, movedFrom);
+          void deleteRoutine(occurrence, movedFrom);
         }}
         onRestore={() => {
           close();

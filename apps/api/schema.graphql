@@ -493,6 +493,35 @@ input CalendarCategoryInput {
   parentId: ID
 }
 
+"""An occurrence of a series deleted, cancelled or changed alone."""
+type CalendarEventException {
+  allDay: Boolean!
+
+  """Cancelled, kept struck through."""
+  calledOff: Boolean!
+
+  """Deleted alone: nothing that day."""
+  cancelled: Boolean!
+
+  """
+  Another label, description, place, links or travel than its series on its day.
+  """
+  changed: Boolean!
+
+  """Day of its rule: the day that identifies it (YYYY-MM-DD)."""
+  date: String!
+  endDate: String!
+  endTime: String
+
+  """Other hours (or length, or whole day) than its series on its day."""
+  otherHours: Boolean!
+
+  """Postponed: the first day of its postponement."""
+  postponedTo: String
+  startDate: String!
+  startTime: String
+}
+
 """Times are Paris times; all-day events have none."""
 input CalendarEventInput {
   allDay: Boolean!
@@ -2633,6 +2662,11 @@ type Mutation {
     confirmLoss: Boolean
     id: ID!
     input: RoutinePatch!
+
+    """
+    Days of the rule of exceptions (moves, cancels) restored with the save (`removeRoutineMove`), all or nothing: a refusal or a failure restores none and saves nothing.
+    """
+    restoredMoves: [Date!]
   ): RemovedLinksResult!
 
   """
@@ -2722,6 +2756,18 @@ type Mutation {
   """
   resetChecklist(id: ID!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
+
+  """
+  Removes an exception of a recurring event (an occurrence deleted, cancelled or changed alone): it goes back to its series, its comments, times and checklist kept, its routine links following it; those it can no longer have go once confirmed.
+  """
+  restoreCalendarEventException(
+    """
+    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
+    """
+    confirmLoss: Boolean
+    id: ID!
+    occurrenceDate: Date!
+  ): Boolean!
 
   """
   Resumes the iteration sync of a link stopped after a write GitHub did not keep as sent.
@@ -3101,6 +3147,11 @@ type Mutation {
     input: RoutineInput!
 
     """
+    Days of the rule of exceptions (moves, cancels) restored with the save (`removeRoutineMove`), all or nothing: a refusal or a failure restores none and saves nothing.
+    """
+    restoredMoves: [Date!]
+
+    """
     Undo: archived values and hourless « avant » reminders given back are accepted, links out of the tree it moves back to are dropped; every other check is made.
     """
     restoring: Boolean
@@ -3443,6 +3494,11 @@ type Query {
     archived: Boolean
   ): [Birthday!]!
   calendarCategories: [CalendarCategory!]!
+
+  """
+  Occurrences of a recurring event deleted, cancelled or changed alone, by day (those on a day of its rule); none for a one-off event.
+  """
+  calendarEventExceptions(id: ID!): [CalendarEventException!]!
 
   """Occurrences of the events overlapping a period (dates included)."""
   calendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!

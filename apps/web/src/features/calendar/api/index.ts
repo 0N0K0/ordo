@@ -7,6 +7,7 @@ import type {
   BirthdaysQuery,
   CalendarEventInput,
   CalendarEventOccurrenceFieldsFragment,
+  CalendarEventExceptionsQuery,
   CalendarEventScope,
   CalendarEventsQuery,
   CalendarsQuery,
@@ -102,6 +103,24 @@ graphql(`
       endTime
       travelBefore
       travelAfter
+    }
+  }
+`);
+
+const EventExceptionsDocument = graphql(`
+  query CalendarEventExceptions($id: ID!) {
+    calendarEventExceptions(id: $id) {
+      date
+      cancelled
+      calledOff
+      postponedTo
+      allDay
+      startDate
+      startTime
+      endDate
+      endTime
+      otherHours
+      changed
     }
   }
 `);
@@ -317,6 +336,12 @@ const SetCalledOffDocument = graphql(`
   }
 `);
 
+const RestoreExceptionDocument = graphql(`
+  mutation RestoreCalendarEventException($id: ID!, $occurrenceDate: Date!, $confirmLoss: Boolean) {
+    restoreCalendarEventException(id: $id, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)
+  }
+`);
+
 const PostponeDocument = graphql(`
   mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {
     postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)
@@ -525,6 +550,22 @@ export function useCalendarEvents(range: { from: string; to: string } | null, in
   });
 }
 
+/** An occurrence of a series deleted, cancelled or changed alone. */
+export type EventException = CalendarEventExceptionsQuery['calendarEventExceptions'][number];
+
+/**
+ * Occurrences of a recurring event deleted, cancelled or changed alone, by day; reloaded with the calendar.
+ * @param {string | null} id Event (none: nothing loaded).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useEventExceptions(id: string | null) {
+  return useQuery({
+    queryKey: [...calendarQueryKey, 'exceptions', id],
+    queryFn: async () => (await execute(EventExceptionsDocument, { id: id! })).calendarEventExceptions,
+    enabled: id !== null,
+  });
+}
+
 /**
  * Event occurrences of a period (reminders included), of the workspace of this tab or of another one; the archived
  * ones (and those of archived calendars) left out.
@@ -653,6 +694,12 @@ export function useCalendarEventMutations() {
     ),
     setCalledOff: useCalendarMutation(
       async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null; calledOff: boolean }) => (await execute(SetCalledOffDocument, variables)).setCalendarEventCalledOff,
+    ),
+    // An occurrence deleted, cancelled or changed alone goes back to its series; the routine links it can no longer have
+    // are confirmed first (`withLossConfirmation`).
+    restoreException: useCalendarMutation(
+      async (variables: { id: string; occurrenceDate: string }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(RestoreExceptionDocument, { ...variables, confirmLoss })).restoreCalendarEventException),
     ),
     postpone: useCalendarMutation(async (variables: { id: string; occurrenceDate: string | null; input: CalendarEventInput }) => (await execute(PostponeDocument, variables)).postponeCalendarEvent,
       [tasksQueryKey],

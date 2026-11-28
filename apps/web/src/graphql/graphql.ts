@@ -2381,6 +2381,13 @@ export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, usern
 
 export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, locationLat: number | null, locationLon: number | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, libraryDocumentIds: Array<string>, projectResourceIds: Array<string>, savedCountdownIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, routineLinks: Array<{ routineId: string, date: string, shownDate: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }>, series: { label: string, description: string | null, location: string | null, locationLat: number | null, locationLon: number | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, travelBefore: number, travelAfter: number, links: Array<{ url: string, label: string }> } | null };
 
+export type CalendarEventExceptionsQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type CalendarEventExceptionsQuery = { calendarEventExceptions: Array<{ date: string, cancelled: boolean, calledOff: boolean, postponedTo: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, otherHours: boolean, changed: boolean }> };
+
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -2526,6 +2533,15 @@ export type SetCalendarEventCalledOffMutationVariables = Exact<{
 
 
 export type SetCalendarEventCalledOffMutation = { setCalendarEventCalledOff: boolean };
+
+export type RestoreCalendarEventExceptionMutationVariables = Exact<{
+  id: string | number;
+  occurrenceDate: string;
+  confirmLoss?: boolean | null | undefined;
+}>;
+
+
+export type RestoreCalendarEventExceptionMutation = { restoreCalendarEventException: boolean };
 
 export type PostponeCalendarEventMutationVariables = Exact<{
   id: string | number;
@@ -3715,6 +3731,7 @@ export type UpdateRoutineMutationVariables = Exact<{
   input: RoutineInput;
   restoring?: boolean | null | undefined;
   confirmLoss?: boolean | null | undefined;
+  restoredMoves?: Array<string> | string | null | undefined;
 }>;
 
 
@@ -3724,6 +3741,7 @@ export type PatchRoutineMutationVariables = Exact<{
   id: string | number;
   input: RoutinePatch;
   confirmLoss?: boolean | null | undefined;
+  restoredMoves?: Array<string> | string | null | undefined;
 }>;
 
 
@@ -7297,6 +7315,23 @@ export const CancelEmailChangeDocument = new TypedDocumentString(`
     outside
   }
 }`) as unknown as TypedDocumentString<CancelEmailChangeMutation, CancelEmailChangeMutationVariables>;
+export const CalendarEventExceptionsDocument = new TypedDocumentString(`
+    query CalendarEventExceptions($id: ID!) {
+  calendarEventExceptions(id: $id) {
+    date
+    cancelled
+    calledOff
+    postponedTo
+    allDay
+    startDate
+    startTime
+    endDate
+    endTime
+    otherHours
+    changed
+  }
+}
+    `) as unknown as TypedDocumentString<CalendarEventExceptionsQuery, CalendarEventExceptionsQueryVariables>;
 export const WorkSchedulesDocument = new TypedDocumentString(`
     query WorkSchedules {
   workSchedules {
@@ -7517,6 +7552,15 @@ export const SetCalendarEventCalledOffDocument = new TypedDocumentString(`
   )
 }
     `) as unknown as TypedDocumentString<SetCalendarEventCalledOffMutation, SetCalendarEventCalledOffMutationVariables>;
+export const RestoreCalendarEventExceptionDocument = new TypedDocumentString(`
+    mutation RestoreCalendarEventException($id: ID!, $occurrenceDate: Date!, $confirmLoss: Boolean) {
+  restoreCalendarEventException(
+    id: $id
+    occurrenceDate: $occurrenceDate
+    confirmLoss: $confirmLoss
+  )
+}
+    `) as unknown as TypedDocumentString<RestoreCalendarEventExceptionMutation, RestoreCalendarEventExceptionMutationVariables>;
 export const PostponeCalendarEventDocument = new TypedDocumentString(`
     mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {
   postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)
@@ -9420,20 +9464,26 @@ export const CreateRoutineDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CreateRoutineMutation, CreateRoutineMutationVariables>;
 export const UpdateRoutineDocument = new TypedDocumentString(`
-    mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {
+    mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean, $restoredMoves: [Date!]) {
   updateRoutine(
     id: $id
     input: $input
     restoring: $restoring
     confirmLoss: $confirmLoss
+    restoredMoves: $restoredMoves
   ) {
     removedLinks
   }
 }
     `) as unknown as TypedDocumentString<UpdateRoutineMutation, UpdateRoutineMutationVariables>;
 export const PatchRoutineDocument = new TypedDocumentString(`
-    mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {
-  patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {
+    mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean, $restoredMoves: [Date!]) {
+  patchRoutine(
+    id: $id
+    input: $input
+    confirmLoss: $confirmLoss
+    restoredMoves: $restoredMoves
+  ) {
     removedLinks
   }
 }

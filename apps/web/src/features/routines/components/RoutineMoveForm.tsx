@@ -1,12 +1,13 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
+import { OccurrenceButton } from '../../../components/actions/OccurrenceButton';
+import { confirmCancelOccurrence } from '../lib/confirm-cancel';
 import { PICKER_FORMATS } from '../../../lib/format';
 import { Group, Select, Stack, Text } from '@mantine/core';
 import { DateField } from '../../../components/inputs/DateField';
 import { addDays, type RoutineMoveTimes } from '@ordo/shared';
-import { CalendarXIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, ClockIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowBendUpLeftIcon, ArrowBendUpRightIcon, ClockIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { SubSection } from '../../../components/page/SubSection';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { parisToday } from '../../../lib/dates';
 import { useRoutineMutations, useRoutineOccurrences, useRoutinesData, type RoutineOccurrence } from '../api';
 import { dueDayOf, movableOccurrence, moveTo, windowText } from '../lib/routine-format';
@@ -162,23 +163,11 @@ export function RoutineMoveForm({ routineId, date: firstDate, onDone }: { routin
             Fermer
           </ActionButton>
           {date && (
-            <ActionButton
-              danger
-              icon={<CalendarXIcon aria-hidden />}
+            <OccurrenceButton
+              action="cancel"
               loading={deleteOccurrence.isPending}
-              onClick={() =>
-                confirmDestructive({
-                  title: 'Annuler cette occurrence ?',
-                  risks: `L’occurrence du ${fmt.dayLong(due!)} n’aura pas lieu : elle reste affichée, barrée, avec ses commentaires ; c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions ou l’agenda.`,
-                  confirmLabel: 'Annuler l’occurrence',
-                  confirmIcon: <CalendarXIcon aria-hidden />,
-                  run: () => deleteOccurrence.mutateAsync({ id: routine.id, date, scope: 'THIS' }).then(() => onDone()),
-                  done: `Occurrence du ${fmt.dayLong(due!)} annulée.`,
-                })
-              }
-            >
-              Annuler l’occurrence
-            </ActionButton>
+              onClick={() => confirmCancelOccurrence(due!, () => deleteOccurrence.mutateAsync({ id: routine.id, date, scope: 'THIS' }).then(() => onDone()), `Occurrence du ${fmt.dayLong(due!)} annulée.`)}
+            />
           )}
           {date && (
             <ActionButton type="submit" icon={submitIcon} disabled={!target || (target === due && !timesChanged)} loading={moveOccurrence.isPending}>

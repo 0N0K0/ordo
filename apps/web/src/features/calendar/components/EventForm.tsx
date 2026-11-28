@@ -97,7 +97,7 @@ interface SaveTarget {
 
 /**
  * Calendar event, laid out as the task and routine panels (`DetailLayout`): its label and its « … » menu
- * (« Dupliquer », « Annuler l’évènement » / « Rétablir », « Reporter », « Archiver » / « Restaurer », « Supprimer »,
+ * (« Dupliquer », « Annuler » / « Rétablir », « Reporter », « Archiver » / « Restaurer », « Supprimer »,
  * its saved timers), its project, the mentions « Annulé », « Reporté », « Archivé » and « Enregistré »; on the left its
  * description, « Relations » (tasks, routines of its days) and the comments of the occurrence; on the right
  * « Classement » (calendar, categories), « Parties prenantes », « Dates et heures » (its repetition, whole day, period,
@@ -281,7 +281,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     </Fieldset>
   );
 
-  // Its « … » menu: « Dupliquer », « Annuler l’évènement » / « Rétablir », « Reporter », « Archiver » / « Restaurer »
+  // Its « … » menu: « Dupliquer », « Annuler » / « Rétablir », « Reporter », « Archiver » / « Restaurer »
   // (the whole series), « Supprimer », then « Lancer » its saved timers; archived: restored or deleted only.
   const menu = useEventMenu(occurrence, { fields: values, target, readOnly, savedCountdownIds, onDuplicated, onDone });
 
@@ -500,6 +500,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
             </PanelGroup>
             <PanelGroup title={PANEL_GROUPS.dates} collapsible defaultExpanded={false} summary={summaries.dates} invalid={hasFieldError(form.errors, ['startDate', 'endDate', 'startTime', 'endTime', 'recurrence', 'allDay'])}>
               <EventRepetition
+                eventId={occurrence ? target.eventId : null}
                 ruleStart={ruleStart}
                 ruleLocked={seriesFields}
                 error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.startTime ?? form.errors.endTime ?? form.errors.recurrence) as string | undefined}

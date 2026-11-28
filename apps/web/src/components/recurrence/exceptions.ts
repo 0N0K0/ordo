@@ -77,14 +77,65 @@ export function casesSkippedEntries<T>(cases: readonly RepetitionCase<T>[], onCh
 }
 
 /**
+ * Whether a day is one of a rule counted from its first day.
+ * @param {Recurrence | null | undefined} rule Rule (none: never).
+ * @param {string} start Its first day.
+ * @param {string} day Day.
+ * @returns {boolean} One of its days.
+ */
+const isRuleDay = (rule: Recurrence | null | undefined, start: string, day: string): boolean => Boolean(rule) && occurrenceDates(rule!, start, day, day).length > 0;
+
+/**
+ * Rules with a « rien » exception on a day, given to every rule that has that day (several cases on one day: nothing
+ * that day for any of them); the others unchanged.
+ * @param {readonly { rule: Recurrence | null | undefined, start: string }[]} rules Rules, each with its first day.
+ * @param {string} day Day without its occurrence.
+ * @returns {(Recurrence | null | undefined)[]} Rules, in the same order.
+ */
+export const withSkippedOn = (rules: readonly { rule: Recurrence | null | undefined; start: string }[], day: string): (Recurrence | null | undefined)[] =>
+  rules.map((item) => (item.rule && isRuleDay(item.rule, item.start, day) ? withSkipped(item.rule, day) : item.rule));
+
+/**
+ * Adding a « rien » exception to rules in `ExceptionsList`: a day of any of them can be picked, and the exception goes
+ * to every rule that has that day (several cases on one day: nothing that day for any of them).
+ * @param {readonly { rule: Recurrence | null | undefined, start: string }[]} rules Rules, each with its first day.
+ * @param {(rules: (Recurrence | null | undefined)[]) => void} onChange Rules with the exception, in the same order.
+ * @param {string} minDate First day offered.
+ * @returns {ExceptionsAdd} Adding.
+ */
+export const rulesDayAdding = (rules: readonly { rule: Recurrence | null | undefined; start: string }[], onChange: (rules: (Recurrence | null | undefined)[]) => void, minDate: string): ExceptionsAdd => ({
+  isDay: (day) => rules.some((item) => isRuleDay(item.rule, item.start, day)),
+  onAdd: (day) => onChange(withSkippedOn(rules, day)),
+  minDate,
+});
+
+/**
  * Adding a « rien » exception to a single rule in `ExceptionsList`: only its days can be picked, from its first day.
  * @param {Recurrence} rule Rule.
  * @param {string} start Its first day.
  * @param {(rule: Recurrence) => void} onChange Rule with the exception.
  * @returns {ExceptionsAdd} Adding.
  */
-export const ruleDayAdding = (rule: Recurrence, start: string, onChange: (rule: Recurrence) => void): ExceptionsAdd => ({
-  isDay: (day) => occurrenceDates(rule, start, day, day).length > 0,
-  onAdd: (day) => onChange(withSkipped(rule, day)),
-  minDate: start,
+export const ruleDayAdding = (rule: Recurrence, start: string, onChange: (rule: Recurrence) => void): ExceptionsAdd => rulesDayAdding([{ rule, start }], ([next]) => next && onChange(next), start);
+
+/** Help of adding a « rien » exception to cases. */
+const CASES_ADD_DESCRIPTION = 'Un jour d’un des cas : rien ce jour-là, pour tous les cas qui y tombent.';
+
+/**
+ * Adding a « rien » exception to cases in `ExceptionsList`: a day of any case, given to every case that has that day
+ * (each counted from its « Début », else from the first day).
+ * @template T
+ * @param {readonly RepetitionCase<T>[]} cases Cases.
+ * @param {string} start First day (of the item, or the day the hours of a task are read from).
+ * @param {(cases: RepetitionCase<T>[]) => void} onChange Cases with the exception.
+ * @param {string} [minDate] First day offered. Optional. Default = `start`.
+ * @returns {ExceptionsAdd} Adding.
+ */
+export const casesDayAdding = <T>(cases: readonly RepetitionCase<T>[], start: string, onChange: (cases: RepetitionCase<T>[]) => void, minDate = start): ExceptionsAdd => ({
+  ...rulesDayAdding(
+    cases.map((item) => ({ rule: item.rule, start: item.start ?? start })),
+    (rules) => onChange(cases.map((item, index) => ({ ...item, rule: rules[index] ?? item.rule }))),
+    minDate,
+  ),
+  description: CASES_ADD_DESCRIPTION,
 });

@@ -23,8 +23,8 @@ import { useState, type ReactNode } from 'react';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
 import { ExceptionsList } from '../../../components/recurrence/ExceptionsList';
-import { ruleDayAdding, skippedLines, withoutSkipped } from '../../../components/recurrence/exceptions';
-import { useApplyRestoredMoves, useRoutineMoveEntries } from '../hooks/use-routine-exceptions';
+import { casesDayAdding, ruleDayAdding, skippedLines, withoutSkipped } from '../../../components/recurrence/exceptions';
+import { useRoutineMoveEntries } from '../hooks/use-routine-exceptions';
 import { parisToday } from '../../../lib/dates';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf } from '../../geo/lib/location';
@@ -286,7 +286,11 @@ function RoutineRepetitionEditor({
       <LabeledField label="Exceptions">
         <ExceptionsList
           entries={[...moveEntries, ...skipped]}
-          add={draft.mode === 'CASES' ? undefined : ruleDayAdding(draft.recurrence, start, (recurrence) => setDraft({ ...draft, recurrence }))}
+          add={
+            draft.mode === 'CASES'
+              ? casesDayAdding(editedCases(draft), start, (cases) => setDraft(withEditedCases(draft, cases)))
+              : ruleDayAdding(draft.recurrence, start, (recurrence) => setDraft({ ...draft, recurrence }))
+          }
         />
       </LabeledField>
     </Stack>
@@ -339,7 +343,7 @@ const appliedRepetition = (value: RoutineRepetitionValue): RoutineRepetition => 
 /**
  * Every repetition setting of a routine in the common modal, out of its form (a table cell): applied to it, or to every
  * routine selected (then without its moves, restored at once on one routine only).
- * @param {{ routine: Routine, opened: boolean, onClose: () => void, onApply: (repetition: RoutineRepetition) => void, header?: ReactNode }} props Routine edited, opened, closing, saving, what it applies to.
+ * @param {{ routine: Routine, opened: boolean, onClose: () => void, onApply: (repetition: RoutineRepetition & { restoredMoves?: string[] }) => void, header?: ReactNode }} props Routine edited, opened, closing, saving (with the moves restored, saved with it all or nothing), what it applies to.
  * @returns {JSX.Element} Modal.
  */
 export function RoutineRepetitionModal({
@@ -352,11 +356,10 @@ export function RoutineRepetitionModal({
   routine: Routine;
   opened: boolean;
   onClose: () => void;
-  onApply: (repetition: RoutineRepetition) => void;
+  onApply: (repetition: RoutineRepetition & { restoredMoves?: string[] }) => void;
   header?: ReactNode;
 }) {
   const { names } = useSlotChoices();
-  const applyRestored = useApplyRestoredMoves();
   const [draft, setDraft] = useState<RoutineRepetitionValue>(() => routineRepetitionValue(routine));
   return (
     <RepetitionModal<RoutineRepetitionValue>
@@ -368,10 +371,8 @@ export function RoutineRepetitionModal({
       setDraft={setDraft}
       valid={validRepetition}
       editor={(value, change) => <RoutineRepetitionEditor draft={value} setDraft={change} names={names} routine={header ? undefined : routine} />}
-      onApply={(value) => {
-        // The moves restored first, on the rule they were made on; then the repetition.
-        void (!header && value.restoredMoves?.length ? applyRestored(routine.id, value.restoredMoves) : Promise.resolve()).then(() => onApply(appliedRepetition(value)));
-      }}
+      // The moves restored with the repetition, all or nothing (one routine only).
+      onApply={(value) => onApply({ ...appliedRepetition(value), ...(!header && value.restoredMoves?.length ? { restoredMoves: value.restoredMoves } : {}) })}
     />
   );
 }
@@ -384,11 +385,13 @@ interface RoutineFieldsProps {
    * Saves fields typed now, in a panel saved field by field (`useFieldSave`): the place once chosen, cleared or left,
    * a travel time once left. Optional.
    */
-  onCommit?: (fields: (keyof RoutineScheduleValues & string)[]) => void;
+  onCommit?: (fields: (keyof RoutineScheduleValues & string)[], always?: boolean) => void;
   /** A sub-routine: what the field shows of its inheritance, and its parent's name. Optional. */
   inherited?: { from: string; state: InheritedFieldState; readOnly?: boolean };
   /** Routine shown (its exceptions that are moves); none: a new one. Optional. */
   routine?: Routine;
+  /** Moves restored in the repetition modal, to send with the save of the repetition that follows (all or nothing). Optional. */
+  onRestoreMoves?: (froms: string[]) => void;
 }
 
 /**
@@ -405,9 +408,8 @@ const inheritedProps = (inherited: RoutineFieldsProps['inherited']) => ({ ...(in
  * @param {RoutineFieldsProps} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function RoutineRepetition({ values, errors, onChange, onCommit, inherited, routine }: RoutineFieldsProps) {
+export function RoutineRepetition({ values, errors, onChange, onCommit, inherited, routine, onRestoreMoves }: RoutineFieldsProps) {
   const { names } = useSlotChoices();
-  const applyRestored = useApplyRestoredMoves();
   const value: RoutineRepetitionValue = { ...values, mode: values.cases.length ? 'CASES' : 'RULE' };
   return (
     <InheritedField {...inheritedProps(inherited)}>
@@ -420,11 +422,12 @@ export function RoutineRepetition({ values, errors, onChange, onCommit, inherite
         valid={validRepetition}
         onChange={(next) => {
           const { recurrence, cases, slotCondition, moments, opensOn } = appliedRepetition(next);
-          // The moves restored first, on the rule they were made on; then the repetition.
-          void (routine && next.restoredMoves?.length ? applyRestored(routine.id, next.restoredMoves) : Promise.resolve()).then(() => {
-            onChange({ recurrence, cases, slotCondition, moments, opensOn });
-            onCommit?.([...ROUTINE_REPETITION_KEYS]);
-          });
+          // The moves restored are saved with the repetition, all or nothing.
+          const restoring = Boolean(routine && next.restoredMoves?.length);
+          if (restoring) onRestoreMoves?.(next.restoredMoves!);
+          onChange({ recurrence, cases, slotCondition, moments, opensOn });
+          // Saved even unchanged when moves are restored: they go with this save.
+          onCommit?.([...ROUTINE_REPETITION_KEYS], restoring);
         }}
         describe={(item) => routineRepetitionLines(item, names)}
         exceptions={(item) => routineExceptionLines(routine, item.mode === 'CASES' ? item.cases.map((other) => other.recurrence) : [item.recurrence])}
