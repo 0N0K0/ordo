@@ -1,4 +1,4 @@
-import { DEFAULT_RECURRENCE, withRuleValues, type ScheduleCase, type ScheduleException, type ScheduleTimes } from '@ordo/shared';
+import { casesKeepLimits, DEFAULT_RECURRENCE, lastsWeeksOrMonths, withRuleValues, type ScheduleCase, type ScheduleException, type ScheduleTimes } from '@ordo/shared';
 import { describeCase } from '../../../components/recurrence/describe-recurrence';
 import * as fmt from '../../../lib/format';
 import { plural } from '../../../lib/text';
@@ -56,3 +56,12 @@ export const describeScheduleCase = (item: ScheduleCase, start: string) =>
  * @returns {string} "le 12 nov. 2026" or "du 1 août 2026 au 15 août 2026".
  */
 export const exceptionPeriod = (exception: ScheduleException) => (exception.from === exception.to ? `le ${fmt.day(exception.from)}` : `du ${fmt.day(exception.from)} au ${fmt.day(exception.to)}`);
+
+/**
+ * Whether cases can be applied: the rules their durations allow (`casesKeepLimits`), and the whole day when one lasts
+ * weeks or months.
+ * @param {readonly ScheduleCase[]} cases Cases.
+ * @returns {boolean} Applicable.
+ */
+export const scheduleCasesApplicable = (cases: readonly ScheduleCase[]): boolean =>
+  casesKeepLimits(cases) && cases.every((item) => item.times.allDay || !lastsWeeksOrMonths(item.rule?.duration));

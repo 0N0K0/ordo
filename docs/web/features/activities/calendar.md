@@ -175,8 +175,8 @@ Utilisés par `ScheduleSettings`.
 - `ScheduleRepetition({ value, onChange, periodError?, error? })` : « Période » d’un créneau dans le formulaire (`PeriodField`, début requis, `periodError` dessous), puis le champ « Horaires » (`RepetitionField`) : résumé des cas (`describeScheduleCase`) et, à part, synthèse des exceptions (`ExceptionsSummary`, interne `scheduleExceptionLines` : périodes d’exception « Du 3 au 5 nov. 2026 : rien (Congés) » / « … : autres horaires », et jours « rien » des règles des cas et des cas des périodes). Utilisé par `ScheduleForm` (`WorkSchedulesManager`).
 - Interne `ScheduleRepetitionEditor({ draft, setDraft })` : cas, puis « Exceptions » (`ExceptionsList`, réduites) : chaque période d’exception se développe (« Période » `PeriodField` début et fin requis, la période gardant sa place dans la liste tant que le champ n’est pas quitté, motif, case « Rien (aucun créneau pendant cette période) », cas propres) et se rétablit (retirée) ; les jours « rien » des règles se rétablissent (`casesSkippedEntries`) ; « Ajouter une exception « rien » » un jour d’un des cas hors des périodes d’exception (interne `withoutPeriods`), sur tous les cas de ce jour (`casesDayAdding`) ; « Ajouter une exception ». Interne `periodExceptionText`.
 - `ScheduleCases({ cases, onChange, start, caseStart? })` : cas d’une période (créneau, exception) ou horaires d’une tâche (`TaskHoursField`) : `RepetitionEditor` commun (modes `RULE`/`CASES`, `multiple`, `DURATION_UNITS`, `SCHEDULE_TIMES`) ; `caseStart` : « Début » requis des cas qui en ont besoin (horaires d’une tâche seulement) ; s’ouvre en « Plusieurs cas » avec plusieurs cas ou un début après le premier jour qui n’est pas requis.
-- Interne `ScheduleTimesFields({ value, onChange, index })` : journée entière ou tranches horaires (`rangeProps`), « Ajouter des horaires » (propose 14:00–18:00 après une matinée).
-- Constante interne `SCHEDULE_TIMES` (`RepetitionTimes<ScheduleTimes>` : rendu, `describeScheduleTimes`, `defaultScheduleTimes`) ; type interne `ScheduleRepetitionValue`.
+- Interne `ScheduleTimesFields({ value, onChange, index, rule })` : journée entière ou tranches horaires (chacune `TimeSlotFields` `sameDay` : début, durée, fin), « Ajouter des horaires » (propose 14:00–18:00 après une matinée). Une durée en semaines ou en mois (`lastsWeeksOrMonths`) : « Journée entière » cochée et non modifiable (choisir une telle durée la coche : `withDuration` de `SCHEDULE_TIMES`) ; des horaires enregistrés avant gardent la case modifiable, avec « Une durée en semaines ou en mois dure des journées entières. ». `ScheduleCases` ordonne ses champs `endFirst` ; « Appliquer » refusé tant qu'une règle sort des limites de sa durée ou qu'une durée en semaines ou en mois a des horaires (`scheduleCasesApplicable` de `lib/schedule-text.ts` : aussi pour les horaires des tâches).
+- Constante interne `SCHEDULE_TIMES` (`RepetitionTimes<ScheduleTimes>` : rendu, `describeScheduleTimes`, `defaultScheduleTimes`, `withDuration`) ; constante interne `WHOLE_DAYS_ERROR` ; type interne `ScheduleRepetitionValue`.
 
 ### `components/WorkSchedulesManager.tsx`
 
@@ -262,7 +262,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `lib/calendar-events.ts` : `followingOffered`
 
-`followingOffered(occurrence)` : « Celle-ci et les suivantes » proposé pour une occurrence d’un évènement récurrent avant la dernière que sa série affiche encore (`lastShownDate` de l’API : celles supprimées seules écartées ; aucune : sans fin), pour modifier, annuler et supprimer (`useEventForm`, `useEventMenu`, `CalendarPage`, `event-cells`).
+`followingOffered(occurrence)` : « Celle-ci et les suivantes » proposé pour une occurrence d’un évènement récurrent après la première et avant la dernière que sa série affiche encore (`firstShownDate`, `lastShownDate` de l’API : celles supprimées seules écartées ; pas de dernière : sans fin), pour modifier, annuler et supprimer (`useEventForm`, `useEventMenu`, `CalendarPage`, `event-cells`).
 
 ### `hooks/use-delete-schedules.ts`
 
@@ -364,6 +364,7 @@ Utilisés par `ScheduleSettings`.
 - `newScheduleCase(start)` : lundi–vendredi 09:00–17:00.
 - `describeScheduleCase(item, start)` : « Toutes les semaines du lundi au vendredi · … » (`describeCase`).
 - `exceptionPeriod(exception)` : « le … » ou « du … au … ».
+- `scheduleCasesApplicable(cases)` : des cas applicables : règles dans les limites de leur durée (`casesKeepLimits`), journée entière quand une durée est en semaines ou en mois. Utilisé par `ScheduleRepetition` et `TaskHoursField`.
 
 ### `lib/slot-choices.ts`
 

@@ -851,6 +851,52 @@ export function hasOccurrenceAfter(rule: Recurrence | null | undefined, start: s
 }
 
 /**
+ * Whether a rule has an occurrence before a day, from its first date (« Celle-ci et les suivantes » is offered only
+ * then: never on its first occurrence, where it is « Toutes »), its « rien » exceptions and the days deleted alone left
+ * out.
+ * @param {Recurrence | null | undefined} rule Rule (none: a single occurrence, none before).
+ * @param {string} start First date (where its rhythm and count start).
+ * @param {string} day Occurrence (the day of its rule).
+ * @param {ReadonlySet<string>} [deleted] Days of the rule whose occurrence was deleted alone. Optional. Default = none.
+ * @param {string} [from] First day shown (a period that starts later). Optional. Default = start.
+ * @returns {boolean} An occurrence before it.
+ */
+export function hasOccurrenceBefore(rule: Recurrence | null | undefined, start: string, day: string, deleted: ReadonlySet<string> = new Set(), from = start): boolean {
+  if (!rule || day <= from) return false;
+  return occurrenceDates(rule, start, from < start ? start : from, addDays(day, -1)).some((date) => !deleted.has(date));
+}
+
+/**
+ * Whether « Celle-ci et les suivantes » is offered from an occurrence of a rule: neither its first nor its last one
+ * (from either, it would be « Toutes » or « Cette occurrence »).
+ * @param {Recurrence | null | undefined} rule Rule.
+ * @param {string} start First date.
+ * @param {string} day Occurrence (the day of its rule).
+ * @returns {boolean} Offered.
+ */
+export const followingScopeOffered = (rule: Recurrence | null | undefined, start: string, day: string): boolean => hasOccurrenceBefore(rule, start, day) && hasOccurrenceAfter(rule, start, day);
+
+/**
+ * First occurrence of a rule still shown (the days deleted one by one left out), the day of its rule; undefined when
+ * none is left.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First date.
+ * @param {ReadonlySet<string>} deleted Days of the rule whose occurrence was deleted alone.
+ * @returns {string | undefined} First day shown.
+ */
+export function firstShownOccurrence(rule: Recurrence, start: string, deleted: ReadonlySet<string>): string | undefined {
+  // Scanned a year at a time (a series may start with many days deleted alone).
+  const end = rule.until ?? (rule.count !== null ? lastCountedOccurrence(rule, start) : addDays(start, 36_600));
+  if (!end) return undefined;
+  for (let from = start; from <= end; from = addDays(from, 366)) {
+    const to = addDays(from, 365) < end ? addDays(from, 365) : end;
+    const found = occurrenceDates(rule, start, from, to).find((date) => !deleted.has(date));
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/**
  * Last occurrence of a rule still shown (a day of its rule, the days deleted one by one left out), the day of its rule;
  * null without an end (it goes on), undefined when none is left.
  * @param {Recurrence} rule Rule.
@@ -873,6 +919,16 @@ export function lastShownOccurrence(rule: Recurrence, start: string, deleted: Re
  * @returns {boolean} An occurrence after it.
  */
 export const anyOccurrenceAfter = (rules: readonly { rule: Recurrence | null | undefined; start: string }[], day: string): boolean => rules.some((item) => hasOccurrenceAfter(item.rule, item.start, day));
+
+/**
+ * Whether one of several rules (the cases of an item) has an occurrence before a day.
+ * @param {readonly { rule: Recurrence | null | undefined, start: string }[]} rules Rules, each with its first day.
+ * @param {string} day Occurrence.
+ * @param {string} [from] First day shown (the first day of the item, when a rule counts from earlier). Optional. Default = the start of each rule.
+ * @returns {boolean} An occurrence before it.
+ */
+export const anyOccurrenceBefore = (rules: readonly { rule: Recurrence | null | undefined; start: string }[], day: string, from?: string): boolean =>
+  rules.some((item) => hasOccurrenceBefore(item.rule, item.start, day, undefined, from && from > item.start ? from : item.start));
 
 /**
  * Rule whose series ends before a date: its count kept, reduced to the occurrences before that date; else its end

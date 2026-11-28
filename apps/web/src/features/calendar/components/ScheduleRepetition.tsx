@@ -1,16 +1,15 @@
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { Checkbox, Divider, Group, Stack, Text, TextInput, Switch } from '@mantine/core';
-import { TimePicker } from '@mantine/dates';
-import { type ScheduleCase, type ScheduleException, type ScheduleTimes, DURATION_UNITS } from '@ordo/shared';
+import { type ScheduleCase, type ScheduleException, type ScheduleTimes, DURATION_UNITS, lastsWeeksOrMonths, timeToMinutes, type Recurrence } from '@ordo/shared';
+import { TimeSlotFields } from '../../../components/inputs/TimeSlotFields';
 
 import { useState, type ReactNode } from 'react';
 import { RepetitionEditor, type CaseStart, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import * as fmt from '../../../lib/format';
 import { parisToday } from '../../../lib/dates';
-import { defaultScheduleTimes, describeScheduleCase, describeScheduleTimes, exceptionPeriod, newScheduleCase } from '../lib/schedule-text';
+import { defaultScheduleTimes, describeScheduleCase, describeScheduleTimes, exceptionPeriod, newScheduleCase, scheduleCasesApplicable } from '../lib/schedule-text';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { rangeProps } from '../../../components/inputs/date-range';
 import { PeriodField } from '../../../components/inputs/PeriodField';
 import { ExceptionsList, type ExceptionEntry, type ExceptionsAdd } from '../../../components/recurrence/ExceptionsList';
 import { casesDayAdding, casesSkippedEntries, skippedLines, SKIPPED_KIND, type ExceptionLine } from '../../../components/recurrence/exceptions';
@@ -23,12 +22,17 @@ interface ScheduleRepetitionValue {
   exceptions: ScheduleException[];
 }
 
+/** Error of hours saved on a case whose occurrences last weeks or months. */
+const WHOLE_DAYS_ERROR = 'Une durée en semaines ou en mois dure des journées entières.';
+
 /**
- * Hours of a case: the whole day, or time ranges.
- * @param {{ value: ScheduleTimes, onChange: (value: ScheduleTimes) => void, index: number }} props Hours, their change, case number.
+ * Hours of a case: the whole day, or time ranges (each `TimeSlotFields`, on its day). Each occurrence lasting weeks or
+ * months is the whole day: « Journée entière » ticked, not changed (hours saved before can still be dropped by ticking it).
+ * @param {{ value: ScheduleTimes, onChange: (value: ScheduleTimes) => void, index: number, rule: Recurrence | null }} props Hours, their change, case number, its rule.
  * @returns {JSX.Element} Fields.
  */
-function ScheduleTimesFields({ value, onChange, index }: { value: ScheduleTimes; onChange: (value: ScheduleTimes) => void; index: number }) {
+function ScheduleTimesFields({ value, onChange, index, rule }: { value: ScheduleTimes; onChange: (value: ScheduleTimes) => void; index: number; rule: Recurrence | null }) {
+  const wholeDays = lastsWeeksOrMonths(rule?.duration);
   /**
    * Changes a range.
    * @param {number} position Range.
@@ -44,21 +48,23 @@ function ScheduleTimesFields({ value, onChange, index }: { value: ScheduleTimes;
         mt={6}
         label="Journée entière"
         checked={value.allDay}
+        disabled={wholeDays && value.allDay}
+        error={wholeDays && !value.allDay ? WHOLE_DAYS_ERROR : undefined}
         onChange={(event) => onChange({ allDay: event.currentTarget.checked, ranges: event.currentTarget.checked ? [] : [{ start: '09:00', end: '17:00' }] })}
       />
       {!value.allDay && (
         <Stack gap={4}>
-          {value.ranges.map((range, position) => {
-            const hours = rangeProps({ value: [range.start, range.end], onChange: ([start, end]) => setRange(position, { start, end }) }, true, true);
-            return (
-              <Group key={position} gap={6} wrap="nowrap">
-                <TimePicker size="xs" aria-label={`Début, cas ${index + 1}`} {...hours.start} />
-                <Text size="sm">à</Text>
-                <TimePicker size="xs" aria-label={`Fin, cas ${index + 1}`} {...hours.end} />
-                <RemoveButton label="Retirer" aria-label="Retirer ces horaires" size="sm" onClick={() => onChange({ ...value, ranges: value.ranges.filter((_, other) => other !== position) })} />
-              </Group>
-            );
-          })}
+          {value.ranges.map((range, position) => (
+            <Group key={position} gap={6} wrap="nowrap" align="flex-end">
+              <TimeSlotFields
+                sameDay
+                name={`cas ${index + 1}`}
+                value={{ start: range.start, minutes: timeToMinutes(range.end) - timeToMinutes(range.start) }}
+                onChange={(slot) => setRange(position, { start: slot.start, end: slot.end.time })}
+              />
+              <RemoveButton label="Retirer" aria-label="Retirer ces horaires" size="sm" onClick={() => onChange({ ...value, ranges: value.ranges.filter((_, other) => other !== position) })} />
+            </Group>
+          ))}
           <AddItemButton
             onClick={() => {
               const last = value.ranges.at(-1);
@@ -78,9 +84,10 @@ function ScheduleTimesFields({ value, onChange, index }: { value: ScheduleTimes;
 
 /** Hours of the cases of a schedule, for the common repetition editor. */
 const SCHEDULE_TIMES: RepetitionTimes<ScheduleTimes> = {
-  render: (times, onChange, index) => <ScheduleTimesFields value={times} onChange={onChange} index={index} />,
+  render: (times, onChange, index, rule) => <ScheduleTimesFields value={times} onChange={onChange} index={index} rule={rule} />,
   describe: describeScheduleTimes,
   empty: defaultScheduleTimes,
+  withDuration: (times, duration) => (lastsWeeksOrMonths(duration) ? { allDay: true, ranges: [] } : times),
 };
 
 /**
@@ -102,6 +109,7 @@ export function ScheduleCases({ cases, onChange, start, caseStart }: { cases: Sc
       allowNone={false}
       durations={DURATION_UNITS}
       times={SCHEDULE_TIMES}
+      endFirst
       caseStart={caseStart}
     />
   );
@@ -250,7 +258,7 @@ export function ScheduleRepetition({ value, onChange, periodError, error }: { va
         error={error}
         value={value}
         onChange={onChange}
-        valid={(draft) => draft.cases.length > 0}
+        valid={(draft) => draft.cases.length > 0 && scheduleCasesApplicable([...draft.cases, ...draft.exceptions.flatMap((exception) => exception.cases)])}
         describe={(item) => item.cases.map((other) => describeScheduleCase(other, item.startDate || parisToday()))}
         exceptions={scheduleExceptionLines}
         editor={(draft, setDraft) => <ScheduleRepetitionEditor draft={draft} setDraft={setDraft} />}

@@ -3,7 +3,7 @@ import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema, UserError } from '../core/rules';
 import { addDays, daysBetween, monthOfDay, weekdayOfDate, yearOfDay } from '../dates/days';
-import { hasOccurrenceAfter, DEFAULT_RECURRENCE, isLastDayRule, movedWeekdays, ONE_DAY, proposedMovedRule, RuleChoiceRequired, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
+import { hasOccurrenceAfter, hasOccurrenceBefore, DEFAULT_RECURRENCE, isLastDayRule, movedWeekdays, ONE_DAY, proposedMovedRule, RuleChoiceRequired, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseFrom, caseSpanOn, caseSpans, caseUntil, periodCase, repetitionCaseSchema, storedRepetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
@@ -989,8 +989,8 @@ function slotCase(schedule: WorkScheduleRule, slot: ScheduleSlotTime) {
 
 /**
  * Whether « Celle-ci et les suivantes » is offered for a slot of a schedule (créneau or éphéméride): the case of that
- * day (the one « Celle-ci et les suivantes » cuts) has an occurrence after it within its period (never on its last
- * day; the other cases do not count).
+ * day (the one « Celle-ci et les suivantes » cuts) has an occurrence before it and one after it within its period
+ * (never on its first nor its last day; the other cases do not count).
  * @param {WorkScheduleRule} schedule Schedule.
  * @param {ScheduleSlotTime} slot Slot.
  * @returns {boolean} Offered.
@@ -1002,5 +1002,10 @@ export function scheduleFollowingOffered(schedule: WorkScheduleRule, slot: Sched
   // Within its period: its rule ends with it at the latest.
   const end = exception ? exception.to : schedule.endDate;
   const rule = end !== null && (item.rule.until === null || item.rule.until > end) ? { ...item.rule, until: end } : item.rule;
-  return hasOccurrenceAfter(rule, item.start ?? from, slot.date);
+  const start = item.start ?? from;
+  // Out of an exception period, the days its periods cover are not shown: never « before ».
+  const covered = new Set<string>();
+  if (!exception)
+    for (const period of schedule.exceptions) for (let day = period.from; day <= period.to && day < slot.date; day = addDays(day, 1)) covered.add(day);
+  return hasOccurrenceBefore(rule, start, slot.date, covered, from) && hasOccurrenceAfter(rule, start, slot.date);
 }

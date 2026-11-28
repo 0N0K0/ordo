@@ -16,7 +16,11 @@ import {
   WEEK_PARITY_WORDS,
   weekPositionOptions,
   type WeekParity,
+  repetitionLimits,
+  repetitionLimitError,
+  type Duration,
 } from '@ordo/shared';
+import { useState } from 'react';
 import { MonthDayField } from './MonthDayField';
 import { describeRecurrence } from './describe-recurrence';
 import { plural } from '../../lib/text';
@@ -69,6 +73,14 @@ interface RecurrenceEditorProps {
    * saves the rule then, not on each key typed. Optional.
    */
   onCommit?: () => void;
+  /**
+   * Duration of each occurrence: the rules it allows only (the next occurrence after the end of the previous one,
+   * `repetitionLimits`); a rule saved before that breaks them shows its error under its field once a field is left.
+   * Optional. Default = a single day.
+   */
+  duration?: Duration | null;
+  /** What it shows: everything, the rule without its « Fin », or its « Fin » only. Optional. Default = 'all'. */
+  part?: 'all' | 'rule' | 'end';
 }
 
 /**
@@ -77,12 +89,29 @@ interface RecurrenceEditorProps {
  * (chosen, prefilled from the first date; or « Le dernier jour du mois », whatever its length), end (date or number),
  * with a readable summary (its exceptions are changed from its occurrences).
  * Each change is given at once (`onChange`); `onCommit` follows a choice at once, and a number once it is left.
+ * With a `duration`, only the rules it allows are offered (`repetitionLimits`), and the error of a rule that breaks
+ * them shows under its field once a field is left. `part` splits its « Fin » from the rest (placed apart).
  * @param {RecurrenceEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly = true, allowNone = true, frequencyLocked = false, onCommit }: RecurrenceEditorProps) {
+export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly: weeklyAllowed = true, allowNone = true, frequencyLocked = false, onCommit: commit, duration, part = 'all' }: RecurrenceEditorProps) {
   const comboboxProps = { withinPortal };
   const rule = value;
+  const limits = repetitionLimits(duration);
+  // Its error once a field is left (validated on blur, then on every change).
+  const [left, setLeft] = useState(false);
+  const limitError = left ? repetitionLimitError(rule, duration) : null;
+  /**
+   * After a choice, or a number left: the error of the limits shown from then on, then committed.
+   * @returns {void}
+   */
+  const onCommit = () => {
+    setLeft(true);
+    commit?.();
+  };
+  const weekly = weeklyAllowed;
+  // One weekday only, its start's, when each occurrence lasts weeks or months (shown to fix a rule that has several).
+  const weekdayChips = weekly && ((limits?.weekdays ?? true) || (rule?.weekdays.length ?? 0) > 1);
   const values = rule ? ruleValues(rule, start) : null;
   /**
    * Changes some fields of the rule.
@@ -126,12 +155,37 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
     />
   );
 
+  // « Fin » of the rule: never, a date, a number of times.
+  const endFields = rule && (
+    <Group gap="sm" align="flex-end" wrap="wrap">
+      <Select
+        label="Fin"
+        w={200}
+        data={[
+          { value: 'NEVER', label: 'Jamais' },
+          { value: 'UNTIL', label: 'À une date' },
+          { value: 'COUNT', label: 'Après un nombre de fois' },
+        ]}
+        value={end}
+        allowDeselect={false}
+        comboboxProps={comboboxProps}
+        onChange={(next) => choose(next === 'UNTIL' ? { until: start, count: null } : next === 'COUNT' ? { until: null, count: 10 } : { until: null, count: null })}
+      />
+      {end === 'UNTIL' && <DateField label="Jusqu’au" minDate={start} value={rule.until} onChange={(until) => until && choose({ until })} popoverProps={comboboxProps} />}
+      {end === 'COUNT' && (
+        <NumberInput label="Nombre de fois" min={1} max={9999} w={140} value={rule.count ?? 1} onChange={(count) => update({ count: typeof count === 'number' ? count : 1 })} onBlur={onCommit} />
+      )}
+    </Group>
+  );
+  if (part === 'end') return endFields;
+
   return (
     <Stack gap="sm">
       <Group gap="sm" align="flex-end" wrap="wrap">
         <Select
           label="Répétition"
-          data={allowNone ? FREQUENCIES : FREQUENCIES.filter((frequency) => frequency.value !== 'NONE')}
+          data={FREQUENCIES.filter((frequency) => (frequency.value === 'NONE' ? allowNone : !limits || limits.frequencies.includes(frequency.value) || frequency.value === rule?.frequency))}
+          error={limitError?.field === 'frequency' ? limitError.message : undefined}
           value={rule?.frequency ?? 'NONE'}
           readOnly={frequencyLocked}
           allowDeselect={false}
@@ -165,6 +219,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
             min={1}
             max={999}
             w={210}
+            error={limitError?.field === 'interval' ? limitError.message : undefined}
             value={rule.parityInterval ?? 1}
             onChange={(every) => update({ parityInterval: typeof every === 'number' && every > 1 ? every : null })}
             onBlur={onCommit}
@@ -174,11 +229,14 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
           <NumberInput
             label="Tous les"
             suffix={` ${plural(rule.interval, ...UNITS[rule.frequency])}`}
-            min={1}
+            min={limits?.minInterval[rule.frequency] ?? 1}
+            // A rule saved below it keeps its value: its error says so.
+            clampBehavior={limits ? 'none' : 'blur'}
             max={999}
             w={150}
+            error={limitError?.field === 'interval' ? limitError.message : undefined}
             value={rule.interval}
-            onChange={(interval) => update({ interval: typeof interval === 'number' ? interval : 1 })}
+            onChange={(interval) => update({ interval: typeof interval === 'number' ? Math.min(999, Math.max(1, Math.round(interval))) : 1 })}
             onBlur={onCommit}
           />
         )}
@@ -194,7 +252,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
           data={parityOptions(rule.interval > 1 ? `Toutes les ${rule.interval} semaines` : 'Toutes les semaines')}
         />
       )}
-      {weekly && rule?.frequency === 'WEEKLY' && (
+      {weekdayChips && rule?.frequency === 'WEEKLY' && (
         <Chip.Group multiple value={rule.weekdays.map(String)} onChange={(days) => choose({ weekdays: days.map(Number).sort() })}>
           <Group gap={6}>
             {WEEKDAY_SHORT_LABELS.map((name, index) => (
@@ -204,6 +262,11 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
             ))}
           </Group>
         </Chip.Group>
+      )}
+      {limitError?.field === 'weekdays' && (
+        <Text size="xs" c="var(--mantine-color-error)">
+          {limitError.message}
+        </Text>
       )}
       {(rule?.frequency === 'MONTHLY' || rule?.frequency === 'YEARLY') && values && (
         <Stack gap="xs">
@@ -291,25 +354,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
 
       {rule && (
         <>
-          <Group gap="sm" align="flex-end" wrap="wrap">
-            <Select
-              label="Fin"
-              w={200}
-              data={[
-                { value: 'NEVER', label: 'Jamais' },
-                { value: 'UNTIL', label: 'À une date' },
-                { value: 'COUNT', label: 'Après un nombre de fois' },
-              ]}
-              value={end}
-              allowDeselect={false}
-              comboboxProps={comboboxProps}
-              onChange={(next) => choose(next === 'UNTIL' ? { until: start, count: null } : next === 'COUNT' ? { until: null, count: 10 } : { until: null, count: null })}
-            />
-            {end === 'UNTIL' && <DateField label="Jusqu’au" minDate={start} value={rule.until} onChange={(until) => until && choose({ until })} popoverProps={comboboxProps} />}
-            {end === 'COUNT' && (
-              <NumberInput label="Nombre de fois" min={1} max={9999} w={140} value={rule.count ?? 1} onChange={(count) => update({ count: typeof count === 'number' ? count : 1 })} onBlur={onCommit} />
-            )}
-          </Group>
+          {part === 'all' && endFields}
 
           <Text size="sm" c="dimmed">
             {describeRecurrence(rule, start, weekly)}.

@@ -1,4 +1,4 @@
-import { hasOccurrenceAfter, ruleEndedBefore, storedRecurrence } from '@ordo/shared';
+import { followingScopeOffered, ruleEndedBefore, storedRecurrence } from '@ordo/shared';
 import { deleteItemsAction, rowLabel, runAction } from '../../../components/data-table/selection/selection-actions';
 import { askScope } from '../../../components/recurrence/ask-scope';
 import { withSkipped } from '../../../components/recurrence/exceptions';
@@ -53,7 +53,7 @@ export function useDeleteEntries() {
 /**
  * « Supprimer » from an occurrence of a forecast: a repeated one asks which occurrences (`askScope`): this one (a
  * « rien » exception of its rule), it and the following ones (its rule ends before it, the previous ones untouched; not
- * offered on its last one), or all of them; all, or from its first one, delete the forecast itself (its usual
+ * offered on its first nor its last one), or all of them; all delete the forecast itself (its usual
  * confirmation). A forecast that does not repeat is deleted as one.
  * @returns {(entry: ForecastEntry, day: string) => Promise<void>} Deletion from the occurrence of a day.
  */
@@ -65,7 +65,7 @@ export function useDeleteForecastOccurrence(): (entry: ForecastEntry, day: strin
     const remove = () => runAction(forecasts([entry as TreasuryEntry]));
     // Not repeated, or archived (read only: deleted as one).
     if (!rule || entry.archived) return remove();
-    const scope = await askScope({ action: 'delete', title: 'Supprimer une prévision répétée', allowFollowing: hasOccurrenceAfter(rule, entry.date, day) });
+    const scope = await askScope({ action: 'delete', title: 'Supprimer une prévision répétée', allowFollowing: followingScopeOffered(rule, entry.date, day) });
     if (!scope) return;
     if (scope === 'THIS') return save(entry, { recurrence: withSkipped(rule, day) }, `Occurrence du ${fmt.dayLong(day)} supprimée.`);
     const ended = scope === 'FOLLOWING' ? ruleEndedBefore(rule, entry.date, day) : null;

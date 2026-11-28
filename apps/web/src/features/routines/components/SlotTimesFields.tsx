@@ -23,6 +23,7 @@ export function SlotTimesFields({ value, onChange, name, onBlur }: { value: Slot
   return (
     <>
       <TimePicker size="xs" aria-label={`À partir de, ${name}`} leftSection={<Text size="xs">dès</Text>} {...hours.start} />
+      {/* eslint-disable-next-line no-restricted-syntax -- « dès » and « avant » of a routine moment: two bounds each optional, not a start and a duration yet. */}
       <TimePicker size="xs" aria-label={`Avant, ${name}`} leftSection={<Text size="xs">avant</Text>} {...hours.end} />
     </>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anyOccurrenceAfter, DEFAULT_RECURRENCE, hasOccurrenceAfter, lastShownOccurrence, type Recurrence } from '../../src/dates/recurrence';
+import { anyOccurrenceAfter, anyOccurrenceBefore, DEFAULT_RECURRENCE, firstShownOccurrence, followingScopeOffered, hasOccurrenceAfter, hasOccurrenceBefore, lastShownOccurrence, type Recurrence } from '../../src/dates/recurrence';
 import { scheduleFollowingOffered } from '../../src/calendar/work-schedules';
 
 /**
@@ -47,6 +47,11 @@ describe('scheduleFollowingOffered: the case of that day, not on its last day', 
     expect(scheduleFollowingOffered(schedule, slot('2026-11-23'))).toBe(true);
     expect(scheduleFollowingOffered(schedule, slot('2026-11-30'))).toBe(false);
   });
+  it('not on its first day', () => {
+    const schedule = { id: 's', label: 'S', startDate: '2026-11-02', endDate: null, cases: [{ start: null, rule: rule({ weekdays: [1] }), times: allDay }], exceptions: [] };
+    expect(scheduleFollowingOffered(schedule, slot('2026-11-02'))).toBe(false);
+    expect(scheduleFollowingOffered(schedule, slot('2026-11-09'))).toBe(true);
+  });
   it('another case going on does not count: lundi 9–12 ended, mardi 14–18 going on', () => {
     const schedule = {
       id: 's',
@@ -71,7 +76,7 @@ describe('scheduleFollowingOffered: the case of that day, not on its last day', 
       cases: [{ start: null, rule: rule({ weekdays: [1] }), times: allDay }],
       exceptions: [{ from: '2026-11-10', to: '2026-11-20', label: '', cases: [{ start: null, rule: rule({ weekdays: [3] }), times: allDay }] }],
     };
-    expect(scheduleFollowingOffered(schedule, slot('2026-11-11'))).toBe(true);
+    expect(scheduleFollowingOffered(schedule, slot('2026-11-11'))).toBe(false);
     expect(scheduleFollowingOffered(schedule, slot('2026-11-18'))).toBe(false);
   });
 });
@@ -87,5 +92,65 @@ describe('lastShownOccurrence: the days deleted alone left out', () => {
   });
   it('all deleted: none', () => {
     expect(lastShownOccurrence(rule({ weekdays: [1], until: '2026-11-02' }), '2026-11-02', new Set(['2026-11-02']))).toBeUndefined();
+  });
+});
+
+describe('hasOccurrenceBefore: « Celle-ci et les suivantes » never on the first occurrence', () => {
+  it('the first date: none before', () => {
+    expect(hasOccurrenceBefore(rule({ weekdays: [1] }), '2026-11-02', '2026-11-02')).toBe(false);
+    expect(hasOccurrenceBefore(rule({ weekdays: [1] }), '2026-11-02', '2026-11-09')).toBe(true);
+  });
+  it('the first one skipped (« rien ») or deleted alone: the second is the first', () => {
+    expect(hasOccurrenceBefore(rule({ weekdays: [1], exceptions: ['2026-11-02'] }), '2026-11-02', '2026-11-09')).toBe(false);
+    expect(hasOccurrenceBefore(rule({ weekdays: [1] }), '2026-11-02', '2026-11-09', new Set(['2026-11-02']))).toBe(false);
+  });
+  it('no rule: none before', () => {
+    expect(hasOccurrenceBefore(null, '2026-11-02', '2026-11-09')).toBe(false);
+  });
+  it('a period that starts later: counted from it', () => {
+    expect(hasOccurrenceBefore(rule({ weekdays: [1] }), '2026-11-02', '2026-11-16', undefined, '2026-11-10')).toBe(false);
+  });
+  it('cases: one of them before is enough', () => {
+    const later = { rule: rule({ weekdays: [3] }), start: '2026-11-11' };
+    const earlier = { rule: rule({ weekdays: [1] }), start: '2026-11-02' };
+    expect(anyOccurrenceBefore([later], '2026-11-11')).toBe(false);
+    expect(anyOccurrenceBefore([later, earlier], '2026-11-11')).toBe(true);
+  });
+  it('followingScopeOffered: neither the first nor the last', () => {
+    const weekly = rule({ weekdays: [1], count: 3 });
+    expect(followingScopeOffered(weekly, '2026-11-02', '2026-11-02')).toBe(false);
+    expect(followingScopeOffered(weekly, '2026-11-02', '2026-11-09')).toBe(true);
+    expect(followingScopeOffered(weekly, '2026-11-02', '2026-11-16')).toBe(false);
+  });
+});
+
+describe('firstShownOccurrence: the days deleted alone left out', () => {
+  it('the first date', () => {
+    expect(firstShownOccurrence(rule({ weekdays: [1] }), '2026-11-02', new Set())).toBe('2026-11-02');
+  });
+  it('the first two deleted alone: the third', () => {
+    expect(firstShownOccurrence(rule({ weekdays: [1] }), '2026-11-02', new Set(['2026-11-02', '2026-11-09']))).toBe('2026-11-16');
+  });
+  it('all deleted: none', () => {
+    expect(firstShownOccurrence(rule({ weekdays: [1], until: '2026-11-02' }), '2026-11-02', new Set(['2026-11-02']))).toBeUndefined();
+  });
+});
+
+describe('scheduleFollowingOffered: the days of an exception period are not « before »', () => {
+  it('a period over its first Mondays: the first Monday shown after it is the first', () => {
+    const allDay = { allDay: true, ranges: [] };
+    const schedule = {
+      id: 's',
+      label: 'S',
+      startDate: '2026-11-02',
+      endDate: null,
+      cases: [{ start: null, rule: rule({ weekdays: [1] }), times: allDay }],
+      exceptions: [{ from: '2026-11-02', to: '2026-11-20', label: '', cases: [] }],
+    };
+    expect(scheduleFollowingOffered(schedule, { date: '2026-11-23', start: '00:00', end: '24:00', allDay: true })).toBe(false);
+    expect(scheduleFollowingOffered(schedule, { date: '2026-11-30', start: '00:00', end: '24:00', allDay: true })).toBe(true);
+  });
+  it('anyOccurrenceBefore from the first day of the item', () => {
+    expect(anyOccurrenceBefore([{ rule: rule({ weekdays: [1] }), start: '2026-10-05' }], '2026-11-02', '2026-11-02')).toBe(false);
   });
 });

@@ -47,7 +47,7 @@ export function DurationFields({ value, onChange, units, withinPortal = true, on
       <Select
         size="xs"
         w={290}
-        label="Chaque fois"
+        label="Durée"
         data={units.map((unit) => ({ value: unit, label: UNIT_LABELS[unit] }))}
         value={value.unit}
         allowDeselect={false}

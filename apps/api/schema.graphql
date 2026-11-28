@@ -636,6 +636,11 @@ type CalendarEventOccurrence {
   endDate: String!
   endTime: String
   eventId: ID!
+
+  """
+  First occurrence of its series still shown (the day of its rule; those deleted alone left out); null for a one-off event: « Celle-ci et les suivantes » is not offered from it.
+  """
+  firstShownDate: String
   key: String!
   label: String!
 

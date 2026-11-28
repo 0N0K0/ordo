@@ -216,6 +216,10 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
       nullable: true,
       description: 'Last occurrence of its series still shown (the day of its rule; those deleted alone left out); null without an end or for a one-off event: « Celle-ci et les suivantes » is not offered from it.',
     }),
+    firstShownDate: t.exposeString('firstShownDate', {
+      nullable: true,
+      description: 'First occurrence of its series still shown (the day of its rule; those deleted alone left out); null for a one-off event: « Celle-ci et les suivantes » is not offered from it.',
+    }),
   }),
 });
 

@@ -37,6 +37,7 @@ import {
   prunedExceptions,
   postponedRestoreRefusal,
   lastShownOccurrence,
+  firstShownOccurrence as firstShownDay,
 } from '@ordo/shared';
 import { inTransaction, prisma } from '../../db';
 import { PARIS } from '../../today';
@@ -128,6 +129,8 @@ export interface EventOccurrence {
   series: EventSeriesFields | null;
   /** Last occurrence of its series still shown (the day of its rule; those deleted alone left out): null without an end or for a one-off event. */
   lastShownDate: string | null;
+  /** First occurrence of its series still shown (the day of its rule; those deleted alone left out): null for a one-off event. */
+  firstShownDate: string | null;
 }
 
 /** An occurrence of a series deleted, cancelled or changed alone (`CalendarEventException`), as its exceptions list it. */
@@ -202,7 +205,7 @@ export const occurrenceInclude = {
 
 /**
  * First occurrence of a recurring event shown in the calendar: the first day of its rule (its « rien » exceptions
- * left out), not deleted on its own (a `cancelled` exception); scanned year by year over ten years.
+ * left out), not deleted on its own (a `cancelled` exception); scanned year by year (`firstShownOccurrence` of `@ordo/shared`).
  * @param {Pick<CalendarEvent, 'id' | 'startDate' | 'recurrence'>} event Event.
  * @param {object} [client] Client or transaction. Optional. Default = the client of the workspace.
  * @returns {Promise<string | null>} Day, null for a one-off event or without any.
@@ -211,12 +214,7 @@ export async function firstShownOccurrence(event: Pick<CalendarEvent, 'id' | 'st
   const rule = storedRecurrence(event.recurrence);
   if (!rule) return null;
   const deleted = new Set((await client.calendarEventException.findMany({ where: { eventId: event.id, cancelled: true }, select: { date: true } })).map((change) => formatDay(change.date)));
-  const start = formatDay(event.startDate);
-  for (let year = 0, from = start; year < 10; year += 1, from = addDays(from, 366)) {
-    const found = occurrenceDates(rule, start, from, addDays(from, 365)).find((date) => !deleted.has(date));
-    if (found) return found;
-  }
-  return null;
+  return firstShownDay(rule, formatDay(event.startDate), deleted) ?? null;
 }
 
 /**
@@ -1292,26 +1290,36 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
       ),
     ),
     series: change ? seriesFieldsOf(toOccurrence(event, date, undefined)) : null,
-    lastShownDate: date ? lastShownOf(event) : null,
+    lastShownDate: date ? shownBoundsOf(event).last : null,
+    firstShownDate: date ? shownBoundsOf(event).first : null,
   };
 }
 
-/** Last day shown of the series of an event once computed (every occurrence of it read gives it). */
-const lastShownOfEvent = new WeakMap<object, string | null>();
+/** First and last days shown of the series of an event once computed (every occurrence of it read gives them). */
+const shownBoundsOfEvent = new WeakMap<object, ShownBounds>();
+
+/** First and last occurrences of a series still shown, the days of its rule (null: a one-off event; last null: no end). */
+interface ShownBounds {
+  first: string | null;
+  last: string | null;
+}
 
 /**
- * Last occurrence of a series still shown, the day of its rule (`lastShownOccurrence`: those deleted alone left out);
- * null without an end. « Celle-ci et les suivantes » is not offered from it.
+ * First and last occurrences of a series still shown, the days of its rule (`firstShownOccurrence`,
+ * `lastShownOccurrence`: those deleted alone left out); the last one null without an end. « Celle-ci et les
+ * suivantes » is not offered from either.
  * @param {EventWithRelations} event Event.
- * @returns {string | null} Day.
+ * @returns {ShownBounds} Days.
  */
-function lastShownOf(event: EventWithRelations): string | null {
-  if (lastShownOfEvent.has(event)) return lastShownOfEvent.get(event)!;
+function shownBoundsOf(event: EventWithRelations): ShownBounds {
+  const known = shownBoundsOfEvent.get(event);
+  if (known) return known;
   const rule = storedRecurrence(event.recurrence);
+  const start = formatDay(event.startDate);
   const deleted = new Set(event.exceptions.filter((change) => change.cancelled).map((change) => formatDay(change.date)));
-  const last = rule ? (lastShownOccurrence(rule, formatDay(event.startDate), deleted) ?? formatDay(event.startDate)) : null;
-  lastShownOfEvent.set(event, last);
-  return last;
+  const bounds = rule ? { first: firstShownDay(rule, start, deleted) ?? start, last: lastShownOccurrence(rule, start, deleted) ?? start } : { first: null, last: null };
+  shownBoundsOfEvent.set(event, bounds);
+  return bounds;
 }
 
 /** Fields of an occurrence whose change makes it « modified » apart from its days and hours. */

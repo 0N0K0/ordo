@@ -7,6 +7,7 @@ import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { parisToday } from '../../../lib/dates';
 import { ScheduleCases } from '../../calendar/components/ScheduleRepetition';
+import { scheduleCasesApplicable } from '../../calendar/lib/schedule-text';
 import { newScheduleCase } from '../../calendar/lib/schedule-text';
 import { taskHoursLines } from '../lib/task-hours-text';
 import { ExceptionsList } from '../../../components/recurrence/ExceptionsList';
@@ -24,11 +25,11 @@ const hoursExceptionLines = (hours: ScheduleCase[]): ExceptionLine[] => skippedL
 const HOURS_CASE_START = { needed: hoursCaseNeedsStart, message: HOURS_START_REQUIRED };
 
 /**
- * Whether hours edited can be applied (the checks of a créneau, the days rhythms count from).
+ * Whether hours edited can be applied (the checks of a créneau, the days rhythms count from, the rules their durations allow, whole days over weeks or months: `scheduleCasesApplicable`).
  * @param {ScheduleCase[]} draft Hours edited.
  * @returns {boolean} Valid.
  */
-const validHours = (draft: ScheduleCase[]) => taskHoursSchema.safeParse(draft).success;
+const validHours = (draft: ScheduleCase[]) => taskHoursSchema.safeParse(draft).success && scheduleCasesApplicable(draft);
 
 /**
  * Settings of the « Horaires » of a task in the repetition modal: the cases of a créneau (days, hours), its first

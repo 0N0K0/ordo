@@ -1,6 +1,6 @@
 import { AddItemButton } from '../actions/AddItemButton';
-import { SegmentedControl, Stack, Text } from '@mantine/core';
-import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type DurationUnit, type Recurrence, type RepetitionCase } from '@ordo/shared';
+import { Group, SegmentedControl, Stack, Text } from '@mantine/core';
+import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type Duration, type DurationUnit, type Recurrence, type RepetitionCase } from '@ordo/shared';
 
 import { useState, type ReactNode } from 'react';
 import { CaseCard } from './CaseCard';
@@ -23,6 +23,8 @@ export interface RepetitionTimes<T> {
   describe: (times: T, rule: Recurrence | null) => string;
   /** Times of a new case. */
   empty: () => T;
+  /** Times once the duration of each occurrence changed (the whole day when it lasts weeks or months). Optional. */
+  withDuration?: (times: T, duration: Duration) => T;
 }
 
 /** Another way to repeat than a rule or cases (a routine following calendar schedules). */
@@ -70,6 +72,12 @@ interface RepetitionEditorProps<T> {
    * field saves the repetition then, not on each key typed. Optional.
    */
   onCommit?: () => void;
+  /**
+   * Fields in the order of what repeats with hours (slots, éphémérides, hours of a task): « Début » and « Fin » on one
+   * line, then the duration, the hours, and the rule last. Optional. Default = false (the rule, its « Fin », the
+   * duration, the hours).
+   */
+  endFirst?: boolean;
 }
 
 /** « Début » of a case (the day its rhythm counts from), required of the cases that need one. */
@@ -104,40 +112,71 @@ function CaseFields<T>({
   const [startLeft, setStartLeft] = useState(false);
   // Its rhythm counts from its « Début », else from the first day of what repeats.
   const ruleStart = item.start ?? start;
+  const startField = (withStart || required) && (
+    <DateField
+      size="xs"
+      w={190}
+      label="Début"
+      required={required}
+      placeholder={required ? 'À choisir' : 'Dès le début'}
+      clearable={!required}
+      // A technical « Début » before the first day (the oldest cases of a schedule or a routine) shows as none: its
+      // rhythm stays as it is. Not where a « Début » may be asked (the hours of a task: `start` is today there).
+      value={!props.caseStart && item.start && item.start < start ? null : item.start}
+      onChange={(day) => {
+        onChange({ start: day });
+        props.onCommit?.();
+      }}
+      onBlur={() => setStartLeft(true)}
+      onDropdownClose={() => setStartLeft(true)}
+      error={required && startLeft && !item.start ? props.caseStart?.message : undefined}
+    />
+  );
+  const duration = item.rule?.duration ?? ONE_DAY;
+  /**
+   * The rule of the case, or one part of it (`RecurrenceEditor`).
+   * @param {'all' | 'rule' | 'end'} part Part.
+   * @returns {JSX.Element} Editor.
+   */
+  const rule = (part: 'all' | 'rule' | 'end') => (
+    <RecurrenceEditor
+      value={item.rule}
+      onChange={(next) => onChange({ rule: next })}
+      start={ruleStart}
+      weekly={props.weekly}
+      allowNone={!withStart && props.allowNone !== false}
+      onCommit={props.onCommit}
+      duration={duration}
+      part={part}
+    />
+  );
+  const durationFields = props.durations && props.durations.length > 0 && item.rule && (
+    <DurationFields
+      value={duration}
+      onChange={(next) => item.rule && onChange({ rule: { ...item.rule, duration: next }, times: props.times?.withDuration ? props.times.withDuration(item.times, next) : item.times })}
+      units={props.durations}
+      onCommit={props.onCommit}
+    />
+  );
+  const timesFields = props.times?.render(item.times, (times) => onChange({ times }), index, item.rule, props.onCommit);
+  if (props.endFirst)
+    return (
+      <Stack gap="sm">
+        <Group gap="sm" align="flex-start" wrap="wrap">
+          {startField}
+          {rule('end')}
+        </Group>
+        {durationFields}
+        {timesFields}
+        {rule('rule')}
+      </Stack>
+    );
   return (
     <Stack gap="sm">
-      {(withStart || required) && (
-        <DateField
-          size="xs"
-          w={190}
-          label="Début"
-          required={required}
-          placeholder={required ? 'À choisir' : 'Dès le début'}
-          clearable={!required}
-          // A technical « Début » before the first day (the oldest cases of a schedule or a routine) shows as none: its
-          // rhythm stays as it is. Not where a « Début » may be asked (the hours of a task: `start` is today there).
-          value={!props.caseStart && item.start && item.start < start ? null : item.start}
-          onChange={(day) => {
-            onChange({ start: day });
-            props.onCommit?.();
-          }}
-          onBlur={() => setStartLeft(true)}
-          onDropdownClose={() => setStartLeft(true)}
-          error={required && startLeft && !item.start ? props.caseStart?.message : undefined}
-        />
-      )}
-      <RecurrenceEditor
-        value={item.rule}
-        onChange={(rule) => onChange({ rule })}
-        start={ruleStart}
-        weekly={props.weekly}
-        allowNone={!withStart && props.allowNone !== false}
-        onCommit={props.onCommit}
-      />
-      {props.durations && props.durations.length > 0 && item.rule && (
-        <DurationFields value={item.rule.duration ?? ONE_DAY} onChange={(duration) => item.rule && onChange({ rule: { ...item.rule, duration } })} units={props.durations} onCommit={props.onCommit} />
-      )}
-      {props.times?.render(item.times, (times) => onChange({ times }), index, item.rule, props.onCommit)}
+      {startField}
+      {rule('all')}
+      {durationFields}
+      {timesFields}
     </Stack>
   );
 }

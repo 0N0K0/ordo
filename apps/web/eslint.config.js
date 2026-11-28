@@ -128,6 +128,11 @@ const NO_FEATURES = {
 const RESTRICTED_SYNTAX = [
   // Sizes of the texts: one maximum per kind.
   ...TEXT_SIZE_RULES,
+  // A time slot (start, duration, end) is one brick: no pair of time pickers laid out by hand.
+  {
+    selector: ":matches(JSXElement, JSXFragment) > JSXElement[openingElement.name.name='TimePicker'] ~ JSXElement[openingElement.name.name='TimePicker']",
+    message: 'Utiliser TimeSlotFields (components/inputs) : début, durée et fin d’un horaire, les mêmes partout.',
+  },
   ...INHERITANCE_RULES,
   // What a sub-item inherits: its rows already hold the values it goes by, and one brick says where each comes from.
   {

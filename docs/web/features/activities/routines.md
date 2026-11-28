@@ -278,7 +278,7 @@ Interne : `movable(occurrence)`.
 
 ### `lib/skipped-repetition.ts`
 
-`routineFollowingOffered(routine, day)` : « Celle-ci et les suivantes » proposé pour une occurrence d’une routine (sa règle effective, ou l’un de ses cas, en a une après : `anyOccurrenceAfter`).
+`routineFollowingOffered(routine, day)` : « Celle-ci et les suivantes » proposé pour une occurrence d’une routine (sa règle effective, ou l’un de ses cas, en a une avant, depuis la première fois, et une après : `anyOccurrenceBefore`, `anyOccurrenceAfter` ; jamais sur la première ni la dernière).
 
 `skippedRepetition(routine, day)` : répétition d’une routine (`effective`) avec une exception « rien » le jour de sa règle (« Supprimer » « Cette occurrence » dans l’agenda) : sur sa règle, ou sur chaque cas qui a ce jour (`withSkippedOn`) ; à envoyer par `patch` ; `null` pour une sous-routine qui suit la répétition de sa parente (refus `INHERITED_SKIP_REFUSAL`, en toast).
 

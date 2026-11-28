@@ -121,8 +121,8 @@ export function useCalendarEdits() {
   /**
    * Deletes an occurrence of a routine, asking which ones: this one (a « rien » exception on the day of its rule, on
    * every case that has that day: its comments, checklist and links go, once confirmed), it and the following ones
-   * (the repetition stops before it, the previous ones untouched; not offered on its last one), or all of them; all,
-   * or it and the following ones from its first one, delete the routine itself (its usual confirmation: its
+   * (the repetition stops before it, the previous ones untouched; not offered on its first nor its last one), or all
+   * of them; all delete the routine itself (its usual confirmation: its
    * sub-routines, what is lost), never archive it.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.

@@ -136,6 +136,7 @@ Report (`postponeCalendarEvent`) :
 - `trackedSeconds` : somme des temps suivis sur cette occurrence (chronos en cours jusqu’à maintenant), chacun divisé par le nombre d’évènements du temps.
 - `postponedTo` : reports de cette occurrence ; `postponedFrom` : origine du report.
 - `lastShownDate` : la dernière occurrence de sa série encore affichée (le jour de sa règle, celles supprimées seules écartées, `lastShownOccurrence`) ; `null` sans fin ou pour un évènement unique : « Celle-ci et les suivantes » n’est pas proposé à partir d’elle.
+- `firstShownDate` : la première occurrence de sa série encore affichée (le jour de sa règle, celles supprimées seules écartées, `firstShownOccurrence`) ; `null` pour un évènement unique : « Celle-ci et les suivantes » n’est pas proposé à partir d’elle non plus.
 - `series` : d’une occurrence modifiée seule (`modified`), ses champs tels que sa série les a à sa date (libellé, description, lieu, liens, journée entière, dates, heures, trajets) : ce que « Toutes les occurrences » et « Celle-ci et les suivantes » modifient ; `null` sinon.
 - `archived` : l’évènement (sa série) est archivé. Le paramètre `activeOnly` (calendriers abonnés, disponibilité) exclut les évènements archivés et ceux des calendriers archivés.
 
@@ -165,6 +166,7 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
 - `startDate` requise ; `endDate` facultative, après le début : « La fin doit suivre le début. ».
 - `cases` : 1 à 20 (« Ajoutez au moins un cas. », « 20 cas au plus. »). Chaque cas : début facultatif (`start`, le jour d'où compte son rythme ; aucun : le début de la période), règle de répétition commune avec sa fin et sa durée, horaires (voir [Répétition par cas](../cross-cutting/dates.md#répétition-par-cas) ; les cas enregistrés avec une période sont lus avec un seul début).
   - Règle hebdomadaire : au moins un jour (« Choisissez au moins un jour. »).
+  - Saisie : voir [Répétition par cas](../cross-cutting/dates.md#répétition-par-cas) (ordre des champs) et [Début et fin](../cross-cutting/dates.md#début-et-fin) (horaire : début, durée, fin) ; une durée en semaines ou en mois est en journées entières ; la règle suit les limites de la durée ([Répétitions](../cross-cutting/dates.md#répétitions)).
   - Horaires : journée entière, ou au moins une tranche (« Ajoutez des horaires, ou « Journée entière ». ») ; 12 tranches max (« 12 tranches au plus. ») ; la fin d’une tranche suit son début ; tranches sans chevauchement (« Des horaires se chevauchent. »).
 - `exceptions` : 200 max (« 200 exceptions au plus. ») ; chacune `from` ≤ `to`, motif 250 caractères, 20 cas max ; sans cas : une pause. Triées par date de début à l’enregistrement.
 - `typeId` : type de créneau existant, non archivé sauf s’il est déjà celui du créneau (« Type de créneau »).

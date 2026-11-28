@@ -44,6 +44,8 @@ export * from './tables/table-layout';
 export * from './tables/table-views';
 export * from './dates/weeks';
 export * from './dates/times';
+export * from './dates/time-slot';
+export * from './dates/repetition-limits';
 export * from './dates/reminders';
 export * from './dates/ringing';
 export * from './dates/countdowns';

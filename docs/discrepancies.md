@@ -24,6 +24,10 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 
 - **Occurrence qui dure plusieurs jours :** un ancien cas (créneau, éphéméride, cas de routine) avec une période dont la dernière occurrence la dépassait s’arrêtait à la fin de la période ; lu avec la fin dans sa règle, elle va jusqu’à son dernier jour. Pour une routine, cette dernière occurrence a donc un autre jour dû : ses coches, commentaires et exceptions, rangés par l’ancien jour dû (la fin de la période), ne la retrouvent plus (rare : un ancien cas avec une période et des occurrences de plusieurs jours). De même, une occurrence commencée avant la période d’un ancien cas et qui y entrait se montre maintenant depuis son premier jour, avant la période. Le « Début » d’un cas de la plus ancienne forme (`pattern`) est un jour technique (un lundi, un 1er du mois ou de l’année, souvent avant la période) : avant le début de la période, ni le résumé ni le champ « Début » (vide, « Dès le début ») ne le montrent, mais il reste enregistré tant que le champ n’est pas changé. Voir [Dates](business-rules/cross-cutting/dates.md#répétition-par-cas).
 
+## Répétition limitée par la durée
+
+- **Seulement dans l’app :** les limites d’une règle par la durée de chaque occurrence (`repetitionLimits`) ne sont vérifiées que par l’éditeur (choix non proposés, erreur sous le champ, « Appliquer » refusé pour les créneaux, éphémérides et horaires des tâches) ; l’API et les schémas partagés acceptent toujours une règle qui en sort (les règles enregistrées avant restent lisibles). Les évènements et routines n’ont que les choix filtrés et l’erreur. Voir [Dates](business-rules/cross-cutting/dates.md#répétitions).
+
 ## Comportements à confirmer
 
 - **Libellé fixe** : celui de `WorkSchedulesManager` est dans une ligne avec « Type » (`sticky={false}`), donc pas fixe au défilement. La garde eslint ne voit que le texte « Libellé » (pas « Nom » ni un libellé calculé). L'« Objet » d'un document comptable (`DocumentEditor`, `ImportedDocumentForm`) reste un `TextInput`, hors de la garde.

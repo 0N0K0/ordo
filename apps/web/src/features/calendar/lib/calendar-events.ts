@@ -375,10 +375,13 @@ export function birthdayEvents(birthdays: readonly PersonBirthday[], look: Birth
 }
 
 /**
- * Whether « Celle-ci et les suivantes » is offered for an occurrence of an event: a recurring one before the last
- * occurrence its series still shows (`lastShownDate` of the API: those deleted alone left out; none: no end).
- * @param {{ occurrenceDate: string | null, lastShownDate: string | null }} occurrence Occurrence.
+ * Whether « Celle-ci et les suivantes » is offered for an occurrence of an event: a recurring one after the first and
+ * before the last occurrence its series still shows (`firstShownDate`, `lastShownDate` of the API: those deleted alone
+ * left out; no last one: no end).
+ * @param {{ occurrenceDate: string | null, firstShownDate: string | null, lastShownDate: string | null }} occurrence Occurrence.
  * @returns {boolean} Offered.
  */
-export const followingOffered = (occurrence: { occurrenceDate: string | null; lastShownDate: string | null }): boolean =>
-  occurrence.occurrenceDate !== null && (occurrence.lastShownDate === null || occurrence.occurrenceDate < occurrence.lastShownDate);
+export const followingOffered = (occurrence: { occurrenceDate: string | null; firstShownDate: string | null; lastShownDate: string | null }): boolean =>
+  occurrence.occurrenceDate !== null &&
+  (occurrence.firstShownDate === null || occurrence.occurrenceDate > occurrence.firstShownDate) &&
+  (occurrence.lastShownDate === null || occurrence.occurrenceDate < occurrence.lastShownDate);

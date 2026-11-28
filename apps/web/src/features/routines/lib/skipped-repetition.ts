@@ -1,4 +1,4 @@
-import { anyOccurrenceAfter, marksInherited, readOpens, storedRecurrence, type RoutineCase, type RoutineInheritableField } from '@ordo/shared';
+import { anyOccurrenceAfter, anyOccurrenceBefore, marksInherited, readOpens, storedRecurrence, type RoutineCase, type RoutineInheritableField } from '@ordo/shared';
 import { withSkippedOn } from '../../../components/recurrence/exceptions';
 import type { Routine, RoutinePatchValues } from '../api';
 import { DAILY } from './routine-format';
@@ -30,7 +30,7 @@ export function skippedRepetition(routine: Routine, day: string): RoutinePatchVa
 
 /**
  * Whether « Celle-ci et les suivantes » is offered for an occurrence of a routine: its rule, or one of its cases, has
- * an occurrence after it (never on its last one, `anyOccurrenceAfter`).
+ * an occurrence before it, and one an occurrence after it (never on its first nor its last one).
  * @param {Routine} routine Routine (its repetition as it goes: `effective`).
  * @param {string} day Day of the rule of the occurrence.
  * @returns {boolean} Offered.
@@ -39,5 +39,7 @@ export function routineFollowingOffered(routine: Routine, day: string): boolean 
   const { effective } = routine;
   const startDate = effective.startDate ?? routine.startDate;
   const cases = (effective.cases as RoutineCase[] | null) ?? [];
-  return anyOccurrenceAfter(cases.length ? cases.map((item) => ({ rule: item.recurrence, start: item.from ?? startDate })) : [{ rule: storedRecurrence(effective.recurrence), start: startDate }], day);
+  const rules = cases.length ? cases.map((item) => ({ rule: item.recurrence, start: item.from ?? startDate })) : [{ rule: storedRecurrence(effective.recurrence), start: startDate }];
+  // Its occurrences are shown from its first time on, whatever day a case counts from.
+  return anyOccurrenceBefore(rules, day, startDate) && anyOccurrenceAfter(rules, day);
 }
