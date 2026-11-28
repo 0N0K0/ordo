@@ -1,7 +1,9 @@
-import { Stack, Switch, Text } from '@mantine/core';
+import { Group, Input, Stack, Switch, Text } from '@mantine/core';
+import { DateField } from '../../../components/inputs/DateField';
+import { TimeSlotFields } from '../../../components/inputs/TimeSlotFields';
 import { LabelField } from '../../../components/inputs/LabelField';
 import { useEffect, useRef } from 'react';
-import { daysBetween, postponedRestoreRefusal, spanEnd, type Recurrence, DURATION_UNITS } from '@ordo/shared';
+import { addDays, DAY_MINUTES, daysBetween, postponedRestoreRefusal, spanEnd, timeToMinutes, type Recurrence, DURATION_UNITS } from '@ordo/shared';
 import type { ExceptionEntry } from '../../../components/recurrence/ExceptionsList';
 import { RuleEditor } from '../../../components/recurrence/RepetitionEditor';
 import { PeriodField } from '../../../components/inputs/PeriodField';
@@ -32,12 +34,34 @@ interface EventDaysValue {
 }
 
 /**
+ * Minutes an event with hours lasts, from its start to its end (over several days too).
+ * @param {EventDaysValue} value Days and hours.
+ * @returns {number} Minutes.
+ */
+const eventMinutes = (value: EventDaysValue) =>
+  daysBetween(value.startDate, value.endDate) * DAY_MINUTES + timeToMinutes(value.endTime ?? '10:00') - timeToMinutes(value.startTime ?? '09:00');
+
+/**
  * « Journée entière » and « Période » (days with their hours) of an event, or of one of its occurrences in the list of
- * its exceptions: each change given with whether the length of the days changed.
- * @param {{ value: EventDaysValue, onChange: (changes: Partial<EventDaysValue>, length: boolean) => void, error?: string, size?: 'xs' }} props Days, their change, error (optional), smaller fields (optional).
+ * its exceptions: each change given with whether the length of the days changed. With hours: its day and its time slot
+ * (`TimeSlotFields`: start, duration, end and its day); the whole day: its period of days.
+ * The time slot gives its changes without committing them (`commit` false), and commits once a field is left (`onCommit`).
+ * @param {{ value: EventDaysValue, onChange: (changes: Partial<EventDaysValue>, length: boolean, commit?: boolean) => void, onCommit?: () => void, error?: string, size?: 'xs' }} props Days, their change (committed unless `commit` is false), commit once a field of the time slot is left (optional), error (optional), smaller fields (optional).
  * @returns {JSX.Element} Fields.
  */
-function EventDays({ value, onChange, error, size }: { value: EventDaysValue; onChange: (changes: Partial<EventDaysValue>, length: boolean) => void; error?: string; size?: 'xs' }) {
+function EventDays({
+  value,
+  onChange,
+  onCommit,
+  error,
+  size,
+}: {
+  value: EventDaysValue;
+  onChange: (changes: Partial<EventDaysValue>, length: boolean, commit?: boolean) => void;
+  onCommit?: () => void;
+  error?: string;
+  size?: 'xs';
+}) {
   return (
     <Stack gap="sm">
       <Switch
@@ -49,20 +73,45 @@ function EventDays({ value, onChange, error, size }: { value: EventDaysValue; on
           onChange({ allDay, startTime: allDay ? null : '09:00', endTime: allDay ? null : '10:00' }, false);
         }}
       />
-      <PeriodField
-        label="Période"
-        required
-        weekday
-        keepLength
-        size={size}
-        value={[value.startDate, value.endDate]}
-        times={value.allDay ? undefined : [value.startTime, value.endTime]}
-        error={error}
-        onChange={([startDate, endDate], hours) => {
-          if (!startDate || !endDate) return;
-          onChange({ startDate, endDate, ...(hours ? { startTime: hours[0], endTime: hours[1] } : {}) }, daysBetween(startDate, endDate) !== daysBetween(value.startDate, value.endDate));
-        }}
-      />
+      {value.allDay ? (
+        <PeriodField
+          label="Période"
+          required
+          weekday
+          keepLength
+          size={size}
+          value={[value.startDate, value.endDate]}
+          error={error}
+          onChange={([startDate, endDate]) => {
+            if (!startDate || !endDate) return;
+            onChange({ startDate, endDate }, daysBetween(startDate, endDate) !== daysBetween(value.startDate, value.endDate));
+          }}
+        />
+      ) : (
+        <Stack gap={4}>
+          <Group gap="sm" align="flex-start" wrap="wrap">
+            <DateField
+              label="Jour"
+              required
+              size={size ?? 'xs'}
+              w={150}
+              value={value.startDate}
+              // Another day keeps its length: the end moves as much.
+              onChange={(startDate) => startDate && onChange({ startDate, endDate: addDays(startDate, daysBetween(value.startDate, value.endDate)) }, false)}
+            />
+            <TimeSlotFields
+              name="évènement"
+              value={{ start: value.startTime ?? '09:00', minutes: eventMinutes(value) }}
+              onChange={(slot) => {
+                const endDate = addDays(value.startDate, slot.end.days);
+                onChange({ startTime: slot.start, endTime: slot.end.time, endDate }, endDate !== value.endDate, false);
+              }}
+              onCommit={onCommit}
+            />
+          </Group>
+          {error && <Input.Error>{error}</Input.Error>}
+        </Stack>
+      )}
     </Stack>
   );
 }
@@ -174,10 +223,14 @@ export function EventRepetition({
     <EventDays
       value={value}
       error={error}
-      onChange={(changes, length) =>
+      onChange={(changes, length, commit = true) => {
         // Hours of its own, or other days of its own: the length of the rule follows them.
-        choose({ ...changes, ...(value.recurrence && (changes.allDay === false || (length && value.recurrence.duration)) ? { recurrence: { ...value.recurrence, duration: null } } : {}) })
-      }
+        const next = { ...changes, ...(value.recurrence && (changes.allDay === false || (length && value.recurrence.duration)) ? { recurrence: { ...value.recurrence, duration: null } } : {}) };
+        // The time slot commits once a field is left (a number typed is not saved at each digit).
+        if (commit) choose(next);
+        else set(next);
+      }}
+      onCommit={onCommit}
     />
   );
   if (ruleLocked) return days;

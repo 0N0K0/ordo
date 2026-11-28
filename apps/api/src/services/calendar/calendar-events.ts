@@ -38,6 +38,7 @@ import {
   postponedRestoreRefusal,
   lastShownOccurrence,
   firstShownOccurrence as firstShownDay,
+  newLimitBreak,
 } from '@ordo/shared';
 import { inTransaction, prisma } from '../../db';
 import { PARIS } from '../../today';
@@ -438,9 +439,9 @@ async function moveRoutineLinks(
  * Contributors, categories, beneficiaries and relations of an event (they may stay when its project changes, or once
  * archived).
  * @param {string} id Event.
- * @returns {Promise<[string[], string[], string[], string[], string[], string[]]>} Contributor ids, category ids, beneficiary ids, relation ids (beneficiaries or linked), its project and its documents of projects.
+ * @returns {Promise<[string[], string[], string[], string[], string[], string[], string[], unknown]>} Contributor ids, category ids, beneficiary ids, relation ids (beneficiaries or linked), its project, its documents of projects, its tasks and its repetition as saved.
  */
-async function eventKept(id: string): Promise<[string[], string[], string[], string[], string[], string[], string[]]> {
+async function eventKept(id: string): Promise<[string[], string[], string[], string[], string[], string[], string[], unknown]> {
   const event = await prisma.calendarEvent.findUnique({
     where: { id },
     select: {
@@ -452,6 +453,7 @@ async function eventKept(id: string): Promise<[string[], string[], string[], str
       relations: { select: { id: true } },
       projectResources: { select: { id: true } },
       tasks: { select: { id: true } },
+      recurrence: true,
     },
   });
   const ids = (items: { id: string }[] | undefined) => (items ?? []).map((item) => item.id);
@@ -463,6 +465,7 @@ async function eventKept(id: string): Promise<[string[], string[], string[], str
     event?.projectId ? [event.projectId] : [],
     ids(event?.projectResources),
     ids(event?.tasks),
+    event?.recurrence ?? null,
   ];
 }
 
@@ -499,6 +502,7 @@ export async function assertEventsArchivable(ids: readonly string[]): Promise<vo
  * @param {string[]} [keepResources] Documents of projects already linked to the event: those out of its project tree
  * stay while its tree does not change, and are dropped when it moves to another one. Optional.
  * @param {string[]} [keepTasks] Tasks already linked to the event (kept even if archived or out of its project tree). Optional.
+ * @param {unknown} [keepRule] Repetition already of the event: saved out of the limits of its duration, it stays. Optional.
  * @returns {Promise<ReturnType<typeof calendarEventInputSchema.parse>>} Validated fields.
  */
 async function parseEvent(
@@ -510,8 +514,12 @@ async function parseEvent(
   keepProject: string[] = [],
   keepResources: string[] = [],
   keepTasks: string[] = [],
+  keepRule: unknown = null,
 ) {
   const event = parseInput(calendarEventInputSchema, input);
+  // Its repetition within the limits of the duration of its occurrences (one saved before that breaks them stays).
+  const broken = newLimitBreak([{ rule: event.recurrence }], [{ rule: storedRecurrence(keepRule) }]);
+  if (broken) throw fieldError('recurrence', broken.message);
   await assertActive(prisma.project, event.projectId, 'Projet', { keep: keepProject, field: 'projectId' });
   const rootOf = await loadProjectRootOf();
   event.projectResourceIds =

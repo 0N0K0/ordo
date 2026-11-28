@@ -1,6 +1,6 @@
 import { AddItemButton } from '../actions/AddItemButton';
 import { Group, SegmentedControl, Stack, Text } from '@mantine/core';
-import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type Duration, type DurationUnit, type Recurrence, type RepetitionCase } from '@ordo/shared';
+import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type Duration, type DurationUnit, type RepetitionLimits, type Recurrence, type RepetitionCase } from '@ordo/shared';
 
 import { useState, type ReactNode } from 'react';
 import { CaseCard } from './CaseCard';
@@ -25,6 +25,8 @@ export interface RepetitionTimes<T> {
   empty: () => T;
   /** Times once the duration of each occurrence changed (the whole day when it lasts weeks or months). Optional. */
   withDuration?: (times: T, duration: Duration) => T;
+  /** Limits the times give the rule (an « Ouverture » before the due day). Optional. */
+  limits?: (times: T) => RepetitionLimits | null;
 }
 
 /** Another way to repeat than a rule or cases (a routine following calendar schedules). */
@@ -147,6 +149,7 @@ function CaseFields<T>({
       allowNone={!withStart && props.allowNone !== false}
       onCommit={props.onCommit}
       duration={duration}
+      limits={props.times?.limits?.(item.times) ?? null}
       part={part}
     />
   );

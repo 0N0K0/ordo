@@ -96,7 +96,8 @@ export function TimeSlotFields({ value, onChange, name, sameDay = false, onCommi
     setLeft(true);
     onCommit?.();
   };
-  const days = Array.from({ length: MAX_END_DAYS + 1 }, (_, index) => ({ value: String(index), label: endDayText(index) }));
+  // Up to J+30, or further to its end.
+  const days = Array.from({ length: Math.max(MAX_END_DAYS, end.days) + 1 }, (_, index) => ({ value: String(index), label: endDayText(index) }));
   return (
     <Group gap={6} wrap="wrap" align="flex-start">
       <TimePicker size="xs" label="Début" aria-label={`Début, ${name}`} value={typed?.field === 'start' ? typed.time : value.start} onChange={(time) => time && setTyped({ field: 'start', time })} onBlur={leave} />

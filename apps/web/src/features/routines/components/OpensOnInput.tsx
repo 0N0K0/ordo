@@ -1,6 +1,7 @@
 import { Group, NumberInput, Select, Stack } from '@mantine/core';
 import { MonthDayField } from '../../../components/recurrence/MonthDayField';
-import { monthOptions, positionOptions, weekdayOptions, type Recurrence, type RoutineOpens, type RoutineOpensMode } from '@ordo/shared';
+import { monthOptions, OPENS_UNITS, positionOptions, weekdayOptions, type OpensUnit, type Recurrence, type RoutineOpens, type RoutineOpensMode } from '@ordo/shared';
+import { plural } from '../../../lib/text';
 
 interface OpensOnInputProps {
   /** Frequency of the rule it belongs to: a day of the month or of the year only for a monthly or yearly one. */
@@ -12,6 +13,13 @@ interface OpensOnInputProps {
   onCommit?: () => void;
   error?: string;
 }
+
+/** Words of each unit of an « Ouverture » before the due day, by how many. */
+const UNIT_LABELS: Record<OpensUnit, (count: number) => string> = {
+  DAYS: (count) => plural(count, 'jour', 'jours'),
+  WEEKS: (count) => plural(count, 'semaine', 'semaines'),
+  MONTHS: () => 'mois',
+};
 
 /** No « Ouverture ». */
 const NONE = 'NONE';
@@ -28,7 +36,7 @@ function modeOptions(frequency: Recurrence['frequency']): { value: string; label
     { value: 'WEEKDAY', label: `Un jour de semaine ${frequency === 'YEARLY' ? 'd’un mois' : 'du mois'}` },
     { value: 'WEEK', label: `Un jour d’une semaine ${period}` },
   ];
-  return [{ value: NONE, label: 'Dès son premier jour' }, ...(frequency === 'MONTHLY' || frequency === 'YEARLY' ? days : []), { value: 'BEFORE', label: 'Des jours avant l’échéance' }];
+  return [{ value: NONE, label: 'Dès son premier jour' }, ...(frequency === 'MONTHLY' || frequency === 'YEARLY' ? days : []), { value: 'BEFORE', label: 'Avant l’échéance' }];
 }
 
 /**
@@ -47,7 +55,7 @@ function firstValue(mode: RoutineOpensMode, frequency: Recurrence['frequency']):
     case 'WEEK':
       return { mode, week: 1, weekday: 1 };
     case 'BEFORE':
-      return { mode, days: 1 };
+      return { mode, days: 1, unit: 'DAYS' };
   }
 }
 
@@ -55,7 +63,7 @@ function firstValue(mode: RoutineOpensMode, frequency: Recurrence['frequency']):
  * « Ouverture »: day each occurrence can be done from, before its due day: a day number (or the last day of the month,
  * `MonthDayField`), a weekday of the month (the
  * 2nd Tuesday), the weekday of a week (of the month, or ISO week of the year), in its period (a monthly or yearly
- * rule), or some days before its due day; none: from its first day. Each change is given at once; `onCommit` follows a
+ * rule), or some days, weeks or months before its due day; none: from its first day. Each change is given at once; `onCommit` follows a
  * choice at once, and a number once it is left.
  * @param {OpensOnInputProps} props Component props.
  * @returns {JSX.Element} Input.
@@ -139,7 +147,17 @@ export function OpensOnInput({ frequency, value, onChange, onCommit, error }: Op
         </Group>
       )}
       {value?.mode === 'BEFORE' && (
-        <NumberInput label="Jours avant l’échéance" min={1} max={366} allowDecimal={false} value={value.days} onChange={(next) => change({ days: Math.min(366, Math.max(1, Number(next) || 1)) })} onBlur={onCommit} />
+        <Group gap="sm" align="flex-end" wrap="nowrap">
+          <NumberInput label="Avant l’échéance" w={110} min={1} max={366} allowDecimal={false} value={value.days} onChange={(next) => change({ days: Math.min(366, Math.max(1, Number(next) || 1)) })} onBlur={onCommit} />
+          <Select
+            aria-label="Unité de l’ouverture"
+            w={140}
+            data={OPENS_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit](value.days) }))}
+            value={value.unit ?? 'DAYS'}
+            onChange={(unit) => unit && choose({ unit: unit as OpensUnit })}
+            allowDeselect={false}
+          />
+        </Group>
       )}
     </Stack>
   );

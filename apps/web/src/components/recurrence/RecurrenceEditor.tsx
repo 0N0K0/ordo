@@ -17,8 +17,10 @@ import {
   weekPositionOptions,
   type WeekParity,
   repetitionLimits,
-  repetitionLimitError,
+  limitsError,
+  stricterLimits,
   type Duration,
+  type RepetitionLimits,
 } from '@ordo/shared';
 import { useState } from 'react';
 import { MonthDayField } from './MonthDayField';
@@ -79,6 +81,8 @@ interface RecurrenceEditorProps {
    * Optional. Default = a single day.
    */
   duration?: Duration | null;
+  /** Other limits of the rule (an « Ouverture » before the due day: `opensLimits`), with those of its duration. Optional. */
+  limits?: RepetitionLimits | null;
   /** What it shows: everything, the rule without its « Fin », or its « Fin » only. Optional. Default = 'all'. */
   part?: 'all' | 'rule' | 'end';
 }
@@ -94,13 +98,18 @@ interface RecurrenceEditorProps {
  * @param {RecurrenceEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly: weeklyAllowed = true, allowNone = true, frequencyLocked = false, onCommit: commit, duration, part = 'all' }: RecurrenceEditorProps) {
+export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly: weeklyAllowed = true, allowNone = true, frequencyLocked = false, onCommit: commit, duration, limits: otherLimits = null, part = 'all' }: RecurrenceEditorProps) {
   const comboboxProps = { withinPortal };
   const rule = value;
-  const limits = repetitionLimits(duration);
+  const limits = stricterLimits(repetitionLimits(duration), otherLimits);
+  // Other limits changed since it showed (an « Ouverture » chosen): their error shows at once.
+  const [shownLimits] = useState(() => JSON.stringify(otherLimits));
+  const otherLimitsChanged = shownLimits !== JSON.stringify(otherLimits);
   // Its error once a field is left (validated on blur, then on every change).
   const [left, setLeft] = useState(false);
-  const limitError = left ? repetitionLimitError(rule, duration) : null;
+  const durationLimits = repetitionLimits(duration);
+  // The error of the limits it breaks (the duration first), once a field is left or its other limits changed.
+  const limitError = left || otherLimitsChanged ? (limitsError(rule, durationLimits) ?? limitsError(rule, otherLimits)) : null;
   /**
    * After a choice, or a number left: the error of the limits shown from then on, then committed.
    * @returns {void}

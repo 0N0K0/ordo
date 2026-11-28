@@ -122,7 +122,7 @@ export const convertTaskToRoutine = automated(async function convertTaskToRoutin
   // « Échéance » = due day of the first occurrence; « Ouverture » = its days before, when it differs.
   const { minDate, deadline } = goesBy;
   const due = deadline ?? minDate ?? parisToday();
-  const opens: RoutineOpens | null = minDate && deadline && minDate < deadline ? { mode: 'BEFORE', days: Math.min(MAX_OPENS_BEFORE, daysBetween(minDate, deadline)) } : null;
+  const opens: RoutineOpens | null = minDate && deadline && minDate < deadline ? { mode: 'BEFORE', unit: 'DAYS', days: Math.min(MAX_OPENS_BEFORE, daysBetween(minDate, deadline)) } : null;
   const timing: RoutineTiming = {
     startDate: parseDay(due),
     recurrence: DAILY_RECURRENCE as unknown as Prisma.JsonValue,

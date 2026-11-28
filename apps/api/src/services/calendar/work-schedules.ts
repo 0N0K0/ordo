@@ -10,6 +10,7 @@ import {
   parseOptionalDay,
   readScheduleDisplay,
   readScheduleCases,
+  newLimitBreak,
   readScheduleExceptions,
   scheduleSubscriptionLookSchema,
   scheduleTypeSchema,
@@ -29,7 +30,7 @@ import {
 import { BY_POSITION } from '../core/ordering';
 import { createLabelService } from '../core/labels';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertActive, refuseArchived, refuseForeignArchived } from '../core/archive';
+import { assertActive, findActive, refuseArchived, refuseForeignArchived } from '../core/archive';
 import { prisma, unscopedPrisma } from '../../db';
 import type { Prisma, ScheduleType, WorkSchedule } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
@@ -98,12 +99,18 @@ function scheduleRuleOf(id: string, input: WorkScheduleInput, { ephemeris, unava
  * Prisma data of a schedule, exceptions by date; the former format is emptied (cases replace it). A kind archived
  * is refused unless it is the current one. With a kind, it is of the nature of its kind (créneau or éphéméride) and
  * « Indisponible » as its kind is; without one, as asked.
+ * Rules of its cases kept within the limits of their durations (`newLimitBreak`: one saved before that breaks them stays).
  * @param {WorkScheduleInput} input Schedule.
  * @param {string | null} [currentTypeId] Kind of the schedule changed. Optional.
+ * @param {WorkSchedule | null} [current] Schedule changed, as saved. Optional.
  * @returns {Promise<object>} Data.
  */
-async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null) {
+async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null, current: WorkSchedule | null = null) {
   const schedule = parseInput(workScheduleSchema, input);
+  const was = current && scheduleRule(current);
+  const before = was ? [...was.cases, ...was.exceptions.flatMap((item) => item.cases)] : [];
+  const broken = newLimitBreak([...schedule.cases, ...schedule.exceptions.flatMap((item) => item.cases)], before);
+  if (broken) throw fieldError('cases', broken.message);
   await assertActive(prisma.scheduleType, schedule.typeId, 'Type de créneau', { keep: currentTypeId, field: 'typeId' });
   const type = schedule.typeId ? await prisma.scheduleType.findUnique({ where: { id: schedule.typeId }, select: { ephemeris: true, unavailable: true } }) : null;
   return {
@@ -155,9 +162,8 @@ export async function createWorkSchedule(input: WorkScheduleInput, settle: Sched
  * @returns {Promise<WorkSchedule>} Schedule.
  */
 export async function updateWorkSchedule(id: string, input: WorkScheduleInput, settle: ScheduleChangeSettler = NO_SETTLER): Promise<WorkSchedule> {
-  const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true, archivedAt: true } }), 'Créneau de travail');
-  refuseArchived(current);
-  const data = await scheduleData(input, current.typeId);
+  const current = await findActive(prisma.workSchedule, id, 'Créneau de travail');
+  const data = await scheduleData(input, current.typeId, current);
   // Its kind kept: archived as it is; another one: not archived (checked).
   const after = await settle((own) =>
     own.map((rule) => {

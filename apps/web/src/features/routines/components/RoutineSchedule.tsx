@@ -8,7 +8,9 @@ import { Checkbox, Group, Stack, Text } from '@mantine/core';
 import { DateField } from '../../../components/inputs/DateField';
 import {
   opensFits,
+  opensLimits,
   readOpens,
+  routineRuleLimitError,
   readSlotCondition,
   routineSchedule,
   type RoutineOpens,
@@ -147,6 +149,7 @@ function MomentsEditor({
 const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes> => ({
   render: (times, onChange, index, rule, onCommit) => (
     <Stack gap="sm">
+      <OpensOnInput frequency={rule?.frequency ?? 'DAILY'} value={times.opens} onChange={(opens) => onChange({ ...times, opens })} onCommit={onCommit} />
       <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} onCommit={onCommit} />
       <SlotConditionBuilder
         item="routine"
@@ -156,9 +159,9 @@ const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes>
           onCommit?.();
         }}
       />
-      <OpensOnInput frequency={rule?.frequency ?? 'DAILY'} value={times.opens} onChange={(opens) => onChange({ ...times, opens })} onCommit={onCommit} />
     </Stack>
   ),
+  limits: (times) => opensLimits(times.opens),
   describe: (times, rule) =>
     [describeMoments(times.moments), describeSlotCondition(times.condition, names), times.opens && rule && opensText(times.opens, rule.frequency) && `dès ${opensText(times.opens, rule.frequency)}`]
       .filter(Boolean)
@@ -282,6 +285,7 @@ function RoutineRepetitionEditor({
         durations={DURATION_UNITS}
         times={routineTimes(names)}
         onCommit={onCommit}
+        endFirst
       />
       <LabeledField label="Exceptions">
         <ExceptionsList
@@ -319,11 +323,14 @@ function routineRepetitionValue(routine: Routine): RoutineRepetitionValue {
 }
 
 /**
- * Whether a repetition can be applied: a first day, and a case at least in cases.
+ * Whether a repetition can be applied: a first day, a case at least in cases, and rules within the limits of their
+ * duration and « Ouverture » (`routineRuleLimitError`).
  * @param {RoutineRepetitionValue} draft Repetition.
  * @returns {boolean} Valid.
  */
-const validRepetition = (draft: RoutineRepetitionValue) => Boolean(draft.startDate) && (draft.mode !== 'CASES' || draft.cases.length > 0);
+const validRepetition = (draft: RoutineRepetitionValue) =>
+  Boolean(draft.startDate) &&
+  (draft.mode !== 'CASES' ? !routineRuleLimitError(draft.recurrence, draft.opensOn) : draft.cases.length > 0 && draft.cases.every((item) => !routineRuleLimitError(item.recurrence, readOpens(item.opens))));
 
 /**
  * Repetition as saved from the one edited: the cases in cases, else the rule with its moments, condition and

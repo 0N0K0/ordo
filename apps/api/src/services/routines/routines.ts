@@ -47,6 +47,7 @@ import {
   inheritsTiming,
   OPENS_MISFIT,
   opensMisfits,
+  routineRuleLimitError,
   ROUTINE_INHERITABLE_FIELDS,
   routineBulkValues,
   timingHeirs,
@@ -610,6 +611,25 @@ const conditionsOf = (routine: Pick<RoutineTiming, 'slotCondition' | 'scheduleId
  */
 const opensMisfitOf = (routine: RoutineTiming) => opensMisfits({ opensOn: readOpens(routine.opensOn), cases: storedCases(routine), recurrence: storedRule(routine) });
 
+/**
+ * First error of the repetition of a routine out of the limits of its durations and « Ouverture » (its rule, or one of
+ * its cases: `routineRuleLimitError`), with the field it goes under; none when it keeps them.
+ * @param {Pick<RoutineTiming, 'recurrence' | 'scheduleIds' | 'slotCondition' | 'opensOn' | 'cases' | 'startDate'>} routine Routine.
+ * @returns {{ field: string, message: string } | null} Error.
+ */
+function repetitionLimitOf(routine: Pick<RoutineTiming, 'recurrence' | 'scheduleIds' | 'slotCondition' | 'opensOn' | 'cases' | 'startDate'>): { field: string; message: string } | null {
+  const cases = storedCases(routine);
+  if (!cases.length) {
+    const error = routineRuleLimitError(storedRule(routine), readOpens(routine.opensOn));
+    return error && { field: 'recurrence', message: error.message };
+  }
+  for (const item of cases) {
+    const error = routineRuleLimitError(item.recurrence, readOpens(item.opens));
+    if (error) return { field: 'cases', message: error.message };
+  }
+  return null;
+}
+
 /** Refusal of a reminder « avant » of a routine without any hour. */
 const HOURLESS_REMINDERS = 'Sans heure « dès » ni « jusqu’à » (ni créneau), une routine n’a que des rappels à une heure : le jour J ou quelques jours avant.';
 
@@ -642,6 +662,8 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
           slotCondition: true,
           cases: true,
           startDate: true,
+          recurrence: true,
+          opensOn: true,
           scheduleIds: true,
           excludedScheduleIds: true,
           parentId: true,
@@ -681,6 +703,10 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   // Its own « Ouverture » fits the repetition it goes by (an inherited one, its parent's, is checked there); one that no
   // longer fits after a change of its parent stays.
   if (routines && !inherits('OPENS_ON') && opensMisfitOf(next) && !(wasTiming && opensMisfitOf(wasTiming))) throw fieldError('opensOn', OPENS_MISFIT);
+  // Its own repetition keeps the limits of its durations and « Ouverture » (an inherited one is its parent's, checked
+  // there); one saved before them that breaks them stays, as an undo or a copy of it.
+  const limit = restoring || copyOf || inherits('RECURRENCE') || inherits('CASES') ? null : repetitionLimitOf(next);
+  if (limit && (!was || !repetitionLimitOf(was))) throw fieldError(limit.field, limit.message);
   // Undo: everything counts as kept.
   const keptCategoryIds = restoring ? data.categoryIds : (current?.categories.map((category) => category.id) ?? []);
   await assertNoneArchived('routineCategory', data.categoryIds, { keep: keptCategoryIds, field: 'categoryIds' });

@@ -1,10 +1,11 @@
 import { LAST_DAY, lastDayWords, MONTH_LABELS, ofMonth, opensFits, ordinal, POSITION_LABELS, WEEKDAY_LABELS, type Recurrence, type RoutineOpens } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
+import { plural } from '../../../lib/text';
 
 /**
  * « Ouverture » in words, without « dès »: « le 15 du mois », « le 15 mars », « le dernier jour du mois précédent »
  * (monthly), « le dernier jour de mars », « le 2e mardi du mois », « le lundi
- * de la semaine 12 », « 3 jours avant l’échéance ».
+ * de la semaine 12 », « 3 jours avant l’échéance », « 2 semaines avant l’échéance », « 1 mois avant l’échéance ».
  * @param {RoutineOpens} opens « Ouverture ».
  * @param {Recurrence['frequency']} frequency Frequency of its rule.
  * @param {{ ofDue?: boolean }} [options] Options. Optional.
@@ -14,8 +15,12 @@ import * as fmt from '../../../lib/format';
 export function opensText(opens: RoutineOpens, frequency: Recurrence['frequency'], { ofDue = true }: { ofDue?: boolean } = {}): string {
   if (!opensFits(opens, frequency)) return '';
   switch (opens.mode) {
-    case 'BEFORE':
-      return `${opens.days === 1 ? 'la veille' : `${opens.days} jours avant`}${ofDue ? (opens.days === 1 ? ' de l’échéance' : ' l’échéance') : ''}`;
+    case 'BEFORE': {
+      // A day before: « la veille ».
+      if ((opens.unit ?? 'DAYS') === 'DAYS' && opens.days === 1) return `la veille${ofDue ? ' de l’échéance' : ''}`;
+      const unit = opens.unit === 'MONTHS' ? 'mois' : opens.unit === 'WEEKS' ? plural(opens.days, 'semaine', 'semaines') : 'jours';
+      return `${opens.days} ${unit} avant${ofDue ? ' l’échéance' : ''}`;
+    }
     case 'DAY':
       // Monthly: always that of the month before the due day's.
       if (opens.day === LAST_DAY) return opens.month ? `le ${lastDayWords(opens.month)}` : 'le dernier jour du mois précédent';
@@ -41,5 +46,5 @@ export function occurrenceOpensText(opens: RoutineOpens, frequency: Recurrence['
   const words = opensText(opens, frequency, { ofDue: false });
   if (!words) return '';
   if (open >= due) return 'Ouverte le jour même';
-  return `Ouverte ${opens.mode === 'BEFORE' && opens.days > 1 ? '' : 'dès '}${words} (le ${fmt.dayShort(open)})`;
+  return `Ouverte ${opens.mode === 'BEFORE' && (opens.days > 1 || (opens.unit ?? 'DAYS') !== 'DAYS') ? '' : 'dès '}${words} (le ${fmt.dayShort(open)})`;
 }

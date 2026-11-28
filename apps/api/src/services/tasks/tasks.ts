@@ -1,4 +1,4 @@
-import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema, taskLinksLostSchema, type TaskLinksLost, NO_TASK_LINKS_LOST, subtaskProjects, mergeTaskLinksLost, OWN_CASES_START, prunedCases } from '@ordo/shared';
+import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema, taskLinksLostSchema, type TaskLinksLost, NO_TASK_LINKS_LOST, subtaskProjects, mergeTaskLinksLost, OWN_CASES_START, prunedCases, newLimitBreak } from '@ordo/shared';
 import { z } from 'zod';
 import { inTransaction, prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -206,6 +206,8 @@ interface TaskDays {
   endDate: Date | null;
   minDate: Date | null;
   deadline: Date | null;
+  /** « Horaires » as saved (their rules saved out of the limits of their durations stay). Optional. */
+  hours?: unknown;
 }
 
 /**
@@ -253,6 +255,9 @@ function parseDetails(input: TaskInput, current?: TaskDays, notOwn: readonly str
   });
   assertDateRange(details, current);
   assertOwnDays(details, current, [...notOwn, ...(input.clear ?? [])]);
+  // Rules of its « Horaires » within the limits of their durations (one saved before that breaks them stays).
+  const broken = details.hours ? newLimitBreak(details.hours, readTaskHours(current?.hours ?? null)) : null;
+  if (broken) throw fieldError('hours', broken.message);
   return {
     label: details.label,
     description: details.description,

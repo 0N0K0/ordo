@@ -1,4 +1,5 @@
-import { dayInMonth, daysInMonth } from '../dates/months';
+import { dayInMonth, dayOfMonthOf, daysInMonth } from '../dates/months';
+import { plural } from '../core/text';
 import { minutesToTime, timeToMinutes } from '../dates/times';
 import { z } from 'zod';
 import { endAfter, markdownSchema, optionalText, requiredText, UserError } from '../core/rules';
@@ -25,6 +26,7 @@ import {
   type Span,
 } from '../dates/recurrence';
 import { caseSpans, caseUntil } from '../dates/repetition';
+import { lengthLimits, limitsError, repetitionLimits, type RepetitionLimitError, type RepetitionLimits } from '../dates/repetition-limits';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
 import { remindersSchema } from '../dates/reminders';
 import { deadTimesSchema } from '../dates/countdowns';
@@ -62,6 +64,10 @@ export type RoutineSlot = z.infer<typeof routineSlotSchema>;
 const monthNumber = z.number().int().min(1).max(12);
 const weekdayNumber = z.number().int().min(1).max(7);
 
+/** Units of an « Ouverture » some time before the due day. */
+export const OPENS_UNITS = ['DAYS', 'WEEKS', 'MONTHS'] as const;
+export type OpensUnit = (typeof OPENS_UNITS)[number];
+
 /**
  * « Ouverture »: day an occurrence can be done from, before its due day. A day number (the 15th, the 15th of March),
  * a weekday of the month (the 2nd Tuesday, the last Friday of March), the weekday of a week (the Monday of the 3rd week
@@ -75,8 +81,8 @@ const routineOpensSchema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('WEEKDAY'), position: z.union([z.literal(-1), z.number().int().min(1).max(4)]), weekday: weekdayNumber, month: monthNumber.nullable().default(null) }),
   /** A weekday of a week: monthly, the week of the month (1 to 6, from the one of its 1st, weeks from Monday); yearly, the ISO week. */
   z.object({ mode: z.literal('WEEK'), week: z.number().int().min(1).max(53), weekday: weekdayNumber }),
-  /** Days before its due day. */
-  z.object({ mode: z.literal('BEFORE'), days: z.number().int().min(1, 'Au moins 1.').max(366, '366 maximum.') }),
+  /** Some days, weeks or months before its due day (`days`: how many of its unit; none saved: days). */
+  z.object({ mode: z.literal('BEFORE'), days: z.number().int().min(1, 'Au moins 1.').max(366, '366 maximum.'), unit: z.enum(OPENS_UNITS).optional() }),
 ]);
 export type RoutineOpens = z.infer<typeof routineOpensSchema>;
 export type RoutineOpensMode = RoutineOpens['mode'];
@@ -360,7 +366,7 @@ function isoWeekDate(year: number, week: number, weekday: number): string {
  */
 export function routineOpenDate(due: string, opens: RoutineOpens | null, frequency: Recurrence['frequency']): string {
   if (!opens || !opensFits(opens, frequency)) return due;
-  if (opens.mode === 'BEFORE') return addDays(due, -opens.days);
+  if (opens.mode === 'BEFORE') return opensBeforeDay(due, opens.days, opens.unit);
   const year = yearOfDay(due);
   const month = monthOfYear(due);
   let open: string;
@@ -380,11 +386,54 @@ export function routineOpenDate(due: string, opens: RoutineOpens | null, frequen
 }
 
 /**
+ * Day some days, weeks or months before a due day: N months before is the same day number (the last day of a shorter
+ * month: 3 months before the 31st of May is the 28th or 29th of February).
+ * @param {string} due Due day.
+ * @param {number} count How many.
+ * @param {OpensUnit} [unit='DAYS'] Unit. Optional. Default = 'DAYS'.
+ * @returns {string} Day.
+ */
+export function opensBeforeDay(due: string, count: number, unit: OpensUnit = 'DAYS'): string {
+  if (unit === 'DAYS') return addDays(due, -count);
+  if (unit === 'WEEKS') return addDays(due, -7 * count);
+  const month = monthOfYear(due) - 1 - count;
+  const year = yearOfDay(due) + Math.floor(month / 12);
+  const monthNumber = ((month % 12) + 12) % 12 + 1;
+  return dayInMonth(year, monthNumber, Math.min(dayOfMonthOf(due), daysInMonth(year, monthNumber)));
+}
+
+/**
  * Days at most between the day an occurrence can be done from and its due day.
  * @param {RoutineOpens | null} opens « Ouverture ».
  * @returns {number} Days.
  */
-export const opensReach = (opens: RoutineOpens | null): number => (!opens ? 0 : opens.mode === 'BEFORE' ? opens.days : 400);
+export const opensReach = (opens: RoutineOpens | null): number =>
+  !opens ? 0 : opens.mode === 'BEFORE' ? (opens.unit === 'WEEKS' ? 7 * opens.days : opens.unit === 'MONTHS' ? 31 * opens.days : opens.days) : 400;
+
+/**
+ * Limits of the repetition of a rule by its « Ouverture » some time before the due day: the next occurrence opens
+ * strictly after the due day of the previous one (3 days before: from « Tous les 4 jours »; 2 weeks before: from
+ * « Toutes les 3 semaines »). Another « Ouverture » (a day of the period): none.
+ * @param {RoutineOpens | null} opens « Ouverture ».
+ * @returns {RepetitionLimits | null} Limits.
+ */
+export function opensLimits(opens: RoutineOpens | null): RepetitionLimits | null {
+  if (opens?.mode !== 'BEFORE') return null;
+  const unit = opens.unit ?? 'DAYS';
+  const limits = lengthLimits(unit, opens.days, false);
+  const word = unit === 'MONTHS' ? 'mois' : plural(opens.days, unit === 'WEEKS' ? 'semaine' : 'jour');
+  return limits && { ...limits, kind: 'opening', words: `ouverte ${opens.days} ${word} avant` };
+}
+
+/**
+ * Error of the rule of a routine (or of one of its cases) out of the limits of the duration of its occurrences and of
+ * its « Ouverture » before the due day (the error of the one it breaks, the duration first); none when it keeps them.
+ * @param {Recurrence | null} rule Rule.
+ * @param {RoutineOpens | null} opens Its « Ouverture ».
+ * @returns {RepetitionLimitError | null} Error.
+ */
+export const routineRuleLimitError = (rule: Recurrence | null, opens: RoutineOpens | null): RepetitionLimitError | null =>
+  limitsError(rule, repetitionLimits(rule?.duration)) ?? limitsError(rule, opensLimits(opens));
 
 /** Where a routine stands today. */
 export type RoutineState = 'upcoming' | 'due' | 'late' | 'done';
