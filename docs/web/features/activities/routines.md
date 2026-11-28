@@ -234,11 +234,18 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 
 Interne : `MovedTimes`.
 
+### `hooks/use-cancel-occurrence.ts`
+
+| Export | Rôle |
+| ------ | ---- |
+| `CancelledOccurrence` (interface) | `routineId`, `date` (le jour qui l’identifie), `dueDate`, `movedFrom`. |
+| `useCancelOccurrence()` | `{ cancel, restore }` : « Annuler » une occurrence, confirmé (`confirmCancelOccurrence`), `deleteOccurrence` `THIS`, toast « Occurrence du … annulée. » avec « Annuler » (`removeMove` avec ses commentaires et `undo`) ; « Rétablir » une annulée telle qu’elle était avant (`removeMove` avec `undo`, toast « Occurrence du … rétablie. »). Utilisé par l’agenda (`useCalendarEdits`) et `useRoutineOccurrenceMenu`. |
+
 ### `hooks/use-routine-occurrence-menu.tsx`
 
 | Export | Rôle |
 | ------ | ---- |
-| `useRoutineOccurrenceMenu()` | `(routine, occurrence?) => { primary, items }` (`occurrence` `null` : aucune ce jour-là, pas de report) : actions d’une routine pour une de ses occurrences, les mêmes dans sa ligne du tableau et dans une liste d’un jour (pour `RowActions`) : « Modifier » (`openRoutineForm`, sur l’occurrence donnée : `occurrenceDate`), puis dans le menu « Ajouter une sous-routine » (`addSubRoutineEntry`), « Reporter au lendemain » (`usePostponeRoutine`) et « Reporter, changer l’horaire ou annuler… » (`openRoutineMove` sur cette occurrence) tant qu’elle peut bouger (ni annulée, ni archivée, aucun moment fait ; sans occurrence : `movableOccurrence`), « Dupliquer », « Héritage… » (une sous-routine), « Transformer en tâche » (`useConvertActivity`), « Archiver » / « Restaurer », « Supprimer » (`useRoutineRowsActions`), puis « Lancer » ses temps morts (`useCountdownMenuEntries`, `routineCountdownItem` de cette occurrence). Archivée : « Restaurer », « Supprimer ». Sans occurrence : l’occurrence en cours (la suivante une fois cochée). Utilisé par `RoutinesPanel` et les lignes de « Ma journée » (`MyDayRowView`, avec `RowActions`). |
+| `useRoutineOccurrenceMenu()` | `(routine, occurrence?) => { primary, items }` (`occurrence` `null` : aucune ce jour-là, pas de report) : actions d’une routine pour une de ses occurrences, les mêmes dans sa ligne du tableau et dans une liste d’un jour (pour `RowActions`) : « Modifier » (`openRoutineForm`, sur l’occurrence donnée : `occurrenceDate`), puis dans le menu « Ajouter une sous-routine » (`addSubRoutineEntry`), « Reporter au lendemain » (`usePostponeRoutine`) « Reporter, changer l’horaire ou annuler… » (`openRoutineMove` sur cette occurrence) et « Annuler » (`occurrenceEntry`, `useCancelOccurrence`) tant qu’elle peut bouger (ni annulée, ni archivée, aucun moment fait ; sans occurrence : `movableOccurrence`), « Dupliquer », « Héritage… » (une sous-routine), « Transformer en tâche » (`useConvertActivity`), une occurrence donnée annulée : « Rétablir » ; « Archiver » / « Restaurer », « Supprimer la routine » (`useRoutineRowsActions`), puis « Lancer » ses temps morts (`useCountdownMenuEntries`, `routineCountdownItem` de cette occurrence). Archivée : « Restaurer », « Supprimer la routine ». Sans occurrence : l’occurrence en cours (la suivante une fois cochée). Utilisé par `RoutinesPanel` et les lignes de « Ma journée » (`MyDayRowView`, avec `RowActions`). |
 | `RoutineMenuOccurrence` (type) | Ce que le menu lit d’une occurrence : `date`, `dueDate`, `cancelled`, `archived`, `slots`. |
 | `RoutineRowMenu` (interface) | `{ primary, items }` : action principale et entrées du menu. |
 

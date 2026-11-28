@@ -1,4 +1,5 @@
-import type { CalendarEventInput } from '@ordo/shared';
+import { postponedRestoreRefusal, type CalendarEventInput } from '@ordo/shared';
+import { notifyError } from '../../../lib/notify';
 import { ArrowArcRightIcon } from '@phosphor-icons/react';
 import { occurrenceEntry } from '../../../components/actions/occurrence-entries';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
@@ -143,7 +144,10 @@ export function useEventMenu(occurrence: EventOccurrence | undefined, options: E
     ...(readOnly
       ? []
       : occurrence.calledOff
-        ? [occurrenceEntry('restore', () => handleCalledOff(false), setCalledOff.isPending)]
+        ? [
+            // A postponed occurrence (alone, or a one-off event) is not given back: its postponement would take place too.
+            occurrenceEntry('restore', () => ((target.scope === 'THIS' || !recurring) && occurrence.postponedTo[0] ? notifyError(postponedRestoreRefusal(occurrence.postponedTo[0].startDate)) : handleCalledOff(false)), setCalledOff.isPending),
+          ]
         : [
             occurrenceEntry('cancel', () => handleCalledOff(true), setCalledOff.isPending),
             { label: 'Reporter', icon: <ArrowArcRightIcon aria-hidden />, onClick: openPostpone },

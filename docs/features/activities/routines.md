@@ -110,12 +110,12 @@ Une routine se déplace par glisser-déposer, comme une tâche : avant une autre
 
 - « Modifier » (action principale) : panneau de la routine, enregistré champ par champ.
 - « Ajouter une sous-routine ».
-- « Reporter au lendemain » et « Reporter, changer l'horaire ou annuler… » (quand une occurrence peut être déplacée).
+- « Reporter au lendemain », « Reporter, changer l'horaire ou annuler… » et « Annuler » (quand une occurrence peut être déplacée ; « Annuler » confirmé : elle reste affichée, barrée, avec ses commentaires, toast avec « Annuler ») ; une occurrence annulée (« Ma journée ») : « Rétablir ».
 - « Héritage… » (une sous-routine) : comme sur la sélection, ci-dessous.
 - « Dupliquer » (enregistrée tout de suite, « … (copie) », avec ses sous-routines ; un ancien lien hors de l'arborescence de projets de la routine n'est pas copié) ; toast « Routine dupliquée. », puis le panneau de la copie s'ouvre.
 - « Transformer en tâche » (désactivé sur une routine qui a des sous-routines, infobulle « Une routine qui a des sous-routines ne devient pas une tâche. »).
 - « Archiver » / « Restaurer ».
-- « Supprimer ».
+- « Supprimer la routine » (la routine elle-même, pas une occurrence).
 - Avec des temps morts (routine non archivée) : section « Temps morts », « Lancer « Lave-linge (1 h 30) » » pour son occurrence en cours ; avec des minuteurs enregistrés, section « Minuteurs », « Lancer « Œufs durs (9 min) » » (aussitôt, pour son occurrence en cours). Le menu du panneau les propose aussi, pour l’occurrence ouverte ; le menu d’une ligne de « Ma journée », pour son occurrence.
 
 Le panneau d’une routine existante a aussi un menu « … » (dans l’en-tête, après le libellé), comme celui d’une tâche : « Ajouter une sous-routine », « Dupliquer », « Héritage… » (une sous-routine), « Transformer en tâche », « Archiver », « Supprimer » ; archivée : « Restaurer », « Supprimer ». Ce sont les mêmes actions que celles de sa ligne (même confirmation de suppression, avec le choix pour ses sous-routines) ; après « Supprimer », le panneau se ferme (supprimée depuis sa ligne ou la sélection aussi).
@@ -126,7 +126,7 @@ Le panneau d’une routine existante a aussi un menu « … » (dans l’en-têt
 - Une fois fait : toast « Routine transformée en tâche. », le panneau encore ouvert sur la routine se ferme (depuis sa ligne comme depuis son panneau) et celui de la nouvelle tâche s’ouvre.
 - Ce qui est gardé : libellé, description, projet, assignés, bénéficiaires, liens, lieu, condition de créneaux, rappels « À HH:MM » et « N jours avant », temps chronométrés, fiches ; l’occurrence en cours (sinon la suivante, sinon la première) donne l’« Échéance » (son jour d’échéance) et l’« Ouverture » (son premier jour, s’il est avant), ses commentaires, sa liste à cocher et ses évènements ; la tâche prend le premier statut « À faire ». Règles : [Routines](../../business-rules/activities/routines.md#transformer-en-tâche).
 
-Une routine archivée n'offre que « Restaurer » et « Supprimer ». Archivée, elle n'a plus d'occurrence à venir ; ses occurrences ouvertes avant le jour de l'archivage restent, archivées, même dues après (agenda avec « Afficher les archivés », lecture seule) ; la restaurer remet tout comme avant.
+Une routine archivée n'offre que « Restaurer » et « Supprimer la routine ». Archivée, elle n'a plus d'occurrence à venir ; ses occurrences ouvertes avant le jour de l'archivage restent, archivées, même dues après (agenda avec « Afficher les archivés », lecture seule) ; la restaurer remet tout comme avant.
 
 ### Actions sur la sélection
 

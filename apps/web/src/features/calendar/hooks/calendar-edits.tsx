@@ -1,6 +1,6 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import { changedScheduleSlot, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
-import { notifyError, notifyFailure, notifyWithUndo, ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
+import { notifyError, notifyFailure, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
 import { ruleScheduleInput, useWorkScheduleMutations, type CalendarEventScope } from '../api';
@@ -10,7 +10,7 @@ import { fetchLostOnDelete } from '../../time/api';
 import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { RoutineOccurrenceForm, SlotEditForm } from '../components/CalendarEditForms';
 import { INHERITED_SKIP_REFUSAL, skippedRepetition } from '../../routines/lib/skipped-repetition';
-import { confirmCancelOccurrence } from '../../routines/lib/confirm-cancel';
+import { useCancelOccurrence } from '../../routines/hooks/use-cancel-occurrence';
 
 /** Time of the day of a routine occurrence shown in the calendar. */
 interface RoutineSlotTimes {
@@ -45,7 +45,8 @@ export interface RoutineOccurrenceRef {
  */
 export function useCalendarEdits() {
   const { update } = useWorkScheduleMutations();
-  const { changeOccurrence, deleteOccurrence, removeMove, patch } = useRoutineMutations();
+  const { changeOccurrence, deleteOccurrence, patch } = useRoutineMutations();
+  const cancelOccurrence = useCancelOccurrence();
 
   /**
    * Moves, stretches or deletes (no change) a slot of a schedule (a créneau or an éphéméride: its own words); an
@@ -103,22 +104,6 @@ export function useCalendarEdits() {
           revert?.();
         },
       },
-    );
-  };
-
-  /**
-   * Cancels an occurrence of a routine, once confirmed: it stays shown struck through, with its comments; « Annuler »
-   * of the toast gives it back as it was (its day, kept apart, its times).
-   * @param {RoutineOccurrenceRef} occurrence Occurrence.
-   * @param {string | null} movedFrom Day of the rule it was moved from, if any.
-   * @returns {void}
-   */
-  const cancelRoutine = (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
-    const { routine, date, dueDate } = occurrence;
-    confirmCancelOccurrence(dueDate, () =>
-      deleteOccurrence.mutateAsync({ id: routine.id, date, scope: 'THIS' }).then(({ comments }) => {
-        notifyWithUndo(`Occurrence du ${fmt.dayLong(dueDate)} annulée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments, undo: true }, ON_ERROR));
-      }),
     );
   };
 
@@ -196,7 +181,7 @@ export function useCalendarEdits() {
         onClose={close}
         onCancel={() => {
           close();
-          cancelRoutine(occurrence, movedFrom);
+          cancelOccurrence.cancel({ routineId: occurrence.routine.id, date: occurrence.date, dueDate: occurrence.dueDate, movedFrom });
         }}
         onDelete={() => {
           close();
@@ -205,7 +190,7 @@ export function useCalendarEdits() {
         onRestore={() => {
           close();
           // As before its cancel (its day, kept apart, its times), as « Annuler » of the cancel does.
-          removeMove.mutate({ id: occurrence.routine.id, from: occurrence.date, undo: true }, toastCallbacks(`Occurrence du ${fmt.dayLong(occurrence.date)} rétablie.`));
+          cancelOccurrence.restore({ routineId: occurrence.routine.id, date: occurrence.date, dueDate: occurrence.dueDate });
         }}
       />
     ));

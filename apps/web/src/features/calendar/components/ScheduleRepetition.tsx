@@ -12,7 +12,7 @@ import { defaultScheduleTimes, describeScheduleCase, describeScheduleTimes, exce
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { rangeProps } from '../../../components/inputs/date-range';
 import { PeriodField } from '../../../components/inputs/PeriodField';
-import { ExceptionsList, type ExceptionEntry } from '../../../components/recurrence/ExceptionsList';
+import { ExceptionsList, type ExceptionEntry, type ExceptionsAdd } from '../../../components/recurrence/ExceptionsList';
 import { casesDayAdding, casesSkippedEntries, skippedLines, SKIPPED_KIND, type ExceptionLine } from '../../../components/recurrence/exceptions';
 
 /** Period, cases and exceptions of a schedule: everything about how it repeats. */
@@ -129,6 +129,18 @@ const scheduleExceptionLines = (value: Pick<ScheduleRepetitionValue, 'cases' | '
 ];
 
 /**
+ * Adding a « rien » exception to the cases of a schedule without the days its exception periods cover: their own cases
+ * hold there, a « rien » of the schedule's cases would change nothing.
+ * @param {ExceptionsAdd} add Adding to the cases of the schedule.
+ * @param {readonly ScheduleException[]} periods Its exception periods.
+ * @returns {ExceptionsAdd} Adding.
+ */
+const withoutPeriods = (add: ExceptionsAdd, periods: readonly ScheduleException[]): ExceptionsAdd => ({
+  ...add,
+  isDay: (day) => add.isDay(day) && !periods.some((period) => period.from <= day && day <= period.to),
+});
+
+/**
  * Every repetition setting of a schedule, in the common modal: its cases (rule, length, hours), then its exceptions
  * (`ExceptionsList`, folded): the periods with cases of their own or without any (« rien »), and the « rien » days of
  * the rules, each restored.
@@ -204,7 +216,7 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
       </Text>
       <ExceptionsList
         entries={entries}
-        add={casesDayAdding(draft.cases, start, (cases) => setDraft({ ...draft, cases }))}
+        add={withoutPeriods(casesDayAdding(draft.cases, start, (cases) => setDraft({ ...draft, cases })), draft.exceptions)}
         footer={
           <AddItemButton onClick={() => setDraft({ ...draft, exceptions: [...draft.exceptions, { from: parisToday(), to: parisToday(), label: 'Congés', cases: [] }] })}>
             Ajouter une exception

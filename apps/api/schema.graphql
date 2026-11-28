@@ -513,6 +513,9 @@ type CalendarEventException {
   endDate: String!
   endTime: String
 
+  """Its label (that of its series when not changed)."""
+  label: String!
+
   """Other hours (or length, or whole day) than its series on its day."""
   otherHours: Boolean!
 
@@ -520,6 +523,34 @@ type CalendarEventException {
   postponedTo: String
   startDate: String!
   startTime: String
+}
+
+"""
+An occurrence of a series changed alone from the list of its exceptions: its label, days and hours.
+"""
+input CalendarEventExceptionChange {
+  allDay: Boolean!
+
+  """Day of its rule."""
+  date: Date!
+  endDate: Date!
+  endTime: String
+  label: String!
+  startDate: Date!
+  startTime: String
+}
+
+"""
+Exceptions of a series restored and changed alone with a save of it, all or nothing.
+"""
+input CalendarEventExceptionsChange {
+  """Occurrences changed alone (`THIS`)."""
+  changed: [CalendarEventExceptionChange!]
+
+  """
+  Days of the rule of the exceptions restored (their occurrence goes back to the series).
+  """
+  restored: [Date!]
 }
 
 """Times are Paris times; all-day events have none."""
@@ -2758,18 +2789,6 @@ type Mutation {
   resetPassword(password: String!, token: String!): Boolean!
 
   """
-  Removes an exception of a recurring event (an occurrence deleted, cancelled or changed alone): it goes back to its series, its comments, times and checklist kept, its routine links following it; those it can no longer have go once confirmed.
-  """
-  restoreCalendarEventException(
-    """
-    Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
-    """
-    confirmLoss: Boolean
-    id: ID!
-    occurrenceDate: Date!
-  ): Boolean!
-
-  """
   Resumes the iteration sync of a link stopped after a write GitHub did not keep as sent.
   """
   resumeGithubIterations(projectId: ID!): Boolean!
@@ -3087,6 +3106,11 @@ type Mutation {
     Occurrences made to disappear with their comments, times, started checklists (one item ticked) or routine–event links are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments, checklists, links } when there are some; true deletes them (unstarted checklists go too, unasked).
     """
     confirmLoss: Boolean
+
+    """
+    Exceptions of the series restored and changed alone with the save, first, in the same transaction: all or nothing.
+    """
+    exceptions: CalendarEventExceptionsChange
     id: ID!
     input: CalendarEventInput!
 

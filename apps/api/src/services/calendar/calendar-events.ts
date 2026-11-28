@@ -35,8 +35,9 @@ import {
   linkedEventOccurrence,
   occurrencesShowing,
   prunedExceptions,
+  postponedRestoreRefusal,
 } from '@ordo/shared';
-import { prisma } from '../../db';
+import { inTransaction, prisma } from '../../db';
 import { PARIS } from '../../today';
 import { assertBeneficiaries } from '../core/beneficiaries';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../../generated/prisma/client';
@@ -136,6 +137,8 @@ export interface EventException {
   calledOff: boolean;
   /** Postponed: the first day of its postponement; else null. */
   postponedTo: string | null;
+  /** Its label (that of its series when not changed). */
+  label: string;
   /** Days and hours it shows on (those of its series when not moved). */
   allDay: boolean;
   startDate: string;
@@ -694,9 +697,40 @@ async function endSeriesBefore(event: CalendarEvent, rule: Recurrence, date: str
  * @param {boolean} [confirmLoss] Occurrences made to disappear, with comments, times or checklists, confirmed (`confirmLostOccurrences`). Optional.
  * @param {Recurrence | null} [movedRule] New rule of a series on the last day of the month moved to another day (FOLLOWING,
  * ALL), chosen by the user; none there: refused with the rule proposed (`RULE_CHOICE_REQUIRED`). Optional.
+ * @param {EventExceptionsChange} [exceptions] Exceptions of the series restored (`restoreEventException`) and changed
+ * alone (`changeEventException`) with the save, first, in the same transaction: all or nothing. Optional.
  * @returns {Promise<CalendarEvent>} Updated (or new, after a split) event.
  */
 export async function updateCalendarEvent(
+  id: string,
+  input: CalendarEventInput,
+  scope: EventScope,
+  occurrenceDate?: string | null,
+  confirmLoss?: boolean,
+  movedRule?: Recurrence | null,
+  exceptions?: EventExceptionsChange,
+): Promise<CalendarEvent> {
+  if (!exceptions || (!exceptions.restored.length && !exceptions.changed.length)) return savedCalendarEvent(id, input, scope, occurrenceDate, confirmLoss, movedRule);
+  // Its exceptions restored and changed first, on the series as it is, then the save: all or nothing.
+  return inTransaction(async () => {
+    for (const date of exceptions.restored) await restoreEventException(id, date, confirmLoss ?? false);
+    // One restored is not changed too.
+    for (const change of exceptions.changed.filter((item) => !exceptions.restored.includes(item.date))) await changeEventException(id, change);
+    return savedCalendarEvent(id, input, scope, occurrenceDate, confirmLoss, movedRule);
+  });
+}
+
+/**
+ * Saves a change of an event (`updateCalendarEvent` without exceptions given).
+ * @param {string} id Event id.
+ * @param {CalendarEventInput} input Fields.
+ * @param {EventScope} scope Scope.
+ * @param {string | null} [occurrenceDate] Occurrence. Optional for a one-off event.
+ * @param {boolean} [confirmLoss] Loss confirmed. Optional.
+ * @param {Recurrence | null} [movedRule] New rule chosen for a series on the last day of the month. Optional.
+ * @returns {Promise<CalendarEvent>} Event saved.
+ */
+async function savedCalendarEvent(
   id: string,
   input: CalendarEventInput,
   scope: EventScope,
@@ -1271,6 +1305,7 @@ function eventExceptions(event: EventWithRelations): EventException[] {
             cancelled: change.cancelled,
             calledOff: change.calledOff,
             postponedTo: postponement ? postponement.startDate : null,
+            label: own.label,
             allDay: own.allDay,
             startDate: own.startDate,
             startTime: own.startTime,
@@ -1294,6 +1329,71 @@ export async function calendarEventExceptions(id: string): Promise<EventExceptio
 }
 
 /**
+ * Refuses to give back an occurrence that was postponed: its postponement stays an event of its own, both would take
+ * place (`postponedRestoreRefusal`, BAD_USER_INPUT).
+ * @param {EventWithRelations} event Event.
+ * @param {string | null} date Day of the rule of the occurrence (null: a one-off event).
+ * @returns {void}
+ */
+function assertNotPostponed(event: EventWithRelations, date: string | null): void {
+  const postponement = event.postponements.find((item) => formatOptionalDay(item.postponedFromDate) === date);
+  if (postponement) throw clientError('BAD_USER_INPUT', postponedRestoreRefusal(formatDay(postponement.startDate)));
+}
+
+/** An occurrence of a series changed alone from the list of its exceptions: its label, days and hours. */
+export interface EventExceptionChange {
+  /** Day of its rule. */
+  date: string;
+  label: string;
+  allDay: boolean;
+  startDate: string;
+  startTime: string | null;
+  endDate: string;
+  endTime: string | null;
+}
+
+/** Exceptions of a series changed with a save of it: those restored (days of their rule) and those changed. */
+export interface EventExceptionsChange {
+  restored: readonly string[];
+  changed: readonly EventExceptionChange[];
+}
+
+/**
+ * Changes an occurrence of a series alone (« Cette occurrence », the `THIS` write) from the list of its exceptions:
+ * its label, days and hours; its other fields as it has them; its routine links moved with it, as from its panel.
+ * @param {string} id Event.
+ * @param {EventExceptionChange} change Change.
+ * @returns {Promise<void>}
+ */
+async function changeEventException(id: string, change: EventExceptionChange): Promise<void> {
+  const loaded = await findEventWithRelations(id);
+  if (!occurrenceOf(loaded, change.date)) throw notFound('Exception');
+  // Deleted alone (nothing that day) or postponed: not changed from here.
+  if (loaded.exceptions.some((item) => formatDay(item.date) === change.date && item.cancelled)) throw notFound('Exception');
+  assertNotPostponed(loaded, change.date);
+  const shown = shownOccurrence(loaded, change.date);
+  const shift = daysBetween(shown.startDate, change.startDate);
+  const { label, allDay, startDate, endDate } = change;
+  await updateCalendarEvent(
+    id,
+    {
+      ...seriesInput(loaded, change.date),
+      ...seriesFieldsOf(shown),
+      label,
+      allDay,
+      startDate,
+      endDate,
+      startTime: allDay ? null : change.startTime,
+      endTime: allDay ? null : change.endTime,
+      // Moved with it, those of its new days only (as from its panel).
+      routineLinks: shown.routineLinks.map((link) => shiftedRoutineLink(link, link.shownDate, shift)).filter((link) => link.shownDate >= startDate && link.shownDate <= endDate),
+    },
+    'THIS',
+    change.date,
+  );
+}
+
+/**
  * Removes an exception of a recurring event (an occurrence deleted, cancelled or changed alone): the occurrence goes
  * back to its series, on its day and hours there, with the fields of its series. Its comments, times and checklist
  * stay (they are on the day that identifies it); its routine links follow it back (each moved by as many days as it
@@ -1311,6 +1411,7 @@ export async function restoreEventException(id: string, occurrenceDate: string, 
   const occurrence = occurrenceOf(loaded, occurrenceDate);
   const change = occurrence && loaded.exceptions.find((item) => formatDay(item.date) === occurrence.date);
   if (!occurrence || !change) throw notFound('Exception');
+  assertNotPostponed(loaded, occurrence.date);
   // Its days as shown now and once back in its series: its routine links move by as many days.
   const back = toOccurrence(loaded, occurrence.date, undefined);
   const { held, occurrences } = await shownRoutineLinks(loaded);
@@ -1486,12 +1587,15 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
   const event = await findEventWithRelations(id);
   await assertEventWritable(event);
   const occurrence = occurrenceOf(event, occurrenceDate);
+  // A one-off event postponed is not given back either.
+  if (!occurrence && !calledOff) assertNotPostponed(event, null);
   if (!occurrence || scope === 'ALL') {
     // The series only: its occurrences called off one by one (or postponed) stay so when it is restored.
     await prisma.calendarEvent.update({ where: { id }, data: { calledOff } });
     return;
   }
   if (scope === 'THIS') {
+    if (!calledOff) assertNotPostponed(event, occurrence.date);
     const existing = event.exceptions.find((change) => formatDay(change.date) === occurrence.date);
     // A restored occurrence of a cancelled series stays cancelled with it: only its own flag changes.
     if (existing) {

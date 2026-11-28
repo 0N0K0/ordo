@@ -197,6 +197,26 @@ export type CalendarCategoryInput = {
   parentId?: string | number | null | undefined;
 };
 
+/** An occurrence of a series changed alone from the list of its exceptions: its label, days and hours. */
+export type CalendarEventExceptionChange = {
+  allDay: boolean;
+  /** Day of its rule. */
+  date: string;
+  endDate: string;
+  endTime?: string | null | undefined;
+  label: string;
+  startDate: string;
+  startTime?: string | null | undefined;
+};
+
+/** Exceptions of a series restored and changed alone with a save of it, all or nothing. */
+export type CalendarEventExceptionsChange = {
+  /** Occurrences changed alone (`THIS`). */
+  changed?: Array<CalendarEventExceptionChange> | null | undefined;
+  /** Days of the rule of the exceptions restored (their occurrence goes back to the series). */
+  restored?: Array<string> | null | undefined;
+};
+
 /** Times are Paris times; all-day events have none. */
 export type CalendarEventInput = {
   allDay: boolean;
@@ -2386,7 +2406,7 @@ export type CalendarEventExceptionsQueryVariables = Exact<{
 }>;
 
 
-export type CalendarEventExceptionsQuery = { calendarEventExceptions: Array<{ date: string, cancelled: boolean, calledOff: boolean, postponedTo: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, otherHours: boolean, changed: boolean }> };
+export type CalendarEventExceptionsQuery = { calendarEventExceptions: Array<{ date: string, cancelled: boolean, calledOff: boolean, postponedTo: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, otherHours: boolean, label: string, changed: boolean }> };
 
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2534,15 +2554,6 @@ export type SetCalendarEventCalledOffMutationVariables = Exact<{
 
 export type SetCalendarEventCalledOffMutation = { setCalendarEventCalledOff: boolean };
 
-export type RestoreCalendarEventExceptionMutationVariables = Exact<{
-  id: string | number;
-  occurrenceDate: string;
-  confirmLoss?: boolean | null | undefined;
-}>;
-
-
-export type RestoreCalendarEventExceptionMutation = { restoreCalendarEventException: boolean };
-
 export type PostponeCalendarEventMutationVariables = Exact<{
   id: string | number;
   occurrenceDate?: string | null | undefined;
@@ -2664,6 +2675,7 @@ export type UpdateCalendarEventMutationVariables = Exact<{
   occurrenceDate?: string | null | undefined;
   confirmLoss?: boolean | null | undefined;
   movedRule?: unknown;
+  exceptions?: CalendarEventExceptionsChange | null | undefined;
 }>;
 
 
@@ -7328,6 +7340,7 @@ export const CalendarEventExceptionsDocument = new TypedDocumentString(`
     endDate
     endTime
     otherHours
+    label
     changed
   }
 }
@@ -7552,15 +7565,6 @@ export const SetCalendarEventCalledOffDocument = new TypedDocumentString(`
   )
 }
     `) as unknown as TypedDocumentString<SetCalendarEventCalledOffMutation, SetCalendarEventCalledOffMutationVariables>;
-export const RestoreCalendarEventExceptionDocument = new TypedDocumentString(`
-    mutation RestoreCalendarEventException($id: ID!, $occurrenceDate: Date!, $confirmLoss: Boolean) {
-  restoreCalendarEventException(
-    id: $id
-    occurrenceDate: $occurrenceDate
-    confirmLoss: $confirmLoss
-  )
-}
-    `) as unknown as TypedDocumentString<RestoreCalendarEventExceptionMutation, RestoreCalendarEventExceptionMutationVariables>;
 export const PostponeCalendarEventDocument = new TypedDocumentString(`
     mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {
   postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)
@@ -7861,7 +7865,7 @@ export const CreateCalendarEventDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CreateCalendarEventMutation, CreateCalendarEventMutationVariables>;
 export const UpdateCalendarEventDocument = new TypedDocumentString(`
-    mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean, $movedRule: JSON) {
+    mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean, $movedRule: JSON, $exceptions: CalendarEventExceptionsChange) {
   updateCalendarEvent(
     id: $id
     input: $input
@@ -7869,6 +7873,7 @@ export const UpdateCalendarEventDocument = new TypedDocumentString(`
     occurrenceDate: $occurrenceDate
     confirmLoss: $confirmLoss
     movedRule: $movedRule
+    exceptions: $exceptions
   )
 }
     `) as unknown as TypedDocumentString<UpdateCalendarEventMutation, UpdateCalendarEventMutationVariables>;

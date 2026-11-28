@@ -14,7 +14,7 @@ import { parisToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks, hasFieldError } from '../../../lib/form';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, type CalendarEventScope } from '../api';
+import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, type CalendarEventScope, type EventExceptionsChange } from '../api';
 import { archivedIds, unarchived, unarchivedOffered } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { timeTaskOptions, timeTasks } from '../../time/lib/time-tasks';
@@ -76,6 +76,9 @@ interface EventFormProps {
 
 /** Days, hours and repetition of an event: saved together, once chosen or left (`EventRepetition`'s `onCommit`). */
 const TIMING = ['allDay', 'startDate', 'startTime', 'endDate', 'endTime', 'recurrence'] as const;
+
+/** Value of the form holding the exceptions restored or changed in the exceptions modal, saved with the repetition. */
+const EXCEPTIONS_FIELD = 'pendingExceptions';
 
 /**
  * Fields of an event saved on leaving them, in its panel: texts, travel times, its links and its place; its days,
@@ -181,9 +184,13 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   const saveTarget = useRef(target);
   const { form, saving, commit, fieldProps } = useFieldSave(base, {
     save: occurrence
-      ? async (_changes, input) => {
+      ? async (changes, values) => {
           const now = saveTarget.current;
-          const { id: eventId, movedRule } = await update.mutateAsync({ id: now.eventId, input, scope: now.scope, occurrenceDate: now.occurrenceDate });
+          // Exceptions restored or changed in the modal: a value of the form committed with the repetition (taken when
+          // committed, never sent with another save), all or nothing; not a field of the event.
+          const { [EXCEPTIONS_FIELD]: given, ...input } = values;
+          const exceptions = EXCEPTIONS_FIELD in changes ? (given as EventExceptionsChange | null) : null;
+          const { id: eventId, movedRule } = await update.mutateAsync({ id: now.eventId, input, scope: now.scope, occurrenceDate: now.occurrenceDate, ...(exceptions && { exceptions }) });
           if (now.scope === 'THIS') return;
           const split = now.scope === 'FOLLOWING' && eventId !== now.eventId;
           // A series moved keeps its days of the week, of the month or of the year (as the API moves its rule); on the
@@ -517,7 +524,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                 onChange={(timing) =>
                   form.setValues({ ...timing, routineLinks: withDays(values, timing.startDate, timing.endDate).routineLinks, ...(seriesFields && { recurrence: values.recurrence }) })
                 }
-                onCommit={() => commit(TIMING)}
+                onExceptions={(change) => form.setValues({ [EXCEPTIONS_FIELD]: change })}
+                onCommit={(always) => commit(always ? [...TIMING, EXCEPTIONS_FIELD] : TIMING, always)}
               />
               <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
               {occurrence && (

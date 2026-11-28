@@ -7,12 +7,14 @@ import { useRoutineRowsActions } from '../components/RoutineBulkBar';
 import { addSubRoutineEntry, openRoutineForm } from '../lib/open-routine-form';
 import { openRoutineMove } from '../lib/open-routine-move';
 import { routineCountdownItem } from '../lib/routine-countdowns';
-import { movableOccurrence } from '../lib/routine-format';
+import { dueDayOf, movableOccurrence, moveTo } from '../lib/routine-format';
+import { occurrenceEntry } from '../../../components/actions/occurrence-entries';
+import { useCancelOccurrence } from './use-cancel-occurrence';
 import { useConvertActivity } from './use-convert-activity';
 import { usePostponeRoutine } from './use-routine-move';
 
 /** Occurrence a menu acts on: the day that identifies it, its due day, and whether it can still be moved. */
-export type RoutineMenuOccurrence = Pick<RoutineOccurrence, 'date' | 'dueDate' | 'cancelled' | 'archived' | 'slots'>;
+export type RoutineMenuOccurrence = Pick<RoutineOccurrence, 'date' | 'dueDate' | 'cancelled' | 'archived' | 'slots'> & Partial<Pick<RoutineOccurrence, 'movedFrom'>>;
 
 /** Actions of a routine row: its main one (an icon) and those of its « … » menu. */
 export interface RoutineRowMenu {
@@ -31,8 +33,8 @@ const movable = (occurrence: RoutineMenuOccurrence): boolean => !occurrence.canc
 /**
  * Actions of a routine for one of its occurrences, the same in its table row and in a list of a day: « Modifier » (its
  * panel, on that occurrence), « Ajouter une sous-routine », « Reporter au lendemain » and « Reporter, changer l’horaire
- * ou annuler… » (that occurrence, while it can be moved), « Dupliquer », « Héritage… » (a sub-routine), « Transformer en
- * tâche », « Archiver » / « Restaurer », « Supprimer », then « Lancer » its dead times for that occurrence. An
+ * ou annuler… » and « Annuler » (that occurrence, while it can be moved; « Rétablir » once cancelled, `useCancelOccurrence`), « Dupliquer », « Héritage… » (a sub-routine), « Transformer en
+ * tâche », « Archiver » / « Restaurer », « Supprimer la routine », then « Lancer » its dead times for that occurrence. An
  * archived routine: « Restaurer » and « Supprimer » only. Without an occurrence, its
  * current one (the next one once ticked), as the routines table; `null`: none that day (a parent routine in a list of a
  * day without an occurrence of its own then), nothing to move.
@@ -44,12 +46,16 @@ export function useRoutineOccurrenceMenu() {
   const postpone = usePostponeRoutine();
   const convert = useConvertActivity();
   const countdownEntries = useCountdownMenuEntries();
+  const cancelOccurrence = useCancelOccurrence();
   const routines = data?.routines ?? [];
   return (routine: Routine, occurrence?: RoutineMenuOccurrence | null): RoutineRowMenu => {
     const readOnly = routine.archived;
     const rowActions = rowActionsOf([routine]);
     const canMove = occurrence === null ? false : occurrence ? movable(occurrence) : Boolean(movableOccurrence(routine));
     const date = occurrence?.date ?? null;
+    // The occurrence « Annuler » / « Rétablir » act on: the one given, else the one that can be moved.
+    const target = occurrence ?? (canMove ? { date: movableOccurrence(routine)!, dueDate: dueDayOf(routine, movableOccurrence(routine)!), movedFrom: moveTo(routine, movableOccurrence(routine))?.from ?? null } : null);
+    const acted = target && { routineId: routine.id, date: target.date, dueDate: target.dueDate, movedFrom: target.movedFrom ?? null };
     return {
       primary: !readOnly && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRoutineForm(occurrence ? { routine, occurrenceDate: occurrence.date } : { routine }) },
       items: [
@@ -57,13 +63,16 @@ export function useRoutineOccurrenceMenu() {
         !readOnly && canMove && 'divider',
         !readOnly && canMove && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine, occurrence ?? undefined) },
         !readOnly && canMove && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine, date) },
+        !readOnly && canMove && acted && occurrenceEntry('cancel', () => cancelOccurrence.cancel(acted)),
+        !readOnly && occurrence?.cancelled && acted && occurrenceEntry('restore', () => cancelOccurrence.restore(acted)),
         'divider',
         !readOnly && rowMenuEntry(rowActions.duplicate),
         // A sub-routine: its fields inherited again or emptied on purpose.
         !readOnly && Boolean(routine.parentId) && rowMenuEntry(rowActions.inheritance),
         !readOnly && convert.toTask(routine, routines.some((item) => item.parentId === routine.id)),
         rowMenuEntry(rowActions.archive),
-        rowMenuEntry(rowActions.remove),
+        // The routine itself, not one of its occurrences.
+        rowMenuEntry({ ...rowActions.remove, label: 'Supprimer la routine' }),
         ...(readOnly ? [] : countdownEntries(routine, routineCountdownItem(routine, date ?? routine.currentDate))),
       ],
     };

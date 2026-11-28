@@ -7,6 +7,8 @@ import type {
   BirthdaysQuery,
   CalendarEventInput,
   CalendarEventOccurrenceFieldsFragment,
+  CalendarEventExceptionChange,
+  CalendarEventExceptionsChange,
   CalendarEventExceptionsQuery,
   CalendarEventScope,
   CalendarEventsQuery,
@@ -120,6 +122,7 @@ const EventExceptionsDocument = graphql(`
       endDate
       endTime
       otherHours
+      label
       changed
     }
   }
@@ -336,12 +339,6 @@ const SetCalledOffDocument = graphql(`
   }
 `);
 
-const RestoreExceptionDocument = graphql(`
-  mutation RestoreCalendarEventException($id: ID!, $occurrenceDate: Date!, $confirmLoss: Boolean) {
-    restoreCalendarEventException(id: $id, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)
-  }
-`);
-
 const PostponeDocument = graphql(`
   mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {
     postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)
@@ -492,8 +489,8 @@ const CreateCalendarEventDocument = graphql(`
 `);
 
 const UpdateCalendarEventDocument = graphql(`
-  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean, $movedRule: JSON) {
-    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss, movedRule: $movedRule)
+  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean, $movedRule: JSON, $exceptions: CalendarEventExceptionsChange) {
+    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss, movedRule: $movedRule, exceptions: $exceptions)
   }
 `);
 
@@ -552,6 +549,12 @@ export function useCalendarEvents(range: { from: string; to: string } | null, in
 
 /** An occurrence of a series deleted, cancelled or changed alone. */
 export type EventException = CalendarEventExceptionsQuery['calendarEventExceptions'][number];
+
+/** Exceptions of a series restored (days of their rule) and changed alone, saved with it. */
+export type EventExceptionsChange = CalendarEventExceptionsChange;
+
+/** An occurrence of a series changed alone from the list of its exceptions: its label, days and hours. */
+export type EventExceptionChange = CalendarEventExceptionChange;
 
 /**
  * Occurrences of a recurring event deleted, cancelled or changed alone, by day; reloaded with the calendar.
@@ -678,7 +681,8 @@ export function useCalendarEventMutations() {
     // A series on the last day of the month moved to another day: its new rule is asked first (`withMovedRuleChoice`);
     // gives the event saved and that rule (none: not asked).
     update: useCalendarMutation(
-      async (variables: { id: string; input: CalendarEventInput; scope: CalendarEventScope; occurrenceDate: string | null }) => {
+      // Exceptions restored and changed alone with it (`exceptions`): all or nothing, with the save.
+      async (variables: { id: string; input: CalendarEventInput; scope: CalendarEventScope; occurrenceDate: string | null; exceptions?: EventExceptionsChange }) => {
         const asked: { rule: Recurrence | null } = { rule: null };
         const id = await withMovedRuleChoice((movedRule) => {
           asked.rule = movedRule;
@@ -694,12 +698,6 @@ export function useCalendarEventMutations() {
     ),
     setCalledOff: useCalendarMutation(
       async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null; calledOff: boolean }) => (await execute(SetCalledOffDocument, variables)).setCalendarEventCalledOff,
-    ),
-    // An occurrence deleted, cancelled or changed alone goes back to its series; the routine links it can no longer have
-    // are confirmed first (`withLossConfirmation`).
-    restoreException: useCalendarMutation(
-      async (variables: { id: string; occurrenceDate: string }) =>
-        withLossConfirmation(async (confirmLoss) => (await execute(RestoreExceptionDocument, { ...variables, confirmLoss })).restoreCalendarEventException),
     ),
     postpone: useCalendarMutation(async (variables: { id: string; occurrenceDate: string | null; input: CalendarEventInput }) => (await execute(PostponeDocument, variables)).postponeCalendarEvent,
       [tasksQueryKey],

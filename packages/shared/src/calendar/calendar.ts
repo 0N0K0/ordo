@@ -8,6 +8,7 @@ import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, timeOfDaySchema, endDaySchema, startDaySchema } from '../dates/times';
 import { eventRemindersSchema } from '../dates/reminders';
 import { colorSchema } from '../core/workspace';
+import { weekdayText } from '../dates/format';
 
 /** Calendar event fields. Times are Paris times (every event is in Paris time); all-day events have none. */
 export const calendarEventInputSchema = z
@@ -136,4 +137,16 @@ export const occurrencesShowing = <T extends ShownEventOccurrence>(occurrences: 
 export function linkedEventOccurrence(occurrences: readonly ShownEventOccurrence[], day: string): string | null {
   const shown = occurrencesShowing(occurrences, day);
   return shown.length === 1 ? shown[0].occurrenceDate : null;
+}
+
+/**
+ * Refusal of restoring an occurrence of an event that was postponed: its postponement stays an event of its own, both
+ * would take place.
+ * @param {string} day First day of its postponement (YYYY-MM-DD).
+ * @returns {string} Message: « Supprimez d’abord le report du ven. 6 nov. ».
+ */
+export function postponedRestoreRefusal(day: string): string {
+  const text = weekdayText(day);
+  // « nov. » already ends the sentence.
+  return `Supprimez d’abord le report du ${text}${text.endsWith('.') ? '' : '.'}`;
 }

@@ -141,7 +141,38 @@ const EventExceptionRef = builder.objectRef<events.EventException>('CalendarEven
     postponedTo: t.exposeString('postponedTo', { nullable: true, description: 'Postponed: the first day of its postponement.' }),
     ...dayFields(t as unknown as Parameters<typeof dayFields>[0]),
     otherHours: t.exposeBoolean('otherHours', { description: 'Other hours (or length, or whole day) than its series on its day.' }),
+    label: t.exposeString('label', { description: 'Its label (that of its series when not changed).' }),
     changed: t.exposeBoolean('changed', { description: 'Another label, description, place, links or travel than its series on its day.' }),
+  }),
+});
+
+/**
+ * Days and hours of an event (or of one of its occurrences) given: whole day, first and last days, Paris hours.
+ * @param {PothosSchemaTypes.InputFieldBuilder<BuilderTypes, 'InputObject'>} t Field builder.
+ * @returns {object} Fields.
+ */
+const dayInputFields = (t: PothosSchemaTypes.InputFieldBuilder<BuilderTypes, 'InputObject'>) => ({
+  allDay: t.boolean({ required: true }),
+  startDate: t.field({ type: 'Date', required: true }),
+  startTime: t.string(),
+  endDate: t.field({ type: 'Date', required: true }),
+  endTime: t.string(),
+});
+
+const EventExceptionChangeInput = builder.inputType('CalendarEventExceptionChange', {
+  description: 'An occurrence of a series changed alone from the list of its exceptions: its label, days and hours.',
+  fields: (t) => ({
+    date: t.field({ type: 'Date', required: true, description: 'Day of its rule.' }),
+    label: t.string({ required: true }),
+    ...dayInputFields(t),
+  }),
+});
+
+const EventExceptionsInput = builder.inputType('CalendarEventExceptionsChange', {
+  description: 'Exceptions of a series restored and changed alone with a save of it, all or nothing.',
+  fields: (t) => ({
+    restored: t.field({ type: ['Date'], description: 'Days of the rule of the exceptions restored (their occurrence goes back to the series).' }),
+    changed: t.field({ type: [EventExceptionChangeInput], description: 'Occurrences changed alone (`THIS`).' }),
   }),
 });
 
@@ -366,11 +397,7 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     description: t.string(),
     ...locationInputFields(t),
     links: t.field({ type: [ItemLinkInput], required: true }),
-    allDay: t.boolean({ required: true }),
-    startDate: t.field({ type: 'Date', required: true }),
-    startTime: t.string(),
-    endDate: t.field({ type: 'Date', required: true }),
-    endTime: t.string(),
+    ...dayInputFields(t),
     recurrence: t.field({ type: 'JSON' }),
     reminders: t.field({ type: [ReminderInput], required: true, description: 'Minutes before its start or its end (24 hours at most), a time of its first (or last) day, or that time 1 to 30 days before; each with its ringtone or none; 10 at most.' }),
     ...travelInputFields(t, 'none: 0'),
@@ -583,9 +610,15 @@ builder.mutationFields((t) => ({
       occurrenceDate: t.arg({ type: 'Date' }),
       confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
       movedRule: t.arg({ type: 'JSON', description: MOVED_RULE_DESCRIPTION }),
+      exceptions: t.arg({ type: EventExceptionsInput, description: 'Exceptions of the series restored and changed alone with the save, first, in the same transaction: all or nothing.' }),
     },
-    resolve: async (_root, { id, input, scope, occurrenceDate, confirmLoss, movedRule }) =>
-      (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate, confirmLoss ?? false, chosenRule(movedRule))).id,
+    resolve: async (_root, { id, input, scope, occurrenceDate, confirmLoss, movedRule, exceptions }) =>
+      (
+        await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate, confirmLoss ?? false, chosenRule(movedRule), {
+          restored: exceptions?.restored ?? [],
+          changed: (exceptions?.changed ?? []).map((change) => ({ ...change, startTime: change.startTime ?? null, endTime: change.endTime ?? null })),
+        })
+      ).id,
   }),
   setCalendarEventCalledOff: t.boolean({
     description: 'Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.',
@@ -596,12 +629,6 @@ builder.mutationFields((t) => ({
       calledOff: t.arg.boolean({ required: true }),
     },
     resolve: (_root, { id, scope, occurrenceDate, calledOff }) => done(events.setEventCalledOff(id, scope, occurrenceDate, calledOff)),
-  }),
-  restoreCalendarEventException: t.boolean({
-    description:
-      'Removes an exception of a recurring event (an occurrence deleted, cancelled or changed alone): it goes back to its series, its comments, times and checklist kept, its routine links following it; those it can no longer have go once confirmed.',
-    args: { id: t.arg.id({ required: true }), occurrenceDate: t.arg({ type: 'Date', required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
-    resolve: (_root, { id, occurrenceDate, confirmLoss }) => done(events.restoreEventException(id, occurrenceDate, confirmLoss ?? false)),
   }),
   postponeCalendarEvent: t.id({
     description: 'Cancels an event (or one occurrence) and creates its postponement, linked to it.',
