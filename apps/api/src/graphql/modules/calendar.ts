@@ -212,6 +212,10 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
       description: 'Changed on its own: its fields as its series has them on its date (what « Toutes les occurrences » and « Celle-ci et les suivantes » edit); else null.',
       resolve: (occurrence) => occurrence.series,
     }),
+    lastShownDate: t.exposeString('lastShownDate', {
+      nullable: true,
+      description: 'Last occurrence of its series still shown (the day of its rule; those deleted alone left out); null without an end or for a one-off event: « Celle-ci et les suivantes » is not offered from it.',
+    }),
   }),
 });
 

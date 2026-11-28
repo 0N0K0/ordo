@@ -98,22 +98,27 @@ export function useEventMenu(occurrence: EventOccurrence | undefined, options: E
      */
     const run = (scope: CalendarEventScope) => remove.mutate({ id: target.eventId, scope, occurrenceDate: target.occurrenceDate }, formCallbacks(null, 'Évènement supprimé.', onDone));
     const lost = { eventId: target.eventId, occurrenceDate: target.occurrenceDate };
-    if (recurring) {
-      const [THIS, FOLLOWING, ALL] = await Promise.all((['THIS', 'FOLLOWING', 'ALL'] as const).map((scope) => fetchLostOnDelete({ ...lost, scope })));
-      const scope = await askScope({ action: 'delete', allowFollowing: followingOffered(occurrence), note: scopeLostNote({ THIS, FOLLOWING, ALL }) });
-      if (scope) run(scope);
-      return;
-    }
-    confirmDestructive({
-      title: 'Supprimer l’évènement',
-      risks: (
-        <>
-          L’évènement « {occurrence.label} » sera supprimé définitivement.
-          <LostOnDeleteRisk query={{ ...lost, scope: 'ALL' }} />
-        </>
-      ),
-      onConfirm: () => run('ALL'),
-    });
+    /**
+     * Deletes the whole event once confirmed, telling what goes with it (its usual confirmation).
+     * @returns {void}
+     */
+    const confirmWhole = () =>
+      confirmDestructive({
+        title: 'Supprimer l’évènement',
+        risks: (
+          <>
+            L’évènement « {occurrence.label} » sera supprimé définitivement{recurring ? ', avec toutes ses occurrences' : ''}.
+            <LostOnDeleteRisk query={{ ...lost, scope: 'ALL' }} />
+          </>
+        ),
+        onConfirm: () => run('ALL'),
+      });
+    if (!recurring) return confirmWhole();
+    const [THIS, FOLLOWING, ALL] = await Promise.all((['THIS', 'FOLLOWING', 'ALL'] as const).map((scope) => fetchLostOnDelete({ ...lost, scope })));
+    const scope = await askScope({ action: 'delete', allowFollowing: followingOffered(occurrence), note: scopeLostNote({ THIS, FOLLOWING, ALL }) });
+    // « Toutes »: the event itself, its own confirmation after the question, as a routine.
+    if (scope === 'ALL') confirmWhole();
+    else if (scope) run(scope);
   };
 
   /**

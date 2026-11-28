@@ -851,6 +851,22 @@ export function hasOccurrenceAfter(rule: Recurrence | null | undefined, start: s
 }
 
 /**
+ * Last occurrence of a rule still shown (a day of its rule, the days deleted one by one left out), the day of its rule;
+ * null without an end (it goes on), undefined when none is left.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First date.
+ * @param {ReadonlySet<string>} deleted Days of the rule whose occurrence was deleted alone.
+ * @returns {string | null | undefined} Last day shown.
+ */
+export function lastShownOccurrence(rule: Recurrence, start: string, deleted: ReadonlySet<string>): string | null | undefined {
+  if (rule.until === null && rule.count === null) return null;
+  // One scan up to its end (a count: within a hundred years, as `lastCountedOccurrence`).
+  return occurrenceDates(rule, start, start, rule.until ?? addDays(start, 36_600))
+    .filter((day) => !deleted.has(day))
+    .at(-1);
+}
+
+/**
  * Whether one of several rules (the cases of an item) has an occurrence after a day.
  * @param {readonly { rule: Recurrence | null | undefined, start: string }[]} rules Rules, each with its first day.
  * @param {string} day Occurrence.

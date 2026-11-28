@@ -98,6 +98,8 @@ const MARGIN = 28;
 /** Thickness of a thin line of slots, and the gap between two lanes (3 px and 1 px of the agenda). */
 const LINE = 2.25;
 const LINE_GAP = 0.75;
+/** Space left at each end of the thin line of a day in the month (2 px of the agenda, `--slot-line-gap`): the lines of two days side by side stay apart. */
+const LINE_END_GAP = 1.5;
 /** White laid over the color by each pattern, as in the agenda: its opacity. */
 const PATTERN_OPACITY: Record<SlotPattern, number> = { hatched: 0.5, dotted: 0.55 };
 /** Height of a row of the legend, and the gap above it. */
@@ -486,7 +488,7 @@ function drawMonth(doc: PdfDoc, view: CalendarPdfView, area: Box, today: string)
       if (day === today) doc.rect(x, y, cellWidth, cellHeight).fill(COLORS.today);
       else if (monthOfDay(day) !== month) doc.rect(x, y, cellWidth, cellHeight).fill(COLORS.light);
       for (const slot of behind.filter((item) => onDay(item, day))) {
-        if (slot.kind === 'line') fillSlot(doc, { x, y: y + cellHeight - (slot.lane + 1) * LINE - slot.lane * LINE_GAP, width: cellWidth, height: LINE }, slot);
+        if (slot.kind === 'line') fillSlot(doc, { x: x + LINE_END_GAP, y: y + cellHeight - (slot.lane + 1) * LINE - slot.lane * LINE_GAP, width: cellWidth - 2 * LINE_END_GAP, height: LINE }, slot);
         else fillSlot(doc, { x, y, width: cellWidth, height: cellHeight }, slot);
       }
       doc.rect(x, y, cellWidth, cellHeight).lineWidth(0.3).strokeColor(COLORS.border).stroke();

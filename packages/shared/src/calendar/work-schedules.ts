@@ -3,7 +3,7 @@ import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema, UserError } from '../core/rules';
 import { addDays, daysBetween, monthOfDay, weekdayOfDate, yearOfDay } from '../dates/days';
-import { anyOccurrenceAfter, DEFAULT_RECURRENCE, isLastDayRule, movedWeekdays, ONE_DAY, proposedMovedRule, RuleChoiceRequired, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
+import { hasOccurrenceAfter, DEFAULT_RECURRENCE, isLastDayRule, movedWeekdays, ONE_DAY, proposedMovedRule, RuleChoiceRequired, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseFrom, caseSpanOn, caseSpans, caseUntil, periodCase, repetitionCaseSchema, storedRepetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
@@ -934,10 +934,7 @@ export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSl
     if (change) exceptions = withDaySlots(exceptions, change.date, [...daySlots({ ...schedule, exceptions }, change.date), change]);
     return { ...period, cases: [...schedule.cases], exceptions };
   }
-  const { cases, from: periodStart, exception } = casesOn(schedule, slot.date);
-  const caseIndex = cases.findIndex(
-    (item) => caseOn(item, periodStart, slot.date) && (slot.allDay ? item.times.allDay : !item.times.allDay && item.times.ranges.some((range) => range.start === slot.start && range.end === slot.end)),
-  );
+  const { cases, from: periodStart, exception, caseIndex } = slotCase(schedule, slot);
   if (caseIndex < 0) throw new UserError('Horaires introuvables ce jour-là.');
   const item = cases[caseIndex];
   const range = item.times.ranges.findIndex((other) => other.start === slot.start && other.end === slot.end);
@@ -976,19 +973,34 @@ export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSl
 }
 
 /**
- * Whether « Celle-ci et les suivantes » is offered for a day of a schedule (créneau or éphéméride): a rule of its
- * cases, or of those of an exception period, has an occurrence after it within its period (never on its last day).
- * @param {Pick<WorkScheduleRule, 'startDate' | 'endDate' | 'cases' | 'exceptions'>} schedule Schedule.
- * @param {string} day Day.
+ * Case of a schedule a slot of a day belongs to: among those in force that day (of the exception period covering it,
+ * else of the schedule), the one on that day with those hours.
+ * @param {WorkScheduleRule} schedule Schedule.
+ * @param {ScheduleSlotTime} slot Slot.
+ * @returns {{ cases: readonly ScheduleCase[], from: string, exception: ScheduleException | null, caseIndex: number }} Cases in force, first day of their period, its exception period, index of the case (-1: none).
+ */
+function slotCase(schedule: WorkScheduleRule, slot: ScheduleSlotTime) {
+  const { cases, from, exception } = casesOn(schedule, slot.date);
+  const caseIndex = cases.findIndex(
+    (item) => caseOn(item, from, slot.date) && (slot.allDay ? item.times.allDay : !item.times.allDay && item.times.ranges.some((range) => range.start === slot.start && range.end === slot.end)),
+  );
+  return { cases, from, exception, caseIndex };
+}
+
+/**
+ * Whether « Celle-ci et les suivantes » is offered for a slot of a schedule (créneau or éphéméride): the case of that
+ * day (the one « Celle-ci et les suivantes » cuts) has an occurrence after it within its period (never on its last
+ * day; the other cases do not count).
+ * @param {WorkScheduleRule} schedule Schedule.
+ * @param {ScheduleSlotTime} slot Slot.
  * @returns {boolean} Offered.
  */
-export function scheduleFollowingOffered(schedule: Pick<WorkScheduleRule, 'startDate' | 'endDate' | 'cases' | 'exceptions'>, day: string): boolean {
-  if (schedule.endDate !== null && schedule.endDate <= day) return false;
+export function scheduleFollowingOffered(schedule: WorkScheduleRule, slot: ScheduleSlotTime): boolean {
+  const { cases, from, exception, caseIndex } = slotCase(schedule, slot);
+  const item = cases[caseIndex];
+  if (!item?.rule) return false;
   // Within its period: its rule ends with it at the latest.
-  const bounded = (rule: Recurrence | null, end: string | null) => (rule && end !== null && (rule.until === null || rule.until > end) ? { ...rule, until: end } : rule);
-  const rules = [
-    ...schedule.cases.map((item) => ({ rule: bounded(item.rule, schedule.endDate), start: item.start ?? schedule.startDate })),
-    ...schedule.exceptions.flatMap((period) => period.cases.map((item) => ({ rule: bounded(item.rule, period.to), start: item.start ?? period.from }))),
-  ];
-  return anyOccurrenceAfter(rules, day);
+  const end = exception ? exception.to : schedule.endDate;
+  const rule = end !== null && (item.rule.until === null || item.rule.until > end) ? { ...item.rule, until: end } : item.rule;
+  return hasOccurrenceAfter(rule, item.start ?? from, slot.date);
 }

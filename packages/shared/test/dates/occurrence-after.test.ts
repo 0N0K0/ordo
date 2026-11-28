@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anyOccurrenceAfter, DEFAULT_RECURRENCE, hasOccurrenceAfter, type Recurrence } from '../../src/dates/recurrence';
+import { anyOccurrenceAfter, DEFAULT_RECURRENCE, hasOccurrenceAfter, lastShownOccurrence, type Recurrence } from '../../src/dates/recurrence';
 import { scheduleFollowingOffered } from '../../src/calendar/work-schedules';
 
 /**
@@ -39,21 +39,53 @@ describe('hasOccurrenceAfter: « Celle-ci et les suivantes » never on the last 
   });
 });
 
-describe('scheduleFollowingOffered: not on the last day of a schedule', () => {
-  const times = { allDay: true, ranges: [] };
+describe('scheduleFollowingOffered: the case of that day, not on its last day', () => {
+  const allDay = { allDay: true, ranges: [] };
+  const slot = (date: string, start = '00:00', end = '24:00') => ({ date, start, end, allDay: start === '00:00' });
   it('its period ends: not on its last day', () => {
-    const schedule = { startDate: '2026-11-02', endDate: '2026-11-30', cases: [{ start: null, rule: rule({ weekdays: [1] }), times }], exceptions: [] };
-    expect(scheduleFollowingOffered(schedule, '2026-11-23')).toBe(true);
-    expect(scheduleFollowingOffered(schedule, '2026-11-30')).toBe(false);
+    const schedule = { id: 's', label: 'S', startDate: '2026-11-02', endDate: '2026-11-30', cases: [{ start: null, rule: rule({ weekdays: [1] }), times: allDay }], exceptions: [] };
+    expect(scheduleFollowingOffered(schedule, slot('2026-11-23'))).toBe(true);
+    expect(scheduleFollowingOffered(schedule, slot('2026-11-30'))).toBe(false);
   });
-  it('an exception period with cases of its own going on after the day: offered', () => {
+  it('another case going on does not count: lundi 9–12 ended, mardi 14–18 going on', () => {
     const schedule = {
+      id: 's',
+      label: 'S',
       startDate: '2026-11-02',
       endDate: null,
-      cases: [{ start: null, rule: rule({ weekdays: [1], until: '2026-11-09' }), times }],
-      exceptions: [{ from: '2026-11-10', to: '2026-11-20', label: '', cases: [{ start: null, rule: rule({ weekdays: [3] }), times }] }],
+      cases: [
+        { start: null, rule: rule({ weekdays: [1], until: '2026-11-09' }), times: { allDay: false, ranges: [{ start: '09:00', end: '12:00' }] } },
+        { start: null, rule: rule({ weekdays: [2] }), times: { allDay: false, ranges: [{ start: '14:00', end: '18:00' }] } },
+      ],
+      exceptions: [],
     };
-    expect(scheduleFollowingOffered(schedule, '2026-11-09')).toBe(true);
-    expect(scheduleFollowingOffered(schedule, '2026-11-18')).toBe(false);
+    expect(scheduleFollowingOffered(schedule, slot('2026-11-09', '09:00', '12:00'))).toBe(false);
+    expect(scheduleFollowingOffered(schedule, slot('2026-11-10', '14:00', '18:00'))).toBe(true);
+  });
+  it('in an exception period: its own case, up to the end of the period', () => {
+    const schedule = {
+      id: 's',
+      label: 'S',
+      startDate: '2026-11-02',
+      endDate: null,
+      cases: [{ start: null, rule: rule({ weekdays: [1] }), times: allDay }],
+      exceptions: [{ from: '2026-11-10', to: '2026-11-20', label: '', cases: [{ start: null, rule: rule({ weekdays: [3] }), times: allDay }] }],
+    };
+    expect(scheduleFollowingOffered(schedule, slot('2026-11-11'))).toBe(true);
+    expect(scheduleFollowingOffered(schedule, slot('2026-11-18'))).toBe(false);
+  });
+});
+
+describe('lastShownOccurrence: the days deleted alone left out', () => {
+  it('without an end: null', () => {
+    expect(lastShownOccurrence(rule({ weekdays: [1] }), '2026-11-02', new Set())).toBeNull();
+  });
+  it('three Mondays, the last deleted alone: the second is the last shown', () => {
+    const weekly = rule({ weekdays: [1], count: 3 });
+    expect(lastShownOccurrence(weekly, '2026-11-02', new Set())).toBe('2026-11-16');
+    expect(lastShownOccurrence(weekly, '2026-11-02', new Set(['2026-11-16']))).toBe('2026-11-09');
+  });
+  it('all deleted: none', () => {
+    expect(lastShownOccurrence(rule({ weekdays: [1], until: '2026-11-02' }), '2026-11-02', new Set(['2026-11-02']))).toBeUndefined();
   });
 });

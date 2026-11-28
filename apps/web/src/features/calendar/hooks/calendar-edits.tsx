@@ -68,19 +68,15 @@ export function useCalendarEdits() {
     const wholePeriod = schedule.ephemeris && schedule.startDate === schedule.endDate && change && change.date !== slot.date;
     const scope = wholePeriod
       ? 'ALL'
-      : await askScope({ action: change ? 'update' : 'delete', allowFollowing: scheduleFollowingOffered(schedule, slot.date), title: `${change ? 'Modifier' : 'Supprimer'} ${words.recurring}` });
+      : await askScope({ action: change ? 'update' : 'delete', allowFollowing: scheduleFollowingOffered(schedule, slot), title: `${change ? 'Modifier' : 'Supprimer'} ${words.recurring}` });
     if (!scope) return revert?.();
-    // Deleting « Toutes » deletes the schedule itself (its usual confirmation), never one of its cases only.
-    if (!change && scope === 'ALL') {
-      runAction(deleteSchedules([schedule]));
-      return;
-    }
     let next: ReturnType<typeof changedScheduleSlot>;
     try {
       // A case on the last day of the month moved to another day: its new rule is asked first (given up: put back).
       next = await withMovedRuleChoice((movedRule) => changedScheduleSlot(schedule, slot, change, scope, movedRule));
     } catch (error) {
-      // Its last hours deleted (« Celle-ci et les suivantes » from its first day): the schedule itself goes, never archived.
+      // Its last case deleted (« Toutes », or « Celle-ci et les suivantes » from its first day): the schedule itself goes,
+      // after its usual confirmation (a schedule has a case at least); never archived.
       if (!change && error instanceof UserError && error.message === words.lastHours) return runAction(deleteSchedules([schedule]));
       notifyFailure(error, 'Changement impossible.');
       return revert?.();
@@ -103,11 +99,12 @@ export function useCalendarEdits() {
    * @param {string} to New day.
    * @param {{ fromTime: string | null, dueTime: string | null }} times New times.
    * @param {() => void} [revert] Puts it back in the calendar (cancelled or failed). Optional.
+   * @param {string | null} [movedFrom] Day of the rule it was moved from, if any (« Celle-ci et les suivantes » is judged on the day of its rule). Optional.
    * @returns {Promise<void>}
    */
-  const changeRoutine = async (occurrence: RoutineOccurrenceRef, to: string, times: { fromTime: string | null; dueTime: string | null }, revert?: () => void) => {
+  const changeRoutine = async (occurrence: RoutineOccurrenceRef, to: string, times: { fromTime: string | null; dueTime: string | null }, revert?: () => void, movedFrom: string | null = null) => {
     const { routine, date, slot } = occurrence;
-    const scope = await askScope({ action: 'update', title: 'Modifier une routine', allowFollowing: routineFollowingOffered(routine, date), allowAll: true });
+    const scope = await askScope({ action: 'update', title: 'Modifier une routine', allowFollowing: routineFollowingOffered(routine, movedFrom ?? date), allowAll: true });
     if (!scope) return revert?.();
     changeOccurrence.mutate(
       { id: routine.id, date, scope, to, slot: slot.index, ...times },
@@ -163,7 +160,7 @@ export function useCalendarEdits() {
   const openSlot = async (schedule: WorkScheduleRule, label: string, slot: ScheduleSlotTime) => {
     // Dismissed: no scope, the panel opens read only.
     const words = slotWords(schedule.ephemeris);
-    const scope = await askScope({ action: 'update', allowFollowing: scheduleFollowingOffered(schedule, slot.date), title: `Modifier ${words.recurring}`, note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
+    const scope = await askScope({ action: 'update', allowFollowing: scheduleFollowingOffered(schedule, slot), title: `Modifier ${words.recurring}`, note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
     openFormPanel(`${words.title} du ${fmt.dayLong(slot.date)}`, (close) => (
       <SlotEditForm
         label={label}

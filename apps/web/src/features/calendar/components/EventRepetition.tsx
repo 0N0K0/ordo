@@ -88,7 +88,9 @@ function EventExceptions({ eventId, draft, setDraft, start }: { eventId: string 
     .filter((exception) => !draft.restored.includes(exception.date))
     .map((exception): ExceptionEntry => {
       const change = draft.changed[exception.date];
-      const shown = change ? { ...exception, ...change, changed: exception.changed || change.label !== exception.label } : exception;
+      // Changed in its card: its line says so before it is saved (other hours as soon as they differ from those it had).
+      const hoursChanged = change !== undefined && (change.allDay !== exception.allDay || (change.startTime ?? null) !== exception.startTime || (change.endTime ?? null) !== exception.endTime || daysBetween(change.startDate, change.endDate) !== daysBetween(exception.startDate, exception.endDate));
+      const shown = change ? { ...exception, ...change, otherHours: exception.otherHours || hoursChanged, changed: exception.changed || change.label !== exception.label } : exception;
       const [line] = eventExceptionLines([shown]);
       // Changed alone: its label, days and hours, as « Cette occurrence » changes them.
       const own: EventExceptionChange = change ?? { date: exception.date, label: exception.label, allDay: exception.allDay, startDate: exception.startDate, startTime: exception.startTime, endDate: exception.endDate, endTime: exception.endTime };

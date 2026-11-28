@@ -639,6 +639,11 @@ type CalendarEventOccurrence {
   key: String!
   label: String!
 
+  """
+  Last occurrence of its series still shown (the day of its rule; those deleted alone left out); null without an end or for a one-off event: « Celle-ci et les suivantes » is not offered from it.
+  """
+  lastShownDate: String
+
   """Documents of the library linked to the event (its whole series)."""
   libraryDocumentIds: [ID!]!
   links: [ItemLink!]!

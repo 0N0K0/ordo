@@ -1,5 +1,4 @@
 import type { EventInput } from '@fullcalendar/core';
-import { hasOccurrenceAfter, storedRecurrence } from '@ordo/shared';
 import {
   addDays,
   birthdayLabel,
@@ -376,10 +375,10 @@ export function birthdayEvents(birthdays: readonly PersonBirthday[], look: Birth
 }
 
 /**
- * Whether « Celle-ci et les suivantes » is offered for an occurrence of an event: a recurring one with an occurrence
- * after it (never on its last one, `hasOccurrenceAfter`).
- * @param {{ occurrenceDate: string | null, recurrence: unknown, seriesStartDate: string }} occurrence Occurrence.
+ * Whether « Celle-ci et les suivantes » is offered for an occurrence of an event: a recurring one before the last
+ * occurrence its series still shows (`lastShownDate` of the API: those deleted alone left out; none: no end).
+ * @param {{ occurrenceDate: string | null, lastShownDate: string | null }} occurrence Occurrence.
  * @returns {boolean} Offered.
  */
-export const followingOffered = (occurrence: { occurrenceDate: string | null; recurrence: unknown; seriesStartDate: string }): boolean =>
-  occurrence.occurrenceDate !== null && hasOccurrenceAfter(storedRecurrence(occurrence.recurrence), occurrence.seriesStartDate, occurrence.occurrenceDate);
+export const followingOffered = (occurrence: { occurrenceDate: string | null; lastShownDate: string | null }): boolean =>
+  occurrence.occurrenceDate !== null && (occurrence.lastShownDate === null || occurrence.occurrenceDate < occurrence.lastShownDate);

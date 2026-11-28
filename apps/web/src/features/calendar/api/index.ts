@@ -88,6 +88,7 @@ graphql(`
       startTime
     }
     trackedSeconds
+    lastShownDate
     series {
       label
       description

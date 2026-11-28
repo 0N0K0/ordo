@@ -36,6 +36,7 @@ import {
   occurrencesShowing,
   prunedExceptions,
   postponedRestoreRefusal,
+  lastShownOccurrence,
 } from '@ordo/shared';
 import { inTransaction, prisma } from '../../db';
 import { PARIS } from '../../today';
@@ -125,6 +126,8 @@ export interface EventOccurrence {
   trackedSeconds: number;
   /** Changed on its own: its fields as its series has them on its date (what « Toutes les occurrences » edits); else null. */
   series: EventSeriesFields | null;
+  /** Last occurrence of its series still shown (the day of its rule; those deleted alone left out): null without an end or for a one-off event. */
+  lastShownDate: string | null;
 }
 
 /** An occurrence of a series deleted, cancelled or changed alone (`CalendarEventException`), as its exceptions list it. */
@@ -1289,7 +1292,26 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
       ),
     ),
     series: change ? seriesFieldsOf(toOccurrence(event, date, undefined)) : null,
+    lastShownDate: date ? lastShownOf(event) : null,
   };
+}
+
+/** Last day shown of the series of an event once computed (every occurrence of it read gives it). */
+const lastShownOfEvent = new WeakMap<object, string | null>();
+
+/**
+ * Last occurrence of a series still shown, the day of its rule (`lastShownOccurrence`: those deleted alone left out);
+ * null without an end. « Celle-ci et les suivantes » is not offered from it.
+ * @param {EventWithRelations} event Event.
+ * @returns {string | null} Day.
+ */
+function lastShownOf(event: EventWithRelations): string | null {
+  if (lastShownOfEvent.has(event)) return lastShownOfEvent.get(event)!;
+  const rule = storedRecurrence(event.recurrence);
+  const deleted = new Set(event.exceptions.filter((change) => change.cancelled).map((change) => formatDay(change.date)));
+  const last = rule ? (lastShownOccurrence(rule, formatDay(event.startDate), deleted) ?? formatDay(event.startDate)) : null;
+  lastShownOfEvent.set(event, last);
+  return last;
 }
 
 /** Fields of an occurrence whose change makes it « modified » apart from its days and hours. */

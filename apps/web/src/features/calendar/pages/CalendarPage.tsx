@@ -614,7 +614,7 @@ export function CalendarPage() {
       const kept = occurrence.ruleDueDate ?? occurrence.dueDate;
       const to = startParts.date === (occurrence.shownDate ?? occurrence.dueDate) ? kept : startParts.date;
       if (to === kept && times.fromTime === fromTime && times.dueTime === dueTime) return;
-      void edits.changeRoutine(occurrence, to, times, revert);
+      void edits.changeRoutine(occurrence, to, times, revert, (event.extendedProps.movedFrom as string | null | undefined) ?? null);
       return;
     }
 
