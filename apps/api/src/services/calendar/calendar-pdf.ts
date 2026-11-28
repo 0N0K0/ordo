@@ -116,6 +116,17 @@ function tint(hex: string, ratio: number): string {
 }
 
 /**
+ * Color mixed with black.
+ * @param {string} hex Color (#rrggbb).
+ * @param {number} ratio Share of the color (0 to 1).
+ * @returns {string} Darker color.
+ */
+function shade(hex: string, ratio: number): string {
+  const channel = (index: number) => Math.round(parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16) * ratio);
+  return `#${[0, 1, 2].map((index) => twoDigits(channel(index).toString(16))).join('')}`;
+}
+
+/**
  * Path of a circle in the content of a PDF (four curves), not painted.
  * @param {number} cx Center, left.
  * @param {number} cy Center, top.
@@ -251,15 +262,19 @@ function itemOpacity(item: CalendarPdfItem): number {
 
 /**
  * Paints the box of an item of the all-day row or of the time grid: a créneau or an éphéméride as the agenda draws it
- * (`fillSlot`), another item filled in its color or in its lighter look (`lightLook`).
+ * (`fillSlot`), outlined in its color darkened when asked, another item filled in its color or in its lighter look
+ * (`lightLook`).
  * @param {PdfDoc} doc PDF.
  * @param {CalendarPdfItem} item Item.
  * @param {Box} box Box.
+ * @param {boolean} [outlined] A créneau or an éphéméride with a border in its color. Optional. Default = false.
  * @returns {string} Color of its text.
  */
-function paintItem(doc: PdfDoc, item: CalendarPdfItem, box: Box): string {
+function paintItem(doc: PdfDoc, item: CalendarPdfItem, box: Box, outlined = false): string {
   if (item.kind === 'slot') {
     fillSlot(doc, box, item);
+    // A little darker than its color: a light one (the working hours) stays visible.
+    if (outlined) doc.rect(box.x, box.y, box.width, box.height).lineWidth(0.6).strokeColor(shade(item.color, 0.7)).stroke();
     return COLORS.text;
   }
   const look = lightLook(item);
@@ -273,12 +288,17 @@ function paintItem(doc: PdfDoc, item: CalendarPdfItem, box: Box): string {
  * background (side by side when at the same time) or as thin lines on the left of their hours (in lanes), and the timed
  * items side by side when they overlap. The days are those given, consecutive, each with its heading.
  * @param {PdfDoc} doc PDF.
- * @param {{ days: readonly GridDay[], items: readonly CalendarPdfItem[], today: string | null }} grid Days, items,
- * and the day highlighted (none: no day).
+ * @param {{ days: readonly GridDay[], items: readonly CalendarPdfItem[], today: string | null, outlined?: boolean }} grid
+ * Days, items, the day highlighted (none: no day), and whether the créneaux and éphémérides drawn as items in the
+ * hours (blocks with their name and hours) have a border (not their bars).
  * @param {Box} area Area to fill.
  * @returns {void}
  */
-function drawTimeGrid(doc: PdfDoc, { days, items, today }: { days: readonly GridDay[]; items: readonly CalendarPdfItem[]; today: string | null }, area: Box): void {
+function drawTimeGrid(
+  doc: PdfDoc,
+  { days, items, today, outlined = false }: { days: readonly GridDay[]; items: readonly CalendarPdfItem[]; today: string | null; outlined?: boolean },
+  area: Box,
+): void {
   const from = days[0].date;
   const to = days[days.length - 1].date;
   const axis = 30;
@@ -403,7 +423,7 @@ function drawTimeGrid(doc: PdfDoc, { days, items, today }: { days: readonly Grid
         const { item } = piece;
         doc.save();
         doc.opacity(itemOpacity(item));
-        const text = paintItem(doc, item, { x, y: top, width: width - 1, height });
+        const text = paintItem(doc, item, { x, y: top, width: width - 1, height }, outlined);
         const time = `${item.start.slice(11)}–${item.end.slice(11)}`;
         clippedText(doc, `${item.label}${height > 16 ? `\n${time}` : ''}`, {
           x: x + 4,
@@ -637,8 +657,9 @@ type TypicalWeeksPdfInput = z.input<typeof typicalWeeksPdfSchema>;
 /**
  * PDF (A4 landscape) of the typical weeks of a period: a page per typical week, its name and the period in the
  * header, a week from Monday to Sunday without dates (days named, no day highlighted), its créneaux and éphémérides
- * drawn as in the PDF of the agenda (bars, backgrounds side by side, thin lines, hatched or dotted) with their legend
- * at the bottom of the page; in the template shared by every export.
+ * drawn as in the PDF of the agenda, hatched or dotted: their bars, thin lines and whole days in the background as
+ * there, and their hours in the background as blocks outlined in their color, named with their hours, side by side
+ * when they overlap, as the events (the app sends them so); their legend at the bottom of the page; in the template shared by every export.
  * @param {TypicalWeeksPdfInput} input Period and typical weeks.
  * @returns {Promise<ReportFile>} PDF and its file name.
  */
@@ -653,7 +674,7 @@ export async function typicalWeeksPdf(input: TypicalWeeksPdfInput): Promise<Repo
   for (const week of weeks) {
     doc.addPage();
     const days = WEEKDAY_LABELS.map((label, index) => ({ date: addDays(week.monday, index), label: capitalize(label) }));
-    drawCalendarPage(doc, top, week.items, (area) => drawTimeGrid(doc, { days, items: week.items, today: null }, area));
+    drawCalendarPage(doc, top, week.items, (area) => drawTimeGrid(doc, { days, items: week.items, today: null, outlined: true }, area));
   }
   return finish();
 }

@@ -30,6 +30,8 @@
       --fc-event-text-color: #fff;
       /* Thickness of the lines of planned slots. */
       --slot-line: 3px;
+      /* Space left at each end of a day's line (month), so that the lines of two days side by side stay apart. */
+      --slot-line-gap: 2px;
 
       /* Typographie */
       font-size: var(--mantine-font-size-sm);
@@ -204,11 +206,13 @@
     width: calc(100% / var(--slot-columns, 1));
   }
 
-  /* Day of planned slots as a thin line at its bottom (month). */
+  /* Day of planned slots as a thin line at its bottom (month), kept apart from the lines of the days beside it. */
   .slotBorderBottom {
     /* Position */
     top: auto !important;
+    right: var(--slot-line-gap) !important;
     bottom: calc(var(--slot-lane, 0) * (var(--slot-line) + 1px)) !important;
+    left: var(--slot-line-gap) !important;
 
     /* Dimension */
     height: var(--slot-line);

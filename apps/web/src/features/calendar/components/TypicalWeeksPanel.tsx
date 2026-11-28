@@ -1,5 +1,6 @@
 import { List, Stack, Text } from '@mantine/core';
-import { NO_TYPICAL_WEEK, TYPICAL_WEEKS_MAX, typicalWeeks, typicalWeeksRefusal } from '@ordo/shared';
+import type { EventInput } from '@fullcalendar/core';
+import { NO_TYPICAL_WEEK, slotPlacements, TYPICAL_WEEKS_MAX, typicalWeeks, typicalWeeksRefusal } from '@ordo/shared';
 import { FilePdfIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -10,11 +11,34 @@ import * as fmt from '../../../lib/format';
 import { countOf } from '../../../lib/text';
 import { useAsyncAction } from '../../../lib/use-async-action';
 import { useScheduleSources } from '../api';
-import { scheduleSources, slotEvents } from '../lib/calendar-events';
+import { scheduleSources, type ShownSlots, slotEvents, slotLook } from '../lib/calendar-events';
 import { downloadTypicalWeeksPdf, pdfItems } from '../lib/calendar-pdf';
 import { scheduleChoices } from '../lib/layer-label';
 import classes from '../pages/CalendarPage.module.css';
 import { HiddenChecklist } from './HiddenChecklist';
+
+/**
+ * Events of a typical week, as its PDF draws them: the bars, the thin lines and the whole days in the background as
+ * the week of the agenda shows them (`slotEvents`), and the hours of each créneau or éphéméride in the background as
+ * a block named after it (its own name, not its kind's), drawn with its hours as the events, in the light look of its
+ * background (`slotLook`).
+ * @param {readonly (ShownSlots & { schedule: { label: string } })[]} sources Créneaux and éphémérides taken into account,
+ * with their slots of the week.
+ * @returns {EventInput[]} Events.
+ */
+function typicalWeekEvents(sources: readonly (ShownSlots & { schedule: { label: string } })[]): EventInput[] {
+  // The hours in the background become blocks: the bars, the thin lines (a lane) and the whole days stay.
+  const kept = slotEvents(sources, false).filter(
+    (event) => event.display !== 'background' || typeof event.extendedProps?.slotLane === 'number' || (String(event.start).endsWith('T00:00:00') && String(event.end).endsWith('T00:00:00')),
+  );
+  const blocks = sources.flatMap((source) => {
+    const { print } = slotLook(source, 'background');
+    return slotPlacements(source.display, false, source.slots, new Map())
+      .filter(({ place, wholeDay }) => place === 'background' && !wholeDay)
+      .map(({ slot }): EventInput => ({ title: source.schedule.label, start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00`, extendedProps: { kind: 'slot', print } }));
+  });
+  return [...kept, ...blocks];
+}
 
 interface TypicalWeeksPanelProps {
   /** Period offered first (that of the agenda). */
@@ -53,10 +77,7 @@ export function TypicalWeeksPanel({ period, hidden: initiallyHidden, onClose }: 
           name: week.name,
           monday: week.weeks[0],
           items: pdfItems(
-            slotEvents(
-              chosen.map((source) => ({ ...source, slots: week.slots.filter((slot) => slot.scheduleId === source.rule.id) })),
-              false,
-            ),
+            typicalWeekEvents(chosen.map((source) => ({ ...source, slots: week.slots.filter((slot) => slot.scheduleId === source.rule.id) }))),
             { closed: classes.closed, archived: classes.archived },
           ),
         })),
