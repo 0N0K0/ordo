@@ -1,4 +1,4 @@
-import { type AlarmInput, alarmInputSchema, parseOptionalDay } from '@ordo/shared';
+import { type AlarmInput, alarmInputSchema, parseOptionalDay, prunedExceptions } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type Alarm } from '../../generated/prisma/client';
 import { clientError, parseInput } from '../../graphql/errors';
@@ -25,7 +25,7 @@ async function parseAlarm(input: AlarmInput, keptProjectId: string | null = null
     minutes: tracking ? alarm.minutes : null,
     weekdays: alarm.frequency === 'WEEKLY' ? [...new Set(alarm.weekdays)].sort() : [],
     // The common repetition; none: once (or, for an alarm saved before it, its former fields).
-    recurrence: tracking || !alarm.recurrence ? Prisma.DbNull : alarm.recurrence,
+    recurrence: tracking || !alarm.recurrence ? Prisma.DbNull : alarm.startDate ? prunedExceptions(alarm.recurrence, alarm.startDate) : alarm.recurrence,
   };
 }
 

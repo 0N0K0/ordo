@@ -137,6 +137,8 @@ const scheduleExceptionLines = (value: Pick<ScheduleRepetitionValue, 'cases' | '
  */
 function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetitionValue; setDraft: (value: ScheduleRepetitionValue) => void }) {
   const start = draft.startDate || parisToday();
+  // The period whose start is being edited keeps its place in the list until the field is left.
+  const [editing, setEditing] = useState<{ index: number; day: string } | null>(null);
   /**
    * Changes an exception.
    * @param {number} index Exception.
@@ -153,13 +155,23 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
       const none = exception.cases.length === 0;
       return {
         key: `period-${index}`,
-        day: exception.from,
+        day: editing?.index === index ? editing.day : exception.from,
         text: periodExceptionText(exception),
-        onRestore: () => setDraft({ ...draft, exceptions: draft.exceptions.filter((_, position) => position !== index) }),
+        onRestore: () => {
+          setEditing(null);
+          setDraft({ ...draft, exceptions: draft.exceptions.filter((_, position) => position !== index) });
+        },
         body: (
           <>
             <Group gap={6} wrap="nowrap" align="flex-end">
-              <PeriodField label="Période" size="xs" w={280} required value={[exception.from, exception.to]} onChange={([from, to]) => from && to && setException(index, { from, to })} />
+              <PeriodField label="Période" size="xs" w={280} required value={[exception.from, exception.to]}
+                onChange={([from, to]) => {
+                  if (!from || !to) return;
+                  if (editing?.index !== index) setEditing({ index, day: exception.from });
+                  setException(index, { from, to });
+                }}
+                onBlur={[() => setEditing(null), () => setEditing(null)]}
+              />
               <TextInput
                 label="Motif"
                 size="xs"

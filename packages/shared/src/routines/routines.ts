@@ -126,24 +126,56 @@ export function opensMisfits(routine: { opensOn: RoutineOpens | null; cases: rea
 /** Fields an « Ouverture » is checked with: inherited, the API checks it on the values the routine goes by. */
 const OPENS_CHECKED_WITH: readonly RoutineInheritableField[] = ['OPENS_ON', 'RECURRENCE', 'CASES'];
 
+/** Fields of a case of a routine: on which days (a repetition, as the events'), and its times of the day. */
+const routineCaseFields = {
+  /** « Début »: first day its repetition counts from (none: the first date of the routine). Its end is its rule's. */
+  from: daySchema().nullable().default(null),
+  /** On or out of calendar schedules, combined in groups (none: any time). */
+  condition: slotConditionSchema.nullable().default(null),
+  recurrence: recurrenceSchema,
+  slots: z.array(routineSlotSchema).min(1, 'Ajoutez au moins un moment.').max(10, '10 moments au plus.'),
+  /** « Ouverture » of its occurrences (none: from their first day). */
+  opens: routineOpensSchema.nullable().default(null),
+};
+
+/**
+ * Refinements of a case of a routine: a moment required, an « Ouverture » fitting its rule.
+ * @template T
+ * @param {T} schema Schema of a case.
+ * @returns {z.ZodEffects} Schema refined.
+ */
+const refinedCase = <T extends z.ZodType<{ slots: { optional: boolean }[]; opens: RoutineOpens | null; recurrence: Recurrence }>>(schema: T) =>
+  schema
+    .refine((item) => item.slots.some((slot) => !slot.optional), { path: ['slots'], message: 'Au moins un moment doit être obligatoire.' })
+    .refine((item) => !item.opens || opensFits(item.opens, item.recurrence.frequency), { path: ['opens'], message: OPENS_MISFIT });
+
 /** A case of a routine: on which days (a repetition, as the events'), and its times of the day. */
-export const routineCaseSchema = z
-  .object({
-    /** First day its repetition counts from (none: the first date of the routine). */
-    from: daySchema().nullable().default(null),
-    /** Last day it applies (none: no end). */
-    until: daySchema().nullable().default(null),
-    /** On or out of calendar schedules, combined in groups (none: any time). */
-    condition: slotConditionSchema.nullable().default(null),
-    recurrence: recurrenceSchema,
-    slots: z.array(routineSlotSchema).min(1, 'Ajoutez au moins un moment.').max(10, '10 moments au plus.'),
-    /** « Ouverture » of its occurrences (none: from their first day). */
-    opens: routineOpensSchema.nullable().default(null),
-  })
-  .refine((item) => item.slots.some((slot) => !slot.optional), { path: ['slots'], message: 'Au moins un moment doit être obligatoire.' })
-  .refine((item) => !item.opens || opensFits(item.opens, item.recurrence.frequency), { path: ['opens'], message: OPENS_MISFIT });
+export const routineCaseSchema = refinedCase(z.object(routineCaseFields));
 export type RoutineCase = z.infer<typeof routineCaseSchema>;
 export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
+
+/** A case of a routine as stored: maybe with a last day of its own (`until`, its former period), only read (`readRoutineCases`). */
+const storedRoutineCaseSchema = refinedCase(z.object({ ...routineCaseFields, until: daySchema().nullable().default(null) }));
+
+/**
+ * Stored cases of a routine as read (invalid ones: none): one stored with a last day of its own (its former period)
+ * gets it as the end of its rule (`caseUntil`: a number of occurrences reduced to those up to it, an earlier end date
+ * kept), written so on the next save; one without any occurrence up to it keeps none (its rule ends before its start).
+ * @param {unknown} value Stored JSON.
+ * @param {string} start First date of the routine.
+ * @returns {RoutineCase[]} Cases.
+ */
+export function readRoutineCases(value: unknown, start: string): RoutineCase[] {
+  const parsed = z.array(storedRoutineCaseSchema).safeParse(value);
+  if (!parsed.success) return [];
+  return parsed.data.flatMap(({ until, ...item }) => {
+    if (!until) return [item];
+    const first = caseStart(item, start);
+    const kept = caseUntil({ start: first, rule: item.recurrence, times: null }, until, start);
+    // None up to its last day: kept without any occurrence (its place among the cases stays).
+    return [{ ...item, recurrence: kept?.rule ?? { ...item.recurrence, count: null, until: addDays(first, -1) } }];
+  });
+}
 
 /**
  * Rows (comments, checklist, links with events) a merged occurrence notes at most (`mergedRows`): a merge that would
@@ -506,7 +538,7 @@ export function routineHasHours(routine: {
 
 /**
  * Case of a routine an occurrence comes from: the first of its cases with an occurrence due on that day (its last
- * day), within its period.
+ * day).
  * @param {readonly RoutineCase[]} cases Cases.
  * @param {string} start First date of the routine.
  * @param {string} date Due day.
@@ -525,12 +557,7 @@ export function routineCaseOn(cases: readonly RoutineCase[], start: string, date
  * @returns {Span[]} Occurrences.
  */
 export function routineCaseSpans(item: RoutineCase, start: string, from: string, to: string): Span[] {
-  const repetition = { start: caseStart(item, start), rule: item.recurrence, times: null };
-  // A case with a last day of its own (its former period): its occurrences up to it, the last one held within it.
-  const kept = item.until ? caseUntil(repetition, item.until, start) : repetition;
-  if (!kept) return [];
-  const spans = caseSpans(kept, start, from, to);
-  return item.until ? spans.map((span) => (span.end > item.until! ? { ...span, end: item.until! } : span)) : spans;
+  return caseSpans({ start: caseStart(item, start), rule: item.recurrence, times: null }, start, from, to);
 }
 
 /**
@@ -559,35 +586,6 @@ export function earlierCases<T extends { from: string | null }>(cases: readonly 
   if (startDate === start) return { startDate, cases: [...cases] };
   return { startDate, cases: cases.map((item) => (earlier(item) ? item : { ...item, from: caseStart(item, start) })) };
 }
-
-/**
- * Last day of a case once its occurrences moved by a number of days (« Toutes », « Celle-ci et les suivantes »): moved
- * as much, but never into the period of a case starting after it (the day before that one at the latest: those days
- * belong to that case).
- * @param {string | null} until Last day of the case (none: no end).
- * @param {number} days Days its occurrences moved (0: they stay).
- * @param {readonly { from: string | null }[]} others The other cases.
- * @param {string} start First time of the routine.
- * @returns {string | null} Last day.
- */
-export function shiftedCaseUntil(until: string | null, days: number, others: readonly { from: string | null }[], start: string): string | null {
-  if (!until || !days) return until;
-  const moved = addDays(until, days);
-  const next = others
-    .map((item) => caseStart(item, start))
-    .filter((day) => day > until)
-    .sort()[0];
-  return next && moved >= next ? addDays(next, -1) : moved;
-}
-
-/**
- * Whether a case starts after its last day: it has no occurrence (moved into the period of a case starting after it,
- * its end held the day before that one, `shiftedCaseUntil`).
- * @param {{ from?: string | null, until: string | null }} item Case.
- * @param {string} start First time of the routine.
- * @returns {boolean} Past its end.
- */
-export const caseAfterItsEnd = (item: { from?: string | null; until: string | null }, start: string): boolean => item.until !== null && caseStart(item, start) > item.until;
 
 /**
  * Whether an exception takes the occurrence away from its day (moved elsewhere, merged into another or deleted).
@@ -938,14 +936,14 @@ function otherWeekdays(rule: Recurrence, date: string, to: string): number[] | n
 }
 
 /**
- * End of a weekly rule on several listed weekdays (or of its case) once one weekday moved (its other weekdays stay):
+ * End of a weekly rule on several listed weekdays once one weekday moved (its other weekdays stay):
  * put off as far as the last occurrence of that weekday, moved, goes (never brought forward), so that none is lost
  * (the days its other weekdays would gain are excluded by `exactMovedRule`).
  * @param {Recurrence} rule Rule (before the move).
  * @param {string} start First day it counts from.
  * @param {string} date Occurrence moved (the day of its rule).
  * @param {string} to New day.
- * @param {string} until End (the rule's, or its case's).
+ * @param {string} until End of the rule.
  * @returns {string} End.
  */
 export function weekdayMovedEnd(rule: Recurrence, start: string, date: string, to: string, until: string): string {
@@ -993,9 +991,6 @@ const SCAN_DAYS = 36_600;
  */
 export const INEXACT_MOVE_REFUSAL = 'Ce déplacement ne peut pas garder exactement les occurrences de la routine (trop d’exceptions, ou trop d’occurrences) : choisissez « Cette occurrence » pour la déplacer seule, ou simplifiez sa répétition.';
 
-/** Refusal of a move of the occurrences of a case into the period of the case after it (none would be left in it). */
-export const NEXT_CASE_REFUSAL = 'Ce jour est dans la période du cas suivant : choisissez « Cette occurrence » pour l’y déplacer seule.';
-
 /**
  * Days of a rule, between two days, its number of occurrences aside (its end then given by `until`).
  * @param {Recurrence} rule Rule.
@@ -1015,7 +1010,7 @@ const daysOf = (rule: Recurrence, start: string, from: string, to: string, until
  * (excluded days are not counted), else it ends at the latest of its end and its last expected day (`trim`: at its last
  * expected day). Followed day by day over its whole span when it ends within about a hundred years; else (no end, or a
  * far one) from its first days to past its exceptions, and near its end: elsewhere both repeat alike.
- * @param {Recurrence} before Former rule (its end: the earliest of its own and its case's).
+ * @param {Recurrence} before Former rule.
  * @param {string} beforeStart First day it counted from.
  * @param {Recurrence} after New rule.
  * @param {string} afterStart First day it counts from.
@@ -1159,60 +1154,6 @@ export function cutRoutineBefore(rule: Recurrence, start: string, date: string, 
   const exact = exactMovedRule(ended, start, rule, start, start, movedWeekdayPlace(date, to, 'before'), 0, true);
   if (!exact) throw new UserError(INEXACT_MOVE_REFUSAL);
   return exact;
-}
-
-/**
- * End and rule of a case once one weekday of its weekly rule on several listed weekdays moved alone: its end put off
- * as its rule's (`weekdayMovedEnd` on the case's own end), never into the period of a case starting after it
- * (`shiftedCaseUntil`), and its rule made exact within the case (`exactMovedRule`, its former occurrences within its
- * former period; those past its new end are the next case's); refused when it cannot be (`INEXACT_MOVE_REFUSAL`; none of
- * its occurrences left within its period: `NEXT_CASE_REFUSAL`), returned as it is when it starts past its end (refused
- * by the API, `caseAfterItsEnd`).
- * @param {{ until: string | null, recurrence: Recurrence }} item Case (before the move).
- * @param {Recurrence} recurrence Its rule once moved.
- * @param {string} own First day it counted from.
- * @param {string} from First day it counts from once moved.
- * @param {string} date Occurrence moved (the day of its rule).
- * @param {string} to New day.
- * @param {readonly { from: string | null }[]} others The other cases.
- * @param {string} start First time of the routine (before the move).
- * @param {boolean} split It goes on from the occurrence (cut).
- * @returns {{ until: string | null, recurrence: Recurrence }} End and rule of the case.
- * @throws {UserError} One weekday of several moved alone that cannot be made exact.
- */
-export function weekdayMovedCase(
-  item: { until: string | null; recurrence: Recurrence },
-  recurrence: Recurrence,
-  own: string,
-  from: string,
-  date: string,
-  to: string,
-  others: readonly { from: string | null }[],
-  start: string,
-  split: boolean,
-): { until: string | null; recurrence: Recurrence } {
-  const until = item.until ? shiftedCaseUntil(item.until, daysBetween(item.until, weekdayMovedEnd(item.recurrence, own, date, to, item.until)), others, start) : null;
-  if (!until) return { until, recurrence };
-  const before = { ...item.recurrence, until: earliestDay(item.recurrence.until, item.until) };
-  const place = movedWeekdayPlace(date, to, split ? 'piece' : 'all');
-  let since = from < own ? from : own;
-  if (split) since = to;
-  // Starting past its end (into the period of the next case): no occurrence to make exact (`caseAfterItsEnd`).
-  if (since > until) return { until, recurrence };
-  const exact = exactMovedRule(before, own, { ...recurrence, until: earliestDay(recurrence.until, until) }, from, since, (day) => {
-    const moved = place(day);
-    return moved && moved <= until ? moved : null;
-  }, Math.abs(daysBetween(date, to)), false);
-  if (exact) return { until, recurrence: { ...exact, until: recurrence.until === null ? null : exact.until } };
-  // Merged into another of its weekdays: as it is; moved alone, refused rather than inexact.
-  if (!otherWeekdays(item.recurrence, date, to)?.length) return { until, recurrence };
-  // None of its occurrences left within its period (moved into the next case's).
-  const gap = Math.abs(daysBetween(date, to));
-  const kept = occurrenceDates(before, own, addDays(since, -gap), addDays(until, gap)).some((day) => {
-    const moved = place(day);
-    return moved !== null && moved >= since && moved <= until;
-  });
-  throw new UserError(kept ? INEXACT_MOVE_REFUSAL : NEXT_CASE_REFUSAL);
 }
 
 /** Same changes for several routines: values set (null: none, undefined: unchanged), or ids added to and removed from their lists. */

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { addDays } from './days';
-import { maxSpanDays, occurrenceDates, ONE_DAY, recurrenceSchema, ruleEndedBefore, ruleStartedFrom, spanEnd, type Recurrence, type Span } from './recurrence';
+import { maxSpanDays, occurrenceDates, ONE_DAY, prunedExceptions, recurrenceSchema, ruleEndedBefore, ruleStartedFrom, spanEnd, type Recurrence, type Span } from './recurrence';
 import { daySchema } from './times';
 
 /** Fields common to the cases of every repetition: its start and its rule (with its end and how long each occurrence lasts). */
@@ -133,4 +133,16 @@ export function caseSpans(item: RepetitionCase, start: string, from: string, to:
  */
 export function caseSpanOn(item: RepetitionCase, start: string, date: string): Span | null {
   return caseSpans(item, start, date, date).find((span) => span.start <= date && date <= span.end) ?? null;
+}
+
+/**
+ * Cases without their « rien » exceptions that are no longer days of their rule (`prunedExceptions`), each counted
+ * from its « Début », else from the first day of what repeats.
+ * @template C
+ * @param {readonly C[]} cases Cases.
+ * @param {string} start First day of what repeats (the hours of a task: the day they are read from, `OWN_CASES_START`).
+ * @returns {C[]} Cases.
+ */
+export function prunedCases<C extends Pick<RepetitionCase, 'start' | 'rule'>>(cases: readonly C[], start: string): C[] {
+  return cases.map((item) => (item.rule ? { ...item, rule: prunedExceptions(item.rule, item.start ?? start) } : item));
 }

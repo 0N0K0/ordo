@@ -14,7 +14,6 @@ import {
   type RoutineOpens,
   type SlotCondition,
   type Recurrence,
-  caseUntil,
   type RepetitionCase,
   type RoutineCase,
   type RoutineSlot,
@@ -25,7 +24,7 @@ import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from
 import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
 import { ExceptionsList } from '../../../components/recurrence/ExceptionsList';
 import { ruleDayAdding, skippedLines, withoutSkipped } from '../../../components/recurrence/exceptions';
-import { useRoutineMoveEntries } from '../hooks/use-routine-exceptions';
+import { useApplyRestoredMoves, useRoutineMoveEntries } from '../hooks/use-routine-exceptions';
 import { parisToday } from '../../../lib/dates';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf } from '../../geo/lib/location';
@@ -61,7 +60,11 @@ interface RoutineScheduleValues {
 }
 
 /** How a routine repeats, as edited: its first day, its mode, rule, cases, schedules, moments and « Ouverture ». */
-type RoutineRepetitionValue = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'slotCondition' | 'moments' | 'opensOn'> & { mode: RepetitionModeValue };
+type RoutineRepetitionValue = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'slotCondition' | 'moments' | 'opensOn'> & {
+  mode: RepetitionModeValue;
+  /** Days of the rule of the moves restored in the draft: removed once it is applied. */
+  restoredMoves?: string[];
+};
 
 /** Times of a rule or a case of a routine: its moments, its condition on calendar schedules, its « Ouverture ». */
 interface RoutineTimes {
@@ -164,20 +167,13 @@ const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes>
 });
 
 /**
- * Cases of the common editor of a routine as edited: its rule and moments (one rule), or its cases. A case with a
- * last day of its own (its former period) gets it as the end of its rule (`caseUntil`), written so on the next save.
+ * Cases of the common editor of a routine as edited: its rule and moments (one rule), or its cases.
  * @param {RoutineRepetitionValue} value Repetition.
- * @param {string} start First date of the routine.
  * @returns {RepetitionCase<RoutineTimes>[]} Cases.
  */
-function editedCases(value: RoutineRepetitionValue, start: string): RepetitionCase<RoutineTimes>[] {
+function editedCases(value: RoutineRepetitionValue): RepetitionCase<RoutineTimes>[] {
   if (value.mode === 'CASES')
-    return value.cases.map((item) => {
-      const edited = { start: item.from, rule: item.recurrence, times: { moments: item.slots, condition: item.condition ?? null, opens: readOpens(item.opens) } };
-      if (!item.until) return edited;
-      // No occurrence up to its last day: none after it either.
-      return caseUntil(edited, item.until, start) ?? { ...edited, rule: { ...item.recurrence, count: null, until: item.until } };
-    });
+    return value.cases.map((item) => ({ start: item.from, rule: item.recurrence, times: { moments: item.slots, condition: item.condition ?? null, opens: readOpens(item.opens) } }));
   return [
     { start: null, rule: value.recurrence, times: { moments: value.moments.length ? value.moments : [ANY_TIME], condition: value.slotCondition, opens: value.opensOn } },
   ];
@@ -203,7 +199,6 @@ function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<Ro
       ...value,
       cases: cases.map((item) => ({
         from: item.start,
-        until: null,
         recurrence: item.rule ?? DAILY,
         slots: item.times.moments,
         condition: item.times.condition,
@@ -243,7 +238,10 @@ function RoutineRepetitionEditor({
   routine?: Routine;
 }) {
   const start = draft.startDate || parisToday();
-  const moveEntries = useRoutineMoveEntries(routine);
+  const moveEntries = useRoutineMoveEntries(routine, {
+    restored: draft.restoredMoves ?? [],
+    onRestore: (from) => setDraft({ ...draft, restoredMoves: [...(draft.restoredMoves ?? []), from] }),
+  });
   const rules = draft.mode === 'CASES' ? draft.cases.map((item) => item.recurrence) : [draft.recurrence];
   const skipped = skippedLines(rules).map(({ rule, ...line }) => ({
     ...line,
@@ -268,7 +266,7 @@ function RoutineRepetitionEditor({
               mode === 'CASES'
                 ? draft.cases.length
                   ? draft.cases
-                  : [{ from: null, until: null, recurrence: draft.recurrence, slots: draft.moments.length ? draft.moments : [ANY_TIME], condition: draft.slotCondition, opens: draft.opensOn }]
+                  : [{ from: null, recurrence: draft.recurrence, slots: draft.moments.length ? draft.moments : [ANY_TIME], condition: draft.slotCondition, opens: draft.opensOn }]
                 : [],
             moments: mode === 'CASES' ? [] : (draft.cases[0]?.slots ?? (draft.moments.length ? draft.moments : [ANY_TIME])),
             slotCondition: mode === 'CASES' ? null : (draft.cases[0]?.condition ?? draft.slotCondition),
@@ -276,7 +274,7 @@ function RoutineRepetitionEditor({
             opensOn: mode === 'CASES' ? null : draft.cases.length ? fittingOpens(readOpens(draft.cases[0]?.opens), draft.cases[0]?.recurrence ?? null) : draft.opensOn,
           })
         }
-        cases={editedCases(draft, start)}
+        cases={editedCases(draft)}
         onChange={(cases) => setDraft(withEditedCases(draft, cases))}
         start={start}
         multiple
@@ -358,6 +356,7 @@ export function RoutineRepetitionModal({
   header?: ReactNode;
 }) {
   const { names } = useSlotChoices();
+  const applyRestored = useApplyRestoredMoves();
   const [draft, setDraft] = useState<RoutineRepetitionValue>(() => routineRepetitionValue(routine));
   return (
     <RepetitionModal<RoutineRepetitionValue>
@@ -369,7 +368,10 @@ export function RoutineRepetitionModal({
       setDraft={setDraft}
       valid={validRepetition}
       editor={(value, change) => <RoutineRepetitionEditor draft={value} setDraft={change} names={names} routine={header ? undefined : routine} />}
-      onApply={(value) => onApply(appliedRepetition(value))}
+      onApply={(value) => {
+        // The moves restored first, on the rule they were made on; then the repetition.
+        void (!header && value.restoredMoves?.length ? applyRestored(routine.id, value.restoredMoves) : Promise.resolve()).then(() => onApply(appliedRepetition(value)));
+      }}
     />
   );
 }
@@ -405,6 +407,7 @@ const inheritedProps = (inherited: RoutineFieldsProps['inherited']) => ({ ...(in
  */
 export function RoutineRepetition({ values, errors, onChange, onCommit, inherited, routine }: RoutineFieldsProps) {
   const { names } = useSlotChoices();
+  const applyRestored = useApplyRestoredMoves();
   const value: RoutineRepetitionValue = { ...values, mode: values.cases.length ? 'CASES' : 'RULE' };
   return (
     <InheritedField {...inheritedProps(inherited)}>
@@ -417,8 +420,11 @@ export function RoutineRepetition({ values, errors, onChange, onCommit, inherite
         valid={validRepetition}
         onChange={(next) => {
           const { recurrence, cases, slotCondition, moments, opensOn } = appliedRepetition(next);
-          onChange({ recurrence, cases, slotCondition, moments, opensOn });
-          onCommit?.([...ROUTINE_REPETITION_KEYS]);
+          // The moves restored first, on the rule they were made on; then the repetition.
+          void (routine && next.restoredMoves?.length ? applyRestored(routine.id, next.restoredMoves) : Promise.resolve()).then(() => {
+            onChange({ recurrence, cases, slotCondition, moments, opensOn });
+            onCommit?.([...ROUTINE_REPETITION_KEYS]);
+          });
         }}
         describe={(item) => routineRepetitionLines(item, names)}
         exceptions={(item) => routineExceptionLines(routine, item.mode === 'CASES' ? item.cases.map((other) => other.recurrence) : [item.recurrence])}

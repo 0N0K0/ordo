@@ -8,11 +8,9 @@ import {
   shiftedRoutineRule,
   shiftMovesAll,
   weekdayMovedEnd,
-  weekdayMovedCase,
   listedWeeklyStart,
   shiftedRoutinePiece,
   earlierCases,
-  shiftedCaseUntil,
   lastTicked,
   MAX_MERGED_ROWS,
   MAX_ROUTINE_MOVES,
@@ -403,26 +401,6 @@ describe('« Toutes » on a weekly rule with several listed weekdays, one moved 
   });
 });
 
-describe('weekdayMovedCase: a case with its own end, one weekday moved alone', () => {
-  // Mondays and Thursdays from Monday 2026-11-02, the case to Tuesday 2026-11-24; Monday 2026-11-09 moved to Saturday.
-  const item = { until: '2026-11-24', recurrence: rule({ frequency: 'WEEKLY', weekdays: [1, 4] }) };
-  const piece = shiftedRoutinePiece(item.recurrence, '2026-11-02', '2026-11-09', '2026-11-14', false);
-
-  it('its end put off, its occurrences exact', () => {
-    const result = weekdayMovedCase(item, piece.recurrence, '2026-11-02', piece.start, '2026-11-09', '2026-11-14', [], '2026-11-02', false);
-    expect(result.until).toBe('2026-11-28');
-    expect(occurrenceDates({ ...result.recurrence, until: result.until }, '2026-11-02', '2026-11-02', '2026-12-31')).toEqual(
-      expectedMoved({ ...item.recurrence, until: item.until }, '2026-11-02', '2026-11-09', 5),
-    );
-  });
-
-  it('never into the period of the next case', () => {
-    const result = weekdayMovedCase(item, piece.recurrence, '2026-11-02', piece.start, '2026-11-09', '2026-11-14', [{ from: '2026-11-26' }], '2026-11-02', false);
-    expect(result.until).toBe('2026-11-25');
-    expect(occurrenceDates({ ...result.recurrence, until: result.until }, '2026-11-02', '2026-11-02', '2026-12-31')).toEqual(['2026-11-05', '2026-11-07', '2026-11-12', '2026-11-14', '2026-11-19', '2026-11-21']);
-  });
-});
-
 describe('earlierCases: « Toutes » moved before the first time of the routine', () => {
   type Item = { from: string | null; name: string };
   const START = '2026-11-10';
@@ -441,21 +419,6 @@ describe('earlierCases: « Toutes » moved before the first time of the routine'
     const moved: Item = { from: '2026-11-12', name: 'moved' };
     const other: Item = { from: null, name: 'other' };
     expect(earlierCases([other, moved], new Set([moved]), START)).toEqual({ startDate: START, cases: [other, moved] });
-  });
-});
-
-describe('shiftedCaseUntil: the end of a case moved with its occurrences', () => {
-  const START = '2026-01-01';
-
-  it('moved as much', () => {
-    expect(shiftedCaseUntil('2026-06-30', 3, [], START)).toBe('2026-07-03');
-    expect(shiftedCaseUntil('2026-06-30', -3, [{ from: '2026-07-01' }], START)).toBe('2026-06-27');
-    expect(shiftedCaseUntil(null, 3, [], START)).toBeNull();
-    expect(shiftedCaseUntil('2026-06-30', 0, [], START)).toBe('2026-06-30');
-  });
-
-  it('never into the period of a case starting after it: the day before it at the latest', () => {
-    expect(shiftedCaseUntil('2026-06-30', 5, [{ from: '2026-07-02' }, { from: '2026-09-01' }, { from: null }], START)).toBe('2026-07-01');
   });
 });
 

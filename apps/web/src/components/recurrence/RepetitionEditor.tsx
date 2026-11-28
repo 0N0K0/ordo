@@ -114,7 +114,9 @@ function CaseFields<T>({
           required={required}
           placeholder={required ? 'À choisir' : 'Dès le début'}
           clearable={!required}
-          value={item.start}
+          // A technical « Début » before the first day (the oldest cases of a schedule or a routine) shows as none: its
+          // rhythm stays as it is. Not where a « Début » may be asked (the hours of a task: `start` is today there).
+          value={!props.caseStart && item.start && item.start < start ? null : item.start}
           onChange={(day) => {
             onChange({ start: day });
             props.onCommit?.();

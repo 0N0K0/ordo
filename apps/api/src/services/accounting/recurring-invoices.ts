@@ -1,4 +1,4 @@
-import { addDays, daysBetween, formatDay, formatOptionalDay, occurrenceDates, parseDay, parseOptionalDay, type Recurrence, recurringInvoiceSchema as settingsSchema, storedRecurrence } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, formatOptionalDay, occurrenceDates, parseDay, parseOptionalDay, prunedExceptions, type Recurrence, recurringInvoiceSchema as settingsSchema, storedRecurrence } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
@@ -41,7 +41,7 @@ export async function createRecurringInvoice(documentId: string, input: Recurrin
     data: {
       label: settings.label,
       templateId: template.id,
-      recurrence: settings.recurrence,
+      recurrence: prunedExceptions(settings.recurrence, settings.startDate),
       startDate: parseDay(settings.startDate),
       nextDate: (() => {
         const next = nextIssueDate(settings.recurrence, settings.startDate, settings.startDate);
@@ -66,7 +66,7 @@ export async function updateRecurringInvoice(id: string, input: RecurringSetting
   const next = nextIssueDate(settings.recurrence, settings.startDate, today > settings.startDate ? today : settings.startDate);
   return prisma.recurringInvoice.update({
     where: { id },
-    data: { ...settings, startDate: parseDay(settings.startDate), nextDate: parseOptionalDay(next) },
+    data: { ...settings, recurrence: prunedExceptions(settings.recurrence, settings.startDate), startDate: parseDay(settings.startDate), nextDate: parseOptionalDay(next) },
   });
 }
 

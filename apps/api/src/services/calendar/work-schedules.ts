@@ -24,6 +24,7 @@ import {
   foreignSlotKind,
   scheduleTypeContextError,
   UNTYPED_EPHEMERIS_LABEL,
+  prunedCases,
 } from '@ordo/shared';
 import { BY_POSITION } from '../core/ordering';
 import { createLabelService } from '../core/labels';
@@ -112,8 +113,9 @@ async function scheduleData(input: WorkScheduleInput, currentTypeId: string | nu
     label: schedule.label,
     startDate: parseDay(schedule.startDate),
     endDate: parseOptionalDay(schedule.endDate),
-    cases: toJson(schedule.cases),
-    exceptions: toJson([...schedule.exceptions].sort((a, b) => a.from.localeCompare(b.from))),
+    // « Rien » exceptions no longer on a day of their rule are dropped.
+    cases: toJson(prunedCases(schedule.cases, schedule.startDate)),
+    exceptions: toJson([...schedule.exceptions].sort((a, b) => a.from.localeCompare(b.from)).map((item) => ({ ...item, cases: prunedCases(item.cases, item.from) }))),
     // Omitted: left unchanged (a change of its hours from the calendar).
     ...(schedule.reminders && { reminders: toJson(normalizedReminders(schedule.reminders)) }),
     intervalWeeks: 1,

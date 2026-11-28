@@ -206,7 +206,7 @@ const RoutineEffectiveRef = builder.objectRef<StoredInheritingRoutine>('RoutineE
     locationLon: t.exposeFloat('locationLon', { nullable: true }),
     startDate: t.field({ type: 'Date', resolve: (routine) => routine.startDate }),
     recurrence: t.field({ type: 'JSON', resolve: (routine) => occurrences.storedRule(routine) ?? routine.recurrence }),
-    cases: t.field({ type: 'JSON', resolve: (routine) => occurrences.storedCases(routine.cases) }),
+    cases: t.field({ type: 'JSON', resolve: (routine) => occurrences.storedCases(routine) }),
     moments: t.field({ type: 'JSON', resolve: (routine) => occurrences.storedMoments(routine) }),
     moves: t.field({ type: 'JSON', resolve: (routine) => occurrences.storedMoves(routine.moves) }),
   }),
@@ -359,7 +359,7 @@ builder.prismaObject('Routine', {
       select: { ...TIMING, ...TODAY_CHECKS },
       resolve: async (routine, _args, ctx) => parseOptionalDay(dueDayOf(routine, routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).next, await slotsOf(ctx), false)),
     }),
-    cases: t.field({ type: 'JSON', description: 'Cases (days and times of the day), as read (former pauses turned into exceptions); empty: its repetition.', resolve: (routine) => occurrences.storedCases(routine.cases) }),
+    cases: t.field({ type: 'JSON', description: 'Cases (days and times of the day), as read (former pauses turned into exceptions); empty: its repetition.', resolve: (routine) => occurrences.storedCases(routine) }),
     moves: t.field({
       type: 'JSON',
       description: 'Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times, apart?, merged?, mergedRows?, previous? }] (YYYY-MM-DD), by day of the rule; apart: moved onto a day that has its own and kept apart (identified by from); merged: merged into the occurrence of that day (no longer one of its own; mergedRows: the rows it brought); previous: cancelled or merged, the exception it had before, given back when that is undone.',

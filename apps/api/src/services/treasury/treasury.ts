@@ -14,6 +14,7 @@ import {
   type TreasuryEntryInput,
   treasuryEntrySchema,
   storedRecurrence,
+  prunedExceptions,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
@@ -327,7 +328,7 @@ function entryData(entry: Awaited<ReturnType<typeof parseEntry>>) {
     projectId: entry.projectId,
     note: entry.note,
     url: entry.url ?? null,
-    recurrence: entry.recurrence ? toJson(entry.recurrence) : Prisma.DbNull,
+    recurrence: entry.recurrence ? toJson(prunedExceptions(entry.recurrence, entry.date)) : Prisma.DbNull,
   };
 }
 

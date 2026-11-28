@@ -34,6 +34,7 @@ import {
   shiftedRoutineLink,
   linkedEventOccurrence,
   occurrencesShowing,
+  prunedExceptions,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { PARIS } from '../../today';
@@ -621,7 +622,7 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
   const created = await prisma.calendarEvent.create({
     data: {
       ...eventData(event),
-      recurrence: event.recurrence ?? undefined,
+      recurrence: event.recurrence ? prunedExceptions(event.recurrence, event.startDate) : undefined,
       ...eventRelations(event),
     },
   });
@@ -773,7 +774,7 @@ async function updateEventFields(
 
   if (!occurrence) {
     const updated = await prisma.$transaction(async (tx) => {
-      const saved = await tx.calendarEvent.update({ where: { id }, data: { ...eventData(fields), recurrence: fields.recurrence ?? Prisma.DbNull, ...relations } });
+      const saved = await tx.calendarEvent.update({ where: { id }, data: { ...eventData(fields), recurrence: fields.recurrence ? prunedExceptions(fields.recurrence, fields.startDate) : Prisma.DbNull, ...relations } });
       // Now repeating: the comments and times of its single occurrence go to its first one shown.
       const first = fields.recurrence ? await firstShownOccurrence(saved, tx) : null;
       if (first) await remapOccurrenceRows('eventId', id, (date) => (date === null ? first : undefined), { client: tx });
@@ -859,7 +860,7 @@ async function updateEventFields(
           ...eventData(fields),
           startDate: parseDay(startDate),
           endDate: parseDay(addDays(startDate, span)),
-          recurrence: own?.rule ?? Prisma.DbNull,
+          recurrence: own?.rule ? prunedExceptions(own.rule, startDate) : Prisma.DbNull,
           ...relations,
         },
       });
@@ -933,7 +934,7 @@ async function createSeries(
           ...eventData(fields),
           startDate: parseDay(item.start),
           endDate: parseDay(addDays(item.start, span)),
-          recurrence: item.rule ?? undefined,
+          recurrence: item.rule ? prunedExceptions(item.rule, item.start) : undefined,
           // A cancelled series stays so.
           calledOff: event.calledOff,
           ...eventRelations(fields),

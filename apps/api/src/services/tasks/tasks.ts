@@ -1,4 +1,4 @@
-import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema, taskLinksLostSchema, type TaskLinksLost, NO_TASK_LINKS_LOST, subtaskProjects, mergeTaskLinksLost } from '@ordo/shared';
+import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema, taskLinksLostSchema, type TaskLinksLost, NO_TASK_LINKS_LOST, subtaskProjects, mergeTaskLinksLost, OWN_CASES_START, prunedCases } from '@ordo/shared';
 import { z } from 'zod';
 import { inTransaction, prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -264,7 +264,7 @@ function parseDetails(input: TaskInput, current?: TaskDays, notOwn: readonly str
     // An empty group is no condition (any time).
     slotCondition: details.slotCondition === undefined ? undefined : details.slotCondition?.children.length ? toJson(details.slotCondition) : Prisma.DbNull,
     // None (null): any time; each case whose rhythm counts from a day has that day (`taskHoursSchema`).
-    hours: details.hours === undefined ? undefined : toJson(details.hours ?? []),
+    hours: details.hours === undefined ? undefined : toJson(prunedCases(details.hours ?? [], OWN_CASES_START)),
     // A location changed replaces its point too (none: unknown).
     ...(details.location !== undefined && storedLocation({ location: details.location, locationLat: details.locationLat, locationLon: details.locationLon })),
     links: details.links === undefined ? undefined : toJson(details.links ?? []),

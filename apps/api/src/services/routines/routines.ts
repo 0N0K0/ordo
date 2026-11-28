@@ -33,14 +33,9 @@ import {
   type RoutineCase,
   routineCaseOn,
   shiftedRoutineRule,
-  shiftMovesAll,
   earlierCases,
-  shiftedCaseUntil,
   shiftedRoutinePiece,
-  weekdayMovedCase,
   cutRoutineBefore,
-  caseAfterItsEnd,
-  NEXT_CASE_REFUSAL,
   shiftedDates,
   type RoutineCategoryInput,
   routineCategorySchema,
@@ -84,6 +79,7 @@ import {
   reminderKey,
   reminderKindOf,
   routineHasHours,
+  prunedExceptions,
 } from '@ordo/shared';
 import { deleteTreeItems, subtreeIds, topmostIds, treeListService } from '../core/trees';
 import { releaseSubjectTime } from '../tasks/time-entries';
@@ -599,12 +595,12 @@ function timingFromInput(data: ReturnType<typeof routineSchema.parse>, id?: stri
 
 /**
  * Conditions on calendar schedules of a routine: that of its rule and those of its cases.
- * @param {Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds' | 'cases'>} routine Routine.
+ * @param {Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds' | 'cases' | 'startDate'>} routine Routine.
  * @returns {(SlotCondition | null)[]} Conditions.
  */
-const conditionsOf = (routine: Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds' | 'cases'>) => [
+const conditionsOf = (routine: Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds' | 'cases' | 'startDate'>) => [
   storedCondition(routine),
-  ...storedCases(routine.cases).map((item) => item.condition),
+  ...storedCases(routine).map((item) => item.condition),
 ];
 
 /**
@@ -612,7 +608,7 @@ const conditionsOf = (routine: Pick<RoutineTiming, 'slotCondition' | 'scheduleId
  * @param {RoutineTiming} routine Routine.
  * @returns {boolean} It does not fit.
  */
-const opensMisfitOf = (routine: RoutineTiming) => opensMisfits({ opensOn: readOpens(routine.opensOn), cases: storedCases(routine.cases), recurrence: storedRule(routine) });
+const opensMisfitOf = (routine: RoutineTiming) => opensMisfits({ opensOn: readOpens(routine.opensOn), cases: storedCases(routine), recurrence: storedRule(routine) });
 
 /** Refusal of a reminder « avant » of a routine without any hour. */
 const HOURLESS_REMINDERS = 'Sans heure « dès » ni « jusqu’à » (ni créneau), une routine n’a que des rappels à une heure : le jour J ou quelques jours avant.';
@@ -645,6 +641,7 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
           categories: { select: { id: true } },
           slotCondition: true,
           cases: true,
+          startDate: true,
           scheduleIds: true,
           excludedScheduleIds: true,
           parentId: true,
@@ -752,7 +749,7 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   // A copy leaves out the former links of its routine out of its tree, as a routine moved loses its own.
   const source = copyOf ? await inputOf(copyOf) : null;
   // Without any hour, no reminder « avant »: those it already had (or its copy) stay stored, never rung.
-  if (!restoring && !routineHasHours({ moments: storedMoments(next), slotCondition: storedCondition(next), cases: storedCases(next.cases) })) {
+  if (!restoring && !routineHasHours({ moments: storedMoments(next), slotCondition: storedCondition(next), cases: storedCases(next) })) {
     const kept = new Set(readReminders(current?.reminders ?? source?.reminders ?? []).map(reminderKey));
     if (data.reminders.some((reminder) => reminderKindOf(reminder) === 'before' && !kept.has(reminderKey(reminder)))) throw fieldError('reminders', HOURLESS_REMINDERS);
   }
@@ -807,7 +804,8 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   typeId: data.typeId,
   parentId: data.parentId,
   startDate: parseDay(data.startDate),
-  recurrence: data.recurrence,
+  // « Rien » exceptions no longer on a day of their rule are dropped.
+  recurrence: data.recurrence && prunedExceptions(data.recurrence, data.startDate),
   estimate: data.estimate,
   fromTime: data.fromTime,
   dueTime: data.dueTime,
@@ -820,7 +818,7 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   reminders: toJson(normalizedReminders(data.reminders)),
   deadTimes: toJson(storedDeadTimes(data.deadTimes)),
   opensOn: data.opensOn ?? Prisma.DbNull,
-  cases: toJson(data.cases),
+  cases: toJson(data.cases.map((item) => ({ ...item, recurrence: prunedExceptions(item.recurrence, caseStart(item, data.startDate)) }))),
   ...storedLocation(data),
   links: toJson(data.links),
   travelBefore: data.travelBefore,
@@ -1197,7 +1195,7 @@ async function routinesLosing(change: ScheduleChange, concerned: (condition: Slo
   // Its conditions as it goes: those of its parent when it inherits them.
   const conditionsOf = (stored: Routine) => {
     const routine = occurrenceTiming(stored, before);
-    return storedCases(routine.cases).length ? storedCases(routine.cases).map((item) => item.condition) : [storedCondition(routine)];
+    return storedCases(routine).length ? storedCases(routine).map((item) => item.condition) : [storedCondition(routine)];
   };
   const following = (await prisma.routine.findMany({ where: { archivedAt: null } })).filter(
     (routine) => every || conditionsOf(routine).some((condition): condition is SlotCondition => constrains(condition) && concerned(condition!)),
@@ -1268,7 +1266,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
     reminders: readReminders(routine.reminders),
     deadTimes: readDeadTimes(routine.deadTimes),
     opensOn: readOpens(routine.opensOn),
-    cases: storedCases(routine.cases),
+    cases: storedCases(routine),
     location: routine.location,
     locationLat: routine.locationLat,
     locationLon: routine.locationLon,
@@ -1308,7 +1306,7 @@ async function inheritedInputOf(id: string): Promise<Partial<RoutineInput>> {
     ...(has('LOCATION') && { location: routine.location, locationLat: routine.locationLat, locationLon: routine.locationLon }),
     ...(has('START_DATE') && { startDate: formatDay(routine.startDate) }),
     ...(has('RECURRENCE') && { recurrence: storedRule(routine) ?? (routine.recurrence as RoutineInput['recurrence']) }),
-    ...(has('CASES') && { cases: storedCases(routine.cases) }),
+    ...(has('CASES') && { cases: storedCases(routine) }),
     ...(has('MOMENTS') && { moments: storedMoments(routine), fromTime: routine.fromTime, dueTime: routine.dueTime }),
     ...(has('MOVES') && { moves: storedMoves(routine.moves) }),
   };
@@ -1976,16 +1974,10 @@ type RoutineScope = 'THIS' | 'FOLLOWING' | 'ALL';
 const endedBefore = (rule: Recurrence, start: string, date: string): Recurrence =>
   ruleEndedBefore(rule, start, date) ?? (rule.count !== null ? { ...rule, count: 1 } : { ...rule, until: addDays(date, -1) });
 
-/**
- * A piece of the rule of a routine going on from an occurrence moved: its rule, the day it counts from (none: as
- * before), the days the last day of its case moves by (its occurrences all moved; 0: they stay), and whether one
- * weekday of a weekly rule on several listed weekdays moved alone (its case's end then goes as far as it does).
- */
+/** A piece of the rule of a routine going on from an occurrence moved: its rule (with its end) and the day it counts from (none: as before). */
 interface ShiftedPiece {
   recurrence: Recurrence;
   from: string | null;
-  shift: number;
-  weekdayAlone: boolean;
 }
 
 /**
@@ -2014,8 +2006,6 @@ function shiftedPieces(rule: Recurrence, start: string, date: string, to: string
       {
         recurrence,
         from: split || first === start ? null : first,
-        shift: shiftMovesAll(rule) ? days : 0,
-        weekdayAlone: !shiftMovesAll(rule),
       },
     ];
   }
@@ -2027,8 +2017,8 @@ function shiftedPieces(rule: Recurrence, start: string, date: string, to: string
     if (last) base = { ...base, count: null, until: last };
   }
   const moved = movedWeekdays(shiftedDates(base, days), split ? date : start, [weekday], days);
-  const pieces: ShiftedPiece[] = others.length ? [{ recurrence: { ...base, weekdays: others }, from: split ? date : null, shift: 0, weekdayAlone: false }] : [];
-  return [...pieces, { recurrence: moved.rule, from: moved.anchor, shift: days, weekdayAlone: false }];
+  const pieces: ShiftedPiece[] = others.length ? [{ recurrence: { ...base, weekdays: others }, from: split ? date : null }] : [];
+  return [...pieces, { recurrence: moved.rule, from: moved.anchor }];
 }
 
 /**
@@ -2096,7 +2086,7 @@ export async function changeRoutineOccurrence(
   const origin = movedFrom(moves, date);
   const base = ruleSlotsOn(routine, origin, schedules);
   if (slot < 0 || slot >= Math.max(1, base.length)) throw clientError('BAD_USER_INPUT', 'Moment introuvable ce jour-là.');
-  const cases = storedCases(routine.cases);
+  const cases = storedCases(routine);
   const rule = storedRule(routine);
 
   if (scope === 'THIS') {
@@ -2120,32 +2110,23 @@ export async function changeRoutineOccurrence(
     const item = routineCaseOn(cases, start, origin);
     if (!item) throw clientError('BAD_USER_INPUT', 'Occurrence introuvable.');
     const index = cases.indexOf(item);
-    const others = cases.filter((other) => other !== item);
     const own = caseStart(item, start);
     const slots = item.slots.map((other, position) => (position === slot ? { ...other, fromTime: window.fromTime, dueTime: window.dueTime } : other));
     const split = scope === 'FOLLOWING' && hasBefore(item.recurrence, own, origin);
-    // End and rule of the case for a piece: its end moved with its occurrences, or as far as a weekday moved alone goes.
-    const pieceCase = (piece: ShiftedPiece, from: string | null) => {
-      if (!piece.weekdayAlone) return { from, until: shiftedCaseUntil(item.until, piece.shift, others, start), recurrence: piece.recurrence };
-      const counted = from && from < start ? from : caseStart({ from }, start);
-      return { from, ...weekdayMovedCase(item, piece.recurrence, own, counted, origin, parsedTo, others, start, split) };
-    };
+    // Each case moves on its own, never compared with the others: its rule (with its end) as the piece gives it.
+    const pieceCase = (piece: ShiftedPiece, from: string | null) => ({ ...item, from, recurrence: piece.recurrence, slots });
     let pieces: RoutineCase[];
     if (split) {
       pieces = [
         { ...item, recurrence: cutRoutineBefore(item.recurrence, own, origin, parsedTo) ?? endedBefore(item.recurrence, own, origin) },
-        ...shiftedPieces(item.recurrence, own, origin, parsedTo, true, movedRule).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? parsedTo), slots })),
+        ...shiftedPieces(item.recurrence, own, origin, parsedTo, true, movedRule).map((piece) => pieceCase(piece, piece.from ?? parsedTo)),
       ];
     } else {
       // Weekly on listed days: the weekday changes; else its repetition counts from as much later or earlier (its own
       // day never before the routine's first time, as it counted).
       const listed = item.recurrence.frequency === 'WEEKLY' && item.recurrence.weekdays.length > 0;
       const from = delta === 0 || listed ? item.from && own : addDays(own, delta);
-      pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false, movedRule).map((piece) => ({ ...item, ...pieceCase(piece, piece.from ?? from), slots }));
-    }
-    // A piece starting past its end (its end held before the next case): its occurrences would be lost.
-    if ((split ? pieces.slice(1) : pieces).some((piece) => caseAfterItsEnd(piece, start))) {
-      throw fieldError('to', NEXT_CASE_REFUSAL);
+      pieces = shiftedPieces(item.recurrence, own, origin, parsedTo, false, movedRule).map((piece) => pieceCase(piece, piece.from ?? from));
     }
     // Moved before its first time: the routine starts as much earlier, its other cases where they were.
     const earlier = earlierCases([...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)], new Set(split ? pieces.slice(1) : pieces), start);
@@ -2163,8 +2144,8 @@ export async function changeRoutineOccurrence(
       // Its repetition becomes cases: the former one up to the occurrence, the new one (or its pieces) from it.
       changes = {
         cases: [
-          { from: null, until: null, recurrence: cutRoutineBefore(rule, start, origin, parsedTo) ?? endedBefore(rule, start, origin), slots: storedMoments(routine), ...kept },
-          ...shiftedPieces(rule, start, origin, parsedTo, true, movedRule).map((piece) => ({ from: piece.from ?? parsedTo, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept })),
+          { from: null, recurrence: cutRoutineBefore(rule, start, origin, parsedTo) ?? endedBefore(rule, start, origin), slots: storedMoments(routine), ...kept },
+          ...shiftedPieces(rule, start, origin, parsedTo, true, movedRule).map((piece) => ({ from: piece.from ?? parsedTo, recurrence: piece.recurrence, slots: changedMoments, ...kept })),
         ],
         slotCondition: null,
         opensOn: null,
@@ -2178,7 +2159,7 @@ export async function changeRoutineOccurrence(
       } else {
         // Its weekdays on weeks of their own: its repetition becomes a case for each (one moved before its first time:
         // the routine starts as much earlier, the other one where it was).
-        const made = pieces.map((piece) => ({ from: piece.from, until: null, recurrence: piece.recurrence, slots: changedMoments, ...kept }));
+        const made = pieces.map((piece) => ({ from: piece.from, recurrence: piece.recurrence, slots: changedMoments, ...kept }));
         const earlier = earlierCases(made, new Set(made), start);
         changes = { cases: earlier.cases, ...(earlier.startDate !== start && { startDate: earlier.startDate }), slotCondition: null, opensOn: null };
       }
@@ -2232,7 +2213,7 @@ function followingGone(routine: RoutineTiming & { id: string }, schedules: Sched
  */
 function followingCut(routine: RoutineTiming, origin: string): Partial<RoutineInput> | null {
   const start = formatDay(routine.startDate);
-  const cases = storedCases(routine.cases);
+  const cases = storedCases(routine);
   if (cases.length) {
     const kept = cases
       .filter((item) => hasBefore(item.recurrence, caseStart(item, start), origin))

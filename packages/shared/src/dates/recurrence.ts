@@ -618,6 +618,27 @@ export interface RulePiece {
 export const rulePattern = (rule: Recurrence): Recurrence => ({ ...rule, until: null, count: null, exceptions: [] });
 
 /**
+ * Rule without its « rien » exceptions that are no longer days of it (its rule or its first day changed): those on a
+ * day its pattern does not have, before its first day, or after its end (its end date, or its last occurrence when
+ * counted). What every repetition saves.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First day it counts from.
+ * @returns {Recurrence} Rule (the same when all are kept).
+ */
+export function prunedExceptions(rule: Recurrence, start: string): Recurrence {
+  if (!rule.exceptions.length) return rule;
+  const sorted = [...rule.exceptions].sort();
+  // Within a hundred years of its first day: an exception further is no day of it.
+  const limit = addDays(start, 36_600);
+  const last = rule.until ?? (rule.count !== null ? lastCountedOccurrence(rule, start) : undefined) ?? sorted.at(-1)!;
+  const end = last < limit ? last : limit;
+  const from = sorted[0] > start ? sorted[0] : start;
+  const days = new Set(from > end ? [] : occurrenceDates(rulePattern(rule), start, from, end));
+  const kept = rule.exceptions.filter((day) => days.has(day));
+  return kept.length === rule.exceptions.length ? rule : { ...rule, exceptions: kept };
+}
+
+/**
  * Rule with its end and exceptions moved by a number of days.
  * @param {Recurrence} rule Rule.
  * @param {number} days Days moved (negative: earlier).

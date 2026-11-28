@@ -15,7 +15,7 @@ import {
   type Recurrence,
   type RoutineCase,
   routineCaseOn,
-  routineCaseSchema,
+  readRoutineCases,
   routineCaseSpans,
   type RoutineMove,
   routineMoveSchema,
@@ -283,14 +283,11 @@ export interface RoutineOccurrenceSpan extends RoutineSpan {
 }
 
 /**
- * Stored cases of a routine (invalid ones left out).
- * @param {unknown} value Stored JSON.
+ * Stored cases of a routine as read (`readRoutineCases`: a former last day of a case in the end of its rule).
+ * @param {Pick<RoutineTiming, 'cases' | 'startDate'>} routine Routine.
  * @returns {RoutineCase[]} Cases.
  */
-export function storedCases(value: unknown): RoutineCase[] {
-  const parsed = z.array(routineCaseSchema).safeParse(value);
-  return parsed.success ? parsed.data : [];
-}
+export const storedCases = (routine: Pick<RoutineTiming, 'cases' | 'startDate'>): RoutineCase[] => readRoutineCases(routine.cases, formatDay(routine.startDate));
 
 /**
  * Times of the day of a routine following its rule: its moments, else its former window.
@@ -324,7 +321,7 @@ export function storedMoves(value: unknown): RoutineMove[] {
  * @returns {{ moment: RoutineSlot, windows: TimeWindow[] }[]} Moments and their windows that day.
  */
 export function momentWindows(routine: RoutineTiming, due: string, day: string, schedules: ScheduleContext): { moment: RoutineSlot; windows: TimeWindow[] }[] {
-  const cases = storedCases(routine.cases);
+  const cases = storedCases(routine);
   const item = cases.length ? routineCaseOn(cases, formatDay(routine.startDate), due) : null;
   const base = cases.length ? (item?.slots ?? []) : storedMoments(routine);
   const condition = cases.length ? (item?.condition ?? null) : storedCondition(routine);
@@ -368,7 +365,7 @@ export function dayMoments(routine: RoutineTiming, due: string, day: string, sch
  * @returns {string | null} Day; null: no day has one (not doable).
  */
 function lastDoableDay(routine: RoutineTiming, span: RoutineSpan, schedules: ScheduleContext): string | null {
-  const cases = storedCases(routine.cases);
+  const cases = storedCases(routine);
   const limited = cases.length ? cases.some((item) => constrains(item.condition)) : constrains(storedCondition(routine));
   for (let day = span.end; day >= span.start; day = addDays(day, -1)) {
     if (!limited && !schedules.slotsOn({ unavailable: true }, day).length) return day;
@@ -392,7 +389,7 @@ export function ruleSpans(routine: RoutineTiming, from: string, to: string, sche
   const first = from < start ? start : from;
   if (first > to) return [];
   const spans = new Map<string, RoutineSpan>();
-  const cases = storedCases(routine.cases);
+  const cases = storedCases(routine);
   const rule = cases.length ? null : storedRule(routine);
   // Its cases, else its rule: each with its « Ouverture ».
   const sources = cases.length

@@ -1,4 +1,4 @@
-import { changedInheritance, effectiveRoutine, routineFieldsGiven, marksInherited, ROUTINE_INHERITABLE_FIELDS, ROUTINE_REQUIRED_FIELDS, type EffectiveRoutine, type RoutineInheritableField, type RoutineMove } from '@ordo/shared';
+import { changedInheritance, effectiveRoutine, formatDay, readRoutineCases, routineFieldsGiven, marksInherited, ROUTINE_INHERITABLE_FIELDS, ROUTINE_REQUIRED_FIELDS, type EffectiveRoutine, type RoutineInheritableField, type RoutineMove } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type Routine } from '../../generated/prisma/client';
 import { fieldError } from '../../graphql/errors';
@@ -130,7 +130,7 @@ export async function freezeRoutineInheritance(ids: readonly string[]): Promise<
           ...(inherited.has('LOCATION') && { location: routine.location, locationLat: routine.locationLat, locationLon: routine.locationLon }),
           ...(inherited.has('START_DATE') && { startDate: routine.startDate }),
           ...(inherited.has('RECURRENCE') && { recurrence: toJson(routine.recurrence), scheduleId: routine.scheduleId, scheduleAnchor: routine.scheduleAnchor }),
-          ...(inherited.has('CASES') && { cases: toJson(routine.cases) }),
+          ...(inherited.has('CASES') && { cases: toJson(readRoutineCases(routine.cases, formatDay(routine.startDate))) }),
           ...(inherited.has('MOMENTS') && { moments: toJson(routine.moments), fromTime: routine.fromTime, dueTime: routine.dueTime }),
           ...(inherited.has('MOVES') && { moves: toJson(routine.moves) }),
         },
