@@ -3851,7 +3851,7 @@ export type DeleteRoutineOccurrenceMutationVariables = Exact<{
 }>;
 
 
-export type DeleteRoutineOccurrenceMutation = { deleteRoutineOccurrence: { archived: boolean, comments: Array<{ body: string, createdAt: string, updatedAt: string }> } };
+export type DeleteRoutineOccurrenceMutation = { deleteRoutineOccurrence: { comments: Array<{ body: string, createdAt: string, updatedAt: string }> } };
 
 export type RemoveRoutineMoveMutationVariables = Exact<{
   id: string | number;
@@ -9567,7 +9567,6 @@ export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`
 export const DeleteRoutineOccurrenceDocument = new TypedDocumentString(`
     mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {
   deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {
-    archived
     comments {
       body
       createdAt

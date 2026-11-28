@@ -1,4 +1,5 @@
 import { postponedRestoreRefusal, type CalendarEventInput } from '@ordo/shared';
+import { followingOffered } from '../lib/calendar-events';
 import { notifyError } from '../../../lib/notify';
 import { ArrowArcRightIcon } from '@phosphor-icons/react';
 import { occurrenceEntry } from '../../../components/actions/occurrence-entries';
@@ -16,7 +17,7 @@ import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
 import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { calendarQueryKey, useCalendarEventMutations, useCalendars, type CalendarEventScope, type EventOccurrence } from '../api';
 import { PostponePanel } from '../components/EventPostpone';
-import { askScope } from '../lib/ask-scope';
+import { askScope } from '../../../components/recurrence/ask-scope';
 import { eventCountdownItem } from '../lib/event-countdowns';
 import { occurrenceInput, seriesInput } from '../lib/event-input';
 
@@ -99,7 +100,7 @@ export function useEventMenu(occurrence: EventOccurrence | undefined, options: E
     const lost = { eventId: target.eventId, occurrenceDate: target.occurrenceDate };
     if (recurring) {
       const [THIS, FOLLOWING, ALL] = await Promise.all((['THIS', 'FOLLOWING', 'ALL'] as const).map((scope) => fetchLostOnDelete({ ...lost, scope })));
-      const scope = await askScope({ action: 'delete', note: scopeLostNote({ THIS, FOLLOWING, ALL }) });
+      const scope = await askScope({ action: 'delete', allowFollowing: followingOffered(occurrence), note: scopeLostNote({ THIS, FOLLOWING, ALL }) });
       if (scope) run(scope);
       return;
     }

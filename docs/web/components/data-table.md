@@ -405,7 +405,8 @@ Interne : `onColumn`.
 | `duplicateRowsAction(rows, { duplicate, done, open?, loading?, disabled? })` | « Dupliquer », la seule action de ce rôle (sélection et menu d'un élément, `rowMenuEntry(duplicateRowsAction([item], …))`) : `duplicateItems`. |
 | `duplicateItems(rows, { duplicate, done, open? })` | Copie chaque élément, enregistré tout de suite (`duplicate`, « … (copie) »), l'un après l'autre (`forEachRow`), toast `done`, puis ouvre la copie d'un élément seul (`open`). |
 | `DuplicateOptions<R, C>` (type) | `duplicate(row) → copie`, `done`, `open?(copie)`. |
-| `rowMenuEntry(action)`                                                                                           | Entrée du menu d’une ligne faite d’une action de la barre de sélection (sur cette ligne seule), confirmation comprise.                                                                                                                                      |
+| `rowMenuEntry(action)`                                                                                           | Entrée du menu d’une ligne faite d’une action de la barre de sélection (sur cette ligne seule), confirmation comprise (`runAction`).                                                                                                                                      |
+| `runAction(action)` | Lance une action de la barre de sélection d’ailleurs (« Toutes » d’une occurrence supprime son élément), sa confirmation d’abord. |
 
 Voir [Archivage](../../business-rules/cross-cutting/archiving.md) et [Dialogues](dialogs.md) (`confirmDestructive`).
 

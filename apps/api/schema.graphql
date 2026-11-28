@@ -2450,7 +2450,7 @@ type Mutation {
   deleteRoutineCategory(id: ID!): Boolean!
 
   """
-  Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING), with their comments; tells whether the routine was archived (nothing left) and gives the comments deleted with THIS, for an undo.
+  Cancels an occurrence (THIS: an exception, struck through) or deletes it and the following ones (FOLLOWING, refused when nothing comes before: the routine itself is deleted), with their comments; gives the comments deleted with THIS, for an undo.
   """
   deleteRoutineOccurrence(date: Date!, id: ID!, scope: CalendarEventScope!): RoutineOccurrenceDeletion!
   deleteSavedCountdown(id: ID!): Boolean!
@@ -4540,9 +4540,6 @@ type RoutineOccurrence {
 }
 
 type RoutineOccurrenceDeletion {
-  """No occurrence left: the routine was archived."""
-  archived: Boolean!
-
   """Comments deleted with this occurrence alone (THIS), for an undo."""
   comments: [CommentSnapshot!]!
 }

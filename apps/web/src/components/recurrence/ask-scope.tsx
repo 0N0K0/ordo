@@ -1,10 +1,10 @@
-import { answerInModal } from '../../../components/dialogs/ask-choice';
-import type { CalendarEventScope } from '../api';
-import { ScopeChoices, type ScopeQuestion } from '../components/ScopeChoices';
+import type { EventScope as CalendarEventScope } from '@ordo/shared';
+import { answerInModal } from '../dialogs/ask-choice';
+import { ScopeChoices, type ScopeQuestion } from './ScopeChoices';
 import { scopeTitle } from './scope-title';
 
 /**
- * Asks which occurrences of a recurring event a change applies to, in a modal (forms are in the side panel, under
+ * Asks which occurrences of a repetition a change applies to (every domain: events, routines, slots, forecasts…), in a modal (forms are in the side panel, under
  * it).
  * @param {ScopeQuestion} question Question.
  * @returns {Promise<CalendarEventScope | null>} Scope, or null when cancelled.

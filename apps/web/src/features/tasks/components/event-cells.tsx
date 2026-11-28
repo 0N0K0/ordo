@@ -1,4 +1,5 @@
 import { Badge, Box, Group, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import { followingOffered } from '../../calendar/lib/calendar-events';
 import { DateField } from '../../../components/inputs/DateField';
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { addDays, daysBetween, formatDuration } from '@ordo/shared';
@@ -10,7 +11,7 @@ import { countOf } from '../../../lib/text';
 import { applyDiff, bulkTargets, useBulkTable } from '../../../components/data-table/selection/bulk-edit';
 import { eventRowKey, type TaskTableRow } from '../lib/task-columns';
 import type { CalendarEventInput as EventFields, TaskColumn } from '@ordo/shared';
-import { askScope } from '../../calendar/lib/ask-scope';
+import { askScope } from '../../../components/recurrence/ask-scope';
 import { useCalendarEventMutations, type CalendarEventInput, type CalendarEventScope, type EventOccurrence } from '../../calendar/api';
 import { scopedInput } from '../../calendar/lib/event-input';
 import { useEventForm } from '../../calendar/hooks/use-event-form';
@@ -123,7 +124,7 @@ function useEventSave(event: EventOccurrence, column: TaskColumn, series = false
     const targets = targetsOf();
     let scope: CalendarEventScope = 'ALL';
     if (targets.some((target) => target.occurrenceDate)) {
-      const chosen = await askScope({ action: 'update', allowThis: !series });
+      const chosen = await askScope({ action: 'update', allowThis: !series, allowFollowing: targets.some(followingOffered) });
       if (!chosen) return;
       scope = chosen;
     }

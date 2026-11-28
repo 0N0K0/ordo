@@ -1,10 +1,11 @@
 import { openFormPanel } from '../../../components/panels/panels';
+import { followingOffered } from '../lib/calendar-events';
 import type { CalendarEventInput } from '@ordo/shared';
 import { archivedIds } from '../../../lib/archive';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { fetchCalendarEvents, useCalendars, type CalendarEventScope, type EventOccurrence } from '../api';
 import { EventForm } from '../components/EventForm';
-import { askScope } from '../lib/ask-scope';
+import { askScope } from '../../../components/recurrence/ask-scope';
 
 /**
  * Opens the event form in the side panel, for a new event or an occurrence. An occurrence of a recurring event asks
@@ -29,7 +30,7 @@ export function useEventForm(context: TaskContext | null) {
     // Dismissed: no scope, the panel opens read only (its comments can still be written).
     const scope: CalendarEventScope | null =
       occurrence?.occurrenceDate != null && !readOnly
-        ? await askScope({ action: 'update', title: 'Ouvrir un évènement récurrent', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' })
+        ? await askScope({ action: 'update', allowFollowing: followingOffered(occurrence), title: 'Ouvrir un évènement récurrent', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' })
         : 'ALL';
     openFormPanel(
       occurrence ? 'Évènement' : 'Nouvel évènement',

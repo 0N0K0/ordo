@@ -313,6 +313,11 @@ const RESTRICTED_SYNTAX = [
     message: 'Utiliser ExceptionsSummary (synthèse sous la répétition) ou ExceptionsList (modale) de components/recurrence : les exceptions s’affichent partout de la même façon.',
   },
   {
+    // Scope of a change of a repetition asked by hand: one question everywhere (events, routines, slots, forecasts…).
+    selector: "Literal[value=/^(Cette occurrence|Celle-ci et les suivantes|Toutes les occurrences)$/], JSXText[value=/^\\s*(Cette occurrence|Celle-ci et les suivantes|Toutes les occurrences)\\s*$/]",
+    message: 'Utiliser askScope (components/recurrence/ask-scope) : « Cette occurrence », « Celle-ci et les suivantes » (jamais sur la dernière), « Toutes les occurrences », la même question partout.',
+  },
+  {
     // Actions of an occurrence written by hand: the same words everywhere (« Annuler », « Rétablir », « Supprimer »).
     selector: "Literal[value=/^(Annuler l’évènement|Annuler cette occurrence|Annuler ou supprimer une occurrence)$/], JSXText[value=/^\\s*(Annuler l’évènement|Annuler l’occurrence)\\s*$/]",
     message: 'Utiliser occurrenceEntry (menu « … ») ou OccurrenceButton de components/actions/occurrence-entries : « Annuler », « Rétablir », « Supprimer », les mêmes mots partout.',

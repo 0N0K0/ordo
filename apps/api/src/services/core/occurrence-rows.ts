@@ -1,3 +1,4 @@
+import { GraphQLError } from 'graphql';
 import { formatOptionalDay, parseOptionalDay, placedWithoutClash, sumOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
@@ -267,6 +268,18 @@ export function assertLossConfirmed(losses: readonly OccurrenceLoss[], confirmLo
   if (confirmLoss === false && (lost.times || lost.comments || lost.checklists || lost.links)) {
     throw clientError('CONFIRMATION_REQUIRED', 'Ce changement fait disparaître des occurrences qui ont des commentaires, des temps, des listes à cocher commencées ou des liens entre routines et évènements : confirmez pour continuer.', { lost });
   }
+}
+
+/**
+ * What a change refused for its losses (`assertLossConfirmed`: CONFIRMATION_REQUIRED) would take, to add it up with
+ * other losses of the same save; null for any other error.
+ * @param {unknown} error Error.
+ * @returns {OccurrenceLoss | null} Its losses.
+ */
+export function refusedLoss(error: unknown): OccurrenceLoss | null {
+  if (!(error instanceof GraphQLError) || error.extensions.code !== 'CONFIRMATION_REQUIRED') return null;
+  const lost = error.extensions.lost as Partial<OccurrenceLoss> | undefined;
+  return lost ? { times: lost.times ?? 0, comments: lost.comments ?? 0, checklists: lost.checklists ?? 0, links: lost.links ?? 0 } : null;
 }
 
 /**

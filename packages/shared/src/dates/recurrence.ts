@@ -835,6 +835,30 @@ export function occurrencesBefore(rule: Recurrence, start: string, date: string)
 }
 
 /**
+ * Whether a rule has an occurrence after a day (« Celle-ci et les suivantes » is offered only then: never on its last
+ * occurrence). Without an end, always; with an end date or a count, an occurrence after that day up to its end
+ * (its « rien » exceptions left out).
+ * @param {Recurrence | null | undefined} rule Rule (none: a single occurrence, none after).
+ * @param {string} start First date (where its rhythm and count start).
+ * @param {string} day Occurrence (the day of its rule).
+ * @returns {boolean} An occurrence after it.
+ */
+export function hasOccurrenceAfter(rule: Recurrence | null | undefined, start: string, day: string): boolean {
+  if (!rule) return false;
+  if (rule.until === null && rule.count === null) return true;
+  const end = rule.until ?? lastCountedOccurrence(rule, start);
+  return end !== undefined && end > day && occurrenceDates(rule, start, addDays(day, 1), end).length > 0;
+}
+
+/**
+ * Whether one of several rules (the cases of an item) has an occurrence after a day.
+ * @param {readonly { rule: Recurrence | null | undefined, start: string }[]} rules Rules, each with its first day.
+ * @param {string} day Occurrence.
+ * @returns {boolean} An occurrence after it.
+ */
+export const anyOccurrenceAfter = (rules: readonly { rule: Recurrence | null | undefined; start: string }[], day: string): boolean => rules.some((item) => hasOccurrenceAfter(item.rule, item.start, day));
+
+/**
  * Rule whose series ends before a date: its count kept, reduced to the occurrences before that date; else its end
  * date, the day before at the latest.
  * @param {Recurrence} rule Rule.

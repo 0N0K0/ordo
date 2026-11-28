@@ -22,6 +22,13 @@ The global rule « reuse before writing, never write the same thing twice » (`~
 
 `docs/code-redundancies.md` lists only the redundancies still present; the shared bricks and their roles are in `docs/web/` and `docs/shared/`. Lint guards live in `apps/web/eslint.config.js`.
 
+## Content first
+
+Ordo is business software, not a public website: UX over UI, the content comes first. Titles, navigation, search, filters, sorts and toolbars stay readable and recognisable as such, but never take too much space from the content (compact headers and toolbars, no oversized titles or empty bands).
+
+- The essential actions (add, edit, bulk edit, delete, cancel…) and the information that identifies a content stay visible on screen at all times, when the screen size allows it.
+- Where there is a lot of information, it can be folded (collapsible groups with a summary), except the essential information: identification, description, comments.
+
 ## Other rules
 
 - Folder layout: web `features/<feature>/{api,pages,components,hooks,lib}`, web `components/<domain>`, `packages/shared/src/<domain>`, `apps/api/src/services/<domain>`.

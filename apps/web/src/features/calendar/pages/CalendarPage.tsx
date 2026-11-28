@@ -46,13 +46,13 @@ import {
   useScheduleSources,
   type EventOccurrence,
 } from '../api';
-import { askScope } from '../lib/ask-scope';
+import { askScope } from '../../../components/recurrence/ask-scope';
 import { useCalendarEdits, type RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { EPHEMERIDES_TITLE, schedulesTitle, unavailableWarning } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { newEventDefaults, scopedInput } from '../lib/event-input';
-import { birthdayEvents, isArchivedOccurrence, occurrenceSpan, scheduleSources, type ShownSlots, slotEvents, slotLook } from '../lib/calendar-events';
+import { birthdayEvents, followingOffered, isArchivedOccurrence, occurrenceSpan, scheduleSources, type ShownSlots, slotEvents, slotLook } from '../lib/calendar-events';
 import { usePersonOpener } from '../hooks/use-person-opener';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
@@ -641,7 +641,7 @@ export function CalendarPage() {
     const warning = allDay ? null : unavailableWarning(slotRules.unavailable(event.start, endDate));
     let scope: 'THIS' | 'FOLLOWING' | 'ALL' = 'ALL';
     if (occurrence.occurrenceDate) {
-      const chosen = await askScope({ action: 'update' });
+      const chosen = await askScope({ action: 'update', allowFollowing: followingOffered(occurrence) });
       if (!chosen) return revert();
       scope = chosen;
     }

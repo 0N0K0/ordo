@@ -747,7 +747,6 @@ builder.queryFields((t) => ({
 /** What deleting an occurrence of a routine did. */
 const RoutineOccurrenceDeletionRef = builder.objectRef<routines.RoutineOccurrenceDeletion>('RoutineOccurrenceDeletion').implement({
   fields: (t) => ({
-    archived: t.exposeBoolean('archived', { description: 'No occurrence left: the routine was archived.' }),
     comments: t.field({ type: [CommentSnapshotRef], description: 'Comments deleted with this occurrence alone (THIS), for an undo.', resolve: (deletion) => deletion.comments }),
   }),
 });
@@ -956,10 +955,10 @@ builder.mutationFields((t) => ({
   deleteRoutineOccurrence: t.field({
     type: RoutineOccurrenceDeletionRef,
     description:
-      'Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING), with their comments; tells whether the routine was archived (nothing left) and gives the comments deleted with THIS, for an undo.',
+      'Cancels an occurrence (THIS: an exception, struck through) or deletes it and the following ones (FOLLOWING, refused when nothing comes before: the routine itself is deleted), with their comments; gives the comments deleted with THIS, for an undo.',
     args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date', required: true }), scope: t.arg({ type: EventScope, required: true }) },
     resolve: async (_root, { id, date, scope }) => {
-      if (scope === 'ALL') throw clientError('BAD_USER_INPUT', 'Archivez ou supprimez la routine elle-même.');
+      if (scope === 'ALL') throw clientError('BAD_USER_INPUT', 'Supprimez la routine elle-même.');
       return routines.deleteRoutineOccurrence(id, date, scope);
     },
   }),

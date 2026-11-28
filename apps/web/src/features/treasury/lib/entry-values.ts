@@ -1,5 +1,5 @@
 import { parisToday } from '../../../lib/dates';
-import { ON_ERROR } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import type { Recurrence, TreasuryAllocationInput } from '@ordo/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import type { DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
@@ -150,13 +150,14 @@ export function entryPayload(input: EntryValues) {
 }
 
 /**
- * Saving of fields of an entry changed in the cells of a table: the rest of the entry kept as it is.
- * @returns {(entry: TreasuryEntry | ForecastEntry, change: Partial<EntryValues>) => void} Save.
+ * Saving of fields of an entry changed in the cells of a table (or from an occurrence of a forecast): the rest of the
+ * entry kept as it is; a success toast when given.
+ * @returns {(entry: TreasuryEntry | ForecastEntry, change: Partial<EntryValues>, done?: string) => void} Save.
  */
 export function useEntryCellSave() {
   const { updateEntry } = useTreasuryMutations();
-  return (entry: TreasuryEntry | ForecastEntry, change: Partial<EntryValues>) =>
-    updateEntry.mutate({ id: entry.id, input: entryPayload({ ...entryValues(entry, { status: entry.status, copy: false, accountId: entry.accountId }), ...change }) as never }, ON_ERROR);
+  return (entry: TreasuryEntry | ForecastEntry, change: Partial<EntryValues>, done?: string) =>
+    updateEntry.mutate({ id: entry.id, input: entryPayload({ ...entryValues(entry, { status: entry.status, copy: false, accountId: entry.accountId }), ...change }) as never }, done ? toastCallbacks(done) : ON_ERROR);
 }
 
 /**

@@ -1,15 +1,18 @@
 import { openFormPanel } from '../../../components/panels/panels';
-import { changedScheduleSlot, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
+import { changedScheduleSlot, scheduleFollowingOffered, slotWords, UserError, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
 import { notifyError, notifyFailure, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
 import { ruleScheduleInput, useWorkScheduleMutations, type CalendarEventScope } from '../api';
-import { askScope } from '../lib/ask-scope';
+import { askScope } from '../../../components/recurrence/ask-scope';
 import { withMovedRuleChoice } from '../../../components/recurrence/ask-moved-rule';
 import { fetchLostOnDelete } from '../../time/api';
 import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { RoutineOccurrenceForm, SlotEditForm } from '../components/CalendarEditForms';
-import { INHERITED_SKIP_REFUSAL, skippedRepetition } from '../../routines/lib/skipped-repetition';
+import { INHERITED_SKIP_REFUSAL, routineFollowingOffered, skippedRepetition } from '../../routines/lib/skipped-repetition';
+import { useRoutineRowsActions } from '../../routines/components/RoutineBulkBar';
+import { useDeleteSchedules } from './use-delete-schedules';
+import { runAction } from '../../../components/data-table/selection/selection-actions';
 import { useCancelOccurrence } from '../../routines/hooks/use-cancel-occurrence';
 
 /** Time of the day of a routine occurrence shown in the calendar. */
@@ -47,6 +50,8 @@ export function useCalendarEdits() {
   const { update } = useWorkScheduleMutations();
   const { changeOccurrence, deleteOccurrence, patch } = useRoutineMutations();
   const cancelOccurrence = useCancelOccurrence();
+  const routineRowsActions = useRoutineRowsActions();
+  const deleteSchedules = useDeleteSchedules();
 
   /**
    * Moves, stretches or deletes (no change) a slot of a schedule (a créneau or an éphéméride: its own words); an
@@ -61,13 +66,22 @@ export function useCalendarEdits() {
     const words = slotWords(schedule.ephemeris);
     // An éphéméride of a single day moved to another day moves with its period: nothing to choose.
     const wholePeriod = schedule.ephemeris && schedule.startDate === schedule.endDate && change && change.date !== slot.date;
-    const scope = wholePeriod ? 'ALL' : await askScope({ action: change ? 'update' : 'delete', title: `${change ? 'Modifier' : 'Supprimer'} ${words.recurring}` });
+    const scope = wholePeriod
+      ? 'ALL'
+      : await askScope({ action: change ? 'update' : 'delete', allowFollowing: scheduleFollowingOffered(schedule, slot.date), title: `${change ? 'Modifier' : 'Supprimer'} ${words.recurring}` });
     if (!scope) return revert?.();
+    // Deleting « Toutes » deletes the schedule itself (its usual confirmation), never one of its cases only.
+    if (!change && scope === 'ALL') {
+      runAction(deleteSchedules([schedule]));
+      return;
+    }
     let next: ReturnType<typeof changedScheduleSlot>;
     try {
       // A case on the last day of the month moved to another day: its new rule is asked first (given up: put back).
       next = await withMovedRuleChoice((movedRule) => changedScheduleSlot(schedule, slot, change, scope, movedRule));
     } catch (error) {
+      // Its last hours deleted (« Celle-ci et les suivantes » from its first day): the schedule itself goes, never archived.
+      if (!change && error instanceof UserError && error.message === words.lastHours) return runAction(deleteSchedules([schedule]));
       notifyFailure(error, 'Changement impossible.');
       return revert?.();
     }
@@ -93,7 +107,7 @@ export function useCalendarEdits() {
    */
   const changeRoutine = async (occurrence: RoutineOccurrenceRef, to: string, times: { fromTime: string | null; dueTime: string | null }, revert?: () => void) => {
     const { routine, date, slot } = occurrence;
-    const scope = await askScope({ action: 'update', title: 'Modifier une routine', allowFollowing: true, allowAll: true });
+    const scope = await askScope({ action: 'update', title: 'Modifier une routine', allowFollowing: routineFollowingOffered(routine, date), allowAll: true });
     if (!scope) return revert?.();
     changeOccurrence.mutate(
       { id: routine.id, date, scope, to, slot: slot.index, ...times },
@@ -109,27 +123,33 @@ export function useCalendarEdits() {
 
   /**
    * Deletes an occurrence of a routine, asking which ones: this one (a « rien » exception on the day of its rule, on
-   * every case that has that day: its comments, checklist and links go, once confirmed), or it and the following ones
-   * (the repetition stops before it, telling what is deleted with them).
+   * every case that has that day: its comments, checklist and links go, once confirmed), it and the following ones
+   * (the repetition stops before it, the previous ones untouched; not offered on its last one), or all of them; all,
+   * or it and the following ones from its first one, delete the routine itself (its usual confirmation: its
+   * sub-routines, what is lost), never archive it.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
    * @returns {Promise<void>}
    */
   const deleteRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
     const { routine, date, dueDate } = occurrence;
-    const FOLLOWING = await fetchLostOnDelete({ routineOccurrence: { id: routine.id, date, scope: 'FOLLOWING' } });
-    const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowAll: false, note: scopeLostNote({ FOLLOWING }) });
+    const ruleDay = movedFrom ?? date;
+    const following = routineFollowingOffered(routine, ruleDay);
+    const FOLLOWING = following ? await fetchLostOnDelete({ routineOccurrence: { id: routine.id, date, scope: 'FOLLOWING' } }) : undefined;
+    const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowFollowing: following, note: FOLLOWING && scopeLostNote({ FOLLOWING }) });
     if (!scope) return;
     if (scope === 'THIS') {
-      const input = skippedRepetition(routine, movedFrom ?? date);
+      const input = skippedRepetition(routine, ruleDay);
       if (!input) return notifyError(INHERITED_SKIP_REFUSAL);
       patch.mutate({ id: routine.id, input }, toastCallbacks(`Occurrence du ${fmt.dayLong(dueDate)} supprimée.`));
       return;
     }
-    deleteOccurrence.mutate(
-      { id: routine.id, date, scope },
-      toastCallbacks(({ archived }: { archived: boolean }) => (archived ? `Plus aucune occurrence : « ${routine.label} » est archivée.` : `« ${routine.label} » s’arrête avant le ${fmt.dayLong(dueDate)}.`)),
-    );
+    // All of them, or from its first one: the routine itself (as « Supprimer la routine »).
+    if (scope === 'ALL' || !routine.firstDate || ruleDay <= routine.firstDate) {
+      runAction(routineRowsActions([routine]).remove);
+      return;
+    }
+    deleteOccurrence.mutate({ id: routine.id, date, scope }, toastCallbacks(`« ${routine.label} » s’arrête avant le ${fmt.dayLong(dueDate)}.`));
   };
 
   /**
@@ -143,7 +163,7 @@ export function useCalendarEdits() {
   const openSlot = async (schedule: WorkScheduleRule, label: string, slot: ScheduleSlotTime) => {
     // Dismissed: no scope, the panel opens read only.
     const words = slotWords(schedule.ephemeris);
-    const scope = await askScope({ action: 'update', title: `Modifier ${words.recurring}`, note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
+    const scope = await askScope({ action: 'update', allowFollowing: scheduleFollowingOffered(schedule, slot.date), title: `Modifier ${words.recurring}`, note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
     openFormPanel(`${words.title} du ${fmt.dayLong(slot.date)}`, (close) => (
       <SlotEditForm
         label={label}
@@ -172,7 +192,7 @@ export function useCalendarEdits() {
     const scope: CalendarEventScope | null =
       occurrence.cancelled || occurrence.archived
         ? 'THIS'
-        : await askScope({ action: 'update', title: 'Modifier une routine', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
+        : await askScope({ action: 'update', title: 'Modifier une routine', allowFollowing: routineFollowingOffered(occurrence.routine, movedFrom ?? occurrence.date), note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
     openFormPanel(`« ${occurrence.routine.label} » du ${fmt.dayLong(occurrence.dueDate)}`, (close) => (
       <RoutineOccurrenceForm
         occurrence={occurrence}

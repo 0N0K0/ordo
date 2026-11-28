@@ -117,6 +117,17 @@ Garde eslint : une liste d'exceptions écrite à la main dans du JSX (`….excep
 - `casesDayAdding(cases, start, onChange, minDate?)` : ajout d'une exception « rien » à des cas : un jour d'un des cas (chacun compté depuis son « Début », sinon `start`), donnée à tous les cas qui ont ce jour ; aide « Un jour d’un des cas : rien ce jour-là, pour tous les cas qui y tombent. ». Utilisé par les créneaux et éphémérides (`ScheduleRepetition`), les horaires des tâches (`TaskHoursField`, depuis `OWN_CASES_START`, proposés depuis aujourd’hui) et les routines à plusieurs cas. Fonction interne `isRuleDay`, constante interne `CASES_ADD_DESCRIPTION`.
 - `casesSkippedEntries(cases, onChange, prefix?)` : exceptions « rien » des règles de cas, chacune rétablie dans les cas rendus (créneau, période d'exception, horaires d'une tâche).
 
+## Portée d'un changement (`ScopeChoices.tsx`, `ask-scope.tsx`, `scope-title.ts`)
+
+La même question partout où il y a une répétition (évènements, routines, créneaux, éphémérides, prévisions) : « Cette occurrence », « Celle-ci et les suivantes » (jamais sur la dernière occurrence : `allowFollowing` faux, `hasOccurrenceAfter`), « Toutes les occurrences ».
+
+- `ScopeQuestion` (interface) : `action` (`update`, `delete`, `cancel`, `restore`), `allowThis`, `allowFollowing`, `allowAll`, `title`, `note` (ce que la modification emporte aussi, après la question).
+- `ScopeChoices({ …question, onAnswer })` : texte et boutons (icônes de `OCCURRENCE_ACTIONS` ; rouges pour une suppression), « Annuler », par `ChoiceList` ([Dialogues](dialogs.md#ask-choicetsx-choicelisttsx)).
+- `askScope(question)` : ouvre `ScopeChoices` dans une modale (`answerInModal`, au-dessus du panneau), résout la portée (`EventScope` de `@ordo/shared`) ou `null` (fermée). Utilisé par l’agenda (`CalendarPage`, `useEventForm`, `useEventMenu`, `calendar-edits`), `event-cells` (tâches) et les prévisions (`useDeleteForecastOccurrence`).
+- `scopeTitle(action)` : titre de la question (« Modifier un évènement récurrent », « Supprimer… », « Annuler… », « Rétablir… »). Constante interne `TITLES`.
+
+Garde eslint : « Cette occurrence », « Celle-ci et les suivantes », « Toutes les occurrences » écrits à la main sont refusés.
+
 ## Résumés (`describe-recurrence.ts`)
 
 - `describeRecurrence(rule, start, weekdays = true)` : règle en mots : « Toutes les 2 semaines le lundi, le jeudi », « du lundi au vendredi », « Les semaines paires », « Toutes les 2 semaines impaires le lundi », « Tous les mois le 2e mardi », « Le mardi de la 1re semaine paire de chaque mois », « Tous les 2 mois le jeudi de la dernière semaine impaire du mois », « Tous les mois le dernier jour du mois », « Tous les ans le 1er juin », « Tous les ans le dernier jour de février », « … de la semaine 12 », puis « , jusqu'au 20 décembre 2026 », « , 10 fois ». Fonctions internes `nthWeekday`, `weekdayOfParityWeek`, `parityWeeks`, `dayOfRule` (« le 14 », « le dernier jour du mois », « le dernier jour d’avril »).

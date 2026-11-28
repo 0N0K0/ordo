@@ -3,7 +3,7 @@ import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema, UserError } from '../core/rules';
 import { addDays, daysBetween, monthOfDay, weekdayOfDate, yearOfDay } from '../dates/days';
-import { DEFAULT_RECURRENCE, isLastDayRule, movedWeekdays, ONE_DAY, proposedMovedRule, RuleChoiceRequired, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
+import { anyOccurrenceAfter, DEFAULT_RECURRENCE, isLastDayRule, movedWeekdays, ONE_DAY, proposedMovedRule, RuleChoiceRequired, ruleMovedTo, shiftedRulePieces, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseFrom, caseSpanOn, caseSpans, caseUntil, periodCase, repetitionCaseSchema, storedRepetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
@@ -973,4 +973,22 @@ export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSl
   }
   if (!nextCases.length) throw new UserError(words.lastHours);
   return { ...period, cases: nextCases, exceptions: [...schedule.exceptions] };
+}
+
+/**
+ * Whether « Celle-ci et les suivantes » is offered for a day of a schedule (créneau or éphéméride): a rule of its
+ * cases, or of those of an exception period, has an occurrence after it within its period (never on its last day).
+ * @param {Pick<WorkScheduleRule, 'startDate' | 'endDate' | 'cases' | 'exceptions'>} schedule Schedule.
+ * @param {string} day Day.
+ * @returns {boolean} Offered.
+ */
+export function scheduleFollowingOffered(schedule: Pick<WorkScheduleRule, 'startDate' | 'endDate' | 'cases' | 'exceptions'>, day: string): boolean {
+  if (schedule.endDate !== null && schedule.endDate <= day) return false;
+  // Within its period: its rule ends with it at the latest.
+  const bounded = (rule: Recurrence | null, end: string | null) => (rule && end !== null && (rule.until === null || rule.until > end) ? { ...rule, until: end } : rule);
+  const rules = [
+    ...schedule.cases.map((item) => ({ rule: bounded(item.rule, schedule.endDate), start: item.start ?? schedule.startDate })),
+    ...schedule.exceptions.flatMap((period) => period.cases.map((item) => ({ rule: bounded(item.rule, period.to), start: item.start ?? period.from }))),
+  ];
+  return anyOccurrenceAfter(rules, day);
 }

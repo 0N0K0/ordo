@@ -1,7 +1,7 @@
 import { CheckIcon } from '@phosphor-icons/react';
-import { OCCURRENCE_ACTIONS } from '../../../components/actions/occurrence-entries';
-import type { CalendarEventScope } from '../api';
-import { ChoiceList } from '../../../components/dialogs/ChoiceList';
+import { OCCURRENCE_ACTIONS } from '../actions/occurrence-entries';
+import type { EventScope as CalendarEventScope } from '@ordo/shared';
+import { ChoiceList } from '../dialogs/ChoiceList';
 
 export interface ScopeQuestion {
   /** What the answer does. */
@@ -19,7 +19,7 @@ export interface ScopeQuestion {
 }
 
 /**
- * Choices of the occurrences a change of a recurring event applies to.
+ * Choices of the occurrences a change of a repetition applies to (an event, a routine, a slot, a forecast…).
  * @param {ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }} props Question and answer handler.
  * @returns {JSX.Element} Choices.
  */
@@ -38,9 +38,11 @@ export function ScopeChoices({ action, allowThis = true, allowFollowing = true, 
     <ChoiceList
       question={`${question}${allowThis ? '' : ' La répétition a changé : elle ne peut pas s’appliquer à une seule occurrence.'}${note ? ` ${note}` : ''}`}
       choices={[
+        /* eslint-disable no-restricted-syntax -- the one scope question. */
         ...(allowThis ? [{ value: 'THIS' as const, label: 'Cette occurrence', icon, danger: remove }] : []),
         ...(allowFollowing ? [{ value: 'FOLLOWING' as const, label: 'Celle-ci et les suivantes', icon, danger: remove }] : []),
         ...(allowAll ? [{ value: 'ALL' as const, label: 'Toutes les occurrences', icon, danger: remove }] : []),
+        /* eslint-enable no-restricted-syntax */
       ]}
       onAnswer={onAnswer}
     />

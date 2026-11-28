@@ -313,12 +313,18 @@ export function duplicateRowsAction<R, C>(rows: readonly R[], { loading, disable
  * @param {SelectionAction} action Action.
  * @returns {RowMenuEntry} Menu entry.
  */
-export function rowMenuEntry({ label, icon, onClick, destructive, danger, disabled }: SelectionAction): RowMenuEntry {
-  return {
-    label,
-    icon,
-    disabled,
-    danger: danger || !!destructive,
-    onClick: destructive ? () => confirmDestructive({ ...destructive, onConfirm: onClick }) : onClick,
-  };
+export function rowMenuEntry(action: SelectionAction): RowMenuEntry {
+  const { label, icon, destructive, danger, disabled } = action;
+  return { label, icon, disabled, danger: danger || !!destructive, onClick: () => runAction(action) };
+}
+
+/**
+ * Runs an action of the selection bar from elsewhere (an occurrence deleted « Toutes » deletes its item): its
+ * confirmation first when it has one.
+ * @param {SelectionAction} action Action.
+ * @returns {void}
+ */
+export function runAction({ onClick, destructive }: SelectionAction): void {
+  if (destructive) confirmDestructive({ ...destructive, onConfirm: onClick });
+  else onClick();
 }

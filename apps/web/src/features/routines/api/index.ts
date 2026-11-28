@@ -294,7 +294,6 @@ const ChangeRoutineOccurrenceDocument = graphql(`
 const DeleteRoutineOccurrenceDocument = graphql(`
   mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {
     deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {
-      archived
       comments {
         body
         createdAt

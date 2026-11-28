@@ -1893,9 +1893,8 @@ async function followOccurrence(id: string, date: string, to: string | null): Pr
   if (to && to !== date) await remapOccurrenceRows('routineId', id, (day) => (day === date ? to : undefined));
 }
 
-/** What deleting an occurrence of a routine did: archived it (nothing left), and the comments deleted with it alone. */
+/** What deleting an occurrence of a routine did: the comments deleted with it alone. */
 export interface RoutineOccurrenceDeletion {
-  archived: boolean;
   comments: CommentSnapshot[];
 }
 
@@ -2243,7 +2242,7 @@ function followingCut(routine: RoutineTiming, origin: string): Partial<RoutineIn
 
 /**
  * Occurrences of a routine whose comments « Supprimer celle-ci et les suivantes » from an occurrence deletes, to count
- * them before: those of `followingGone`, and, when its repetition ends before it (not archived), those that disappear
+ * them before: those of `followingGone`, and, when its repetition ends before it, those that disappear
  * with that change, on it and on the sub-routines going by its « quand » (as `patchRoutine` deletes them: the days of
  * its rule between the day it comes from and the day of an occurrence postponed past it, those of the sub-routines).
  * @param {string} id Routine id.
@@ -2262,15 +2261,17 @@ export async function followingOccurrencesGone(id: string, date: string): Promis
   return [...gone, ...losses.flatMap((loss) => loss.occurrences)];
 }
 
+/** Refusal of deleting an occurrence and the following ones when nothing comes before: the routine itself is deleted. */
+const NOTHING_BEFORE_REFUSAL = 'Aucune occurrence avant celle-ci : supprimez la routine elle-même.';
+
 /**
  * Cancels an occurrence of a routine from the calendar: this one alone (an exception: it stays shown, struck through,
  * with its comments), or deletes it and the following ones (its repetitions end before it, their
- * comments, checklists and links with events deleted; archived with its sub-routines when nothing comes before). Ticked occurrences keep their ticks.
+ * comments, checklists and links with events deleted; refused when nothing comes before: the routine itself is deleted). Ticked occurrences keep their ticks.
  * @param {string} id Routine id.
  * @param {string} date Occurrence (the day that identifies it: its day, or the day of its rule when kept apart).
  * @param {'THIS' | 'FOLLOWING'} scope Occurrences deleted.
- * @returns {Promise<RoutineOccurrenceDeletion>} Whether the routine was archived (nothing left), and the comments
- * deleted with this occurrence alone (THIS), for « Annuler ».
+ * @returns {Promise<RoutineOccurrenceDeletion>} The comments deleted with this occurrence alone (THIS), for « Annuler ».
  */
 export async function deleteRoutineOccurrence(id: string, date: string, scope: 'THIS' | 'FOLLOWING'): Promise<RoutineOccurrenceDeletion> {
   const found = await changeableOccurrence(id, date);
@@ -2286,25 +2287,20 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
     const next = withMove(moves, date, null, undefined, sameDayJoin(routine, schedules, moves, date, null));
     if (dead.length + next.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
     await saveMoves(found, { before: moves, moves: next, dead }, date);
-    return { archived: false, comments: [] };
+    return { comments: [] };
   }
+  const origin = movedFrom(moves, date);
+  const cut = followingCut(routine, origin);
+  // Nothing before it: deleting is never archiving, the routine itself is deleted (`deleteRoutines`); refused before any write.
+  if (!cut) throw clientError('BAD_USER_INPUT', NOTHING_BEFORE_REFUSAL);
   // The following ones go, with their comments (those written before placed first), checklists and links with events,
   // deleted once it is saved; an occurrence that stays (one from before moved after the cut) keeps its own.
   await placeLegacyRoutineComments([id]);
   const dropComments = () => deleteGoneOccurrenceRows({ routines: followingGone(routine, schedules, moves, date) });
-  const origin = movedFrom(moves, date);
-  const cut = followingCut(routine, origin);
   const pastMoves = withDead(dead, moves.filter((move) => move.from < origin));
-  if (!cut) {
-    // Archived as by hand, its sub-routines with it; its past occurrences stay, archived.
-    await prisma.routine.update({ where: { id }, data: withOwnMoves(found, pastMoves) });
-    await archiveTree<Routine>('routine', id, true, 'Routine');
-    await dropComments();
-    return { archived: true, comments: [] };
-  }
   // The sub-routines going by its repetition lose those occurrences too, with their comments (the deletion is confirmed).
   await patchRoutine(id, cut, { confirmLoss: true });
   await prisma.routine.update({ where: { id }, data: withOwnMoves(await findRoutine(id), pastMoves) });
   await dropComments();
-  return { archived: false, comments: [] };
+  return { comments: [] };
 }

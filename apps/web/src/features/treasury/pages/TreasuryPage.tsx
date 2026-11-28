@@ -65,7 +65,8 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SignedAmount, SignedAmountCell } from '../../../components/money/SignedAmount';
-import { useDeleteEntries } from '../hooks/use-delete-entries';
+import { useDeleteEntries, useDeleteForecastOccurrence } from '../hooks/use-delete-entries';
+import { occurrenceEntry } from '../../../components/actions/occurrence-entries';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 /** No account yet. */
@@ -141,6 +142,7 @@ export function TreasuryPage() {
   const { data: projection, isPending: projectionPending } = useTreasuryProjection({ today, from, until });
   const { data: forecasts } = useForecastEntries();
   const deleteEntries = useDeleteEntries();
+  const deleteForecastOccurrence = useDeleteForecastOccurrence();
   const setArchived = useSetArchived('TREASURY_ENTRY', [treasuryKey]);
   const saveEntry = useEntryCellSave();
 
@@ -524,7 +526,8 @@ export function TreasuryPage() {
                       entry.lines.length === 0 &&
                       !unfolded.has(forecastKey(row)) && { label: 'Répartir', icon: <ArrowsSplitIcon aria-hidden />, onClick: () => unfold(forecastKey(row)) },
                     archiveItem,
-                    rowMenuEntry(forecast ? deleteEntries.forecasts([entry]) : deleteEntries.movements([entry])),
+                    // A forecast: from this occurrence (this one, it and the following ones, all).
+                    forecast ? occurrenceEntry('delete', () => void deleteForecastOccurrence(entry, item.dueDate)) : rowMenuEntry(deleteEntries.movements([entry])),
                   ]}
                 />
               );

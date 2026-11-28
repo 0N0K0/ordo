@@ -18,7 +18,6 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 
 ## Exceptions des évènements
 
-- **Confirmation des pertes :** quand des exceptions d'un évènement sont rétablies avec un enregistrement (`exceptions` de `updateCalendarEvent`), la confirmation montre la première perte rencontrée (les liens de routines du premier rétablissement qui en perd), pas la somme avec celles des autres rétablissements et de l'enregistrement de la répétition (commentaires, temps, listes) : une fois confirmé, tout est fait. Il faudrait cumuler les pertes avant de demander. Voir [Agenda](business-rules/activities/calendar.md).
 - **Sans tests :** l'API et le web n'ont pas encore de tests ; l'aller-retour des exceptions (rétablir, modifier, avec commentaires, temps et liens de routines) n'est vérifié que par relecture.
 
 ## Début des cas

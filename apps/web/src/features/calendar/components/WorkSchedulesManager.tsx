@@ -25,6 +25,7 @@ import { notifyError, ON_ERROR } from '../../../lib/notify';
 import { openFormPanel } from '../../../components/panels/panels';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { useActiveWorkspace } from '../../workspaces/api';
+import { useDeleteSchedules } from '../hooks/use-delete-schedules';
 import { calendarQueryKey, useDefaultScheduleKind, useScheduleTypes, useSlotSourceArchiving, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from '../api';
 import { archiveEntry } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
@@ -34,7 +35,7 @@ import { EPHEMERIS_COLOR } from '../lib/calendar-events';
 import { useScheduleConversion } from '../hooks/use-schedule-conversion';
 import { Comments } from '../../comments/components/Comments';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
-import { archiveRowsAction, deleteItemsAction, duplicateRowsAction, rowMenuEntry, type DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, duplicateRowsAction, rowMenuEntry, type DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { useScheduleTypeItems } from '../hooks/use-settings-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
@@ -208,7 +209,7 @@ function ScheduleHours({ schedule }: { schedule: { cases: unknown; startDate: st
 export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolean }) {
   const { columns, schedules, types, defaultKind, typeById, defaultLabel } = useScheduleColumns(ephemeris);
   const convert = useScheduleConversion();
-  const { create, remove, update } = useWorkScheduleMutations();
+  const { create, update } = useWorkScheduleMutations();
   const queryClient = useQueryClient();
   const setArchived = useSlotSourceArchiving('WORK_SCHEDULE', []);
 
@@ -248,23 +249,14 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
       if (copy) openForm({ schedule: copy });
     },
   };
+  const deleteOf = useDeleteSchedules();
   /**
-   * « Supprimer » of schedules, on a row as on a selection.
+   * « Supprimer » of schedules, on a row as on a selection (`useDeleteSchedules`).
    * @param {ScheduleRow[]} rows Schedules.
    * @param {() => void} [clear] Clears the selection once done. Optional.
    * @returns {SelectionAction} Action.
    */
-  const deleteSchedules = (rows: ScheduleRow[], clear?: () => void) =>
-    deleteItemsAction(rows, {
-      noun: words.one,
-      many: words.many,
-      the: `l${ephemeris ? '’' : 'e '}${words.one}`,
-      label: ({ schedule }) => schedule.label,
-      risks: (subject, one) =>
-        `${subject} et ${one ? 'ses' : 'leurs'} exceptions seront supprimés définitivement${perso || ephemeris ? '' : ` : ${one ? 'il ne comptera' : 'ils ne compteront'} plus dans le temps prévu`}. Les autres espaces abonnés ne ${one ? 'le' : 'les'} verront plus. Les évènements ne sont pas touchés.`,
-      remove: ({ schedule }) => remove.mutateAsync(schedule.id),
-      clear,
-    });
+  const deleteSchedules = (rows: ScheduleRow[], clear?: () => void) => deleteOf(rows.map((row) => row.schedule), clear);
   const defaultColor = ephemeris ? EPHEMERIS_COLOR : (defaultKind?.color ?? null);
   const today = parisToday();
   const rows = scheduleRows(schedules ?? [], today);

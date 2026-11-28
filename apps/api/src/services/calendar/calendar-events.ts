@@ -54,7 +54,7 @@ import { checkLinkedDocuments, LINKED_DOCUMENTS_SELECT, linkedDocumentIds } from
 import { loadProjectRootOf } from '../projects/project-tree';
 import { releaseSubjectTime, type GoneOccurrences } from '../tasks/time-entries';
 import { toJson } from '../core/json';
-import { assertLossConfirmed, confirmLostOccurrences, deleteGoneOccurrenceRows, remapOccurrenceRows } from '../core/occurrence-rows';
+import { assertLossConfirmed, confirmLostOccurrences, refusedLoss, deleteGoneOccurrenceRows, remapOccurrenceRows } from '../core/occurrence-rows';
 import { placeLegacyComments } from '../core/comments';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
@@ -712,11 +712,22 @@ export async function updateCalendarEvent(
 ): Promise<CalendarEvent> {
   if (!exceptions || (!exceptions.restored.length && !exceptions.changed.length)) return savedCalendarEvent(id, input, scope, occurrenceDate, confirmLoss, movedRule);
   // Its exceptions restored and changed first, on the series as it is, then the save: all or nothing.
+  // Their losses and those of the save are confirmed together: added up, then nothing changed while unconfirmed.
   return inTransaction(async () => {
-    for (const date of exceptions.restored) await restoreEventException(id, date, confirmLoss ?? false);
+    let links = 0;
+    for (const date of exceptions.restored) links += await restoreEventException(id, date);
     // One restored is not changed too.
     for (const change of exceptions.changed.filter((item) => !exceptions.restored.includes(item.date))) await changeEventException(id, change);
-    return savedCalendarEvent(id, input, scope, occurrenceDate, confirmLoss, movedRule);
+    let saved: CalendarEvent;
+    try {
+      saved = await savedCalendarEvent(id, input, scope, occurrenceDate, confirmLoss, movedRule);
+    } catch (error) {
+      const lost = refusedLoss(error);
+      if (lost) assertLossConfirmed([lost, { times: 0, comments: 0, checklists: 0, links }], false);
+      throw error;
+    }
+    assertLossConfirmed([{ times: 0, comments: 0, checklists: 0, links }], confirmLoss);
+    return saved;
   });
 }
 
@@ -1167,7 +1178,9 @@ function movedOccurrence(from: string, shift: number, recurring: boolean): (date
 export async function goneOccurrences(id: string, scope: EventScope, occurrenceDate?: string | null): Promise<GoneOccurrences> {
   const event = await findEvent(id);
   const occurrence = occurrenceOf(event, occurrenceDate);
-  if (!occurrence || scope === 'ALL' || (scope === 'FOLLOWING' && occurrence.date === formatDay(event.startDate))) return { eventId: id };
+  // From its first occurrence shown (an earlier one deleted alone does not count): the whole event.
+  const first = scope === 'FOLLOWING' && occurrence ? ((await firstShownOccurrence(event)) ?? formatDay(event.startDate)) : null;
+  if (!occurrence || scope === 'ALL' || (first !== null && occurrence.date <= first)) return { eventId: id };
   return scope === 'THIS' ? { eventId: id, on: occurrence.date } : { eventId: id, from: occurrence.date };
 }
 
@@ -1398,14 +1411,13 @@ async function changeEventException(id: string, change: EventExceptionChange): P
  * back to its series, on its day and hours there, with the fields of its series. Its comments, times and checklist
  * stay (they are on the day that identifies it); its routine links follow it back (each moved by as many days as it
  * is, to the occurrence of its routine shown on the new day, `shiftedRoutineLink`, `resolveRoutineLinks`); those that
- * then fall on no day of it, or find no occurrence of their routine, go once confirmed (`confirmLoss`:
- * CONFIRMATION_REQUIRED with `lost.links`).
+ * then fall on no day of it, or find no occurrence of their routine, go: their number is given back, confirmed with
+ * the other losses of the save (`updateCalendarEvent`).
  * @param {string} id Event.
  * @param {string} occurrenceDate Day of the rule of the occurrence.
- * @param {boolean} [confirmLoss] Loss confirmed (true), to confirm (false). Optional. Default = false.
- * @returns {Promise<void>}
+ * @returns {Promise<number>} Routine links lost.
  */
-export async function restoreEventException(id: string, occurrenceDate: string, confirmLoss = false): Promise<void> {
+async function restoreEventException(id: string, occurrenceDate: string): Promise<number> {
   const loaded = await findEventWithRelations(id);
   await assertEventWritable(loaded);
   const occurrence = occurrenceOf(loaded, occurrenceDate);
@@ -1422,13 +1434,13 @@ export async function restoreEventException(id: string, occurrenceDate: string, 
   const resolved = shift === 0 ? within.map(({ routineId, date }) => ({ routineId, date })) : await resolveRoutineLinks(within);
   // Each once by `routineId|date`: two going to the same occurrence of a routine make one, the other is lost.
   const links = [...new Map(resolved.map((link) => [occurrenceKey(link.routineId, link.date), link])).values()];
-  assertLossConfirmed([{ times: 0, comments: 0, checklists: 0, links: own.length - links.length }], confirmLoss);
   await prisma.$transaction(async (tx) => {
     await tx.calendarEventException.delete({ where: { id: change.id } });
     if (!own.length) return;
     await tx.calendarEventRoutine.deleteMany({ where: { id: { in: own.map((link) => link.id) } } });
     await tx.calendarEventRoutine.createMany({ data: links.map((link) => ({ eventId: id, routineId: link.routineId, date: parseDay(link.date) })), skipDuplicates: true });
   });
+  return own.length - links.length;
 }
 
 /**

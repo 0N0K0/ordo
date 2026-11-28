@@ -92,11 +92,6 @@ Classes de la page et de FullCalendar : `fill` (semaine/jour pleine hauteur), `c
 
 `AvailabilityHint({ allDay, startDate, startTime, endDate, endTime })` : avertissement (`NoticeAlert`) d’un évènement à heures, enregistré quand même : pendant un créneau « Indisponible » de l’espace (jours et heures du panneau à l’heure de Paris, `parisInstant`, `useSlotRules().unavailable`, `unavailableWarning` : « Pendant « Sommeil » (indisponible). », tout espace, sur plusieurs jours aussi), et, sur un jour, hors des heures de travail de l’espace (interne `workingHoursWarning` : `useWorkingHours`, PRO seulement ; éphémérides exclues ; créneaux archivés ou d’un type archivé exclus ; `plannedSlots`, `withinSlots`, `plannedPauses`). Rien en journée entière. Utilisé par `EventForm`, `PostponeForm`.
 
-### `components/ScopeChoices.tsx`
-
-- `ScopeQuestion` (interface) : `action` (`update`, `delete`, `cancel`, `restore`), `allowThis`, `allowFollowing`, `allowAll`, `title`, `note` (ce que la modification emporte aussi, après la question : les temps supprimés avec les occurrences).
-- `ScopeChoices({ …question, onAnswer })` : texte et boutons « Cette occurrence », « Celle-ci et les suivantes », « Toutes les occurrences » (rouges pour une suppression), « Annuler », par `ChoiceList` ([Dialogues](../../components/dialogs.md#ask-choicetsx-choicelisttsx)). Utilisé par `askScope`.
-
 ### `components/CalendarEditForms.tsx`
 
 - `SlotEditForm({ label, schedule, slot, scope, onDelete, onClose })` : panneau des horaires d’un créneau ou d’une éphéméride un jour donné enregistré champ par champ (`useFieldSave` sur `scheduleSlotTimeSchema`, `SaveStatus`) pour la portée choisie à l’ouverture (`null` : lecture seule, texte interne `slotReadingNote`, « Fermer » ; textes internes `slotScopeNote`, mots de `slotWords` : « Ce jour seulement : c’est une exception, les autres jours du créneau (de l’éphéméride) ne changent pas. », « Ce jour et les suivants. », « Tous les jours de ces horaires. ») : journée entière, jour et heures dans un `PeriodField` « Jour » (`sameDay`) ; chaque changement calcule `changedScheduleSlot` depuis le créneau et les horaires tels que le dernier enregistrement les a laissés (référence interne ; dans `withMovedRuleChoice` : un cas le dernier jour du mois déplacé demande sa nouvelle règle, abandonné : remis sans toast) et enregistre le créneau entier (`useWorkScheduleMutations().update`, qui confirme les occurrences de routines perdues : `withLossConfirmation`, refusée : remis sans toast) ; un changement impossible (hors de la période…) est remis, son message en toast ; une éphéméride changée de jour avec « Toutes les occurrences », ou d’un seul jour, se décale avec sa période (`changedScheduleSlot`) ; sans bouton « Enregistrer… » ; supprimer (`onDelete(créneau, horaires)` tels qu’ils sont, avec sa propre question de portée) ; menu « … » (`ActionsMenu`, à côté de « Supprimer », ou de « Fermer » en lecture seule) : `useScheduleConversion().schedule` sur le créneau du cache (`useWorkSchedules`, son type par `useScheduleTypes`), le panneau fermé une fois converti (`onClose`).
@@ -214,11 +209,11 @@ Utilisés par `ScheduleSettings`.
 
 - `RoutineOccurrenceRef` (interface) : `{ routine, date, dueDate, slot: { index, fromTime, dueTime } }` (`date` : le jour qui identifie l’occurrence, celui des écritures ; `dueDate` : son échéance, montrée et proposée).
 - `useCalendarEdits()` : renvoie `{ changeSlot, changeRoutine, openSlot, openRoutine }` :
-  - `changeSlot(schedule, slot, change | null, revert?)` : créneau ou éphéméride (`slotWords` de `@ordo/shared` : question et toasts dans ses mots) ; demande la portée (sans la demander pour une éphéméride d’un seul jour changée de jour : toute sa période se décale), calcule `changedScheduleSlot` (dans `withMovedRuleChoice` : un cas le dernier jour du mois déplacé demande sa nouvelle règle ; abandonné, remis en place sans toast), enregistre (`useWorkScheduleMutations().update`), toasts ;
+  - `changeSlot(schedule, slot, change | null, revert?)` : créneau ou éphéméride (`slotWords` de `@ordo/shared` : question et toasts dans ses mots) ; demande la portée (« Celle-ci et les suivantes » si `scheduleFollowingOffered` ; supprimer « Toutes » supprime l’horaire lui-même : `useDeleteSchedules`, `runAction`) (sans la demander pour une éphéméride d’un seul jour changée de jour : toute sa période se décale), calcule `changedScheduleSlot` (dans `withMovedRuleChoice` : un cas le dernier jour du mois déplacé demande sa nouvelle règle ; abandonné, remis en place sans toast), enregistre (`useWorkScheduleMutations().update`), toasts ;
   - `changeRoutine(occurrence, to, times, revert?)` : portée puis `changeOccurrence` (routines) ;
   - `openSlot(schedule, label, slot)` : demande d’abord la portée (« Modifier un créneau récurrent » / « Modifier une éphéméride récurrente », panneau « Créneau du … » / « Éphéméride du … » ; fermée sans choix : `scope` `null`, panneau en lecture seule), puis panneau `SlotEditForm` ; sa suppression passe par `changeSlot(…, null)` ;
   - `openRoutine(occurrence, movedFrom)` : demande d’abord la portée (« Modifier une routine », sauf occurrence annulée ou d’une routine archivée ; fermée sans choix : `scope` `null`, panneau en lecture seule), puis panneau `RoutineOccurrenceForm` avec elle et `movedFrom` ; « Annuler » et « Rétablir » par `useCancelOccurrence` (« Rétablir » la remet telle qu’elle était avant l’annulation : jour où elle était déplacée, gardée à part, horaires ; sinon le jour de sa règle). `RoutineOccurrenceRef` porte `cancelled` et `archived` (occurrences annulées barrées et non déplaçables ; d’une routine archivée estompées, avec « Afficher les archivés »).
-  - Interne `deleteRoutine(occurrence, movedFrom)` : « Supprimer », portée (`THIS` / `FOLLOWING`, avec ce que la suite emporte) ; `THIS` : une exception « rien » le jour de sa règle, sur chaque cas qui a ce jour (`skippedRepetition`, `patch`, ses commentaires confirmés par `withLossConfirmation`) ; `FOLLOWING` : `deleteOccurrence`.
+  - Interne `deleteRoutine(occurrence, movedFrom)` : « Supprimer », portée (`THIS` / `FOLLOWING` si `routineFollowingOffered`, avec ce que la suite emporte / `ALL`) ; `ALL`, ou `FOLLOWING` depuis la première (`firstDate`) : la routine elle-même (`useRoutineRowsActions().remove`, `runAction`) ; `THIS` : une exception « rien » le jour de sa règle, sur chaque cas qui a ce jour (`skippedRepetition`, `patch`, ses commentaires confirmés par `withLossConfirmation`) ; `FOLLOWING` sinon : `deleteOccurrence`.
 - Type interne `RoutineSlotTimes`. Utilisé par `openSchedulesManager`.
 
 ### `hooks/use-schedule-columns.tsx`
@@ -265,13 +260,13 @@ Utilisés par `ScheduleSettings`.
 
 ## lib
 
-### `lib/ask-scope.tsx`
+### `lib/calendar-events.ts` : `followingOffered`
 
-- `askScope(question)` : ouvre `ScopeChoices` dans une modale (`answerInModal`, au-dessus du panneau), résout la portée ou `null` (fermée). Utilisé par `CalendarPage`, `EventForm` (suppression), `useEventForm` et `calendar-edits` (portée d’un panneau choisie à son ouverture), `event-cells` (tâches).
+`followingOffered(occurrence)` : « Celle-ci et les suivantes » proposé pour une occurrence d’un évènement récurrent qui en a une après elle (`hasOccurrenceAfter` : jamais sur la dernière), pour modifier, annuler et supprimer (`useEventForm`, `useEventMenu`, `CalendarPage`, `event-cells`).
 
-### `lib/scope-title.ts`
+### `hooks/use-delete-schedules.ts`
 
-`scopeTitle(action)` : titre de la question (« Modifier un évènement récurrent », « Supprimer… », « Annuler… », « Rétablir… »). Constante interne `TITLES`.
+`useDeleteSchedules()` : `(schedules, clear?) => SelectionAction` : « Supprimer » de créneaux ou d’éphémérides dans leurs mots, confirmé avec ses risques (`deleteItemsAction`, `remove` avec `withLossConfirmation`) ; le même dans le gestionnaire (`WorkSchedulesManager`) et dans l’agenda (« Toutes » d’une occurrence, `runAction`).
 
 ### `lib/event-exceptions.ts`
 
